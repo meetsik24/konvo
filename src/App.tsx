@@ -13,6 +13,7 @@ import SendSMS from './pages/SendSMS';
 import SendEmail from './pages/SendEmail';
 import Voice from './pages/Voice';
 import Chatbot from './pages/Chatbot';
+import ApiKeys from './pages/apikeys';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
               <Route path="/voice" element={<Voice />} />
               <Route path="/chatbot" element={<Chatbot />} />
               <Route path="/account" element={<Account />} />
+              <Route path="/apikeys" element={<ApiKeys />} />
             </Route>
           </Route>
           <Route path="*" element={<NotFound />} />

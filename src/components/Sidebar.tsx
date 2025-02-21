@@ -10,7 +10,7 @@ const navItems = [
   { to: '/chatbot', icon: Bot, label: 'Chatbot' },
   { to: '/campaigns', icon: Megaphone, label: 'Campaigns' },
   { to: '/esim', icon: Sim, label: 'eSIM' },
-  { to: '/api-keys', icon: Key, label: 'API Keys' },
+  { to: '/apikeys', icon: Key, label: 'API Keys' },
   { to: '/logs', icon: Activity, label: 'Logs' },
   { to: '/analytics', icon: BarChart, label: 'Analytics' },
 ];
