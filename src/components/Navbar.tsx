@@ -19,7 +19,7 @@ const Navbar: React.FC = () => {
         <div className="flex justify-between h-20">
           <div className="flex items-center">
             <Link to="/" className="flex items-center gap-2">
-              <Coffee className="w-8 h-8 text-primary-500" />
+              <img src="/assets/briq2.png" alt="Briq Logo" className="w-8 h-8" />
               <span className="text-2xl font-bold text-primary-500">Briq</span>
             </Link>
           </div>
