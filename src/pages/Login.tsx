@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LogIn } from 'lucide-react';
@@ -9,6 +9,7 @@ const Login: React.FC = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const pendingUser = useSelector((state: any) => state.auth.pendingUser);
   const [formData, setFormData] = useState({
     email: location.state?.email || '',
     password: ''
@@ -23,12 +24,15 @@ const Login: React.FC = () => {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const pendingUser = JSON.parse(localStorage.getItem('pendingUser') || '{}');
-    
-    if (pendingUser.email === formData.email && pendingUser.verified) {
-      // Simulate successful login
-      localStorage.setItem('user', JSON.stringify(pendingUser));
-      localStorage.removeItem('pendingUser');
+    if (pendingUser && 
+        pendingUser.email === formData.email && 
+        pendingUser.password === formData.password &&
+        pendingUser.verified) {
+      // Login successful
+      dispatch(setCredentials({
+        email: pendingUser.email,
+        name: pendingUser.name
+      }));
       navigate('/');
     } else {
       setError('Invalid credentials or unverified account');

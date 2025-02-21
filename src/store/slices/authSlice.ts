@@ -1,40 +1,47 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { AuthState, User } from '../../types';
 
+interface AuthState {
+  pendingUser: {
+    email: string;
+    password: string;
+    name: string;
+    verified: boolean;
+  } | null;
+  isAuthenticated: boolean;
+  user: any | null;
+}
+
 const initialState: AuthState = {
-  user: null,
-  token: null,
+  pendingUser: null,
   isAuthenticated: false,
-  isLoading: false,
-  error: null,
+  user: null,
 };
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setCredentials: (
-      state,
-      action: PayloadAction<{ user: User; token: string }>
-    ) => {
-      const { user, token } = action.payload;
-      state.user = user;
-      state.token = token;
+    setPendingUser: (state, action: PayloadAction<{ email: string; password: string; name: string }>) => {
+      state.pendingUser = { ...action.payload, verified: false };
+    },
+    setVerified: (state) => {
+      if (state.pendingUser) {
+        state.pendingUser.verified = true;
+      }
+    },
+    setCredentials: (state, action) => {
       state.isAuthenticated = true;
+      state.user = action.payload;
+      state.pendingUser = null;
     },
     logout: (state) => {
-      state.user = null;
-      state.token = null;
       state.isAuthenticated = false;
-    },
-    setLoading: (state, action: PayloadAction<boolean>) => {
-      state.isLoading = action.payload;
-    },
-    setError: (state, action: PayloadAction<string | null>) => {
-      state.error = action.payload;
+      state.user = null;
+      state.pendingUser = null;
     },
   },
 });
 
-export const { setCredentials, logout, setLoading, setError } = authSlice.actions;
+export const { setPendingUser, setVerified, setCredentials, logout } = authSlice.actions;
 export default authSlice.reducer;

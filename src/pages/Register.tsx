@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { UserPlus } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { setPendingUser } from '../store/slices/authSlice';
 
 const Register: React.FC = () => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
@@ -18,23 +21,20 @@ const Register: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
       return;
     }
 
-    // Store user data in localStorage for simulation
-    localStorage.setItem('pendingUser', JSON.stringify({
+    // Store credentials in Redux
+    dispatch(setPendingUser({
       email: formData.email,
+      password: formData.password,
       name: formData.name,
-      verified: false
     }));
 
-    // Simulate OTP by storing it in localStorage (in real app, this would come from backend)
+    // Simulate OTP generation
     localStorage.setItem('simulatedOTP', '123456');
     
     setLoading(false);

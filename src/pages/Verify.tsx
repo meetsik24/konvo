@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, RefreshCw } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { setVerified } from '../store/slices/authSlice';
 
 const Verify = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -17,6 +19,7 @@ const Verify = () => {
         message: '',
         type: 'success' as 'success' | 'error'
     });
+    const dispatch = useDispatch();
 
     useEffect(() => {
         if (!email) {
@@ -71,9 +74,8 @@ const Verify = () => {
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             if (otpString === '123456') { // Hardcoded OTP for testing
-                const pendingUser = JSON.parse(localStorage.getItem('pendingUser') || '{}');
-                localStorage.setItem('pendingUser', JSON.stringify({ ...pendingUser, verified: true }));
-
+                dispatch(setVerified());
+                
                 setNotification({
                     show: true,
                     message: 'Account verified successfully! Redirecting to login...',
