@@ -1,29 +1,40 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LogIn } from 'lucide-react';
 import { setCredentials } from '../store/slices/authSlice';
 
 const Login: React.FC = () => {
+  const location = useLocation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    email: location.state?.email || '',
+    password: ''
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement actual login logic
-    dispatch(setCredentials({
-      user: {
-        id: '1',
-        name: 'John Doe',
-        email: email,
-        role: 'user'
-      },
-      token: 'dummy-token'
-    }));
-    navigate('/');
+    setLoading(true);
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const pendingUser = JSON.parse(localStorage.getItem('pendingUser') || '{}');
+    
+    if (pendingUser.email === formData.email && pendingUser.verified) {
+      // Simulate successful login
+      localStorage.setItem('user', JSON.stringify(pendingUser));
+      localStorage.removeItem('pendingUser');
+      navigate('/');
+    } else {
+      setError('Invalid credentials or unverified account');
+    }
+    
+    setLoading(false);
   };
 
   return (
@@ -57,8 +68,8 @@ const Login: React.FC = () => {
                 required
                 className="input"
                 placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
             <div>
@@ -72,16 +83,22 @@ const Login: React.FC = () => {
                 required
                 className="input"
                 placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
             </div>
           </div>
 
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+
           <div>
-            <button type="submit" className="btn btn-primary w-full flex justify-center items-center">
-              <LogIn className="w-5 h-5 mr-2" />
-              Sign in
+            <button type="submit" className="btn btn-primary w-full flex justify-center items-center" disabled={loading}>
+              {loading ? 'Signing in...' : (
+                <>
+                  <LogIn className="w-5 h-5 mr-2" />
+                  Sign in
+                </>
+              )}
             </button>
           </div>
         </form>

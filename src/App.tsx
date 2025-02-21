@@ -15,6 +15,7 @@ import Voice from './pages/Voice';
 import Chatbot from './pages/Chatbot';
 import ApiKeys from './pages/apikeys';
 import Logs from './pages/Logs';
+import Verify from './pages/Verify';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verify" element={<Verify />} />
           <Route element={<Layout />}>
             <Route element={<PrivateRoute />}>
               <Route path="/" element={<Dashboard />} />

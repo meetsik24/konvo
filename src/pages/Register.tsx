@@ -11,11 +11,34 @@ const Register: React.FC = () => {
     password: '',
     confirmPassword: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement actual registration logic
-    navigate('/login');
+    setLoading(true);
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    // Store user data in localStorage for simulation
+    localStorage.setItem('pendingUser', JSON.stringify({
+      email: formData.email,
+      name: formData.name,
+      verified: false
+    }));
+
+    // Simulate OTP by storing it in localStorage (in real app, this would come from backend)
+    localStorage.setItem('simulatedOTP', '123456');
+    
+    setLoading(false);
+    navigate('/verify', { state: { email: formData.email } });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
