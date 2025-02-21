@@ -19,6 +19,9 @@ const ApiKeys = () => {
     type: 'success' as 'success' | 'error'
   });
 
+  // Add loading states for individual operations
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
   const fetchApiKeys = async () => {
     setLoading(true);
     try {
@@ -50,20 +53,47 @@ const ApiKeys = () => {
     setLoading(false);
   };
 
+  // Enhanced delete function with confirmation and loading state
   const deleteApiKey = async (id: string) => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this API key? This action cannot be undone.'
+    );
+    
+    if (!confirmed) return;
+
+    setActionInProgress(`delete-${id}`);
     try {
-      // TODO: Replace with your API endpoint
-      await fetch(`/api/keys/${id}`, { method: 'DELETE' });
-      setApiKeys(apiKeys.filter(key => key.id !== id));
+      const response = await fetch(`/api/keys/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete API key');
+      }
+
+      setApiKeys(prevKeys => prevKeys.filter(key => key.id !== id));
       showNotification('API key deleted successfully', 'success');
     } catch (error) {
       showNotification('Failed to delete API key', 'error');
+    } finally {
+      setActionInProgress(null);
     }
   };
 
-  const copyToClipboard = (key: string) => {
-    navigator.clipboard.writeText(key);
-    showNotification('API key copied to clipboard', 'success');
+  // Enhanced copy function with loading state and error handling
+  const copyToClipboard = async (key: string) => {
+    setActionInProgress(`copy-${key}`);
+    try {
+      await navigator.clipboard.writeText(key);
+      showNotification('API key copied to clipboard', 'success');
+    } catch (error) {
+      showNotification('Failed to copy API key', 'error');
+    } finally {
+      setActionInProgress(null);
+    }
   };
 
   const showNotification = (message: string, type: 'success' | 'error') => {
@@ -130,16 +160,26 @@ const ApiKeys = () => {
                       <button
                         onClick={() => copyToClipboard(apiKey.key)}
                         className="btn btn-icon btn-ghost"
+                        disabled={actionInProgress === `copy-${apiKey.key}`}
                         title="Copy API key"
                       >
-                        <Copy className="w-5 h-5" />
+                        {actionInProgress === `copy-${apiKey.key}` ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500" />
+                        ) : (
+                          <Copy className="w-5 h-5" />
+                        )}
                       </button>
                       <button
                         onClick={() => deleteApiKey(apiKey.id)}
                         className="btn btn-icon btn-ghost text-red-500"
+                        disabled={actionInProgress === `delete-${apiKey.id}`}
                         title="Delete API key"
                       >
-                        <Trash2 className="w-5 h-5" />
+                        {actionInProgress === `delete-${apiKey.id}` ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500" />
+                        ) : (
+                          <Trash2 className="w-5 h-5" />
+                        )}
                       </button>
                     </td>
                   </tr>
