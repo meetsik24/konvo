@@ -27,13 +27,13 @@ const Account: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto p-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
       >
-        <div className="card">
+        <div className="card p-8">
           <h2 className="text-2xl font-bold mb-6">Account Settings</h2>
           
           <div className="space-y-8">
