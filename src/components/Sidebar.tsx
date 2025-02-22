@@ -7,12 +7,15 @@ const navItems = [
   { to: '/send-sms', icon: MessageSquare, label: 'Send SMS' },
   { to: '/send-email', icon: Mail, label: 'Send Email' },
   { to: '/voice', icon: Phone, label: 'Voice API' },
+  {to: '/senderid', icon: LayoutDashboard, label: 'Sender ID'},
   { to: '/chatbot', icon: Bot, label: 'Chatbot' },
   { to: '/campaigns', icon: Megaphone, label: 'Campaigns' },
-  { to: '/esim', icon: Sim, label: 'eSIM' },
+  { to: '/contacts', icon: Sim, label: 'Contacts' },
   { to: '/apikeys', icon: Key, label: 'API Keys' },
   { to: '/logs', icon: Activity, label: 'Logs' },
-  { to: '/analytics', icon: BarChart, label: 'Analytics' },
+  
+  {to: '/subscription', icon: LayoutDashboard, label: 'Subscription'},
+  
 ];
 
 const Sidebar: React.FC = () => {

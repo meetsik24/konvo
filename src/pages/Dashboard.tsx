@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Activity, Users, MessageSquare, CheckCircle } from 'lucide-react';
+import { Activity, Users, MessageSquare, CheckCircle, XCircle, Megaphone } from 'lucide-react';
 
 const data = [
   { name: 'Jan', value: 400 },
@@ -17,6 +17,9 @@ const stats = [
   { title: 'Success Rate', value: '99.9%', icon: CheckCircle, color: 'bg-green-500' },
   { title: 'API Calls', value: '1.2M', icon: Activity, color: 'bg-purple-500' },
   { title: 'Active Users', value: '3,241', icon: Users, color: 'bg-orange-500' },
+  { title: 'Number of Campaigns', value: '45', icon: Megaphone, color: 'bg-yellow-500' },
+  { title: 'Total Fails', value: '1,024', icon: XCircle, color: 'bg-red-500' },
+  { title: 'Total Contacts', value: '8,765', icon: Users, color: 'bg-teal-500' },
 ];
 
 const Dashboard: React.FC = () => {
@@ -29,10 +32,11 @@ const Dashboard: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="card"
+            whileHover={{ scale: 1.05 }}
+            className="card transform transition-transform duration-300 rounded-md shadow-sm hover:shadow-md"
           >
-            <div className="flex items-center">
-              <div className={`p-3 rounded-lg ${stat.color}`}>
+            <div className="flex items-center p-4">
+              <div className={`p-3 rounded-full ${stat.color}`}>
                 <stat.icon className="w-6 h-6 text-white" />
               </div>
               <div className="ml-4">
@@ -44,11 +48,22 @@ const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      <div className="card">
-        <h2 className="text-lg font-semibold mb-4 p-4">Message Volume</h2>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7 }}
+        className="card rounded-md shadow-sm p-6"
+      >
+        <h2 className="text-lg font-semibold mb-4">Message Volume</h2>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
+              <defs>
+                <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -59,11 +74,13 @@ const Dashboard: React.FC = () => {
                 stroke="#0ea5e9"
                 strokeWidth={2}
                 dot={{ fill: '#0ea5e9' }}
+                fillOpacity={1}
+                fill="url(#colorUv)"
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

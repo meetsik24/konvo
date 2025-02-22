@@ -1,12 +1,15 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, Send, Phone, Clock } from 'lucide-react';
-
+import { useContacts } from '../components/ContactsContext';
+import { ContactsProvider } from '../components/ContactsContext';
 const SendSMS: React.FC = () => {
+  const { contacts } = useContacts();
   const [message, setMessage] = useState('');
   const [recipient, setRecipient] = useState('');
   const [schedule, setSchedule] = useState('');
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // TODO: Implement SMS sending logic
@@ -82,6 +85,23 @@ const SendSMS: React.FC = () => {
             </button>
           </div>
         </form>
+      </div>
+
+      <div className="card p-8">
+        <h2 className="text-lg font-semibold mb-4">Import Contacts</h2>
+        <ul className="space-y-2">
+          {contacts.map((contact) => (
+            <li key={contact.id} className="flex justify-between items-center">
+              <span>{contact.name}</span>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setRecipient(contact.phone)}
+              >
+                Use
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
