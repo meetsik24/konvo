@@ -1,21 +1,22 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Mail, Phone, Bot, Megaphone, Sigma as Sim, Key, Activity, BarChart } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Mail, Phone, Bot, Megaphone, Sigma as Sim, Key, Activity, BarChart, IdCard } from 'lucide-react';
+
+import { Users, DollarSign } from 'lucide-react';
+
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/send-sms', icon: MessageSquare, label: 'Send SMS' },
   { to: '/send-email', icon: Mail, label: 'Send Email' },
   { to: '/voice', icon: Phone, label: 'Voice API' },
-  {to: '/senderid', icon: LayoutDashboard, label: 'Sender ID'},
+  { to: '/senderid', icon: IdCard, label: 'Sender ID' },
   { to: '/chatbot', icon: Bot, label: 'Chatbot' },
-  { to: '/campaigns', icon: Megaphone, label: 'Campaigns' },
-  { to: '/contacts', icon: Sim, label: 'Contacts' },
+  // { to: '/campaigns', icon: Megaphone, label: 'Campaigns' },
+  { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/apikeys', icon: Key, label: 'API Keys' },
   { to: '/logs', icon: Activity, label: 'Logs' },
-  
-  {to: '/subscription', icon: LayoutDashboard, label: 'Subscription'},
-  
+  { to: '/subscription', icon: DollarSign, label: 'Subscription' },
 ];
 
 const Sidebar: React.FC = () => {
