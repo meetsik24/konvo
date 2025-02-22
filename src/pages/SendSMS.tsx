@@ -1,18 +1,21 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, Send, Phone, Clock } from 'lucide-react';
 import { useContacts } from '../components/ContactsContext';
-import { ContactsProvider } from '../components/ContactsContext';
+
 const SendSMS: React.FC = () => {
   const { contacts } = useContacts();
   const [message, setMessage] = useState('');
   const [recipient, setRecipient] = useState('');
   const [schedule, setSchedule] = useState('');
+  const [senderId, setSenderId] = useState('');
+
+  const senderIds = ['Sender1', 'Sender2', 'Sender3']; // Example sender IDs
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // TODO: Implement SMS sending logic
+    console.log({ senderId, recipient, message, schedule });
   };
 
   return (
@@ -30,14 +33,28 @@ const SendSMS: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              Sender ID
+            </label>
+            <select
+              className="input"
+              value={senderId}
+              onChange={(e) => setSenderId(e.target.value)}
+            >
+              <option value="" disabled>Select Sender ID</option>
+              {senderIds.map((id) => (
+                <option key={id} value={id}>{id}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Recipient Phone Number
             </label>
             <div className="flex gap-3">
-              <div className="w-24">
-                <select className="input">
-                  <option>+1</option>
-                  <option>+44</option>
-                  <option>+91</option>
+              <div className="w-40">
+                <select className="input" defaultValue="+255">
+                  <option value="+255">🇹🇿&nbsp;+255</option>
                 </select>
               </div>
               <input
