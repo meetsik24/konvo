@@ -1,5 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { AuthState, User } from '../../types';
+import axios from 'axios';
+import { AppDispatch } from '..';
 
 interface AuthState {
   pendingUser: {
@@ -44,4 +46,13 @@ const authSlice = createSlice({
 });
 
 export const { setPendingUser, setVerified, setCredentials, logout } = authSlice.actions;
+
+export const login = (email: string, password:string) => async (dispatch: AppDispatch) => {
+  try{
+    const response = await axios.post('/here we put on the endpoint', {email, password});
+    dispatch(setCredentials(response.data));
+  } catch (error) {
+    console.error('failed to login:', error);
+  }
+}
 export default authSlice.reducer;
