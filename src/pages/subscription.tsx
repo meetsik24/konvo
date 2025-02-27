@@ -25,6 +25,23 @@ interface SubscriptionDetails {
 
 const plans: PricingPlan[] = [
   {
+    id: 'basic',
+    name: 'Basic',
+    price: 15,
+    interval: 'month',
+    features: [
+      'Limited SMS API access',
+      'Email support',
+      'Basic analytics',
+      'Single user account'
+    ],
+    limits: {
+      sms: 500,
+      email: 2000,
+      voice: 50
+    }
+  },
+  {
     id: 'starter',
     name: 'Starter',
     price: 29,
@@ -33,7 +50,8 @@ const plans: PricingPlan[] = [
       'Basic SMS API access',
       'Email support',
       'Basic analytics',
-      'Single user account'
+      'Single user account',
+      'Basic integrations'
     ],
     limits: {
       sms: 1000,
@@ -183,7 +201,7 @@ const Subscription = () => {
         </div>
       </div>
 
-    <div className="grid gap-8 lg:grid-cols-3 lg:gap-x-8 mt-16">
+    <div className="grid gap-8 lg:grid-cols-4 lg:gap-x-6 mt-16">
         {plans.map((plan) => (
             <motion.div
                 key={plan.id}
