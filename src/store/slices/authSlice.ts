@@ -4,27 +4,26 @@ import axios from 'axios';
 import { AppDispatch } from '..';
 
 interface AuthState {
-  pendingUser: {
-    email: string;
-    password: string;
-    name: string;
-    verified: boolean;
-  } | null;
+  pendingUser: { name: string; email: string; phoneNumber: string; verified: boolean } | null;
   isAuthenticated: boolean;
   user: any | null;
+  otpSent: boolean;
+  error: string | null;
 }
 
 const initialState: AuthState = {
   pendingUser: null,
   isAuthenticated: false,
   user: null,
+  otpSent: false,
+  error: null,
 };
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setPendingUser: (state, action: PayloadAction<{ email: string; password: string; name: string }>) => {
+    setPendingUser: (state, action: PayloadAction<{ email: string; password: string; name: string; phoneNumber: string }>) => {
       state.pendingUser = { ...action.payload, verified: false };
     },
     setVerified: (state) => {
@@ -46,13 +45,4 @@ const authSlice = createSlice({
 });
 
 export const { setPendingUser, setVerified, setCredentials, logout } = authSlice.actions;
-
-export const login = (email: string, password:string) => async (dispatch: AppDispatch) => {
-  try{
-    const response = await axios.post('/here we put on the endpoint', {email, password});
-    dispatch(setCredentials(response.data));
-  } catch (error) {
-    console.error('failed to login:', error);
-  }
-}
 export default authSlice.reducer;
