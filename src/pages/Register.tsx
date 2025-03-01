@@ -102,16 +102,16 @@ const Register: React.FC = () => {
               />
             </div>
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label htmlFor="phoneNumber" className="sr-only">
                 Phone number
               </label>
               <input
-                id="phone"
-                name="phone"
+                id="phoneNumber"
+                name="phoneNumber"
                 type="text"
                 required
                 className="input"
-                placeholder="phone number"
+                placeholder="Phone number"
                 value={formData.phoneNumber}
                 onChange={handleChange}
               />
