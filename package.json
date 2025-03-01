@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.2.1",
+    "@rollup/rollup-linux-x64-gnu": "^4.34.8",
     "@types/papaparse": "^5.3.15",
     "axios": "^1.6.7",
     "framer-motion": "^11.0.8",
@@ -37,6 +38,6 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
-    "vite": "^5.4.2"
+    "vite": "^6.2.0"
   }
 }
