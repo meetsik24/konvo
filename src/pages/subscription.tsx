@@ -201,6 +201,7 @@ const Subscription = () => {
         </div>
       </div>
 
+
     <div className="grid gap-8 lg:grid-cols-4 lg:gap-x-6 mt-16">
         {plans.map((plan) => (
             <motion.div
