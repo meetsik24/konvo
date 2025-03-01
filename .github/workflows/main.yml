@@ -3,7 +3,7 @@ name: Paris Ops
 on:
   push:
     branches:
-      - main  # Trigger on pushes to the main branch
+      - main
 
 jobs:
   build-and-push:
@@ -20,11 +20,11 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/briqpilot:latest .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/briqfrontend:latest .
 
       - name: Push Docker image to Docker Hub
         run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/briqpilot:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/briqfrontend:latest
 
   deploy:
     runs-on: ubuntu-latest
@@ -36,8 +36,8 @@ jobs:
       - name: Deploy to DigitalOcean Droplet
         run: |
           sshpass -p "${{ secrets.DROPLET_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} << 'EOF'
-            cd ~/briqDocker
+            cd ~/briqFrontend
             docker-compose pull
-            docker-compose up -d --force-recreate
-            docker system prune -f
+            docker-compose up -d --no-deps --force-recreate frontend
+            docker image prune -f
           EOF
