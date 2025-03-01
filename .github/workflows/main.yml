@@ -11,8 +11,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Ensures latest updates are fetched
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -20,7 +18,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Force Build Docker image (No Cache)
+      - name: Build Docker image
         run: |
           docker build --no-cache -t ${{ secrets.DOCKER_USERNAME }}/briqfrontend:latest .
 
@@ -39,7 +37,9 @@ jobs:
         run: |
           sshpass -p "${{ secrets.DROPLET_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} << 'EOF'
             cd ~/briqFrontend
-            docker-compose pull frontend
+            docker stop briqfrontend-frontend-1
+            docker rm briqfrontend-frontend-1
+            docker-compose pull
             docker-compose up -d --no-deps --force-recreate frontend
             docker image prune -f
           EOF
