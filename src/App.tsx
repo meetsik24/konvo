@@ -13,10 +13,10 @@ import SendSMS from './pages/SendSMS';
 import SendEmail from './pages/SendEmail';
 import Voice from './pages/Voice';
 import Chatbot from './pages/Chatbot';
-import ApiKeys from './pages/ApiKeys';
+import ApiKeys from './pages/apikeys';
 import Logs from './pages/Logs';
 import Verify from './pages/Verify';
-import Subscription from './pages/Subscription';
+import Subscription from './pages/subscription';
 import SenderID from './pages/SenderID';
 import Contacts from './pages/Contacts';
 import { ContactsProvider } from './components/ContactsContext'; // Updated import path
