@@ -7,7 +7,7 @@ import { setPendingUser } from '../store/slices/authSlice';
 import { register } from '../store/actions/authActions';
 
 const Register: React.FC = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<typeof store.dispatch>();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
