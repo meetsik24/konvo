@@ -107,7 +107,7 @@ const Verify = () => {
             } else {
                 throw new Error('Invalid OTP');
             }
-        } catch (error) {
+        } catch {
             setError('Invalid OTP. Please try again.');
             setOtp(['', '', '', '', '', '']);
             inputRefs.current[0]?.focus();
@@ -166,7 +166,7 @@ const Verify = () => {
 
                     <div className="text-center">
                         <button
-                            onClick={() => resendOTP(phoneNumber, 'sms')}
+                            onClick={resendOTPHandler}
                             disabled={countdown > 0}
                             className="text-primary-600 hover:text-primary-500 text-sm font-medium"
                         >
