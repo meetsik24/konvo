@@ -37,6 +37,7 @@ export const getUser = async (email: string) => {
   return response.data;
 };
 
+// EndPoints For API Keys
 export const createApiKey = async (email: string, name: string) => {
   const response = await api.post("/auth/create_api_key", null, { params: { email, name } });
   return response.data;
@@ -47,12 +48,29 @@ export const getApiKeys = async (email: string) => {
   return response.data;
 };
 
+ //Endpoints for Sender ID Generations
+export const createSenderId = async (senderid: string) =>{
+  const response = await api.post("/auth/create_senderid", {params:{senderid}});
+  return response.data;
+}
+
+export const getSenderId = async (senderid:string) =>{
+  const response = await api.get("auth/senderid", {params: {senderid}});
+  return response.data;
+}
+
+export const deleteSenderId = async (senderid: string) =>{
+  const response = await api.delete("auth/senderid", {params: {senderid}});
+  return response.data;
+}
+
 
 export const deleteApiKey = async (email: string, apiKey: string) => {
   const response = await api.delete("/auth/delete_api_key", { params: { email, api_key: apiKey } });
   return response.data;
 };
 
+//EndPoints for OTP
 export const requestOtp = async (channel: string, recipient: string, length: number, structure: string, caseType: string) => {
   const response = await api.post("/otp/request-otp", { channel, recipient, length, structure, case: caseType });
   return response.data;
@@ -67,5 +85,7 @@ export const resendOTP = async (recipient: string, channel: string) => {
   const response = await api.post("/otp/request-otp", { recipient, channel });
   return response.data;
 }
+
+
 
 export default api;
