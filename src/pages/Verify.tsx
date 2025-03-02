@@ -4,6 +4,8 @@ import { Shield, RefreshCw } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setVerified } from '../store/slices/authSlice';
+import { verifyOtp, resendOTP } from '../services/api';
+
 
 const Verify = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -14,6 +16,7 @@ const Verify = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const email = location.state?.email || '';
+    const phoneNumber = location.state?.phoneNumber || '';
     const [notification, setNotification] = useState({
         show: false,
         message: '',
@@ -22,10 +25,10 @@ const Verify = () => {
     const dispatch = useDispatch();
 
     useEffect(() => {
-        if (!email) {
+        if (!phoneNumber) {
             navigate('/register');
         }
-    }, [email, navigate]);
+    }, [phoneNumber, navigate]);
 
     useEffect(() => {
         if (countdown > 0) {
@@ -52,12 +55,22 @@ const Verify = () => {
         }
     };
 
-    const resendOTP = async () => {
+    const resendOTPHandler = async () => {
         setCountdown(30);
-        // Simulate new OTP generation
-        const newOTP = '123456';
-        localStorage.setItem('simulatedOTP', newOTP);
-        showNotification('New OTP sent successfully', 'success');
+        try {
+            await resendOTP(phoneNumber, 'sms'); // Use the imported resendOTP function
+            setNotification({
+                show: true,
+                message: 'New OTP sent successfully',
+                type: 'success'
+            });
+        } catch {
+            setNotification({
+                show: true,
+                message: 'Failed to send OTP. Please try again.',
+                type: 'error'
+            });
+        }
     };
 
     const verifyOTP = async () => {
@@ -70,10 +83,10 @@ const Verify = () => {
         setLoading(true);
         
         try {
-            // Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Call the real API endpoint
+            const response = await verifyOtp(otpString, 'sms', phoneNumber);
 
-            if (otpString === '123456') { // Hardcoded OTP for testing
+            if (response.success) {
                 dispatch(setVerified());
                 
                 setNotification({
@@ -153,7 +166,7 @@ const Verify = () => {
 
                     <div className="text-center">
                         <button
-                            onClick={resendOTP}
+                            onClick={() => resendOTP(phoneNumber, 'sms')}
                             disabled={countdown > 0}
                             className="text-primary-600 hover:text-primary-500 text-sm font-medium"
                         >
