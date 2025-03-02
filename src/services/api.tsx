@@ -63,4 +63,9 @@ export const verifyOtp = async (otp: string, channel: string, recipient: string)
   return response.data;
 };
 
+export const resendOTP = async (recipient: string, channel: string) => {
+  const response = await api.post("/otp/request-otp", { recipient, channel });
+  return response.data;
+}
+
 export default api;
