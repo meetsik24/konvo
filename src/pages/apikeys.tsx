@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Key, Copy, Trash2, Shield, RefreshCw, Lock } from 'lucide-react';
+import { getApiKeys, createApiKey } from '../services/api';
 
 // Remove MUI imports and use HTML/Tailwind instead
 
@@ -22,12 +23,9 @@ const ApiKeys = () => {
   // Add loading states for individual operations
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
-  const fetchApiKeys = async () => {
+  const getApiKeys = async () => {
     setLoading(true);
-    try {
-      // TODO: Replace with your API endpoint
-      const response = await fetch('/api/keys');
-      const data = await response.json();
+    try {  
       setApiKeys(data);
     } catch (error) {
       showNotification('Failed to fetch API keys', 'error');
@@ -36,10 +34,10 @@ const ApiKeys = () => {
   };
 
   useEffect(() => {
-    fetchApiKeys();
+    getApiKeys();
   }, []);
 
-  const generateApiKey = async () => {
+  const createApiKey = async () => {
     setLoading(true);
     try {
       // TODO: Replace with your API endpoint
