@@ -4,13 +4,15 @@ import { motion } from 'framer-motion';
 import { UserPlus } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { setPendingUser } from '../store/slices/authSlice';
+import { register } from '../store/actions/authActions';
 
 const Register: React.FC = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<typeof store.dispatch>();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phoneNumber: '',
     password: '',
     confirmPassword: ''
   });
@@ -30,15 +32,16 @@ const Register: React.FC = () => {
     // Store credentials in Redux
     dispatch(setPendingUser({
       email: formData.email,
+      phoneNumber: formData.phoneNumber,
       password: formData.password,
       name: formData.name,
     }));
 
     // Simulate OTP generation
-    localStorage.setItem('simulatedOTP', '123456');
-    
+    // localStorage.setItem('simulatedOTP', '123456');
+    dispatch(register(formData));
     setLoading(false);
-    navigate('/verify', { state: { email: formData.email } });
+    navigate('/verify', { state: { phoneNumber: formData.phoneNumber } });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,6 +98,21 @@ const Register: React.FC = () => {
                 className="input"
                 placeholder="Email address"
                 value={formData.email}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <label htmlFor="phoneNumber" className="sr-only">
+                Phone number
+              </label>
+              <input
+                id="phoneNumber"
+                name="phoneNumber"
+                type="text"
+                required
+                className="input"
+                placeholder="Phone number"
+                value={formData.phoneNumber}
                 onChange={handleChange}
               />
             </div>

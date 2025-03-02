@@ -22,7 +22,7 @@ jobs:
 
       - name: Force Build Docker image (No Cache)
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/briqfrontend:latest .
+          docker build --no-cache -t ${{ secrets.DOCKER_USERNAME }}/briqfrontend:latest .
 
       - name: Push Docker image to Docker Hub
         run: |

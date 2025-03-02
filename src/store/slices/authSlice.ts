@@ -1,28 +1,29 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { AuthState, User } from '../../types';
+import axios from 'axios';
+import { AppDispatch } from '..';
 
 interface AuthState {
-  pendingUser: {
-    email: string;
-    password: string;
-    name: string;
-    verified: boolean;
-  } | null;
+  pendingUser: { name: string; email: string; phoneNumber: string; verified: boolean } | null;
   isAuthenticated: boolean;
   user: any | null;
+  otpSent: boolean;
+  error: string | null;
 }
 
 const initialState: AuthState = {
   pendingUser: null,
   isAuthenticated: false,
   user: null,
+  otpSent: false,
+  error: null,
 };
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setPendingUser: (state, action: PayloadAction<{ email: string; password: string; name: string }>) => {
+    setPendingUser: (state, action: PayloadAction<{ email: string; password: string; name: string; phoneNumber: string }>) => {
       state.pendingUser = { ...action.payload, verified: false };
     },
     setVerified: (state) => {
