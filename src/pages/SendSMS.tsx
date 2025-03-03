@@ -12,6 +12,7 @@ const SendSMS: React.FC = () => {
   const [senderId, setSenderId] = useState('');
   const [senderIds, setSenderIds] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [keywords, setKeywords] = useState(''); // New state for keywords
 
   useEffect(() => {
     const fetchSenderIds = async () => {
@@ -27,14 +28,30 @@ const SendSMS: React.FC = () => {
   }, []);
 
   const generateAIMessage = async () => {
+    if (!keywords.trim()) {
+      alert('Please enter some keywords to generate a message');
+      return;
+    }
+
     setIsGenerating(true);
     try {
-      // Simulate AI text generation (replace with actual API call)
+      // Split keywords into array and clean them up
+      const keywordsArray = keywords.split(',').map(k => k.trim()).filter(k => k);
+      
+      // Simulate AI text generation with keywords (replace with actual API call)
       await new Promise(resolve => setTimeout(resolve, 1000));
-      const aiMessage = `Hello! This is a sample AI-generated message from ${senderId || 'your company'}. How can we assist you today?`;
+      
+      // Generate message based on keywords
+      let aiMessage = `Hello! This is ${senderId || 'your company'} reaching out regarding `;
+      if (keywordsArray.length > 0) {
+        aiMessage += keywordsArray.join(' and ') + '. ';
+      }
+      aiMessage += 'How can we assist you today with these topics?';
+      
       setMessage(aiMessage);
     } catch (error) {
       console.error('Error generating AI message:', error);
+      setMessage('Sorry, there was an error generating the message.');
     } finally {
       setIsGenerating(false);
     }
@@ -99,19 +116,28 @@ const SendSMS: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700">
                 Message
               </label>
-              <button
-                type="button"
-                onClick={generateAIMessage}
-                disabled={isGenerating}
-                className="btn btn-sm btn-secondary flex items-center gap-2"
-              >
-                <Bot className="w-4 h-4" />
-                {isGenerating ? 'Generating...' : 'Generate AI Message'}
-              </button>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  className="input max-w-[200px]"
+                  placeholder="Enter keywords (e.g., sale, support)"
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={generateAIMessage}
+                  disabled={isGenerating}
+                  className="btn btn-sm btn-secondary flex items-center gap-2"
+                >
+                  <Bot className="w-4 h-4" />
+                  {isGenerating ? 'Generating...' : 'Generate AI Message'}
+                </button>
+              </div>
             </div>
             <textarea
               className="input min-h-[120px]"
-              placeholder="Type your message here..."
+              placeholder="Type your message here or generate one using keywords..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
@@ -163,8 +189,8 @@ const SendSMS: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card p-6">
           <Phone className="w-6 h-6 text-primary-500 mb-3" />
-            <h3 className="text-lg font-semibold mb-2">Global Coverage</h3>
-            <p className="text-gray-600">Send SMS to all networks</p>
+          <h3 className="text-lg font-semibold mb-2">Global Coverage</h3>
+          <p className="text-gray-600">Send SMS to all networks</p>
         </div>
         <div className="card p-6">
           <Clock className="w-6 h-6 text-primary-500 mb-3" />
