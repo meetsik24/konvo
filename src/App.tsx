@@ -13,7 +13,7 @@ import SendSMS from './pages/SendSMS';
 import SendEmail from './pages/SendEmail';
 import Voice from './pages/Voice';
 import Chatbot from './pages/Chatbot';
-
+import SMSCampaigns from './pages/campaigns';
 import Logs from './pages/Logs';
 import Verify from './pages/Verify';
 import Subscription from './pages/subscription';
@@ -35,6 +35,7 @@ function App() {
            <Route element={<Layout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/send-sms" element={<SendSMS />} />
+              <Route path="/campaigns" element={<SMSCampaigns />} />
               <Route path="/send-email" element={<SendEmail />} />
               <Route path="/voice" element={<Voice />} />
               <Route path="/chatbot" element={<Chatbot />} />
