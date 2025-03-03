@@ -12,7 +12,7 @@ const navItems = [
   { to: '/voice', icon: Phone, label: 'Voice API' },
   { to: '/senderid', icon: IdCard, label: 'Sender ID' },
   { to: '/chatbot', icon: Bot, label: 'Chatbot' },
-  // { to: '/campaigns', icon: Megaphone, label: 'Campaigns' },
+  { to: '/campaigns', icon: Megaphone, label: 'Campaigns' },
   { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/apikeys', icon: Key, label: 'API Keys' },
   { to: '/logs', icon: Activity, label: 'Logs' },
