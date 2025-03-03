@@ -1,119 +1,110 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, Check, MessageSquare, Mail, Phone } from 'lucide-react';
+import { CreditCard, Check, MessageSquare } from 'lucide-react';
 
 interface PricingPlan {
   id: string;
   name: string;
-  price: number;
-  interval: 'month' | 'year';
+  minimumVolume: number; // Minimum SMS volume
+  pricePerSms: string; // TZS per SMS (string to handle "Contact Sales")
   features: string[];
-  limits: {
-    sms: number;
-    email: number;
-    voice: number;
-  };
-  isPopular?: boolean;
+  isContactSales?: boolean; // For Paradiso package
 }
 
 interface SubscriptionDetails {
   planId: string;
   smsUsed: number;
-  emailUsed: number;
-  voiceUsed: number;
 }
 
 const plans: PricingPlan[] = [
   {
-    id: 'basic',
-    name: 'Basic',
-    price: 15,
-    interval: 'month',
+    id: 'kitonga',
+    name: 'Kitonga Package',
+    minimumVolume: 1,
+    pricePerSms: '17 TZS',
     features: [
-      'Limited SMS API access',
-      'Email support',
-      'Basic analytics',
-      'Single user account'
+      'Free Dashboard Access',
+      'Standard Quick Service Support',
+      'Gateway API Access / No Code Integration',
+      'Real-Time Status Updates',
+      'Data Reports (Monthly)',
+      'Dashboard Demonstration',
     ],
-    limits: {
-      sms: 500,
-      email: 2000,
-      voice: 50
-    }
   },
   {
-    id: 'starter',
-    name: 'Starter',
-    price: 29,
-    interval: 'month',
+    id: 'bumbuli',
+    name: 'Bumbuli Package',
+    minimumVolume: 6000,
+    pricePerSms: '16 TZS',
     features: [
-      'Basic SMS API access',
-      'Email support',
-      'Basic analytics',
-      'Single user account',
-      'Basic integrations'
+      'Free Dashboard Access with Extended Features',
+      'Priority Quick Service Support',
+      'Campaign Management',
+      'Gateway API Access / No Code Integration',
+      'Real-Time Status Updates',
+      'Data Reports (Quarterly)',
+      'Enhanced Dashboard Demonstration (with added analytics insights)',
     ],
-    limits: {
-      sms: 1000,
-      email: 5000,
-      voice: 100
-    }
   },
   {
-    id: 'professional',
-    name: 'Professional',
-    price: 99,
-    interval: 'month',
+    id: 'kibaigwa',
+    name: 'Kibaigwa Package',
+    minimumVolume: 55000,
+    pricePerSms: '15 TZS',
     features: [
-      'Advanced SMS & Email API',
-      'Priority support',
-      'Advanced analytics',
-      'Up to 5 team members',
-      'Custom integrations'
+      'Free Dashboard Access with Advanced Analytics',
+      'Priority+ Quick Service Support',
+      'Campaign Management',
+      'Gateway API Access / No Code Integration',
+      'Real-Time Status Updates with Alert Notifications',
+      'Data Reports (Weekly)',
+      'Customizable Dashboard Demonstration',
     ],
-    limits: {
-      sms: 5000,
-      email: 20000,
-      voice: 500
-    },
-    isPopular: true
   },
   {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: 299,
-    interval: 'month',
+    id: 'kilimahewa',
+    name: 'Kilimahewa Package',
+    minimumVolume: 410000,
+    pricePerSms: '14 TZS',
     features: [
-      'Full API access',
-      '24/7 phone support',
-      'Enterprise analytics',
-      'Unlimited team members',
-      'Custom integrations',
-      'Dedicated account manager'
+      'Free Enterprise-Grade Dashboard Access with Full Analytics',
+      '24/7 Dedicated Quick Service Support',
+      'Campaign Management',
+      'Gateway API Access / No Code Integration',
+      'Real-Time Status Updates with Predictive Alerts',
+      'Data Reports (Daily or Real-Time Insights)',
+      'Personalized Dashboard Demonstration & Training',
     ],
-    limits: {
-      sms: 20000,
-      email: 100000,
-      voice: 2000
-    }
-  }
+  },
+  {
+    id: 'paradiso',
+    name: 'Paradiso Package',
+    minimumVolume: 500001,
+    pricePerSms: 'Contact Sales (Up to 10 TZS)',
+    features: [
+      'Fully Custom Dashboard Access tailored to your needs',
+      'Premium Dedicated Quick Service Support with custom SLA',
+      'Campaign Management',
+      'Custom Gateway API Integration / No Code Integration',
+      'Real-Time Status Updates with Custom Alerts & Monitoring',
+      'Data Reports at a frequency of your choice',
+      'In-depth Dashboard Demonstration & Onboarding',
+    ],
+    isContactSales: true,
+  },
 ];
 
 const Subscription = () => {
-  const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month');
   const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionDetails | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
 
   useEffect(() => {
-    // Fetch subscription details from the backend
     const fetchSubscriptionDetails = async () => {
       // Replace with actual API call
       const details: SubscriptionDetails = {
-        planId: 'professional',
-        smsUsed: 1200,
-        emailUsed: 8000,
-        voiceUsed: 200
+        planId: 'kibaigwa',
+        smsUsed: 30000, // Example usage
       };
       setSubscriptionDetails(details);
     };
@@ -122,17 +113,21 @@ const Subscription = () => {
   }, []);
 
   const handleSubscribe = async (planId: string) => {
+    if (planId === 'paradiso') {
+      console.log('Redirecting to contact sales for Paradiso Package');
+      // Could redirect to a contact form or sales page
+      return;
+    }
     setShowPaymentModal(true);
     console.log(`Subscribing to plan: ${planId}`);
   };
 
   const handlePayment = async () => {
-    // Implement payment logic with Mia MeetPay
     console.log(`Paying with mobile money number: ${mobileMoneyNumber}`);
     setShowPaymentModal(false);
   };
 
-  const currentPlan = plans.find(plan => plan.id === subscriptionDetails?.planId);
+  const currentPlan = plans.find((plan) => plan.id === subscriptionDetails?.planId);
 
   return (
     <motion.div
@@ -141,146 +136,101 @@ const Subscription = () => {
       className="max-w-7xl mx-auto space-y-8 px-4 sm:px-6 lg:px-8 py-12"
     >
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900">Subscription Plans</h1>
-        <p className="mt-4 text-xl text-gray-600">
-          Choose the perfect plan for your business
-        </p>
+        <h1 className="text-4xl font-bold text-gray-900">SMS Service Only: Packages</h1>
+        <p className="mt-4 text-xl text-gray-600">Choose the perfect SMS package for your needs</p>
       </div>
 
       {subscriptionDetails && currentPlan && (
         <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
           <div className="px-4 py-5 sm:px-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900">Current Subscription</h3>
-            <p className="mt-1 max-w-2xl text-sm text-gray-500">Details about your current subscription plan.</p>
+            <p className="mt-1 max-w-2xl text-sm text-gray-500">Your active SMS package details</p>
           </div>
           <div className="border-t border-gray-200">
             <dl>
               <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Plan</dt>
+                <dt className="text-sm font-medium text-gray-500">Package</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{currentPlan.name}</dd>
               </div>
               <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">SMS Used</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{subscriptionDetails.smsUsed} / {currentPlan.limits.sms}</dd>
-              </div>
-              <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Emails Used</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{subscriptionDetails.emailUsed} / {currentPlan.limits.email}</dd>
-              </div>
-              <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Voice Minutes Used</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{subscriptionDetails.voiceUsed} / {currentPlan.limits.voice}</dd>
+                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                  {subscriptionDetails.smsUsed.toLocaleString()} / Unlimited (Min: {currentPlan.minimumVolume.toLocaleString()})
+                </dd>
               </div>
             </dl>
           </div>
         </div>
       )}
 
-      <div className="flex justify-center mt-8">
-        <div className="relative self-center bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => setBillingInterval('month')}
-            className={`${
-              billingInterval === 'month'
-                ? 'bg-white border-gray-200 shadow-sm'
-                : 'border border-transparent'
-            } relative w-32 rounded-md py-2 text-sm font-medium whitespace-nowrap focus:outline-none focus:z-10`}
+      <div className="grid gap-8 lg:grid-cols-3 lg:gap-x-6 mt-16">
+        {plans.map((plan) => (
+          <motion.div
+            key={plan.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`relative rounded-2xl border ${
+              plan.id === 'bumbuli' ? 'border-primary-500' : 'border-gray-200'
+            } shadow-sm flex flex-col`}
           >
-            Monthly billing
-          </button>
-          <button
-            onClick={() => setBillingInterval('year')}
-            className={`${
-              billingInterval === 'year'
-                ? 'bg-white border-gray-200 shadow-sm'
-                : 'border border-transparent'
-            } relative w-32 rounded-md py-2 text-sm font-medium whitespace-nowrap focus:outline-none focus:z-10`}
-          >
-            Annual billing
-          </button>
-        </div>
+            {plan.id === 'bumbuli' && ( // Marking Bumbuli as popular as an example
+              <div className="absolute top-0 right-0 -mr-1 -mt-1 px-3 py-1 bg-primary-500 text-white text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
+                Popular
+              </div>
+            )}
+
+            <div className="p-8">
+              <h3 className="text-2xl font-semibold text-gray-900">{plan.name}</h3>
+
+              <div className="mt-4">
+                <span className="text-3xl font-extrabold text-gray-900">{plan.pricePerSms}</span>
+                <span className="ml-2 text-gray-500">per SMS</span>
+              </div>
+
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-4">Deliverables</h4>
+                <ul className="space-y-4">
+                  {plan.features.map((feature, index) => (
+                    <li key={index} className="flex items-start">
+                      <Check className="w-5 h-5 text-green-500 shrink-0" />
+                      <span className="ml-3 text-gray-700">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="mt-6">
+                <p className="text-sm text-gray-600">
+                  Minimum Volume: {plan.minimumVolume.toLocaleString()} SMS
+                </p>
+              </div>
+            </div>
+
+            <div className="p-8 mt-auto">
+              <button
+                onClick={() => handleSubscribe(plan.id)}
+                className={`w-full btn flex items-center justify-center space-x-2 ${
+                  plan.isContactSales ? 'btn-outline' : 'btn-primary'
+                }`}
+              >
+                <CreditCard className="w-5 h-5" />
+                <span>{plan.isContactSales ? 'Contact Sales' : 'Subscribe Now'}</span>
+              </button>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-
-    <div className="grid gap-8 lg:grid-cols-4 lg:gap-x-6 mt-16">
-        {plans.map((plan) => (
-            <motion.div
-                key={plan.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`relative rounded-2xl border ${
-                    plan.isPopular ? 'border-primary-500' : 'border-gray-200'
-                } shadow-sm flex flex-col`}
-            >
-                {plan.isPopular && (
-                    <div className="absolute top-0 right-0 -mr-1 -mt-1 px-3 py-1 bg-primary-500 text-white text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
-                        Popular
-                    </div>
-                )}
-
-                <div className="p-8">
-                    <h3 className="text-2xl font-semibold text-gray-900">{plan.name}</h3>
-                    
-                    <div className="mt-4 flex items-baseline">
-                        <span className="text-4xl font-extrabold text-gray-900">
-                            ${billingInterval === 'year' ? plan.price * 10 : plan.price}
-                        </span>
-                        <span className="ml-2 text-gray-500">/{billingInterval}</span>
-                    </div>
-
-                    <div className="mt-6">
-                        <h4 className="text-sm font-medium text-gray-900 mb-4">Limits</h4>
-                        <ul className="space-y-3">
-                            <li className="flex items-center gap-2">
-                                <MessageSquare className="w-5 h-5 text-primary-500" />
-                                <span>{plan.limits.sms.toLocaleString()} SMS/month</span>
-                            </li>
-                            <li className="flex items-center gap-2">
-                                <Mail className="w-5 h-5 text-primary-500" />
-                                <span>{plan.limits.email.toLocaleString()} Emails/month</span>
-                            </li>
-                            <li className="flex items-center gap-2">
-                                <Phone className="w-5 h-5 text-primary-500" />
-                                <span>{plan.limits.voice.toLocaleString()} Voice minutes/month</span>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <ul className="mt-6 space-y-4">
-                        {plan.features.map((feature, index) => (
-                            <li key={index} className="flex items-start">
-                                <Check className="w-5 h-5 text-green-500 shrink-0" />
-                                <span className="ml-3 text-gray-700">{feature}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-
-                <div className="p-8 mt-auto">
-                    <button
-                        onClick={() => handleSubscribe(plan.id)}
-                        className={`w-full btn flex items-center justify-center space-x-2 ${
-                            plan.isPopular ? 'btn-primary' : 'btn-secondary'
-                        }`}
-                    >
-                        <CreditCard className="w-5 h-5" />
-                        <span>Subscribe now</span>
-                    </button>
-                </div>
-            </motion.div>
-        ))}
-    </div>
-
       <div className="mt-12 text-center">
-        <h2 className="text-2xl font-semibold text-gray-900">Need a custom plan?</h2>
+        <h2 className="text-2xl font-semibold text-gray-900">Need a custom solution?</h2>
         <p className="mt-4 text-gray-600">
-          Contact our sales team for a customized solution that fits your needs.
+          Contact our sales team for tailored options beyond Paradiso.
         </p>
         <button className="mt-6 btn btn-outline">Contact Sales</button>
       </div>
 
       {showPaymentModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
           <div className="bg-white p-8 rounded-lg shadow-lg">
             <h2 className="text-xl font-semibold mb-4">Enter Mobile Money Number</h2>
             <input
@@ -288,12 +238,15 @@ const Subscription = () => {
               className="input mb-4"
               value={mobileMoneyNumber}
               onChange={(e) => setMobileMoneyNumber(e.target.value)}
-              placeholder="Mobile Money Number"
+              placeholder="+255XXXXXXXXX"
             />
             <button className="btn btn-primary w-full" onClick={handlePayment}>
               Pay Now
             </button>
-            <button className="btn btn-secondary w-full mt-2" onClick={() => setShowPaymentModal(false)}>
+            <button
+              className="btn btn-secondary w-full mt-2"
+              onClick={() => setShowPaymentModal(false)}
+            >
               Cancel
             </button>
           </div>
