@@ -14,9 +14,8 @@ const data = [
 
 const stats = [
   { title: 'Total Messages', value: '124,329', icon: MessageSquare, color: 'bg-blue-500' },
-  { title: 'Success Rate', value: '99.9%', icon: CheckCircle, color: 'bg-green-500' },
-  { title: 'API Calls', value: '1.2M', icon: Activity, color: 'bg-purple-500' },
-  { title: 'Active Users', value: '3,241', icon: Users, color: 'bg-orange-500' },
+ 
+ 
   { title: 'Number of Campaigns', value: '45', icon: Megaphone, color: 'bg-yellow-500' },
   { title: 'Total Fails', value: '1,024', icon: XCircle, color: 'bg-red-500' },
   { title: 'Total Contacts', value: '8,765', icon: Users, color: 'bg-teal-500' },

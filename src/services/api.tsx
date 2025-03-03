@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://143.110.232.76:8000";
+const API_BASE_URL = "http://143.110.232.76:8001";
 
 // Create an Axios instance
 const api = axios.create({
@@ -82,10 +82,21 @@ export const verifyOtp = async (otp: string, channel: string, recipient: string)
 };
 
 export const resendOTP = async (recipient: string, channel: string) => {
-  const response = await api.post("/otp/request-otp", { recipient, channel });
+  const response = await api.post("/otp/request-otp", { channel, recipient });
   return response.data;
 }
 
+//Analytics Endpoints for Dashbaord Data
 
+export const totalMessage = async (length:number)=> {
+  const response = await api.get("/analytics/total_messages", { params: { length } });
+  return response.data
+}
+
+// New function to update user profile
+export const updateUserProfile = async (username: string, mobile: string) => {
+  const response = await api.put("/auth/update-profile", { username, mobile });
+  return response.data;
+}
 
 export default api;
