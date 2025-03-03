@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Send, Phone, Clock } from 'lucide-react';
+import { MessageSquare, Send, Phone, Clock, Bot } from 'lucide-react';
 import { useContacts } from '../components/ContactsContext';
-import {getSenderId} from '../services/api'
+import { getSenderId } from '../services/api';
 
 const SendSMS: React.FC = () => {
   const { contacts } = useContacts();
@@ -10,12 +10,38 @@ const SendSMS: React.FC = () => {
   const [recipient, setRecipient] = useState('');
   const [schedule, setSchedule] = useState('');
   const [senderId, setSenderId] = useState('');
+  const [senderIds, setSenderIds] = useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const senderIds = ['Sender1', 'Sender2', 'Sender3']; // Example sender IDs
+  useEffect(() => {
+    const fetchSenderIds = async () => {
+      try {
+        const ids = await getSenderId();
+        setSenderIds(ids);
+      } catch (error) {
+        console.error('Failed to fetch sender IDs', error);
+      }
+    };
+
+    fetchSenderIds();
+  }, []);
+
+  const generateAIMessage = async () => {
+    setIsGenerating(true);
+    try {
+      // Simulate AI text generation (replace with actual API call)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const aiMessage = `Hello! This is a sample AI-generated message from ${senderId || 'your company'}. How can we assist you today?`;
+      setMessage(aiMessage);
+    } catch (error) {
+      console.error('Error generating AI message:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement SMS sending logic
     console.log({ senderId, recipient, message, schedule });
   };
 
@@ -55,7 +81,7 @@ const SendSMS: React.FC = () => {
             <div className="flex gap-3">
               <div className="w-40">
                 <select className="input" defaultValue="+255">
-                  <option value="+255">🇹🇿&nbsp;+255</option>
+                  <option value="+255">🇹🇿 +255</option>
                 </select>
               </div>
               <input
@@ -69,9 +95,20 @@ const SendSMS: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Message
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Message
+              </label>
+              <button
+                type="button"
+                onClick={generateAIMessage}
+                disabled={isGenerating}
+                className="btn btn-sm btn-secondary flex items-center gap-2"
+              >
+                <Bot className="w-4 h-4" />
+                {isGenerating ? 'Generating...' : 'Generate AI Message'}
+              </button>
+            </div>
             <textarea
               className="input min-h-[120px]"
               placeholder="Type your message here..."
@@ -105,6 +142,7 @@ const SendSMS: React.FC = () => {
         </form>
       </div>
 
+      {/* Rest of the component remains unchanged */}
       <div className="card p-8">
         <h2 className="text-lg font-semibold mb-4">Import Contacts</h2>
         <ul className="space-y-2">
@@ -125,8 +163,8 @@ const SendSMS: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card p-6">
           <Phone className="w-6 h-6 text-primary-500 mb-3" />
-          <h3 className="text-lg font-semibold mb-2">Global Coverage</h3>
-          <p className="text-gray-600">Send SMS to over 200 countries worldwide</p>
+            <h3 className="text-lg font-semibold mb-2">Global Coverage</h3>
+            <p className="text-gray-600">Send SMS to all networks</p>
         </div>
         <div className="card p-6">
           <Clock className="w-6 h-6 text-primary-500 mb-3" />
