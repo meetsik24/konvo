@@ -2,18 +2,33 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { Bell, Settings, LogOut, Coffee, Plus, ChevronDown } from 'lucide-react';
+import { Bell, Settings, LogOut, Plus, X } from 'lucide-react';
 import { logout } from '../store/slices/authSlice';
 import type { RootState } from '../store';
 import { useWorkspace } from '../pages/WorkspaceContext';
 
+interface Notification {
+  id: string;
+  type: 'senderid_accepted' | 'senderid_rejected' | 'subscription_renewal' | 'other';
+  message: string;
+  timestamp: string;
+}
+
 const Navbar: React.FC = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
-  const { workspaces, currentWorkspaceId, addWorkspace, setCurrentWorkspaceId } = useWorkspace();
-  const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
+  const { addWorkspace } = useWorkspace(); // Reintegrated useWorkspace
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+
+  // Mock notifications (replace with real data source if available)
+  const [notifications, setNotifications] = useState<Notification[]>([
+    { id: '1', type: 'senderid_accepted', message: 'Sender ID "BRIQ123" was accepted.', timestamp: '2025-03-06T10:00:00Z' },
+    { id: '2', type: 'senderid_rejected', message: 'Sender ID "TESTID" was rejected.', timestamp: '2025-03-06T09:30:00Z' },
+    { id: '3', type: 'subscription_renewal', message: 'Your subscription renews in 3 days.', timestamp: '2025-03-06T08:00:00Z' },
+    { id: '4', type: 'other', message: 'System maintenance scheduled for tomorrow.', timestamp: '2025-03-05T15:00:00Z' },
+  ]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -22,9 +37,23 @@ const Navbar: React.FC = () => {
   const handleCreateWorkspace = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWorkspaceName.trim()) return;
-    addWorkspace(newWorkspaceName);
+    addWorkspace(newWorkspaceName); // Use context to add workspace
     setNewWorkspaceName('');
     setIsCreateModalOpen(false);
+  };
+
+  const handleDismissNotification = (id: string) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
+  };
+
+  const getNotificationIcon = (type: Notification['type']) => {
+    switch (type) {
+      case 'senderid_accepted': return <span className="text-green-500">✓</span>;
+      case 'senderid_rejected': return <span className="text-red-500">✗</span>;
+      case 'subscription_renewal': return <span className="text-yellow-500">!</span>;
+      case 'other': return <span className="text-blue-500">i</span>;
+      default: return null;
+    }
   };
 
   return (
@@ -39,50 +68,61 @@ const Navbar: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-6">
-            {/* Workspace Navigation Dropdown */}
+            {/* Notification Panel */}
             <div className="relative">
               <button
-                onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
-                className="flex items-center gap-2 p-2 text-gray-600 rounded-full hover:bg-primary-50 hover:text-primary-500 transition-colors"
+                onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                className="p-2 text-gray-600 rounded-full hover:bg-primary-50 hover:text-primary-500 transition-colors relative"
               >
-                <Coffee className="w-6 h-6" />
-                <span className="hidden md:inline">Workspaces</span>
-                <ChevronDown className="w-4 h-4" />
+                <Bell className="w-6 h-6" />
+                {notifications.length > 0 && (
+                  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full" />
+                )}
               </button>
-              {isWorkspaceDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-10">
-                  {workspaces.map(workspace => (
-                    <button
-                      key={workspace.id}
-                      onClick={() => {
-                        setCurrentWorkspaceId(workspace.id);
-                        setIsWorkspaceDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm ${
-                        workspace.id === currentWorkspaceId
-                          ? 'bg-primary-50 text-primary-500'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {workspace.name}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => {
-                      setIsCreateModalOpen(true);
-                      setIsWorkspaceDropdownOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" /> New Workspace
-                  </button>
+              {isNotificationOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow-lg z-10 max-h-96 overflow-y-auto">
+                  <div className="p-4 border-b">
+                    <h3 className="text-lg font-semibold text-gray-800">Notifications</h3>
+                  </div>
+                  {notifications.length === 0 ? (
+                    <p className="p-4 text-gray-500 text-center">No notifications</p>
+                  ) : (
+                    notifications.map(notif => (
+                      <div
+                        key={notif.id}
+                        className="flex items-start gap-3 p-4 border-b last:border-b-0 hover:bg-gray-50"
+                      >
+                        <div className="flex-shrink-0">
+                          {getNotificationIcon(notif.type)}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700">{notif.message}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(notif.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleDismissNotification(notif.id)}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
 
-            <button className="p-2 text-gray-600 rounded-full hover:bg-primary-50 hover:text-primary-500 transition-colors">
-              <Bell className="w-6 h-6" />
+            {/* Workspace Creation Button */}
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-2 p-2 text-gray-600 rounded-full hover:bg-primary-50 hover:text-primary-500 transition-colors"
+            >
+              <Plus className="w-6 h-6" />
+              <span className="hidden md:inline">Workspace</span>
             </button>
+
             <Link to="/account" className="p-2 text-gray-600 rounded-full hover:bg-primary-50 hover:text-primary-500 transition-colors">
               <Settings className="w-6 h-6" />
             </Link>
