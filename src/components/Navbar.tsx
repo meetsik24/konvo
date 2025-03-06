@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { Bell, Settings, LogOut, Plus, X } from 'lucide-react';
+import { Bell, Settings, LogOut, Plus, X, Coffee, ChevronDown } from 'lucide-react';
 import { logout } from '../store/slices/authSlice';
 import type { RootState } from '../store';
 import { useWorkspace } from '../pages/WorkspaceContext';
@@ -17,10 +17,11 @@ interface Notification {
 const Navbar: React.FC = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
-  const { addWorkspace } = useWorkspace(); // Reintegrated useWorkspace
+  const { workspaces, currentWorkspaceId, setCurrentWorkspaceId, addWorkspace } = useWorkspace();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isWorkspaceListOpen, setIsWorkspaceListOpen] = useState(false);
 
   // Mock notifications (replace with real data source if available)
   const [notifications, setNotifications] = useState<Notification[]>([
@@ -37,7 +38,7 @@ const Navbar: React.FC = () => {
   const handleCreateWorkspace = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWorkspaceName.trim()) return;
-    addWorkspace(newWorkspaceName); // Use context to add workspace
+    addWorkspace(newWorkspaceName);
     setNewWorkspaceName('');
     setIsCreateModalOpen(false);
   };
@@ -108,6 +109,41 @@ const Navbar: React.FC = () => {
                           <X className="w-4 h-4" />
                         </button>
                       </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Workspace List Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsWorkspaceListOpen(!isWorkspaceListOpen)}
+                className="flex items-center gap-2 p-2 text-gray-600 rounded-full hover:bg-primary-50 hover:text-primary-500 transition-colors"
+              >
+                <Coffee className="w-6 h-6" />
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              {isWorkspaceListOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border rounded-xl shadow-lg z-10">
+                  {workspaces.length === 0 ? (
+                    <p className="p-4 text-gray-500 text-center text-sm">No workspaces</p>
+                  ) : (
+                    workspaces.map(workspace => (
+                      <button
+                        key={workspace.id}
+                        onClick={() => {
+                          setCurrentWorkspaceId(workspace.id);
+                          setIsWorkspaceListOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm ${
+                          workspace.id === currentWorkspaceId
+                            ? 'bg-primary-50 text-primary-500'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        {workspace.name}
+                      </button>
                     ))
                   )}
                 </div>
