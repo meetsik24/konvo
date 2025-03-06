@@ -13,7 +13,7 @@ const Layout: React.FC = () => {
       
       <Navbar />
       <div className="flex">
-        <Sidebar />
+        <Sidebar /> {/* Workspace management will be added here */}
         <main className="flex-1 p-8">
           <Outlet />
         </main>

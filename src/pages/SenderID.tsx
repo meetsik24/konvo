@@ -1,256 +1,223 @@
+// SenderID.tsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Hash, MessageSquare, Mail, Phone, PlusCircle, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import {createSenderId, getSenderId,deleteSenderId} from '../serivices/api'
+import { IdCard, Plus, Trash2, Edit2, X } from 'lucide-react';
+import { useWorkspace } from './WorkspaceContext'; // Adjust path
+import { getSenderId } from '../services/api'; // Adjust path
 
 interface SenderID {
   id: string;
-  value: string;
-  type: 'sms' | 'voice' | 'email';
+  name: string;
   status: 'pending' | 'approved' | 'rejected';
-  createdAt: string;
-  notes?: string;
 }
 
-const SenderID = () => {
-  const [senderIds, setSenderIds] = useState<SenderID[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showRequestForm, setShowRequestForm] = useState(false);
-  const [newRequest, setNewRequest] = useState({
-    value: '',
-    type: 'sms' as const,
-    notes: ''
-  });
+const SenderID: React.FC = () => {
+  const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId } = useWorkspace();
+  const workspace = getCurrentWorkspace();
+  const [senderIds, setSenderIds] = useState<SenderID[]>(workspace?.senderIds || []);
+  const [newSenderId, setNewSenderId] = useState('');
+  const [editingSenderId, setEditingSenderId] = useState<SenderID | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Simulate fetching sender IDs
+  // Sync with current workspace data
   useEffect(() => {
-    setLoading(true);
+    setSenderIds(workspace?.senderIds || []);
+    setError(null); // Reset error on workspace switch
+  }, [currentWorkspaceId, workspace]);
 
-    //TODO: REMOVE SIMULATION AND IMPLEMENT THE ACTUAL DATA
-    // Simulate API call
-    setTimeout(() => {
-      setSenderIds([
-        {
-          id: '1',
-          value: 'COMPANYNAME',
-          type: 'sms',
-          status: 'approved',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: '2',
-          value: 'support@company.com',
-          type: 'email',
-          status: 'approved',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: '3',
-          value: 'MARKETING',
-          type: 'sms',
-          status: 'pending',
-          createdAt: new Date().toISOString()
+  // Fetch sender IDs if not cached
+  useEffect(() => {
+    const fetchSenderIds = async () => {
+      if (senderIds.length > 0) return; // Skip if already loaded
+      setIsLoading(true);
+      try {
+        const ids = await getSenderId();
+        const formattedIds = ids.map((id: string, index: number) => ({
+          id: Date.now().toString() + index, // Assuming API returns names only; adjust if it returns full objects
+          name: id,
+          status: 'approved', // Default status; adjust based on API response
+        }));
+        setSenderIds(formattedIds);
+        setError(null);
+        if (currentWorkspaceId) {
+          updateWorkspace(currentWorkspaceId, { senderIds: formattedIds });
         }
-      ]);
-      setLoading(false);
-    }, 1000);
-  }, []);
-
-  const getStatusIcon = (status: SenderID['status']) => {
-    switch (status) {
-      case 'approved':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'rejected':
-        return <XCircle className="w-5 h-5 text-red-500" />;
-      case 'pending':
-        return <Clock className="w-5 h-5 text-yellow-500" />;
-    }
-  };
-
-  const getTypeIcon = (type: SenderID['type']) => {
-    switch (type) {
-      case 'sms':
-        return <MessageSquare className="w-5 h-5 text-primary-500" />;
-      case 'email':
-        return <Mail className="w-5 h-5 text-primary-500" />;
-      case 'voice':
-        return <Phone className="w-5 h-5 text-primary-500" />;
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const newSenderId: SenderID = {
-      id: Date.now().toString(),
-      value: newRequest.value,
-      type: newRequest.type,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      notes: newRequest.notes
+      } catch (error) {
+        console.error('Failed to fetch sender IDs:', error);
+        setError('Unable to fetch sender IDs from the server. Using fallback data.');
+        // Fallback data
+        const fallbackIds = [
+          { id: '1', name: 'CompanyA', status: 'approved' },
+          { id: '2', name: 'Support', status: 'pending' },
+        ];
+        setSenderIds(fallbackIds);
+        if (currentWorkspaceId) {
+          updateWorkspace(currentWorkspaceId, { senderIds: fallbackIds });
+        }
+      } finally {
+        setIsLoading(false);
+      }
     };
+    fetchSenderIds();
+  }, [currentWorkspaceId, updateWorkspace, senderIds.length]);
 
-    setSenderIds([...senderIds, newSenderId]);
-    setShowRequestForm(false);
-    setNewRequest({ value: '', type: 'sms', notes: '' });
-    setLoading(false);
+  // Persist changes to workspace
+  useEffect(() => {
+    if (currentWorkspaceId) {
+      updateWorkspace(currentWorkspaceId, { senderIds });
+    }
+  }, [senderIds, currentWorkspaceId, updateWorkspace]);
+
+  const handleAddSenderId = () => {
+    if (!newSenderId.trim()) {
+      setError('Sender ID name cannot be empty.');
+      return;
+    }
+    try {
+      const senderId: SenderID = {
+        id: Date.now().toString(),
+        name: newSenderId.trim(),
+        status: 'pending', // New sender IDs start as pending
+      };
+      setSenderIds([...senderIds, senderId]);
+      setNewSenderId('');
+      setError(null);
+    } catch (error) {
+      console.error('Error adding sender ID:', error);
+      setError('Failed to add sender ID.');
+    }
+  };
+
+  const handleEditSenderId = (senderId: SenderID) => {
+    setEditingSenderId(senderId);
+  };
+
+  const handleUpdateSenderId = () => {
+    if (!editingSenderId || !editingSenderId.name.trim()) {
+      setError('Sender ID name cannot be empty.');
+      return;
+    }
+    try {
+      setSenderIds(
+        senderIds.map((s) =>
+          s.id === editingSenderId.id ? { ...editingSenderId } : s
+        )
+      );
+      setEditingSenderId(null);
+      setError(null);
+    } catch (error) {
+      console.error('Error updating sender ID:', error);
+      setError('Failed to update sender ID.');
+    }
+  };
+
+  const handleDeleteSenderId = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this sender ID?')) {
+      try {
+        setSenderIds(senderIds.filter((s) => s.id !== id));
+        setError(null);
+      } catch (error) {
+        console.error('Error deleting sender ID:', error);
+        setError('Failed to delete sender ID.');
+      }
+    }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-6xl mx-auto space-y-6 p-6"
-    >
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-6 p-6">
       <div className="flex items-center gap-3 mb-8">
-        <Hash className="w-8 h-8 text-primary-500" />
-        <h1 className="text-3xl font-bold text-gray-800">Sender ID Management</h1>
+        <IdCard className="w-8 h-8 text-primary-500" />
+        <h1 className="text-3xl font-bold text-gray-800">Sender IDs</h1>
       </div>
 
-      <div className="card p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-xl font-semibold">Your Sender IDs</h2>
-            <p className="text-gray-600 mt-1">Manage your approved and pending sender IDs</p>
-          </div>
-          <button
-            onClick={() => setShowRequestForm(true)}
-            className="btn btn-primary flex items-center gap-2"
-          >
-            <PlusCircle className="w-5 h-5" />
-            Request New ID
-          </button>
-        </div>
+      {/* Error Message */}
+      {error && <div className="text-red-500 mb-4">{error}</div>}
 
-        {showRequestForm && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8 border rounded-lg p-6 bg-gray-50"
-          >
-            <h3 className="text-lg font-semibold mb-4">Request New Sender ID</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sender ID Value
-                </label>
-                <input
-                  type="text"
-                  className="input"
-                  value={newRequest.value}
-                  onChange={(e) => setNewRequest({ ...newRequest, value: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type
-                </label>
-                <select
-                  className="input"
-                  value={newRequest.type}
-                  onChange={(e) => setNewRequest({ ...newRequest, type: e.target.value as SenderID['type'] })}
+      {/* Loading State */}
+      {isLoading && (
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto" />
+          <p className="text-gray-600 mt-2">Loading sender IDs...</p>
+        </div>
+      )}
+
+      {/* Sender ID Form */}
+      {!isLoading && (
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold mb-4">
+            {editingSenderId ? 'Edit Sender ID' : 'Add New Sender ID'}
+          </h2>
+          <div className="flex gap-4">
+            <input
+              type="text"
+              className="input flex-1"
+              placeholder="Enter sender ID name (e.g., CompanyName)"
+              value={editingSenderId ? editingSenderId.name : newSenderId}
+              onChange={(e) =>
+                editingSenderId
+                  ? setEditingSenderId({ ...editingSenderId, name: e.target.value })
+                  : setNewSenderId(e.target.value)
+              }
+            />
+            <button
+              onClick={editingSenderId ? handleUpdateSenderId : handleAddSenderId}
+              className="btn btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              {editingSenderId ? 'Update' : 'Add'}
+            </button>
+            {editingSenderId && (
+              <button
+                onClick={() => setEditingSenderId(null)}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Sender ID List */}
+      {!isLoading && (
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold mb-4">Current Sender IDs</h2>
+          {senderIds.length === 0 ? (
+            <p className="text-gray-500">No sender IDs available.</p>
+          ) : (
+            <div className="space-y-4">
+              {senderIds.map((senderId) => (
+                <div
+                  key={senderId.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
                 >
-                  <option value="sms">SMS</option>
-                  <option value="email">Email</option>
-                  <option value="voice">Voice</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Additional Notes
-                </label>
-                <textarea
-                  className="input min-h-[100px]"
-                  value={newRequest.notes}
-                  onChange={(e) => setNewRequest({ ...newRequest, notes: e.target.value })}
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowRequestForm(false)}
-                  className="btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  Submit Request
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        )}
-
-        {loading ? (
-          <div className="flex justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4">Sender ID</th>
-                  <th className="text-left py-3 px-4">Type</th>
-                  <th className="text-left py-3 px-4">Status</th>
-                  <th className="text-left py-3 px-4">Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {senderIds.map((senderId) => (
-                  <tr key={senderId.id} className="border-b">
-                    <td className="py-3 px-4">
-                      <span className="font-mono">{senderId.value}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        {getTypeIcon(senderId.type)}
-                        <span className="capitalize">{senderId.type}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(senderId.status)}
-                        <span className="capitalize">{senderId.status}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-gray-500">
-                      {new Date(senderId.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card p-6">
-          <AlertCircle className="w-6 h-6 text-primary-500 mb-3" />
-          <h3 className="text-lg font-semibold mb-2">Sender ID Requirements</h3>
-          <ul className="text-gray-600 space-y-2">
-            <li>• Must be 3-11 characters for SMS</li>
-            <li>• Alphanumeric characters only</li>
-            <li>• No special characters allowed</li>
-          </ul>
+                  <div>
+                    <h3 className="font-medium">{senderId.name}</h3>
+                    <p className="text-sm text-gray-600 capitalize">
+                      Status: {senderId.status}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditSenderId(senderId)}
+                      className="btn btn-icon btn-ghost"
+                    >
+                      <Edit2 className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSenderId(senderId.id)}
+                      className="btn btn-icon btn-ghost text-red-500"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="card p-6">
-          <Clock className="w-6 h-6 text-primary-500 mb-3" />
-          <h3 className="text-lg font-semibold mb-2">Approval Process</h3>
-          <p className="text-gray-600">Approval typically takes 1-2 business days</p>
-        </div>
-        <div className="card p-6">
-          <CheckCircle className="w-6 h-6 text-primary-500 mb-3" />
-          <h3 className="text-lg font-semibold mb-2">Verification</h3>
-          <p className="text-gray-600">Business verification may be required</p>
-        </div>
-      </div>
+      )}
     </motion.div>
   );
 };
