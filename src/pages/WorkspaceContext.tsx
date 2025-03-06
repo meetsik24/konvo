@@ -4,11 +4,11 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 interface Workspace {
   id: string;
   name: string;
-  dashboardData: any;
-  campaigns: any[];
-  contacts: any[];
-  senderIds: any[];
-  logs: any[];
+  dashboardData: { stats: any[]; data: any[] };
+  campaigns: { id: string; name: string }[];
+  contacts: { id: string; name: string; email: string }[];
+  senderIds: { id: string; value: string }[];
+  logs: { id: string; message: string; timestamp: string }[];
 }
 
 interface WorkspaceContextType {
@@ -16,7 +16,7 @@ interface WorkspaceContextType {
   currentWorkspaceId: string | null;
   setCurrentWorkspaceId: (id: string) => void;
   addWorkspace: (name: string) => void;
-  updateWorkspace: (id: string, data: Partial<Workspace>) => void; // New function to update workspace data
+  updateWorkspace: (id: string, data: Partial<Workspace>) => void;
   getCurrentWorkspace: () => Workspace | undefined;
 }
 
