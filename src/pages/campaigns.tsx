@@ -17,7 +17,7 @@ interface Campaign {
 }
 
 const SMSCampaigns: React.FC = () => {
-  const { getCurrentWorkspace, workspaces, setWorkspaces } = useWorkspace();
+  const { getCurrentWorkspace, workspaces } = useWorkspace();
   const workspace = getCurrentWorkspace();
   const contacts = workspace?.contacts || [];
   const [campaigns, setCampaigns] = useState<Campaign[]>(workspace?.campaigns || []);
