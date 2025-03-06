@@ -1,10 +1,9 @@
-import React, { useState, useRef } from 'react';
+// Contacts.tsx
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Users, Plus, Upload, Trash2, Edit2, Search, 
-  UserPlus, FolderPlus, Download, X 
-} from 'lucide-react';
+import { Users, Plus, Upload, Trash2, Edit2, Search, UserPlus, FolderPlus, Download, X } from 'lucide-react';
 import Papa from 'papaparse';
+import { useWorkspace } from './WorkspaceContext'; // Adjust path as needed
 
 interface Contact {
   id: string;
@@ -20,45 +19,72 @@ interface Group {
   count: number;
 }
 
-const Contacts = () => {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [groups, setGroups] = useState<Group[]>([
-    { id: 'all', name: 'All Contacts', count: 0 },
-  ]);
+const Contacts: React.FC = () => {
+  const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId } = useWorkspace();
+  const workspace = getCurrentWorkspace();
+  const [contacts, setContacts] = useState<Contact[]>(workspace?.contacts || []);
+  const [groups, setGroups] = useState<Group[]>([{ id: 'all', name: 'All Contacts', count: 0 }, ...(workspace?.groups || [])]);
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [showAddContact, setShowAddContact] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
+  const [showEditContact, setShowEditContact] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [newContact, setNewContact] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    groupId: 'all'
-  });
+  const [newContact, setNewContact] = useState({ name: '', phone: '', email: '', groupId: 'all' });
+  const [newGroup, setNewGroup] = useState({ name: '' });
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
 
-  const [newGroup, setNewGroup] = useState({
-    name: ''
-  });
+  // Sync local state with current workspace data when workspace changes
+  useEffect(() => {
+    setContacts(workspace?.contacts || []);
+    setGroups([{ id: 'all', name: 'All Contacts', count: 0 }, ...(workspace?.groups || [])]);
+    setSelectedGroup('all'); // Reset to 'all' when switching workspaces
+  }, [currentWorkspaceId, workspace]);
+
+  // Persist contacts and groups to the current workspace when they change
+  useEffect(() => {
+    if (currentWorkspaceId) {
+      // Update group counts based on contacts
+      const updatedGroups = groups.map((group) => ({
+        ...group,
+        count: group.id === 'all' ? contacts.length : contacts.filter((c) => c.groupId === group.id).length,
+      }));
+      updateWorkspace(currentWorkspaceId, { contacts, groups: updatedGroups.filter((g) => g.id !== 'all') }); // Exclude 'all' from saved groups
+    }
+  }, [contacts, groups, currentWorkspaceId, updateWorkspace]);
 
   const handleAddContact = () => {
-    const contact: Contact = {
-      id: Date.now().toString(),
-      ...newContact
-    };
+    const contact: Contact = { id: Date.now().toString(), ...newContact };
     setContacts([...contacts, contact]);
     setShowAddContact(false);
     setNewContact({ name: '', phone: '', email: '', groupId: 'all' });
   };
 
+  const handleEditContact = (contact: Contact) => {
+    setEditingContact(contact);
+    setShowEditContact(true);
+  };
+
+  const handleUpdateContact = () => {
+    if (editingContact) {
+      setContacts(
+        contacts.map((c) =>
+          c.id === editingContact.id ? { ...editingContact } : c
+        )
+      );
+      setShowEditContact(false);
+      setEditingContact(null);
+    }
+  };
+
+  const handleDeleteContact = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this contact?')) {
+      setContacts(contacts.filter((c) => c.id !== id));
+    }
+  };
+
   const handleAddGroup = () => {
-    const group: Group = {
-      id: Date.now().toString(),
-      name: newGroup.name,
-      count: 0
-    };
+    const group: Group = { id: Date.now().toString(), name: newGroup.name, count: 0 };
     setGroups([...groups, group]);
     setShowAddGroup(false);
     setNewGroup({ name: '' });
@@ -67,7 +93,6 @@ const Contacts = () => {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     Papa.parse(file, {
       header: true,
       complete: (results) => {
@@ -76,14 +101,14 @@ const Contacts = () => {
           name: row.name || '',
           phone: row.phone || '',
           email: row.email || '',
-          groupId: selectedGroup
+          groupId: selectedGroup,
         }));
         setContacts([...contacts, ...newContacts]);
-      }
+      },
     });
   };
 
-  const filteredContacts = contacts.filter(contact => 
+  const filteredContacts = contacts.filter((contact) =>
     (selectedGroup === 'all' || contact.groupId === selectedGroup) &&
     (contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
      contact.phone.includes(searchQuery) ||
@@ -101,31 +126,22 @@ const Contacts = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-6xl mx-auto space-y-6 p-6"
-    >
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-6 p-6">
       <div className="flex items-center gap-3 mb-8">
         <Users className="w-8 h-8 text-primary-500" />
         <h1 className="text-3xl font-bold text-gray-800">Contacts</h1>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1">
           <div className="card p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">Groups</h2>
-              <button
-                onClick={() => setShowAddGroup(true)}
-                className="btn btn-icon btn-ghost"
-              >
+              <button onClick={() => setShowAddGroup(true)} className="btn btn-icon btn-ghost">
                 <FolderPlus className="w-5 h-5" />
               </button>
             </div>
-
             <div className="space-y-2">
-              {groups.map(group => (
+              {groups.map((group) => (
                 <button
                   key={group.id}
                   onClick={() => setSelectedGroup(group.id)}
@@ -140,36 +156,20 @@ const Contacts = () => {
             </div>
           </div>
         </div>
-
         <div className="lg:col-span-3">
           <div className="card p-6">
             <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
               <div className="flex gap-2">
-                <button
-                  onClick={() => setShowAddContact(true)}
-                  className="btn btn-primary flex items-center gap-2"
-                >
+                <button onClick={() => setShowAddContact(true)} className="btn btn-primary flex items-center gap-2">
                   <UserPlus className="w-5 h-5" />
                   Add Contact
                 </button>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="btn btn-secondary flex items-center gap-2"
-                >
+                <button onClick={() => fileInputRef.current?.click()} className="btn btn-secondary flex items-center gap-2">
                   <Upload className="w-5 h-5" />
                   Import CSV
                 </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept=".csv"
-                  onChange={handleFileUpload}
-                />
-                <button
-                  onClick={downloadTemplate}
-                  className="btn btn-ghost flex items-center gap-2"
-                >
+                <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileUpload} />
+                <button onClick={downloadTemplate} className="btn btn-ghost flex items-center gap-2">
                   <Download className="w-5 h-5" />
                   Template
                 </button>
@@ -185,7 +185,6 @@ const Contacts = () => {
                 />
               </div>
             </div>
-
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -203,10 +202,10 @@ const Contacts = () => {
                       <td className="py-3 px-4">{contact.phone}</td>
                       <td className="py-3 px-4">{contact.email}</td>
                       <td className="py-3 px-4 text-right">
-                        <button className="btn btn-icon btn-ghost">
-                          <Edit2 className="w-5 h-5" />
+                        <button onClick={() => handleEditContact(contact)} className="btn btn-icon btn-ghost">
+                          <Edit2 className="w  w-5 h-5" />
                         </button>
-                        <button className="btn btn-icon btn-ghost text-red-500">
+                        <button onClick={() => handleDeleteContact(contact.id)} className="btn btn-icon btn-ghost text-red-500">
                           <Trash2 className="w-5 h-5" />
                         </button>
                       </td>
@@ -218,7 +217,6 @@ const Contacts = () => {
           </div>
         </div>
       </div>
-
       {/* Add Contact Modal */}
       {showAddContact && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -264,16 +262,15 @@ const Contacts = () => {
                   value={newContact.groupId}
                   onChange={(e) => setNewContact({ ...newContact, groupId: e.target.value })}
                 >
-                  {groups.map(group => (
-                    <option key={group.id} value={group.id}>{group.name}</option>
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
                   ))}
                 </select>
               </div>
               <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowAddContact(false)}
-                  className="btn btn-secondary"
-                >
+                <button onClick={() => setShowAddContact(false)} className="btn btn-secondary">
                   Cancel
                 </button>
                 <button onClick={handleAddContact} className="btn btn-primary">
@@ -284,7 +281,70 @@ const Contacts = () => {
           </div>
         </div>
       )}
-
+      {/* Edit Contact Modal */}
+      {showEditContact && editingContact && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Edit Contact</h2>
+              <button onClick={() => setShowEditContact(false)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Name</label>
+                <input
+                  type="text"
+                  className="input"
+                  value={editingContact.name}
+                  onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Phone</label>
+                <input
+                  type="tel"
+                  className="input"
+                  value={editingContact.phone}
+                  onChange={(e) => setEditingContact({ ...editingContact, phone: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Email</label>
+                <input
+                  type="email"
+                  className="input"
+                  value={editingContact.email}
+                  onChange={(e) => setEditingContact({ ...editingContact, email: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Group</label>
+                <select
+                  className="input"
+                  value={editingContact.groupId}
+                  onChange={(e) => setEditingContact({ ...editingContact, groupId: e.target.value })}
+                >
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setShowEditContact(false)} className="btn btn-secondary">
+                  Cancel
+                </button>
+                <button onClick={handleUpdateContact} className="btn btn-primary">
+                  Update Contact
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Add Group Modal */}
       {showAddGroup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -306,10 +366,7 @@ const Contacts = () => {
                 />
               </div>
               <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowAddGroup(false)}
-                  className="btn btn-secondary"
-                >
+                <button onClick={() => setShowAddGroup(false)} className="btn btn-secondary">
                   Cancel
                 </button>
                 <button onClick={handleAddGroup} className="btn btn-primary">

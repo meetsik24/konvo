@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, Send, Clock, Users, BarChart2, Bot, Trash2, Edit } from 'lucide-react';
-import { useContacts } from '../components/ContactsContext';
+import { useWorkspace } from './WorkspaceContext'; // Ensure correct path
 import { getSenderId } from '../services/api';
 
 interface Campaign {
@@ -17,8 +17,10 @@ interface Campaign {
 }
 
 const SMSCampaigns: React.FC = () => {
-  const { contacts } = useContacts();
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const { getCurrentWorkspace, workspaces, setWorkspaces } = useWorkspace();
+  const workspace = getCurrentWorkspace();
+  const contacts = workspace?.contacts || [];
+  const [campaigns, setCampaigns] = useState<Campaign[]>(workspace?.campaigns || []);
   const [senderIds, setSenderIds] = useState<string[]>([]);
   const [newCampaign, setNewCampaign] = useState({
     name: '',
@@ -31,8 +33,7 @@ const SMSCampaigns: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [keywords, setKeywords] = useState('');
-
-  // Sample contact groups (in a real app, this might come from a separate API/context)
+  const [error, setError] = useState<string | null>(null); // Error state for network issues
   const contactGroups = ['All Customers', 'VIP Members', 'New Subscribers'];
 
   useEffect(() => {
@@ -40,42 +41,70 @@ const SMSCampaigns: React.FC = () => {
       try {
         const ids = await getSenderId();
         setSenderIds(ids);
-        setCampaigns([
-          {
-            id: '1',
-            name: 'Welcome Campaign',
-            senderId: ids[0] || 'Company',
-            message: 'Welcome to our service!',
-            recipients: 150,
-            status: 'sent',
-            deliveryRate: 95,
-            recipientGroups: ['All Customers'],
-          },
-          {
-            id: '2',
-            name: 'Promo March',
-            senderId: ids[0] || 'Company',
-            message: 'Get 20% off this month!',
-            recipients: 200,
-            status: 'scheduled',
-            schedule: '2025-03-05T10:00',
-            recipientGroups: ['VIP Members'],
-          },
-        ]);
+        setError(null); // Clear error on success
+        if (!workspace?.campaigns.length) {
+          setCampaigns([
+            {
+              id: '1',
+              name: 'Welcome Campaign',
+              senderId: ids[0] || 'Company',
+              message: 'Welcome to our service!',
+              recipients: 150,
+              status: 'sent',
+              deliveryRate: 95,
+              recipientGroups: ['All Customers'],
+            },
+            {
+              id: '2',
+              name: 'Promo March',
+              senderId: ids[0] || 'Company',
+              message: 'Get 20% off this month!',
+              recipients: 200,
+              status: 'scheduled',
+              schedule: '2025-03-05T10:00',
+              recipientGroups: ['VIP Members'],
+            },
+          ]);
+        }
       } catch (error) {
-        console.error('Failed to fetch sender IDs', error);
+        console.error('Failed to fetch sender IDs:', error);
+        setError('Unable to fetch sender IDs. Using fallback data.');
+        // Fallback sender IDs
+        setSenderIds(['FallbackSender1', 'FallbackSender2']);
+        if (!workspace?.campaigns.length) {
+          setCampaigns([
+            {
+              id: '1',
+              name: 'Welcome Campaign',
+              senderId: 'FallbackSender1',
+              message: 'Welcome to our service!',
+              recipients: 150,
+              status: 'sent',
+              deliveryRate: 95,
+              recipientGroups: ['All Customers'],
+            },
+          ]);
+        }
       }
     };
-
     fetchSenderIds();
-  }, []);
+  }, [workspace]);
+
+  useEffect(() => {
+    if (setWorkspaces && workspace) { // Check if setWorkspaces exists
+      setWorkspaces(
+        workspaces.map((ws) =>
+          ws.id === workspace.id ? { ...ws, campaigns } : ws
+        )
+      );
+    }
+  }, [campaigns, workspace, workspaces, setWorkspaces]);
 
   const generateAIMessage = async () => {
     if (!keywords.trim()) {
       alert('Please enter some keywords to generate a message');
       return;
     }
-
     setIsGenerating(true);
     try {
       const keywordsArray = keywords.split(',').map(k => k.trim()).filter(k => k);
@@ -85,7 +114,6 @@ const SMSCampaigns: React.FC = () => {
         aiMessage += keywordsArray.join(' and ') + '. ';
       }
       aiMessage += 'How can we assist you today with these topics?';
-      
       if (editingCampaign) {
         setEditingCampaign({ ...editingCampaign, message: aiMessage });
       } else {
@@ -93,6 +121,7 @@ const SMSCampaigns: React.FC = () => {
       }
     } catch (error) {
       console.error('Error generating AI message:', error);
+      setError('Failed to generate AI message.');
     } finally {
       setIsGenerating(false);
     }
@@ -101,28 +130,33 @@ const SMSCampaigns: React.FC = () => {
   const handleCreateOrUpdateCampaign = (e: React.FormEvent) => {
     e.preventDefault();
     setIsCreating(true);
-
-    const campaignData = editingCampaign || newCampaign;
-    const campaign: Campaign = {
-      id: editingCampaign?.id || Date.now().toString(),
-      name: campaignData.name,
-      senderId: campaignData.senderId,
-      message: campaignData.message,
-      recipients: contacts.length, // Simplified; in reality, count based on groups
-      status: campaignData.schedule ? 'scheduled' : 'draft',
-      schedule: campaignData.schedule || undefined,
-      recipientGroups: campaignData.recipientGroups,
-    };
-
-    if (editingCampaign) {
-      setCampaigns(campaigns.map(c => c.id === campaign.id ? campaign : c));
-      setEditingCampaign(null);
-    } else {
-      setCampaigns([...campaigns, campaign]);
-      setNewCampaign({ name: '', senderId: '', message: '', schedule: '', recipientGroups: [] });
+    try {
+      const campaignData = editingCampaign || newCampaign;
+      const campaign: Campaign = {
+        id: editingCampaign?.id || Date.now().toString(),
+        name: campaignData.name,
+        senderId: campaignData.senderId,
+        message: campaignData.message,
+        recipients: contacts.length,
+        status: campaignData.schedule ? 'scheduled' : 'draft',
+        schedule: campaignData.schedule || undefined,
+        recipientGroups: campaignData.recipientGroups,
+      };
+      if (editingCampaign) {
+        setCampaigns(campaigns.map(c => c.id === campaign.id ? campaign : c));
+        setEditingCampaign(null);
+      } else {
+        setCampaigns([...campaigns, campaign]);
+        setNewCampaign({ name: '', senderId: '', message: '', schedule: '', recipientGroups: [] });
+      }
+      setKeywords('');
+      setError(null); // Clear error on success
+    } catch (error) {
+      console.error('Error creating/updating campaign:', error);
+      setError('Failed to create/update campaign.');
+    } finally {
+      setIsCreating(false);
     }
-    setKeywords('');
-    setIsCreating(false);
   };
 
   const handleDeleteCampaign = (id: string) => {
@@ -147,7 +181,6 @@ const SMSCampaigns: React.FC = () => {
     const updatedGroups = currentCampaign.recipientGroups.includes(group)
       ? currentCampaign.recipientGroups.filter(g => g !== group)
       : [...currentCampaign.recipientGroups, group];
-    
     if (editingCampaign) {
       setEditingCampaign({ ...editingCampaign, recipientGroups: updatedGroups });
     } else {
@@ -156,26 +189,17 @@ const SMSCampaigns: React.FC = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-6"
-    >
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-3 mb-8">
         <MessageSquare className="w-8 h-8 text-primary-500" />
         <h1 className="text-3xl font-bold text-gray-800">SMS Campaigns</h1>
       </div>
-
-      {/* Create/Edit Campaign Form */}
+      {error && <div className="text-red-500 mb-4">{error}</div>} {/* Display error */}
       <div className="card p-8">
-        <h2 className="text-lg font-semibold mb-4">
-          {editingCampaign ? 'Edit Campaign' : 'Create New Campaign'}
-        </h2>
+        <h2 className="text-lg font-semibold mb-4">{editingCampaign ? 'Edit Campaign' : 'Create New Campaign'}</h2>
         <form onSubmit={handleCreateOrUpdateCampaign} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Campaign Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Campaign Name</label>
             <input
               type="text"
               className="input"
@@ -187,11 +211,8 @@ const SMSCampaigns: React.FC = () => {
               required
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Sender ID
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sender ID</label>
             <select
               className="input"
               value={editingCampaign?.senderId || newCampaign.senderId}
@@ -201,16 +222,11 @@ const SMSCampaigns: React.FC = () => {
               required
             >
               <option value="" disabled>Select Sender ID</option>
-              {senderIds.map((id) => (
-                <option key={id} value={id}>{id}</option>
-              ))}
+              {senderIds.map((id) => (<option key={id} value={id}>{id}</option>))}
             </select>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Recipient Groups
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Recipient Groups</label>
             <div className="flex flex-wrap gap-2">
               {contactGroups.map((group) => (
                 <button
@@ -228,12 +244,9 @@ const SMSCampaigns: React.FC = () => {
               ))}
             </div>
           </div>
-
           <div>
             <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Message
-              </label>
+              <label className="block text-sm font-medium text-gray-700">Message</label>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -267,11 +280,8 @@ const SMSCampaigns: React.FC = () => {
               <span>{Math.ceil((editingCampaign?.message || newCampaign.message).length / 160)} message(s)</span>
             </div>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Schedule (Optional)
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Schedule (Optional)</label>
             <input
               type="datetime-local"
               className="input"
@@ -281,7 +291,6 @@ const SMSCampaigns: React.FC = () => {
                 : setNewCampaign({ ...newCampaign, schedule: e.target.value })}
             />
           </div>
-
           <div className="flex justify-end gap-4">
             {editingCampaign && (
               <button
@@ -307,8 +316,6 @@ const SMSCampaigns: React.FC = () => {
           </div>
         </form>
       </div>
-
-      {/* Campaigns List */}
       <div className="card p-8">
         <h2 className="text-lg font-semibold mb-4">Active Campaigns</h2>
         {campaigns.length === 0 ? (
@@ -316,10 +323,7 @@ const SMSCampaigns: React.FC = () => {
         ) : (
           <div className="space-y-4">
             {campaigns.map((campaign) => (
-              <div
-                key={campaign.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
+              <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
                   <h3 className="font-medium">{campaign.name}</h3>
                   <p className="text-sm text-gray-600">{campaign.message.substring(0, 50)}...</p>
@@ -347,20 +351,12 @@ const SMSCampaigns: React.FC = () => {
                     {campaign.status}
                   </span>
                   {campaign.deliveryRate && (
-                    <span className="text-sm text-gray-600">
-                      Delivery: {campaign.deliveryRate}%
-                    </span>
+                    <span className="text-sm text-gray-600">Delivery: {campaign.deliveryRate}%</span>
                   )}
-                  <button
-                    onClick={() => handleEditCampaign(campaign)}
-                    className="text-primary-500 hover:text-primary-700"
-                  >
+                  <button onClick={() => handleEditCampaign(campaign)} className="text-primary-500 hover:text-primary-700">
                     <Edit className="w-5 h-5" />
                   </button>
-                  <button
-                    onClick={() => handleDeleteCampaign(campaign.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
+                  <button onClick={() => handleDeleteCampaign(campaign.id)} className="text-red-500 hover:text-red-700">
                     <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
@@ -369,8 +365,6 @@ const SMSCampaigns: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card p-6">
           <Users className="w-6 h-6 text-primary-500 mb-3" />
@@ -380,9 +374,7 @@ const SMSCampaigns: React.FC = () => {
         <div className="card p-6">
           <Clock className="w-6 h-6 text-primary-500 mb-3" />
           <h3 className="text-lg font-semibold mb-2">Scheduled Campaigns</h3>
-          <p className="text-gray-600">
-            {campaigns.filter((c) => c.status === 'scheduled').length} pending
-          </p>
+          <p className="text-gray-600">{campaigns.filter((c) => c.status === 'scheduled').length} pending</p>
         </div>
         <div className="card p-6">
           <BarChart2 className="w-6 h-6 text-primary-500 mb-3" />

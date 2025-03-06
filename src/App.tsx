@@ -19,36 +19,38 @@ import Verify from './pages/Verify';
 import Subscription from './pages/subscription';
 import SenderID from './pages/SenderID';
 import Contacts from './pages/Contacts';
-import { ContactsProvider } from './components/ContactsContext'; // Updated import path
+import { ContactsProvider } from './components/ContactsContext';
+import { WorkspaceProvider } from './pages/WorkspaceContext'; // Import WorkspaceProvider
 
 function App() {
   return (
     <Provider store={store}>
-      <ContactsProvider>
-        <Router>
-          <Routes>
-           
-             {/* Commented out the login, register, and verify routes */}
-            {/* <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/verify" element={<Verify />} /> */}
-           <Route element={<Layout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/send-sms" element={<SendSMS />} />
-              <Route path="/campaigns" element={<SMSCampaigns />} />
-              <Route path="/send-email" element={<SendEmail />} />
-              <Route path="/voice" element={<Voice />} />
-              <Route path="/chatbot" element={<Chatbot />} />
-              <Route path="/account" element={<Account />} />
-              <Route path="/logs" element={<Logs />} />
-              <Route path="/subscription" element={<Subscription />} />
-              <Route path="/senderid" element={<SenderID />} />
-              <Route path="/contacts" element={<Contacts />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Router>
-      </ContactsProvider>
+      <WorkspaceProvider> {/* Wrap with WorkspaceProvider */}
+        <ContactsProvider>
+          <Router>
+            <Routes>
+              {/* Commented out the login, register, and verify routes */}
+              {/* <Route path="/login" element={<Login />} /> */}
+              {/* <Route path="/register" element={<Register />} /> */}
+              {/* <Route path="/verify" element={<Verify />} /> */}
+              <Route element={<Layout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/send-sms" element={<SendSMS />} />
+                <Route path="/campaigns" element={<SMSCampaigns />} />
+                <Route path="/send-email" element={<SendEmail />} />
+                <Route path="/voice" element={<Voice />} />
+                <Route path="/chatbot" element={<Chatbot />} />
+                <Route path="/account" element={<Account />} />
+                <Route path="/logs" element={<Logs />} />
+                <Route path="/subscription" element={<Subscription />} />
+                <Route path="/senderid" element={<SenderID />} />
+                <Route path="/contacts" element={<Contacts />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Router>
+        </ContactsProvider>
+      </WorkspaceProvider>
     </Provider>
   );
 }
