@@ -1,16 +1,19 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
-import { getWorkspaces, createWorkspace, updateWorkspace as apiUpdateWorkspace, deleteWorkspace as apiDeleteWorkspace } from '../services/api';
+import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace } from '../services/api'; // Updated imports
 
 interface Workspace {
-  id: string;
+  workspace_id: string; // Changed from id
+  user_id: string;
   name: string;
-  dashboardData: { stats: any[]; data: any[] };
-  campaigns: { id: string; name: string }[];
-  contacts: { id: string; name: string; email: string }[];
-  senderIds: { id: string; value: string }[];
-  logs: { id: string; message: string; timestamp: string }[];
+  description: string;
+  created_at: string;
+  dashboardData?: { stats: any[]; data: any[] };
+  campaigns?: { id: string; name: string }[];
+  contacts?: { id: string; name: string; email: string }[];
+  senderIds?: { id: string; value: string }[];
+  logs?: { id: string; message: string; timestamp: string }[];
 }
 
 interface WorkspaceContextType {
@@ -21,6 +24,7 @@ interface WorkspaceContextType {
   updateWorkspace: (id: string, data: Partial<Workspace>) => Promise<void>;
   deleteWorkspace: (id: string) => Promise<void>;
   getCurrentWorkspace: () => Workspace | undefined;
+  getWorkspace: () => Promise<void>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -28,7 +32,7 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentWorkspaceId, setCurrentWorkspaceIdState] = useState<string | null>(localStorage.getItem('currentWorkspaceId'));
-  const { user, token } = useSelector((state: RootState) => state.auth);
+  const { token } = useSelector((state: RootState) => state.auth);
 
   const setCurrentWorkspaceId = (id: string) => {
     console.log('Setting currentWorkspaceId to:', id);
@@ -36,31 +40,36 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     localStorage.setItem('currentWorkspaceId', id);
   };
 
-  useEffect(() => {
-    const fetchWorkspaces = async () => {
-      console.log('Fetching workspaces with token:', token);
-      try {
-        const workspaceData = await getWorkspaces();
-        console.log('Workspaces fetched:', workspaceData);
-        setWorkspaces(workspaceData);
-        if (workspaceData.length > 0) {
-          const storedId = localStorage.getItem('currentWorkspaceId');
-          const validId = workspaceData.some((ws) => ws.id === storedId) ? storedId : workspaceData[0].id;
-          console.log('Setting currentWorkspaceId on fetch:', validId);
-          setCurrentWorkspaceId(validId || workspaceData[0].id);
-        } else {
-          console.log('No workspaces available, resetting currentWorkspaceId');
-          setCurrentWorkspaceId(null);
-          localStorage.removeItem('currentWorkspaceId');
-        }
-      } catch (error) {
+  const getWorkspace = async () => {
+    console.log('Fetching workspaces with token:', token);
+    try {
+      const workspaceData = await getWorkspaces();
+      console.log('Workspaces fetched:', workspaceData);
+      setWorkspaces(workspaceData);
+      if (workspaceData.length > 0) {
+        const storedId = localStorage.getItem('currentWorkspaceId');
+        const validId = workspaceData.some((ws) => ws.workspace_id === storedId) ? storedId : workspaceData[0].workspace_id;
+        console.log('Setting currentWorkspaceId on fetch:', validId);
+        setCurrentWorkspaceId(validId || workspaceData[0].workspace_id);
+      } else {
+        console.log('No workspaces available, resetting currentWorkspaceId');
+        setCurrentWorkspaceId(null);
+        localStorage.removeItem('currentWorkspaceId');
+      }
+    } catch (error: any) {
+      if (error.response && error.response.status === 401) {
+        console.error('Unauthorized access - redirecting to login');
+        // Handle unauthorized access, e.g., redirect to login page
+      } else {
         console.error('Failed to fetch workspaces:', error);
       }
-    };
+    }
+  };
 
+  useEffect(() => {
     if (token) {
       console.log('Token present, initiating fetch');
-      fetchWorkspaces();
+      getWorkspace();
     } else {
       console.log('No token, skipping fetch');
     }
@@ -73,8 +82,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       console.log('New workspace added:', newWorkspace);
       setWorkspaces((prev) => [...prev, newWorkspace]);
       if (!currentWorkspaceId) {
-        console.log('No current workspace, setting to:', newWorkspace.id);
-        setCurrentWorkspaceId(newWorkspace.id);
+        console.log('No current workspace, setting to:', newWorkspace.workspace_id);
+        setCurrentWorkspaceId(newWorkspace.workspace_id);
       }
     } catch (error) {
       console.error('Failed to add workspace:', error);
@@ -85,8 +94,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const updateWorkspace = async (id: string, data: Partial<Workspace>) => {
     console.log('Updating workspace ID:', id, 'with data:', data);
     try {
-      const updatedWorkspace = await apiUpdateWorkspace(id, data);
-      setWorkspaces((prev) => prev.map((ws) => (ws.id === id ? { ...ws, ...updatedWorkspace } : ws)));
+      const updatedWorkspace = await updateWorkspace(id, data);
+      setWorkspaces((prev) => prev.map((ws) => (ws.workspace_id === id ? { ...ws, ...updatedWorkspace } : ws)));
     } catch (error) {
       console.error('Failed to update workspace:', error);
       throw error;
@@ -96,14 +105,14 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const deleteWorkspace = async (id: string) => {
     console.log('Deleting workspace ID:', id);
     try {
-      await apiDeleteWorkspace(id);
+      await deleteWorkspace(id); // Call the API function directly
       setWorkspaces((prev) => {
-        const updated = prev.filter((ws) => ws.id !== id);
+        const updated = prev.filter((ws) => ws.workspace_id !== id); // Changed from ws.id
         console.log('Workspaces after deletion:', updated);
         return updated;
       });
       if (currentWorkspaceId === id) {
-        const newId = workspaces.length > 1 ? workspaces[0].id : null;
+        const newId = workspaces.length > 1 ? workspaces[0].workspace_id : null; // Changed from workspaces[0].id
         console.log('Current workspace deleted, new currentWorkspaceId:', newId);
         setCurrentWorkspaceId(newId);
       }
@@ -114,7 +123,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const getCurrentWorkspace = () => {
-    const current = workspaces.find((ws) => ws.id === currentWorkspaceId);
+    const current = workspaces.find((ws) => ws.workspace_id === currentWorkspaceId); // Changed from ws.id
     console.log('Current workspace:', current);
     return current;
   };
@@ -130,6 +139,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         addWorkspace,
         updateWorkspace,
         deleteWorkspace,
+        getWorkspace,
         getCurrentWorkspace,
       }}
     >

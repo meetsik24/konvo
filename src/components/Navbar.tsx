@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { Bell, Settings, LogOut, Plus, X, Coffee, ChevronDown, Trash2 } from 'lucide-react';
@@ -16,7 +16,7 @@ interface Notification {
 const Navbar: React.FC = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
-  const { workspaces, currentWorkspaceId, setCurrentWorkspaceId, addWorkspace, deleteWorkspace } = useWorkspace();
+  const { workspaces, currentWorkspaceId, setCurrentWorkspaceId, addWorkspace, deleteWorkspace, getWorkspace } = useWorkspace();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -31,6 +31,11 @@ const Navbar: React.FC = () => {
     { id: '3', type: 'subscription_renewal', message: 'Your subscription renews in 3 days.', timestamp: '2025-03-06T08:00:00Z' },
     { id: '4', type: 'other', message: 'System maintenance scheduled for tomorrow.', timestamp: '2025-03-05T15:00:00Z' },
   ]);
+
+  useEffect(() => {
+    console.log('Fetching workspaces using getWorkspace');
+    getWorkspace();
+  }, [getWorkspace]);
 
   const handleLogout = () => {
     console.log('Logging out user:', user?.email);
@@ -170,17 +175,17 @@ const Navbar: React.FC = () => {
                   ) : (
                     workspaces.map((workspace) => (
                       <div
-                        key={workspace.id}
+                        key={workspace.workspace_id} // Changed from workspace.id
                         className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 transition-colors"
                       >
                         <button
                           onClick={() => {
-                            console.log('Switching to workspace ID:', workspace.id);
-                            setCurrentWorkspaceId(workspace.id);
+                            console.log('Switching to workspace ID:', workspace.workspace_id); // Changed from workspace.id
+                            setCurrentWorkspaceId(workspace.workspace_id); // Changed from workspace.id
                             setIsWorkspaceListOpen(false);
                           }}
                           className={`flex-1 text-left text-sm ${
-                            workspace.id === currentWorkspaceId
+                            workspace.workspace_id === currentWorkspaceId // Changed from workspace.id
                               ? 'text-primary-600 font-semibold'
                               : 'text-gray-700 hover:text-primary-500'
                           }`}
@@ -189,7 +194,7 @@ const Navbar: React.FC = () => {
                         </button>
                         {workspaces.length > 1 && (
                           <button
-                            onClick={() => handleDeleteWorkspace(workspace.id)}
+                            onClick={() => handleDeleteWorkspace(workspace.workspace_id)} // Changed from workspace.id
                             className="text-red-400 hover:text-red-600 p-1"
                             disabled={isLoading}
                             title="Delete workspace"
