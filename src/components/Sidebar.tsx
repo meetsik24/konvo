@@ -1,5 +1,4 @@
-// components/Sidebar.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, MessageSquare, IdCard, Megaphone, Users, Activity, DollarSign } from 'lucide-react';
 import { useWorkspace } from '../pages/WorkspaceContext';
@@ -15,30 +14,59 @@ const navItems = [
 ];
 
 const Sidebar: React.FC = () => {
-  const { workspaces, currentWorkspaceId } = useWorkspace();
-  const activeWorkspace = workspaces.find(ws => ws.id === currentWorkspaceId);
+  const { workspaces, currentWorkspaceId, setCurrentWorkspaceId } = useWorkspace();
+  const activeWorkspace = workspaces.find((ws) => ws.id === currentWorkspaceId);
+  const isWorkspaceSelected = !!currentWorkspaceId;
+
+  // Log changes for debugging
+  useEffect(() => {
+    console.log('Sidebar: Workspaces:', workspaces);
+    console.log('Sidebar: Current Workspace ID:', currentWorkspaceId);
+    console.log('Sidebar: Active Workspace:', activeWorkspace);
+    console.log('Sidebar: Is Workspace Selected?', isWorkspaceSelected);
+  }, [workspaces, currentWorkspaceId, activeWorkspace, isWorkspaceSelected]);
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r-2 border-primary-100">
+    <aside className="w-64 min-h-screen bg-white border-r-2 border-primary-100 flex flex-col">
       <div className="flex flex-col h-full py-6">
-        <div className="px-3 mb-6">
+        {/* Workspace Header */}
+        <div className="px-4 mb-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-3">Workspace</h2>
-          <div className="px-4 py-3 text-base font-medium text-gray-600 bg-primary-50 rounded-xl">
+          <div
+            className={`px-4 py-3 text-base font-medium rounded-xl transition-all duration-200 ${
+              activeWorkspace
+                ? 'text-primary-600 bg-primary-50 border border-primary-200'
+                : 'text-gray-400 bg-gray-100 italic'
+            }`}
+          >
             {activeWorkspace?.name || 'No Workspace Selected'}
           </div>
         </div>
-        <nav className="flex-1 space-y-2 px-3">
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-2 px-4">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
                 `flex items-center px-4 py-3 text-base font-medium rounded-xl transition-all duration-200 ${
-                  isActive
-                    ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20'
-                    : 'text-gray-600 hover:bg-primary-50 hover:text-primary-500'
+                  !isWorkspaceSelected
+                    ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+                    : isActive
+                    ? 'bg-primary-500 text-white shadow-md shadow-primary-500/20'
+                    : 'text-gray-600 hover:bg-primary-50 hover:text-primary-600'
                 }`
               }
+              onClick={(e) => {
+                if (!isWorkspaceSelected) {
+                  console.log('Navigation blocked: No workspace selected');
+                  e.preventDefault();
+                } else {
+                  console.log(`Navigating to ${item.label} in workspace:`, activeWorkspace?.name);
+                }
+              }}
+              title={!isWorkspaceSelected ? 'Select a workspace to enable navigation' : undefined}
             >
               <item.icon className="w-5 h-5 mr-3" />
               {item.label}

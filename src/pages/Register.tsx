@@ -3,51 +3,67 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { UserPlus } from 'lucide-react';
 import { useDispatch } from 'react-redux';
-import { setPendingUser } from '../store/slices/authSlice';
-import { register } from '../store/actions/authActions';
+import { setCredentials, setError } from '../store/slices/authSlice';
+import { registerUser, loginUser } from '../services/api';
 
 const Register: React.FC = () => {
-  const dispatch = useDispatch<typeof store.dispatch>();
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phoneNumber: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setLocalError] = useState<string | null>(null);
+
+  const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    setLocalError(null);
+
+    if (!strongPasswordRegex.test(formData.password)) {
+      setLocalError(
+        'Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character (!@#$%^&*).'
+      );
+      dispatch(setError('Weak password'));
       setLoading(false);
       return;
     }
 
-    // Store credentials in Redux
-    dispatch(setPendingUser({
-      email: formData.email,
-      phoneNumber: formData.phoneNumber,
-      password: formData.password,
-      name: formData.name,
-    }));
+    if (formData.password !== formData.confirmPassword) {
+      setLocalError('Passwords do not match');
+      dispatch(setError('Passwords do not match'));
+      setLoading(false);
+      return;
+    }
 
-    // Simulate OTP generation
-    // localStorage.setItem('simulatedOTP', '123456');
-    dispatch(register(formData));
-    setLoading(false);
-    navigate('/verify', { state: { phoneNumber: formData.phoneNumber } });
+    try {
+      await registerUser(formData.name, formData.email, formData.phoneNumber, formData.password);
+      const { token, user } = await loginUser(formData.email, formData.password);
+      dispatch(setCredentials({
+        user: { email: user.email, name: user.name, phoneNumber: user.phone_number },
+        token,
+      }));
+      navigate('/');
+    } catch (err: any) {
+      console.log('Registration error:', err.response?.data); // Add this
+      const errorMsg = err.response?.data?.message || 'Registration or login failed';
+      setLocalError(errorMsg);
+      dispatch(setError(errorMsg));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -84,6 +100,7 @@ const Register: React.FC = () => {
                 placeholder="Full name"
                 value={formData.name}
                 onChange={handleChange}
+                disabled={loading}
               />
             </div>
             <div>
@@ -99,6 +116,7 @@ const Register: React.FC = () => {
                 placeholder="Email address"
                 value={formData.email}
                 onChange={handleChange}
+                disabled={loading}
               />
             </div>
             <div>
@@ -108,12 +126,13 @@ const Register: React.FC = () => {
               <input
                 id="phoneNumber"
                 name="phoneNumber"
-                type="text"
+                type="tel"
                 required
                 className="input"
                 placeholder="Phone number"
                 value={formData.phoneNumber}
                 onChange={handleChange}
+                disabled={loading}
               />
             </div>
             <div>
@@ -129,6 +148,7 @@ const Register: React.FC = () => {
                 placeholder="Password"
                 value={formData.password}
                 onChange={handleChange}
+                disabled={loading}
               />
             </div>
             <div>
@@ -144,14 +164,25 @@ const Register: React.FC = () => {
                 placeholder="Confirm password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
+                disabled={loading}
               />
             </div>
           </div>
 
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+
           <div>
-            <button type="submit" className="btn btn-primary w-full flex justify-center items-center">
-              <UserPlus className="w-5 h-5 mr-2" />
-              Create account
+            <button
+              type="submit"
+              className="btn btn-primary w-full flex justify-center items-center"
+              disabled={loading}
+            >
+              {loading ? 'Registering...' : (
+                <>
+                  <UserPlus className="w-5 h-5 mr-2" />
+                  Create account
+                </>
+              )}
             </button>
           </div>
         </form>

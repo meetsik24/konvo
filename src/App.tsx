@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store';
 import Layout from './components/Layout';
-import PrivateRoute from './components/PrivateRoute';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -20,19 +19,18 @@ import Subscription from './pages/subscription';
 import SenderID from './pages/SenderID';
 import Contacts from './pages/Contacts';
 import { ContactsProvider } from './components/ContactsContext';
-import { WorkspaceProvider } from './pages/WorkspaceContext'; // Import WorkspaceProvider
+import { WorkspaceProvider } from './pages/WorkspaceContext';
 
 function App() {
   return (
     <Provider store={store}>
-      <WorkspaceProvider> {/* Wrap with WorkspaceProvider */}
+      <WorkspaceProvider>
         <ContactsProvider>
           <Router>
             <Routes>
-              {/* Commented out the login, register, and verify routes */}
-              {/* <Route path="/login" element={<Login />} /> */}
-              {/* <Route path="/register" element={<Register />} /> */}
-              {/* <Route path="/verify" element={<Verify />} /> */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/verify" element={<Verify />} />
               <Route element={<Layout />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/send-sms" element={<SendSMS />} />
