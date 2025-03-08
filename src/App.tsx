@@ -30,7 +30,7 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/verify" element={<Verify />} />
+            {/* <Route path="/verify" element={<Verify />} />  */} 
               <Route element={<Layout />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/send-sms" element={<SendSMS />} />

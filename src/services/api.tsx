@@ -10,47 +10,77 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
-  const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhOTI1OTg2NC0zYmE0LTQyNGMtYTdhZi04MDE1ZjczMzUyZDYiLCJleHAiOjE3NDEzOTQ0MTZ9.iBp5KCvn2W9MksBXIWh4KJ0S55z-J0C7DlN_IrrRwH0";
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+//  Attach Token Automatically Before Each Request
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-
+//  Register User
 export const registerUser = async (name: string, email: string, phoneNumber: string, password: string) => {
-  const response = await api.post("/auth/register", { 
-    name, 
-    email, 
-    phoneNumber, 
-    password 
-  });
-  return response.data;
-};
-
-export const loginUser = async (identifier: string, password: string) => {
-  const formData = new FormData();
-  if (identifier.includes('@')) {
-    formData.append('email', identifier);
-  } else {
-    formData.append('phone_number', identifier);
+  try {
+    const response = await api.post("/auth/register", {
+      name,
+      email,
+      phoneNumber,
+      password
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Registration failed:", error.response?.data || error.message);
+    throw error;
   }
-  formData.append('password', password);
-
-  const response = await api.post("/auth/login", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data", // Override default JSON
-    },
-  });
-
-  const { token, user } = response.data; // Expecting { token, user: { email, name, phone_number } }
-  localStorage.setItem("token", token);
-  return { token, user };
 };
 
-export const getUser = async (email: string) => {
-  const response = await api.get("/auth/user", { params: { email } });
+//  Login User & Store Token in Local Storage
+export const loginUser = async (identifier: string, password: string) => {
+  try {
+    const formData = new FormData();
+    formData.append('grant_type', 'password');
+    formData.append('username', identifier);
+    formData.append('password', password);
+    formData.append('scope', '');
+    formData.append('client_id', '');
+    formData.append('client_secret', '');
+
+    const response = await api.post("/auth/login", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    const { access_token, user } = response.data; // Ensure correct field name
+    if (access_token) {
+      localStorage.setItem("token", access_token); // Store token for reuse
+    }
+    
+    return { token: access_token, user };
+  } catch (error) {
+    console.error("Login failed:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+//  Logout Function (Clear Token)
+export const logoutUser = () => {
+  localStorage.removeItem("token");
+  console.log("Logged out successfully!");
+};
+
+
+
+
+
+
+
+export const getUser = async (email: string, full_name: string) => {
+  const response = await api.get("/users/me", {
+    params: { email, full_name },
+  });
   return response.data;
 };
 
@@ -173,30 +203,109 @@ export const fetchEmailLogs = async () => {
   return response.data; // Expecting LogEntry[]
 };
 
-export const getWorkspaces = async () => {
-  const response = await api.get("/workspaces/");
-  return response.data;
-};
+
+
+//WORKSPACE
 
 export const createWorkspace = async (name: string) => {
   const response = await api.post("/workspaces/", { name });
   return response.data;
 };
 
-export const getWorkspace = async (workspaceId: string) => {
-  const response = await api.get(`/workspaces/${workspaceId}`);
-  return response.data;
+
+export const getWorkspaces = async () => {
+  console.log('getWorkspaces API call initiated');
+  try {
+    const response = await api.get('/workspaces'); // Removed trailing slash
+    console.log('getWorkspaces API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('getWorkspaces API error:', {
+      message: error.message,
+      response: error.response ? {
+        status: error.response.status,
+        data: error.response.data,
+      } : 'No response data',
+    });
+    throw error;
+  }
 };
 
-export const updateWorkspace = async (workspaceId: string, data: Partial<Workspace>) => {
-  const response = await api.patch(`/workspaces/${workspaceId}`, data);
-  return response.data;
+export const apiUpdateWorkspace = async (id: string, data: Partial<Workspace>) => {
+  const response = await fetch(`/api/workspaces/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to update workspace');
+  }
+  const updatedData = await response.json();
+  return updatedData;
 };
 
-export const deleteWorkspace = async (workspaceId: string) => {
-  const response = await api.delete(`/workspaces/${workspaceId}`);
-  return response.data;
+export const deleteWorkspace = async (id: string) => {
+  console.log('deleteWorkspace API call initiated for ID:', id);
+  try {
+    const response = await api.delete(`/workspaces/${id}`);
+    console.log('deleteWorkspace API response:', response.data);
+    return response.data; // Might be empty (204 No Content), adjust if needed
+  } catch (error: any) {
+    console.error('deleteWorkspace API error:', error);
+    throw error;
+  }
 };
 
+
+//CAMPAIGNS
+export const getCampaigns = async () => {
+  console.log('getCampaigns API call initiated');
+  try {
+    const response = await api.get('/campaigns');
+    console.log('getCampaigns API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('getCampaigns API error:', error);
+    throw error;
+  }
+};
+
+export const createCampaign = async (data: { name: string; description?: string; launch_date?: string; workspace_id: string }) => {
+  console.log('createCampaign API call initiated with data:', data);
+  try {
+    const response = await api.post('/campaigns', data);
+    console.log('createCampaign API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('createCampaign API error:', error);
+    throw error;
+  }
+};
+
+export const updateCampaign = async (campaignId: string, data: Partial<{ name: string; description?: string; launch_date?: string }>) => {
+  console.log('updateCampaign API call initiated for campaign:', campaignId, 'with data:', data);
+  try {
+    const response = await api.patch(`/campaigns/${campaignId}`, data);
+    console.log('updateCampaign API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('updateCampaign API error:', error);
+    throw error;
+  }
+};
+
+export const deleteCampaign = async (campaignId: string) => {
+  console.log('deleteCampaign API call initiated for campaign:', campaignId);
+  try {
+    const response = await api.delete(`/campaigns/${campaignId}`);
+    console.log('deleteCampaign API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('deleteCampaign API error:', error);
+    throw error;
+  }
+};
 
 export default api;

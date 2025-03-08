@@ -14,8 +14,8 @@ const navItems = [
 ];
 
 const Sidebar: React.FC = () => {
-  const { workspaces, currentWorkspaceId, setCurrentWorkspaceId } = useWorkspace();
-  const activeWorkspace = workspaces.find((ws) => ws.id === currentWorkspaceId);
+  const { workspaces, currentWorkspaceId } = useWorkspace();
+  const activeWorkspace = workspaces.find((ws) => ws.workspace_id === currentWorkspaceId); // Changed from ws.id to ws.workspace_id
   const isWorkspaceSelected = !!currentWorkspaceId;
 
   // Log changes for debugging
@@ -34,13 +34,16 @@ const Sidebar: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-800 mb-3">Workspace</h2>
           <div
             className={`px-4 py-3 text-base font-medium rounded-xl transition-all duration-200 ${
-              activeWorkspace
+              isWorkspaceSelected // Changed from activeWorkspace to isWorkspaceSelected
                 ? 'text-primary-600 bg-primary-50 border border-primary-200'
                 : 'text-gray-400 bg-gray-100 italic'
             }`}
           >
             {activeWorkspace?.name || 'No Workspace Selected'}
           </div>
+          {!isWorkspaceSelected && (
+            <p className="mt-2 text-sm text-red-500">Please select a workspace from the Navbar.</p>
+          )}
         </div>
 
         {/* Navigation */}
