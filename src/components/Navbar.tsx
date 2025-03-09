@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate
 import { Bell, Settings, LogOut, Plus, X, Coffee, ChevronDown, Trash2 } from 'lucide-react';
 import { logout } from '../store/slices/authSlice';
 import type { RootState } from '../store';
@@ -15,6 +15,7 @@ interface Notification {
 
 const Navbar: React.FC = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate(); // Added navigate hook
   const user = useSelector((state: RootState) => state.auth.user);
   const {
     workspaces,
@@ -41,8 +42,9 @@ const Navbar: React.FC = () => {
 
   const handleLogout = useCallback(() => {
     console.log('Logging out user:', user?.email);
-    dispatch(logout());
-  }, [dispatch, user?.email]);
+    dispatch(logout()); // Dispatch logout action
+    navigate('/login'); // Redirect to login page
+  }, [dispatch, user?.email, navigate]); // Added navigate to dependencies
 
   const handleCreateWorkspace = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
