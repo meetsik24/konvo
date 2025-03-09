@@ -1,30 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
-import { CreditCard, Check, MessageSquare } from 'lucide-react';
-import { getPlans, getSubscriptionUsage, subscribeToPlan, renewSubscription, upgradeSubscription } from '../services/api';
+import { CreditCard, Check, X } from 'lucide-react';
+import {
+  getPlans,
+  getSubscriptionUsage,
+  subscribeToPlan,
+  renewSubscription,
+  upgradeSubscription,
+  Plan,
+  SubscriptionUsage,
+} from '../services/api';
 import type { RootState } from '../store';
 
-interface Plan {
-  plan_name: string;
-  description: string;
-  sms_count: number;
-  email_count: number;
-  call_minutes: number;
-  price: string;
-  duration: string;
-  plan_id: string;
-  isContactSales?: boolean; // Added for UI logic
+interface Contact {
+  name: string;
+  phone_number: string;
+  email: string;
 }
 
-interface SubscriptionUsage {
-  user_id: string;
-  plan_id: string;
-  sms_count: number;
-  email_count: number;
-  call_minute_count: number;
-  timestamp: string;
-}
+// Hardcoded list of sales contacts
+const salesContacts: Contact[] = [
+  {
+    name: "Innocent Singo",
+    phone_number: "+255-123-456-789",
+    email: "sales@briq.tz",
+  },
+];
 
 const Subscription: React.FC = () => {
   const { token } = useSelector((state: RootState) => state.auth);
@@ -36,27 +38,32 @@ const Subscription: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
 
-  // Fetch plans and subscription details on mount
   useEffect(() => {
     const fetchPlansAndSubscription = async () => {
       setIsLoading(true);
-      try {
-        // Fetch plans
-        const plansData = await getPlans(token);
-        // Add isContactSales flag for plans with "Contact Sales" pricing
-        const updatedPlans = plansData.map(plan => ({
-          ...plan,
-          isContactSales: plan.price.toLowerCase().includes('contact sales'),
-        }));
-        setPlans(updatedPlans);
+      setError(null);
 
-        // Fetch subscription usage
-        const subscriptionData = await getSubscriptionUsage(token);
-        setSubscriptionDetails(subscriptionData);
+      try {
+        const plansData = await getPlans();
+        console.log('Fetched plans:', plansData);
+
+        if (!plansData || plansData.length === 0) {
+          console.warn('No plans were returned from the API');
+        }
+
+        setPlans(plansData); // No need to add isContactSales if not used
+
+        try {
+          const subscriptionData = await getSubscriptionUsage();
+          setSubscriptionDetails(subscriptionData);
+        } catch (subErr: any) {
+          console.error('Specific error fetching subscription:', subErr.message, 'Status:', subErr.response?.status);
+        }
       } catch (err: any) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load plans or subscription details.');
+        console.error('Error fetching plans:', err.message, 'Status:', err.response?.status);
+        setError('Failed to load plans. Please check your connection and try again.');
       } finally {
         setIsLoading(false);
       }
@@ -64,90 +71,129 @@ const Subscription: React.FC = () => {
 
     if (token) {
       fetchPlansAndSubscription();
+    } else {
+      console.error('No authentication token available');
+      setError('You must be logged in to view subscription plans.');
     }
   }, [token]);
 
-  // Handle subscription actions
   const handleSubscribe = async (planId: string) => {
     setError(null);
     setSuccess(null);
     setSelectedPlanId(planId);
 
     const selectedPlan = plans.find(plan => plan.plan_id === planId);
-    if (selectedPlan?.isContactSales) {
-      console.log('Redirecting to contact sales for plan:', planId);
-      // Could redirect to a contact form or sales page
+    console.log('Selected plan:', selectedPlan);
+    console.log('subscriptionDetails:', subscriptionDetails);
+
+    if (!selectedPlan) {
+      setError('Could not find the selected plan. Please try again.');
       return;
     }
 
-    // If already subscribed, treat as upgrade
+    // Remove isContactSales logic; assume all plans use payment flow
     if (subscriptionDetails) {
+      console.log('Upgrading subscription for plan:', planId);
       await handleUpgrade(planId);
     } else {
+      console.log('Opening payment modal for plan:', planId);
       setShowPaymentModal(true);
     }
   };
 
   const handleRenew = async () => {
+    if (!token) {
+      setError('Authentication token is missing. Please log in again.');
+      return;
+    }
+
     setError(null);
     setSuccess(null);
     setIsLoading(true);
     try {
-      await renewSubscription(token);
+      await renewSubscription();
       setSuccess('Subscription renewed successfully!');
-      // Refetch subscription details
-      const subscriptionData = await getSubscriptionUsage(token);
-      setSubscriptionDetails(subscriptionData);
+
+      try {
+        const subscriptionData = await getSubscriptionUsage();
+        setSubscriptionDetails(subscriptionData);
+      } catch (subErr: any) {
+        console.error('Error refreshing subscription after renewal:', subErr.message, 'Status:', subErr.response?.status);
+        setError('Subscription was renewed but failed to refresh details. Please reload the page.');
+      }
     } catch (err: any) {
-      console.error('Error renewing subscription:', err);
-      setError('Failed to renew subscription.');
+      console.error('Error renewing subscription:', err.message, 'Status:', err.response?.status);
+      setError('Failed to renew subscription. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleUpgrade = async (planId: string) => {
+    if (!token) {
+      setError('Authentication token is missing. Please log in again.');
+      return;
+    }
+
     setError(null);
     setSuccess(null);
     setIsLoading(true);
     try {
-      await upgradeSubscription(token, planId);
+      await upgradeSubscription(planId);
       setSuccess('Subscription upgraded successfully!');
-      // Refetch subscription details
-      const subscriptionData = await getSubscriptionUsage(token);
-      setSubscriptionDetails(subscriptionData);
+
+      try {
+        const subscriptionData = await getSubscriptionUsage();
+        setSubscriptionDetails(subscriptionData);
+      } catch (subErr: any) {
+        console.error('Error refreshing subscription after upgrade:', subErr.message, 'Status:', subErr.response?.status);
+        setError('Subscription was upgraded but failed to refresh details. Please reload the page.');
+      }
     } catch (err: any) {
-      console.error('Error upgrading subscription:', err);
-      setError('Failed to upgrade subscription.');
+      console.error('Error upgrading subscription:', err.message, 'Status:', err.response?.status);
+      setError('Failed to upgrade subscription. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handlePayment = async () => {
-    if (!selectedPlanId) return;
+    if (!token) {
+      setError('Authentication token is missing. Please log in again.');
+      return;
+    }
+
+    if (!selectedPlanId) {
+      setError('No plan selected. Please select a plan first.');
+      return;
+    }
 
     setError(null);
     setSuccess(null);
     setIsLoading(true);
     try {
-      await subscribeToPlan(token, selectedPlanId);
+      await subscribeToPlan(selectedPlanId);
       setSuccess('Successfully subscribed to the plan!');
       setShowPaymentModal(false);
       setMobileMoneyNumber('');
       setSelectedPlanId(null);
-      // Refetch subscription details
-      const subscriptionData = await getSubscriptionUsage(token);
-      setSubscriptionDetails(subscriptionData);
+
+      try {
+        const subscriptionData = await getSubscriptionUsage();
+        setSubscriptionDetails(subscriptionData);
+      } catch (subErr: any) {
+        console.error('Error refreshing subscription after new subscription:', subErr.message, 'Status:', subErr.response?.status);
+        setError('Subscription was successful but failed to refresh details. Please reload the page.');
+      }
     } catch (err: any) {
-      console.error('Error subscribing to plan:', err);
-      setError('Failed to subscribe to the plan.');
+      console.error('Error subscribing to plan:', err.message, 'Status:', err.response?.status);
+      setError('Failed to subscribe to the plan. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const currentPlan = plans.find(plan => plan.plan_id === subscriptionDetails?.plan_id);
+  const currentPlan = subscriptionDetails ? plans.find(plan => plan.plan_id === subscriptionDetails.plan_id) : null;
 
   return (
     <motion.div
@@ -160,11 +206,24 @@ const Subscription: React.FC = () => {
         <p className="mt-4 text-xl text-[#6f888c]">Choose the perfect SMS package for your needs</p>
       </div>
 
-      {/* Error and Success Messages */}
-      {error && <div className="text-red-500 text-center mb-4">{error}</div>}
-      {success && <div className="text-green-500 text-center mb-4">{success}</div>}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700 text-center mb-4">
+          <p>{error}</p>
+        </div>
+      )}
+      
+      {success && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4 text-green-700 text-center mb-4">
+          <p>{success}</p>
+        </div>
+      )}
 
-      {/* Current Subscription */}
+      {isLoading && !plans.length && (
+        <div className="text-center py-12">
+          <p className="text-lg text-[#6f888c]">Loading subscription plans...</p>
+        </div>
+      )}
+
       {subscriptionDetails && currentPlan && (
         <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
           <div className="px-4 py-5 sm:px-6">
@@ -203,7 +262,7 @@ const Subscription: React.FC = () => {
                     className="btn btn-primary mr-2"
                     disabled={isLoading}
                   >
-                    Renew
+                    {isLoading ? 'Processing...' : 'Renew'}
                   </button>
                 </dd>
               </div>
@@ -212,81 +271,95 @@ const Subscription: React.FC = () => {
         </div>
       )}
 
-      {/* Plans List */}
-      <div className="grid gap-8 lg:grid-cols-3 lg:gap-x-6 mt-16">
-        {plans.map((plan) => (
-          <motion.div
-            key={plan.plan_id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`relative rounded-2xl border ${
-              plan.plan_name.toLowerCase().includes('bumbuli') ? 'border-primary-500' : 'border-gray-200'
-            } shadow-sm flex flex-col`}
-          >
-            {plan.plan_name.toLowerCase().includes('bumbuli') && (
-              <div className="absolute top-0 right-0 -mr-1 -mt-1 px-3 py-1 bg-[#fddf0d] text-white text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
-                Popular
+      {!isLoading && !subscriptionDetails && plans.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-blue-700 text-center mb-4">
+          <p>You don't have an active subscription. Choose a plan below to get started.</p>
+        </div>
+      )}
+
+      {plans.length > 0 ? (
+        <div className="grid gap-8 lg:grid-cols-3 lg:gap-x-6 mt-16">
+          {plans.map((plan) => (
+            <motion.div
+              key={plan.plan_id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`relative rounded-2xl border ${
+                plan.plan_name.toLowerCase().includes('bumbuli') ? 'border-primary-500' : 'border-gray-200'
+              } shadow-sm flex flex-col`}
+            >
+              {plan.plan_name.toLowerCase().includes('bumbuli') && (
+                <div className="absolute top-0 right-0 -mr-1 -mt-1 px-3 py-1 bg-[#fddf0d] text-white text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
+                  Popular
+                </div>
+              )}
+
+              <div className="p-8">
+                <h3 className="text-2xl font-semibold text-gray-900">{plan.plan_name}</h3>
+
+                <div className="mt-4">
+                  <span className="text-3xl font-extrabold text-[#00333e]">{plan.price}</span>
+                  <span className="ml-2 text-[#6f888c]">per SMS</span>
+                </div>
+
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-gray-900 mb-4">Deliverables</h4>
+                  <ul className="space-y-4">
+                    {plan.description.split('\n').map((feature, index) => (
+                      <li key={index} className="flex items-start">
+                        <Check className="w-5 h-5 text-green-500 shrink-0" />
+                        <span className="ml-3 text-gray-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-6">
+                  <p className="text-sm text-[#6f888c]">
+                    Minimum SMS Volume: {plan.sms_count.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-[#6f888c]">
+                    Minimum Email Volume: {plan.email_count.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-[#6f888c]">
+                    Call Minutes: {plan.call_minutes.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-[#6f888c]">
+                    Duration: {plan.duration}
+                  </p>
+                </div>
               </div>
-            )}
 
-            <div className="p-8">
-              <h3 className="text-2xl font-semibold text-gray-900">{plan.plan_name}</h3>
-
-              <div className="mt-4">
-                <span className="text-3xl font-extrabold text-[#00333e]">{plan.price}</span>
-                <span className="ml-2 text-[#6f888c]">per SMS</span>
+              <div className="p-8 mt-auto">
+                <button
+                  onClick={() => handleSubscribe(plan.plan_id)}
+                  className="w-full btn flex items-center justify-center space-x-2 bg-[#00333e] text-white"
+                  disabled={isLoading}
+                >
+                  <CreditCard className="w-5 h-5" />
+                  <span>{subscriptionDetails ? 'Upgrade Plan' : 'Subscribe Now'}</span>
+                </button>
               </div>
-
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-900 mb-4">Deliverables</h4>
-                <ul className="space-y-4">
-                  {plan.description.split('\n').map((feature, index) => (
-                    <li key={index} className="flex items-start">
-                      <Check className="w-5 h-5 text-green-500 shrink-0" />
-                      <span className="ml-3 text-gray-700">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="mt-6">
-                <p className="text-sm text-[#6f888c]">
-                  Minimum SMS Volume: {plan.sms_count.toLocaleString()}
-                </p>
-                <p className="text-sm text-[#6f888c]">
-                  Minimum Email Volume: {plan.email_count.toLocaleString()}
-                </p>
-                <p className="text-sm text-[#6f888c]">
-                  Call Minutes: {plan.call_minutes.toLocaleString()}
-                </p>
-                <p className="text-sm text-[#6f888c]">
-                  Duration: {plan.duration}
-                </p>
-              </div>
-            </div>
-
-            <div className="p-8 mt-auto">
-              <button
-                onClick={() => handleSubscribe(plan.plan_id)}
-                className={`w-full btn flex items-center justify-center space-x-2 ${
-                  plan.isContactSales ? 'btn-outline' : 'bg-[#00333e] text-white'
-                }`}
-                disabled={isLoading}
-              >
-                <CreditCard className="w-5 h-5" />
-                <span>{plan.isContactSales ? 'Contact Sales' : subscriptionDetails ? 'Upgrade Plan' : 'Subscribe Now'}</span>
-              </button>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+            </motion.div>
+          ))}
+        </div>
+      ) : !isLoading && (
+        <div className="text-center py-12">
+          <p className="text-lg text-[#6f888c]">No plans available at this time. Please check back later or contact support.</p>
+        </div>
+      )}
 
       <div className="mt-12 text-center">
         <h2 className="text-2xl font-semibold text-gray-900">Need a custom solution?</h2>
         <p className="mt-4 text-gray-600">
           Contact our sales team for tailored options beyond Paradiso.
         </p>
-        <button className="mt-6 btn btn-outline">Contact Sales</button>
+        <button
+          className="mt-6 btn bg-[#00333e] text-white"
+          onClick={() => setShowContactModal(true)}
+        >
+          Contact Sales
+        </button>
       </div>
 
       {showPaymentModal && (
@@ -295,7 +368,7 @@ const Subscription: React.FC = () => {
             <h2 className="text-xl font-semibold mb-4">Enter Mobile Money Number</h2>
             <input
               type="text"
-              className="input mb-4"
+              className="input mb-4 w-full"
               value={mobileMoneyNumber}
               onChange={(e) => setMobileMoneyNumber(e.target.value)}
               placeholder="+255XXXXXXXXX"
@@ -314,6 +387,50 @@ const Subscription: React.FC = () => {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {showContactModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+          <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 ease-in-out">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-[#00333e]">Contact Our Sales Team</h2>
+              <button
+                onClick={() => setShowContactModal(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <p className="text-[#6f888c] mb-6">Reach out to our sales representatives for assistance.</p>
+            <div className="space-y-4">
+              {salesContacts.map((contact, index) => (
+                <div key={index} className="border-b border-gray-200 pb-4 last:border-b-0">
+                  <h3 className="text-lg font-semibold text-gray-900">{contact.name}</h3>
+                  <p className="text-[#6f888c] mt-1">
+                    <span className="font-medium">Phone:</span>{' '}
+                    <a href={`tel:${contact.phone_number}`} className="hover:text-[#00333e] transition-colors">
+                      {contact.phone_number}
+                    </a>
+                  </p>
+                  <p className="text-[#6f888c] mt-1">
+                    <span className="font-medium">Email:</span>{' '}
+                    <a href={`mailto:${contact.email}`} className="hover:text-[#00333e] transition-colors">
+                      {contact.email}
+                    </a>
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowContactModal(false)}
+                className="btn bg-[#00333e] text-white hover:bg-[#5a6f73] transition-colors px-6 py-2 rounded-lg"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

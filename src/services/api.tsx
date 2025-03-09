@@ -456,8 +456,59 @@ export const changePassword = async (token: string, data: { current_password: st
 
 
 // PLANS AND SUBSCRIPTIONS:
+export const getPlans = async (): Promise<Plan[]> => {
+  try {
+    const response = await api.get('/plans');
+    console.log('getPlans API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('getPlans API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
 
-interface Plan {
+export const getSubscriptionUsage = async (): Promise<SubscriptionUsage> => {
+  try {
+    const response = await api.get('/subscriptions/usage');
+    console.log('getSubscriptionUsage API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('getSubscriptionUsage API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const subscribeToPlan = async (planId: string): Promise<void> => {
+  try {
+    const response = await api.post('/subscriptions/subscribe', { plan_id: planId });
+    console.log('subscribeToPlan API response:', response.data);
+  } catch (error: any) {
+    console.error('subscribeToPlan API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const renewSubscription = async (): Promise<void> => {
+  try {
+    const response = await api.post('/subscriptions/renew', {});
+    console.log('renewSubscription API response:', response.data);
+  } catch (error: any) {
+    console.error('renewSubscription API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const upgradeSubscription = async (planId: string): Promise<void> => {
+  try {
+    const response = await api.post('/subscriptions/upgrade', { plan_id: planId });
+    console.log('upgradeSubscription API response:', response.data);
+  } catch (error: any) {
+    console.error('upgradeSubscription API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export interface Plan {
   plan_name: string;
   description: string;
   sms_count: number;
@@ -466,9 +517,10 @@ interface Plan {
   price: string;
   duration: string;
   plan_id: string;
+  isContactSales?: boolean;
 }
 
-interface SubscriptionUsage {
+export interface SubscriptionUsage {
   user_id: string;
   plan_id: string;
   sms_count: number;
@@ -476,79 +528,6 @@ interface SubscriptionUsage {
   call_minute_count: number;
   timestamp: string;
 }
-
-// Fetch all plans
-export const getPlans = async (token: string): Promise<Plan[]> => {
-  try {
-    const response = await api.get('/plans', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    console.log('getPlans API response:', response.data);
-    return response.data as Plan[];
-  } catch (error: any) {
-    console.error('getPlans API error:', error.response ? error.response.data : error);
-    throw error;
-  }
-};
-
-// Fetch subscription usage
-export const getSubscriptionUsage = async (token: string): Promise<SubscriptionUsage> => {
-  try {
-    const response = await api.get('/subscriptions/usage', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    console.log('getSubscriptionUsage API response:', response.data);
-    return response.data as SubscriptionUsage;
-  } catch (error: any) {
-    console.error('getSubscriptionUsage API error:', error.response ? error.response.data : error);
-    throw error;
-  }
-};
-
-// Subscribe to a plan
-export const subscribeToPlan = async (token: string, planId: string): Promise<void> => {
-  try {
-    const response = await api.post(
-      '/subscriptions/subscribe',
-      { plan_id: planId },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    console.log('subscribeToPlan API response:', response.data);
-  } catch (error: any) {
-    console.error('subscribeToPlan API error:', error.response ? error.response.data : error);
-    throw error;
-  }
-};
-
-// Renew subscription
-export const renewSubscription = async (token: string): Promise<void> => {
-  try {
-    const response = await api.post(
-      '/subscriptions/renew',
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    console.log('renewSubscription API response:', response.data);
-  } catch (error: any) {
-    console.error('renewSubscription API error:', error.response ? error.response.data : error);
-    throw error;
-  }
-};
-
-// Upgrade subscription
-export const upgradeSubscription = async (token: string, planId: string): Promise<void> => {
-  try {
-    const response = await api.post(
-      '/subscriptions/upgrade',
-      { plan_id: planId },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    console.log('upgradeSubscription API response:', response.data);
-  } catch (error: any) {
-    console.error('upgradeSubscription API error:', error.response ? error.response.data : error);
-    throw error;
-  }
-};
 
 
 
