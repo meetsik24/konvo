@@ -490,4 +490,53 @@ export const reviewSenderIdRequest = async (workspaceId: string, requestId: stri
   }
 };
 
+
+
+
+//UPDATE PROFILE:
+
+export const getProfile = async (token: string) => {
+  console.log('getProfile API call initiated');
+  try {
+    const response = await api.get('/users/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    console.log('getProfile API response:', response.data);
+    return response.data as UserProfile; // Match the interface
+  } catch (error: any) {
+    console.error('getProfile API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+// Update user profile
+export const updateProfile = async (token: string, data: { full_name: string; email: string; mobile_number: string }) => {
+  console.log('updateProfile API call initiated with data:', data);
+  try {
+    const response = await api.patch('/users/me', data, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    console.log('updateProfile API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('updateProfile API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+// Change user password
+export const changePassword = async (token: string, data: { current_password: string; new_password: string }) => {
+  console.log('changePassword API call initiated with data:', data);
+  try {
+    const response = await api.patch('/users/change-password', data, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    console.log('changePassword API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('changePassword API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
 export default api;
