@@ -45,14 +45,16 @@ const Account: React.FC = () => {
       setIsLoading(true);
       try {
         const data = await getProfile(token);
+        console.log('Fetched profile data:', data); // Log the full response
+        // Ensure all fields are mapped, even if some are missing
         setProfile(data);
         setFormData({
-          user_id: data.user_id,
-          username: data.username,
-          email: data.email,
-          full_name: data.full_name,
-          mobile_number: data.mobile_number,
-          account_status: data.account_status,
+          user_id: data.user_id || '',
+          username: data.username || '',
+          email: data.email || '',
+          full_name: data.full_name || '',
+          mobile_number: data.mobile_number || '',
+          account_status: data.account_status || 'Not set', // Default if missing
         });
         setError(null);
       } catch (error: any) {
@@ -96,13 +98,18 @@ const Account: React.FC = () => {
         full_name: formData.full_name,
         email: formData.email,
         mobile_number: formData.mobile_number,
+        // Note: account_status is not included here because it's not editable in the form
       };
       await updateProfile(token, updatedData);
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
-      // Optionally refetch profile to ensure consistency
+      // Refetch profile to ensure consistency, including account_status
       const newProfile = await getProfile(token);
       setProfile(newProfile);
+      setFormData({
+        ...formData,
+        ...newProfile,
+      });
     } catch (error: any) {
       console.error('Error updating profile:', error);
       setError(error.response?.data?.message || 'Failed to update profile.');
@@ -137,7 +144,7 @@ const Account: React.FC = () => {
 
     try {
       await changePassword(token, {
-        current_password: passwordData.currentPassword, // Adjusted to match schema
+        current_password: passwordData.currentPassword,
         new_password: passwordData.newPassword,
       });
       setSuccess('Password changed successfully!');
@@ -234,6 +241,16 @@ const Account: React.FC = () => {
                 value={formData.mobile_number}
                 onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
                 required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Account Status</label>
+              <input
+                type="text"
+                className="input w-full"
+                value={formData.account_status}
+                onChange={(e) => setFormData({ ...formData, account_status: e.target.value })}
+                disabled // Assuming account_status is read-only; adjust if editable
               />
             </div>
             <div className="flex gap-4">
