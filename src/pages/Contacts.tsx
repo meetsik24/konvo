@@ -150,26 +150,32 @@ const Contacts: React.FC = () => {
         getWorkspaceGroups(currentWorkspaceId)
       ]);
 
+      // Ensure contactsResponse is an array; fallback to empty array if not
+      const contactsData = Array.isArray(contactsResponse) ? contactsResponse : [];
+      console.log('Fetched contacts:', contactsData); // Debug log
+
       const updatedGroups = [
         { 
           group_id: 'all', 
           name: 'All Contacts', 
           workspace_id: currentWorkspaceId, 
           created_at: '', 
-          count: contactsResponse.length 
+          count: contactsData.length 
         },
         ...groupsResponse.map((group: Group) => ({
           ...group,
-          count: contactsResponse.filter((c: Contact) => c.group_id === group.group_id).length,
+          count: contactsData.filter((c: Contact) => c.group_id === group.group_id).length,
         })),
       ];
 
-      setContacts(contactsResponse);
+      setContacts(contactsData);
       setGroups(updatedGroups);
       setError(null);
     } catch (error: any) {
       console.error('Failed to fetch data:', error);
       setError('Unable to fetch contacts or groups');
+      setContacts([]); // Reset to empty array on error
+      setGroups([]); // Reset groups as well
     } finally {
       setIsLoading(false);
     }
