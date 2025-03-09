@@ -308,4 +308,186 @@ export const deleteCampaign = async (campaignId: string) => {
   }
 };
 
+
+//CONTACTS
+
+export const getContacts = async (workspaceId: string) => {
+  console.log('getContacts API call initiated for workspace:', workspaceId);
+  try {
+    const response = await api.get(`/workspaces/${workspaceId}/contacts`);
+    console.log('getContacts API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('getContacts API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+export const createContact = async (data: { name: string; phone_number: string; email: string; workspace_id: string; group_id?: string }) => {
+  console.log('createContact API call initiated with data:', data);
+  try {
+    const response = await api.post('/contacts/', data);
+    console.log('createContact API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('createContact API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+export const deleteContact = async (contactId: string) => {
+  console.log('deleteContact API call initiated for contact:', contactId);
+  try {
+    const response = await api.delete(`/contacts/${contactId}`);
+    console.log('deleteContact API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('deleteContact API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+
+// Group Endpoints
+export const getWorkspaceGroups = async (workspaceId: string) => {
+  console.log('getWorkspaceGroups API call initiated for workspace:', workspaceId);
+  try {
+    const response = await api.get(`/workspaces/${workspaceId}/contact-groups`);
+    console.log('getWorkspaceGroups API response:', response.data);
+    return response.data; // Expecting [{ group_id, workspace_id, name, created_at }]
+  } catch (error: any) {
+    console.error('getWorkspaceGroups API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+export const getCampaignGroups = async (campaignId: string) => {
+  console.log('getCampaignGroups API call initiated for campaign:', campaignId);
+  try {
+    const response = await api.get(`/campaigns/${campaignId}/contact-groups`);
+    console.log('getCampaignGroups API response:', response.data);
+    return response.data; // Expecting [{ group_id, workspace_id, name, created_at }]
+  } catch (error: any) {
+    console.error('getCampaignGroups API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+export const createGroup = async (data: { name: string; workspace_id: string }) => {
+  console.log('createGroup API call initiated with data:', data);
+  try {
+    const response = await api.post('/contact-groups/', data);
+    console.log('createGroup API response:', response.data);
+    return response.data; // Expecting { group_id, workspace_id, name, created_at }
+  } catch (error: any) {
+    console.error('createGroup API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+export const addContactsToGroup = async (groupId: string, contactIds: string[]) => {
+  console.log('addContactsToGroup API call initiated for group:', groupId, 'with contacts:', contactIds);
+  try {
+    const response = await api.post(`/contact-groups/${groupId}/add-contacts`, { contact_ids: contactIds });
+    console.log('addContactsToGroup API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('addContactsToGroup API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+export const assignGroupToCampaign = async (groupId: string, campaignId: string) => {
+  console.log('assignGroupToCampaign API call initiated for group:', groupId, 'to campaign:', campaignId);
+  try {
+    const response = await api.post(`/contact-groups/${groupId}/assign-to-campaign`, { campaign_id: campaignId });
+    console.log('assignGroupToCampaign API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('assignGroupToCampaign API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+export const deleteGroup = async (groupId: string) => {
+  console.log('deleteGroup API call initiated for group:', groupId);
+  try {
+    const response = await api.delete(`/contact-groups/${groupId}`);
+    console.log('deleteGroup API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('deleteGroup API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+export const getGroupContacts = async (workspaceId: string, groupId: string) => {
+  console.log(`getGroupContacts API call initiated for workspace: ${workspaceId}, group: ${groupId}`);
+  try {
+    const response = await api.get(`/workspaces/${workspaceId}/group/${groupId}/contacts`);
+    console.log('getGroupContacts API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('getGroupContacts API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+
+
+
+
+
+// Request a new sender ID
+export const requestSenderId = async (workspaceId: string, data: { sender_id: string }) => {
+  console.log('requestSenderId API call initiated for workspace:', workspaceId, 'with data:', data);
+  try {
+    const response = await api.post(`/sender-ids/request`, { ...data, workspace_id: workspaceId });
+    console.log('requestSenderId API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('requestSenderId API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+// Get user sender ID requests
+export const getUserSenderRequests = async (workspaceId: string) => {
+  console.log('getUserSenderRequests API call initiated for workspace:', workspaceId);
+  try {
+    const response = await api.get(`/sender-ids/requests?workspace_id=${workspaceId}`);
+    console.log('getUserSenderRequests API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('getUserSenderRequests API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+// Get admin sender ID requests
+export const getAdminSenderRequests = async (workspaceId: string) => {
+  console.log('getAdminSenderRequests API call initiated for workspace:', workspaceId);
+  try {
+    const response = await api.get(`/admin/sender-ids/requests?workspace_id=${workspaceId}`);
+    console.log('getAdminSenderRequests API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('getAdminSenderRequests API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+// Review a sender ID request
+export const reviewSenderIdRequest = async (workspaceId: string, requestId: string, data: { status: 'approved' | 'rejected' }) => {
+  console.log('reviewSenderIdRequest API call initiated for request:', requestId, 'with data:', data);
+  try {
+    const response = await api.patch(`/admin/sender-ids/${requestId}/review`, { ...data, workspace_id: workspaceId });
+    console.log('reviewSenderIdRequest API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('reviewSenderIdRequest API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
 export default api;

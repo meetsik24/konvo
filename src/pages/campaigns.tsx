@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Send, Clock, Trash2, Edit } from 'lucide-react';
+import { MessageSquare, Send, Clock, Trash2, Edit, Users } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
-import { getCampaigns, createCampaign, updateCampaign, deleteCampaign } from '../services/api';
+import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getWorkspaceGroups, getCampaignGroups, assignGroupToCampaign } from '../services/api';
 
 interface Campaign {
   campaign_id: string;
@@ -11,6 +11,13 @@ interface Campaign {
   description: string;
   launch_date: string;
   created_by: string;
+  created_at: string;
+}
+
+interface Group {
+  group_id: string;
+  name: string;
+  workspace_id: string;
   created_at: string;
 }
 
@@ -25,27 +32,48 @@ const SMSCampaigns: React.FC = () => {
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [campaignGroups, setCampaignGroups] = useState<{ [key: string]: Group[] }>({});
 
   useEffect(() => {
-    const fetchCampaigns = async () => {
+    const fetchData = async () => {
+      if (!currentWorkspaceId) return;
       try {
         const campaignData = await getCampaigns();
-        // Filter campaigns by current workspace if workspace_id is set
-        if (currentWorkspaceId) {
-          setCampaigns(campaignData.filter(c => c.workspace_id === currentWorkspaceId));
-        } else {
-          setCampaigns(campaignData);
+        const workspaceCampaigns = campaignData.filter((c: Campaign) => c.workspace_id === currentWorkspaceId);
+        setCampaigns(workspaceCampaigns);
+  
+        const groupData = await retryRequest(() => getWorkspaceGroups(currentWorkspaceId));
+        setGroups(groupData);
+  
+        const campaignGroupsData: { [key: string]: Group[] } = {};
+        for (const campaign of workspaceCampaigns) {
+          const groups = await getCampaignGroups(campaign.campaign_id);
+          campaignGroupsData[campaign.campaign_id] = groups;
         }
+        setCampaignGroups(campaignGroupsData);
+  
         setError(null);
       } catch (error) {
-        console.error('Failed to fetch campaigns:', error);
-        setError('Unable to fetch campaigns.');
+        console.error('Failed to fetch campaigns or groups:', error);
+        setError('Unable to fetch campaigns or groups.');
         setCampaigns([]);
       }
     };
-    fetchCampaigns();
+    fetchData();
   }, [currentWorkspaceId]);
-
+  
+  const retryRequest = async (requestFn: () => Promise<any>, retries = 3, delay = 1000): Promise<any> => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await requestFn();
+      } catch (error) {
+        if (i === retries - 1) throw error;
+        await new Promise(res => setTimeout(res, delay));
+      }
+    }
+  };
   const handleCreateOrUpdateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentWorkspaceId) {
@@ -59,7 +87,7 @@ const SMSCampaigns: React.FC = () => {
         name: campaignData.name,
         description: campaignData.description,
         launch_date: campaignData.launch_date || '',
-        workspace_id: currentWorkspaceId, // Include workspace_id for creation
+        workspace_id: currentWorkspaceId,
       };
 
       if (editingCampaign) {
@@ -70,7 +98,13 @@ const SMSCampaigns: React.FC = () => {
       } else {
         const createdCampaign = await createCampaign(campaignPayload);
         setCampaigns([...campaigns, createdCampaign]);
+        if (selectedGroupId) {
+          await assignGroupToCampaign(selectedGroupId, createdCampaign.campaign_id);
+          const updatedGroups = await getCampaignGroups(createdCampaign.campaign_id);
+          setCampaignGroups({ ...campaignGroups, [createdCampaign.campaign_id]: updatedGroups });
+        }
         setNewCampaign({ name: '', description: '', launch_date: '' });
+        setSelectedGroupId('');
       }
       setError(null);
     } catch (error) {
@@ -90,6 +124,11 @@ const SMSCampaigns: React.FC = () => {
       try {
         await deleteCampaign(id);
         setCampaigns(campaigns.filter(c => c.campaign_id !== id));
+        setCampaignGroups(prev => {
+          const updated = { ...prev };
+          delete updated[id];
+          return updated;
+        });
         setError(null);
       } catch (error) {
         console.error('Error deleting campaign:', error);
@@ -105,6 +144,18 @@ const SMSCampaigns: React.FC = () => {
       description: campaign.description,
       launch_date: campaign.launch_date,
     });
+  };
+
+  const handleAssignGroup = async (campaignId: string, groupId: string) => {
+    try {
+      await assignGroupToCampaign(groupId, campaignId);
+      const updatedGroups = await getCampaignGroups(campaignId);
+      setCampaignGroups({ ...campaignGroups, [campaignId]: updatedGroups });
+      setError(null);
+    } catch (error) {
+      console.error('Error assigning group to campaign:', error);
+      setError('Failed to assign group.');
+    }
   };
 
   return (
@@ -165,6 +216,23 @@ const SMSCampaigns: React.FC = () => {
               }
             />
           </div>
+          {!editingCampaign && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Assign Group (Optional)</label>
+              <select
+                className="input"
+                value={selectedGroupId}
+                onChange={(e) => setSelectedGroupId(e.target.value)}
+              >
+                <option value="">Select a group</option>
+                {groups.map((group) => (
+                  <option key={group.group_id} value={group.group_id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex justify-end gap-4">
             {editingCampaign && (
               <button
@@ -196,31 +264,55 @@ const SMSCampaigns: React.FC = () => {
         ) : (
           <div className="space-y-4">
             {campaigns.map((campaign) => (
-              <div key={campaign.campaign_id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-medium">{campaign.name}</h3>
-                  <p className="text-sm text-gray-600">{campaign.description.substring(0, 50)}...</p>
-                  <div className="mt-1 flex gap-4 text-sm text-gray-500">
-                    {campaign.launch_date && (
-                      <span>Launch: {new Date(campaign.launch_date).toLocaleString()}</span>
-                    )}
-                    <span>Created: {new Date(campaign.created_at).toLocaleString()}</span>
-                    <span>By: {campaign.created_by}</span>
+              <div key={campaign.campaign_id} className="flex flex-col p-4 border rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium">{campaign.name}</h3>
+                    <p className="text-sm text-gray-600">{campaign.description.substring(0, 50)}...</p>
+                    <div className="mt-1 flex gap-4 text-sm text-gray-500">
+                      {campaign.launch_date && (
+                        <span>Launch: {new Date(campaign.launch_date).toLocaleString()}</span>
+                      )}
+                      <span>Created: {new Date(campaign.created_at).toLocaleString()}</span>
+                      <span>By: {campaign.created_by}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => handleEditCampaign(campaign)}
+                      className="text-primary-500 hover:text-primary-700"
+                    >
+                      <Edit className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCampaign(campaign.campaign_id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => handleEditCampaign(campaign)}
-                    className="text-primary-500 hover:text-primary-700"
+                <div className="mt-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Groups</label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {campaignGroups[campaign.campaign_id]?.map((group) => (
+                      <span key={group.group_id} className="bg-primary-50 text-primary-500 px-2 py-1 rounded">
+                        {group.name}
+                      </span>
+                    ))}
+                  </div>
+                  <select
+                    className="input w-full max-w-xs"
+                    onChange={(e) => handleAssignGroup(campaign.campaign_id, e.target.value)}
+                    value=""
                   >
-                    <Edit className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteCampaign(campaign.campaign_id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                    <option value="">Assign a group</option>
+                    {groups.filter(g => !campaignGroups[campaign.campaign_id]?.some(cg => cg.group_id === g.group_id)).map((group) => (
+                      <option key={group.group_id} value={group.group_id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             ))}
