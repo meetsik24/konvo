@@ -1,24 +1,32 @@
-// SenderID.tsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { IdCard, Plus, Trash2, Edit2, X } from 'lucide-react';
+import { IdCard, Plus, Check, XCircle } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext'; // Adjust path
-import { getSenderId } from '../services/api'; // Adjust path
+import {
+  requestSenderId,
+  getUserSenderRequests,
+  getAdminSenderRequests,
+  reviewSenderIdRequest,
+} from '../services/api'; // Adjust path
 
-interface SenderID {
-  id: string;
-  name: string;
+interface SenderIDRequest {
+  request_id: string;
+  user_id: string;
+  sender_id: string;
   status: 'pending' | 'approved' | 'rejected';
+  requested_at?: string;
+  reviewed_at?: string;
 }
 
 const SenderID: React.FC = () => {
-  const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId } = useWorkspace();
+  const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId, isAdmin } = useWorkspace(); // Assuming isAdmin is available
   const workspace = getCurrentWorkspace();
-  const [senderIds, setSenderIds] = useState<SenderID[]>(workspace?.senderIds || []);
+  const [senderIds, setSenderIds] = useState<SenderIDRequest[]>(workspace?.senderIds || []);
   const [newSenderId, setNewSenderId] = useState('');
-  const [editingSenderId, setEditingSenderId] = useState<SenderID | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAdminView, setIsAdminView] = useState(false); // Toggle between user and admin view
+  const [reviewRequest, setReviewRequest] = useState<{ request_id: string; status: 'approved' | 'rejected' } | null>(null);
 
   // Sync with current workspace data
   useEffect(() => {
@@ -26,41 +34,44 @@ const SenderID: React.FC = () => {
     setError(null); // Reset error on workspace switch
   }, [currentWorkspaceId, workspace]);
 
-  // Fetch sender IDs if not cached
+  // Fetch sender ID requests based on user role
   useEffect(() => {
     const fetchSenderIds = async () => {
-      if (senderIds.length > 0) return; // Skip if already loaded
+      if (!currentWorkspaceId) {
+        setError('No workspace selected.');
+        return;
+      }
       setIsLoading(true);
       try {
-        const ids = await getSenderId();
-        const formattedIds = ids.map((id: string, index: number) => ({
-          id: Date.now().toString() + index, // Assuming API returns names only; adjust if it returns full objects
-          name: id,
-          status: 'approved', // Default status; adjust based on API response
+        const requests = isAdmin && isAdminView
+          ? await getAdminSenderRequests(currentWorkspaceId)
+          : await getUserSenderRequests(currentWorkspaceId);
+        const formattedRequests = requests.map((req: any) => ({
+          request_id: req.request_id || req.id || Date.now().toString(), // Adjust based on API response
+          user_id: req.user_id || '', // Adjust based on API response
+          sender_id: req.sender_id || req.name || '', // Adjust based on API response
+          status: req.status || 'pending', // Adjust based on API response
+          requested_at: req.requested_at,
+          reviewed_at: req.reviewed_at,
         }));
-        setSenderIds(formattedIds);
+        setSenderIds(formattedRequests);
+        updateWorkspace(currentWorkspaceId, { senderIds: formattedRequests });
         setError(null);
-        if (currentWorkspaceId) {
-          updateWorkspace(currentWorkspaceId, { senderIds: formattedIds });
-        }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to fetch sender IDs:', error);
-        setError('Unable to fetch sender IDs from the server. Using fallback data.');
-        // Fallback data
+        setError('Unable to fetch sender ID requests from the server.');
         const fallbackIds = [
-          { id: '1', name: 'CompanyA', status: 'approved' },
-          { id: '2', name: 'Support', status: 'pending' },
+          { request_id: '1', user_id: 'user1', sender_id: 'CompanyA', status: 'approved', requested_at: new Date().toISOString() },
+          { request_id: '2', user_id: 'user2', sender_id: 'Support', status: 'pending', requested_at: new Date().toISOString() },
         ];
         setSenderIds(fallbackIds);
-        if (currentWorkspaceId) {
-          updateWorkspace(currentWorkspaceId, { senderIds: fallbackIds });
-        }
+        updateWorkspace(currentWorkspaceId, { senderIds: fallbackIds });
       } finally {
         setIsLoading(false);
       }
     };
     fetchSenderIds();
-  }, [currentWorkspaceId, updateWorkspace, senderIds.length]);
+  }, [currentWorkspaceId, updateWorkspace, isAdmin, isAdminView]);
 
   // Persist changes to workspace
   useEffect(() => {
@@ -69,58 +80,51 @@ const SenderID: React.FC = () => {
     }
   }, [senderIds, currentWorkspaceId, updateWorkspace]);
 
-  const handleAddSenderId = () => {
+  const handleRequestSenderId = async () => {
     if (!newSenderId.trim()) {
       setError('Sender ID name cannot be empty.');
       return;
     }
+    setIsLoading(true);
     try {
-      const senderId: SenderID = {
-        id: Date.now().toString(),
-        name: newSenderId.trim(),
-        status: 'pending', // New sender IDs start as pending
+      const response = await requestSenderId(currentWorkspaceId, { sender_id: newSenderId.trim() });
+      const newRequest = {
+        request_id: response.request_id || Date.now().toString(),
+        user_id: response.user_id || '', // Assuming user_id is managed server-side
+        sender_id: newSenderId.trim(),
+        status: 'pending',
+        requested_at: response.requested_at || new Date().toISOString(),
+        reviewed_at: response.reviewed_at,
       };
-      setSenderIds([...senderIds, senderId]);
+      setSenderIds([...senderIds, newRequest]);
       setNewSenderId('');
       setError(null);
-    } catch (error) {
-      console.error('Error adding sender ID:', error);
-      setError('Failed to add sender ID.');
+      updateWorkspace(currentWorkspaceId, { senderIds: [...senderIds, newRequest] });
+    } catch (error: any) {
+      console.error('Error requesting sender ID:', error);
+      setError('Failed to request sender ID. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleEditSenderId = (senderId: SenderID) => {
-    setEditingSenderId(senderId);
-  };
-
-  const handleUpdateSenderId = () => {
-    if (!editingSenderId || !editingSenderId.name.trim()) {
-      setError('Sender ID name cannot be empty.');
-      return;
-    }
+  const handleReviewSenderId = async (requestId: string, status: 'approved' | 'rejected') => {
+    if (!currentWorkspaceId || !isAdmin) return;
+    setIsLoading(true);
     try {
-      setSenderIds(
-        senderIds.map((s) =>
-          s.id === editingSenderId.id ? { ...editingSenderId } : s
-        )
+      await reviewSenderIdRequest(currentWorkspaceId, requestId, { status });
+      const updatedRequests = senderIds.map((req) =>
+        req.request_id === requestId ? { ...req, status, reviewed_at: new Date().toISOString() } : req
       );
-      setEditingSenderId(null);
+      setSenderIds(updatedRequests);
+      setReviewRequest(null);
       setError(null);
-    } catch (error) {
-      console.error('Error updating sender ID:', error);
-      setError('Failed to update sender ID.');
-    }
-  };
-
-  const handleDeleteSenderId = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this sender ID?')) {
-      try {
-        setSenderIds(senderIds.filter((s) => s.id !== id));
-        setError(null);
-      } catch (error) {
-        console.error('Error deleting sender ID:', error);
-        setError('Failed to delete sender ID.');
-      }
+      updateWorkspace(currentWorkspaceId, { senderIds: updatedRequests });
+    } catch (error: any) {
+      console.error('Error reviewing sender ID request:', error);
+      setError('Failed to review sender ID request.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -129,6 +133,14 @@ const SenderID: React.FC = () => {
       <div className="flex items-center gap-3 mb-8">
         <IdCard className="w-8 h-8 text-primary-500" />
         <h1 className="text-3xl font-bold text-gray-800">Sender IDs</h1>
+        {isAdmin && (
+          <button
+            onClick={() => setIsAdminView(!isAdminView)}
+            className="btn btn-secondary ml-auto"
+          >
+            {isAdminView ? 'User View' : 'Admin View'}
+          </button>
+        )}
       </div>
 
       {/* Error Message */}
@@ -142,39 +154,25 @@ const SenderID: React.FC = () => {
         </div>
       )}
 
-      {/* Sender ID Form */}
+      {/* Sender ID Request Form */}
       {!isLoading && (
         <div className="card p-6">
-          <h2 className="text-lg font-semibold mb-4">
-            {editingSenderId ? 'Edit Sender ID' : 'Add New Sender ID'}
-          </h2>
+          <h2 className="text-lg font-semibold mb-4">Request New Sender ID</h2>
           <div className="flex gap-4">
             <input
               type="text"
               className="input flex-1"
               placeholder="Enter sender ID name (e.g., CompanyName)"
-              value={editingSenderId ? editingSenderId.name : newSenderId}
-              onChange={(e) =>
-                editingSenderId
-                  ? setEditingSenderId({ ...editingSenderId, name: e.target.value })
-                  : setNewSenderId(e.target.value)
-              }
+              value={newSenderId}
+              onChange={(e) => setNewSenderId(e.target.value)}
             />
             <button
-              onClick={editingSenderId ? handleUpdateSenderId : handleAddSenderId}
+              onClick={handleRequestSenderId}
               className="btn btn-primary flex items-center gap-2"
             >
               <Plus className="w-5 h-5" />
-              {editingSenderId ? 'Update' : 'Add'}
+              Request
             </button>
-            {editingSenderId && (
-              <button
-                onClick={() => setEditingSenderId(null)}
-                className="btn btn-secondary"
-              >
-                Cancel
-              </button>
-            )}
           </div>
         </div>
       )}
@@ -182,40 +180,85 @@ const SenderID: React.FC = () => {
       {/* Sender ID List */}
       {!isLoading && (
         <div className="card p-6">
-          <h2 className="text-lg font-semibold mb-4">Current Sender IDs</h2>
+          <h2 className="text-lg font-semibold mb-4">
+            {isAdminView ? 'Pending Sender ID Requests' : 'My Sender ID Requests'}
+          </h2>
           {senderIds.length === 0 ? (
-            <p className="text-gray-500">No sender IDs available.</p>
+            <p className="text-gray-500">No sender ID requests available.</p>
           ) : (
             <div className="space-y-4">
               {senderIds.map((senderId) => (
                 <div
-                  key={senderId.id}
+                  key={senderId.request_id}
                   className="flex items-center justify-between p-4 border rounded-lg"
                 >
                   <div>
-                    <h3 className="font-medium">{senderId.name}</h3>
+                    <h3 className="font-medium">{senderId.sender_id}</h3>
                     <p className="text-sm text-gray-600 capitalize">
                       Status: {senderId.status}
                     </p>
+                    {senderId.requested_at && (
+                      <p className="text-sm text-gray-500">
+                        Requested: {new Date(senderId.requested_at).toLocaleDateString()}
+                      </p>
+                    )}
+                    {senderId.reviewed_at && (
+                      <p className="text-sm text-gray-500">
+                        Reviewed: {new Date(senderId.reviewed_at).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEditSenderId(senderId)}
-                      className="btn btn-icon btn-ghost"
-                    >
-                      <Edit2 className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteSenderId(senderId.id)}
-                      className="btn btn-icon btn-ghost text-red-500"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    {isAdminView && senderId.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => setReviewRequest({ request_id: senderId.request_id, status: 'approved' })}
+                          className="btn btn-icon btn-ghost text-green-500"
+                        >
+                          <Check className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => setReviewRequest({ request_id: senderId.request_id, status: 'rejected' })}
+                          className="btn btn-icon btn-ghost text-red-500"
+                        >
+                          <XCircle className="w-5 h-5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Review Confirmation Modal */}
+      {reviewRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Confirm Review</h2>
+              <button onClick={() => setReviewRequest(null)}>
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            <p>
+              Are you sure you want to mark the sender ID "{senderIds.find((s) => s.request_id === reviewRequest.request_id)?.sender_id}" as{' '}
+              {reviewRequest.status}?
+            </p>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setReviewRequest(null)} className="btn btn-secondary">
+                Cancel
+              </button>
+              <button
+                onClick={() => handleReviewSenderId(reviewRequest.request_id, reviewRequest.status)}
+                className="btn btn-primary"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </motion.div>
