@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { Bell, Settings, LogOut, Plus, X, Coffee, ChevronDown, Trash2 } from 'lucide-react';
@@ -15,17 +15,16 @@ interface Notification {
 
 const Navbar: React.FC = () => {
   const dispatch = useDispatch();
-  // Optimized Redux selectors
   const user = useSelector((state: RootState) => state.auth.user);
-  const { 
-    workspaces, 
-    currentWorkspaceId, 
-    setCurrentWorkspaceId, 
-    addWorkspace, 
-    deleteWorkspace 
+  const {
+    workspaces,
+    currentWorkspaceId,
+    setCurrentWorkspaceId,
+    addWorkspace,
+    deleteWorkspace,
+    refreshWorkspaces,
   } = useWorkspace();
 
-  // State management
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -33,7 +32,6 @@ const Navbar: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Memoized notifications
   const [notifications, setNotifications] = useState<Notification[]>([
     { id: '1', type: 'senderid_accepted', message: 'Sender ID "BRIQ123" was accepted.', timestamp: '2025-03-06T10:00:00Z' },
     { id: '2', type: 'senderid_rejected', message: 'Sender ID "TESTID" was rejected.', timestamp: '2025-03-06T09:30:00Z' },
@@ -41,7 +39,6 @@ const Navbar: React.FC = () => {
     { id: '4', type: 'other', message: 'System maintenance scheduled for tomorrow.', timestamp: '2025-03-05T15:00:00Z' },
   ]);
 
-  // Memoized handlers
   const handleLogout = useCallback(() => {
     console.log('Logging out user:', user?.email);
     dispatch(logout());
@@ -60,12 +57,13 @@ const Navbar: React.FC = () => {
       await addWorkspace(newWorkspaceName);
       setNewWorkspaceName('');
       setIsCreateModalOpen(false);
+      await refreshWorkspaces(); // Refresh after creating
     } catch (err: any) {
       setError(err.message || 'Failed to create workspace');
     } finally {
       setIsLoading(false);
     }
-  }, [newWorkspaceName, addWorkspace]);
+  }, [newWorkspaceName, addWorkspace, refreshWorkspaces]);
 
   const handleDeleteWorkspace = useCallback(async (id: string) => {
     if (window.confirm('Are you sure you want to delete this workspace?')) {
@@ -74,30 +72,29 @@ const Navbar: React.FC = () => {
       try {
         await deleteWorkspace(id);
         setIsWorkspaceListOpen(false);
+        await refreshWorkspaces(); // Refresh after deleting
       } catch (err: any) {
         setError(err.message || 'Failed to delete workspace');
       } finally {
         setIsLoading(false);
       }
     }
-  }, [deleteWorkspace]);
+  }, [deleteWorkspace, refreshWorkspaces]);
 
   const handleDismissNotification = useCallback((id: string) => {
     setNotifications((prev) => prev.filter((notif) => notif.id !== id));
   }, []);
 
-  // Memoized notification icon renderer
   const getNotificationIcon = useCallback((type: Notification['type']) => {
     const icons = {
       senderid_accepted: <span className="text-green-500">✓</span>,
       senderid_rejected: <span className="text-red-500">✗</span>,
       subscription_renewal: <span className="text-yellow-500">!</span>,
-      other: <span className="text-blue-500">i</span>
+      other: <span className="text-blue-500">i</span>,
     };
     return icons[type];
   }, []);
 
-  // Memoized notification panel
   const notificationPanel = useMemo(() => (
     <div className="absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow-lg z-10 max-h-96 overflow-y-auto">
       <div className="p-4 border-b">
@@ -127,7 +124,6 @@ const Navbar: React.FC = () => {
     </div>
   ), [notifications, getNotificationIcon, handleDismissNotification]);
 
-  // Memoized workspace list
   const workspaceList = useMemo(() => (
     <div className="absolute right-0 mt-2 w-72 bg-white border rounded-xl shadow-lg z-10 max-h-64 overflow-y-auto">
       <div className="p-3 border-b bg-gray-50">
@@ -151,6 +147,7 @@ const Navbar: React.FC = () => {
                   ? 'text-primary-600 font-semibold'
                   : 'text-gray-700 hover:text-primary-500'
               }`}
+              disabled={isLoading}
             >
               {workspace.name}
             </button>
@@ -169,6 +166,15 @@ const Navbar: React.FC = () => {
       )}
     </div>
   ), [workspaces, currentWorkspaceId, handleDeleteWorkspace, isLoading, setCurrentWorkspaceId]);
+
+  // Effect to sync UI with workspace changes
+  useEffect(() => {
+    if (workspaces.length > 0 && !currentWorkspaceId) {
+      const newId = workspaces[0].workspace_id;
+      setCurrentWorkspaceId(newId);
+      localStorage.setItem('currentWorkspaceId', newId);
+    }
+  }, [workspaces, currentWorkspaceId, setCurrentWorkspaceId]);
 
   return (
     <nav className="bg-white border-b-2 border-primary-100">
@@ -203,6 +209,7 @@ const Navbar: React.FC = () => {
               <button
                 onClick={() => setIsWorkspaceListOpen(!isWorkspaceListOpen)}
                 className="flex items-center gap-2 p-2 text-gray-600 rounded-full hover:bg-primary-50 hover:text-primary-500 transition-colors"
+                disabled={isLoading}
               >
                 <Coffee className="w-6 h-6" />
                 <ChevronDown className="w-4 h-4" />
@@ -227,7 +234,7 @@ const Navbar: React.FC = () => {
             >
               <Settings className="w-6 h-6" />
             </Link>
-            
+
             <div className="flex items-center gap-3 bg-primary-50 px-4 py-2 rounded-full">
               <img
                 className="w-10 h-10 rounded-full border-2 border-primary-200"
