@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate
+import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, LogOut, Plus, X, Coffee, ChevronDown, Trash2 } from 'lucide-react';
-import { logout } from '../store/slices/authSlice';
+import { logout, updateUserProfile } from '../store/slices/authSlice';
+import { getProfile } from '../services/api';
 import type { RootState } from '../store';
 import { useWorkspace } from '../pages/WorkspaceContext';
 
@@ -15,8 +16,8 @@ interface Notification {
 
 const Navbar: React.FC = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate(); // Added navigate hook
-  const user = useSelector((state: RootState) => state.auth.user);
+  const navigate = useNavigate();
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const {
     workspaces,
     currentWorkspaceId,
@@ -40,11 +41,32 @@ const Navbar: React.FC = () => {
     { id: '4', type: 'other', message: 'System maintenance scheduled for tomorrow.', timestamp: '2025-03-05T15:00:00Z' },
   ]);
 
+  // Fetch full profile to get username and avatar on mount
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (token && (!user?.username || !user?.avatar)) { // Fetch if username or avatar is missing
+        setIsLoading(true);
+        try {
+          const profileData = await getProfile(token);
+          console.log('Fetched profile data for avatar:', profileData);
+          dispatch(updateUserProfile({ user: profileData }));
+          setError(null);
+        } catch (err: any) {
+          console.error('Error fetching profile:', err);
+          setError('Failed to load user profile.');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+    fetchUserProfile();
+  }, [token, user?.username, user?.avatar, dispatch]);
+
   const handleLogout = useCallback(() => {
     console.log('Logging out user:', user?.email);
-    dispatch(logout()); // Dispatch logout action
-    navigate('/login'); // Redirect to login page
-  }, [dispatch, user?.email, navigate]); // Added navigate to dependencies
+    dispatch(logout());
+    navigate('/login');
+  }, [dispatch, user?.email, navigate]);
 
   const handleCreateWorkspace = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +81,7 @@ const Navbar: React.FC = () => {
       await addWorkspace(newWorkspaceName);
       setNewWorkspaceName('');
       setIsCreateModalOpen(false);
-      await refreshWorkspaces(); // Refresh after creating
+      await refreshWorkspaces();
     } catch (err: any) {
       setError(err.message || 'Failed to create workspace');
     } finally {
@@ -74,7 +96,7 @@ const Navbar: React.FC = () => {
       try {
         await deleteWorkspace(id);
         setIsWorkspaceListOpen(false);
-        await refreshWorkspaces(); // Refresh after deleting
+        await refreshWorkspaces();
       } catch (err: any) {
         setError(err.message || 'Failed to delete workspace');
       } finally {
@@ -178,6 +200,10 @@ const Navbar: React.FC = () => {
     }
   }, [workspaces, currentWorkspaceId, setCurrentWorkspaceId]);
 
+  // Compute avatar URL with better fallback
+  const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || 'User')}&background=ffaa00&color=fff`;
+  console.log('Avatar URL:', avatarUrl); // Log to debug
+
   return (
     <nav className="bg-white border-b-2 border-primary-100">
       <div className="px-6 mx-auto max-w-7xl">
@@ -240,11 +266,15 @@ const Navbar: React.FC = () => {
             <div className="flex items-center gap-3 bg-primary-50 px-4 py-2 rounded-full">
               <img
                 className="w-10 h-10 rounded-full border-2 border-primary-200"
-                src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=ffaa00&color=fff`}
-                alt={user?.name || 'User'}
+                src={avatarUrl}
+                alt={user?.username || 'User'}
+                onError={(e) => {
+                  console.error('Avatar load error, falling back to default image');
+                  e.currentTarget.src = '/assets/default-avatar.png'; // Fallback to local image
+                }}
               />
               <div className="hidden md:block">
-                <div className="text-sm font-bold text-gray-700">{user?.name}</div>
+                <div className="text-sm font-bold text-gray-700">{user?.username || 'User'}</div>
                 <div className="text-xs text-gray-500">{user?.email}</div>
               </div>
             </div>

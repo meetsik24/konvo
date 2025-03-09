@@ -502,7 +502,14 @@ export const getProfile = async (token: string) => {
       headers: { Authorization: `Bearer ${token}` },
     });
     console.log('getProfile API response:', response.data);
-    return response.data as UserProfile; // Match the interface
+    const userData = {
+      email: response.data.email,
+      username: response.data.username,
+      full_name: response.data.full_name,
+      mobile_number: response.data.mobile_number,
+      avatar: response.data.avatar || undefined, // Map avatar if it exists
+    };
+    return userData as { email: string; username: string; full_name?: string; mobile_number?: string; avatar?: string };
   } catch (error: any) {
     console.error('getProfile API error:', error.response ? error.response.data : error);
     throw error;
