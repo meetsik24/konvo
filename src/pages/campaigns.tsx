@@ -161,8 +161,8 @@ const SMSCampaigns: React.FC = () => {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-3 mb-8">
-        <MessageSquare className="w-8 h-8 text-primary-500" />
-        <h1 className="text-3xl font-bold text-gray-800">SMS Campaigns</h1>
+        <MessageSquare className="w-8 h-8 text-[#00333e]" />
+        <h1 className="text-3xl font-bold text-[#00333e]">SMS Campaigns</h1>
       </div>
       {error && <div className="text-red-500 mb-4">{error}</div>}
       <div className="card p-8">
@@ -249,7 +249,7 @@ const SMSCampaigns: React.FC = () => {
             <button
               type="submit"
               disabled={isCreating}
-              className="btn btn-primary flex items-center gap-2"
+              className="btn bg-[#00333e] text-white flex items-center gap-2"
             >
               <Send className="w-5 h-5" />
               {isCreating ? 'Processing...' : editingCampaign ? 'Update Campaign' : 'Create Campaign'}
@@ -280,7 +280,7 @@ const SMSCampaigns: React.FC = () => {
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => handleEditCampaign(campaign)}
-                      className="text-primary-500 hover:text-primary-700"
+                      className="text-[#00333e] hover:text-[#6f888c]"
                     >
                       <Edit className="w-5 h-5" />
                     </button>
@@ -296,7 +296,7 @@ const SMSCampaigns: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Groups</label>
                   <div className="flex flex-wrap gap-2 mb-2">
                     {campaignGroups[campaign.campaign_id]?.map((group) => (
-                      <span key={group.group_id} className="bg-primary-50 text-primary-500 px-2 py-1 rounded">
+                      <span key={group.group_id} className="bg-[#fddf0d] text-[#00333e] px-2 py-1 rounded">
                         {group.name}
                       </span>
                     ))}
@@ -321,14 +321,14 @@ const SMSCampaigns: React.FC = () => {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card p-6">
-          <Clock className="w-6 h-6 text-primary-500 mb-3" />
+          <Clock className="w-6 h-6 text-[#00333e] mb-3" />
           <h3 className="text-lg font-semibold mb-2">Scheduled Campaigns</h3>
-          <p className="text-gray-600">{campaigns.filter((c) => c.launch_date).length} pending</p>
+          <p className="text-[#6f888c]">{campaigns.filter((c) => c.launch_date).length} pending</p>
         </div>
         <div className="card p-6">
-          <MessageSquare className="w-6 h-6 text-primary-500 mb-3" />
+          <MessageSquare className="w-6 h-6 text-[#00333e] mb-3" />
           <h3 className="text-lg font-semibold mb-2">Total Campaigns</h3>
-          <p className="text-gray-600">{campaigns.length} campaigns</p>
+          <p className="text-[#6f888c]">{campaigns.length} campaigns</p>
         </div>
       </div>
     </motion.div>

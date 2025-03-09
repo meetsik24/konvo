@@ -156,8 +156,8 @@ const Subscription: React.FC = () => {
       className="max-w-7xl mx-auto space-y-8 px-4 sm:px-6 lg:px-8 py-12"
     >
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900">SMS Service Only: Packages</h1>
-        <p className="mt-4 text-xl text-gray-600">Choose the perfect SMS package for your needs</p>
+        <h1 className="text-4xl font-bold text-[#00333e]">SMS Service Only: Packages</h1>
+        <p className="mt-4 text-xl text-[#6f888c]">Choose the perfect SMS package for your needs</p>
       </div>
 
       {/* Error and Success Messages */}
@@ -168,8 +168,8 @@ const Subscription: React.FC = () => {
       {subscriptionDetails && currentPlan && (
         <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
           <div className="px-4 py-5 sm:px-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">Current Subscription</h3>
-            <p className="mt-1 max-w-2xl text-sm text-gray-500">Your active SMS package details</p>
+            <h3 className="text-lg leading-6 font-medium text-[#00333e]">Current Subscription</h3>
+            <p className="mt-1 max-w-2xl text-sm text-[#6f888c]">Your active SMS package details</p>
           </div>
           <div className="border-t border-gray-200">
             <dl>
@@ -224,7 +224,7 @@ const Subscription: React.FC = () => {
             } shadow-sm flex flex-col`}
           >
             {plan.plan_name.toLowerCase().includes('bumbuli') && (
-              <div className="absolute top-0 right-0 -mr-1 -mt-1 px-3 py-1 bg-primary-500 text-white text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
+              <div className="absolute top-0 right-0 -mr-1 -mt-1 px-3 py-1 bg-[#fddf0d] text-white text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
                 Popular
               </div>
             )}
@@ -233,8 +233,8 @@ const Subscription: React.FC = () => {
               <h3 className="text-2xl font-semibold text-gray-900">{plan.plan_name}</h3>
 
               <div className="mt-4">
-                <span className="text-3xl font-extrabold text-gray-900">{plan.price}</span>
-                <span className="ml-2 text-gray-500">per SMS</span>
+                <span className="text-3xl font-extrabold text-[#00333e]">{plan.price}</span>
+                <span className="ml-2 text-[#6f888c]">per SMS</span>
               </div>
 
               <div className="mt-6">
@@ -250,16 +250,16 @@ const Subscription: React.FC = () => {
               </div>
 
               <div className="mt-6">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-[#6f888c]">
                   Minimum SMS Volume: {plan.sms_count.toLocaleString()}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-[#6f888c]">
                   Minimum Email Volume: {plan.email_count.toLocaleString()}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-[#6f888c]">
                   Call Minutes: {plan.call_minutes.toLocaleString()}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-[#6f888c]">
                   Duration: {plan.duration}
                 </p>
               </div>
@@ -269,7 +269,7 @@ const Subscription: React.FC = () => {
               <button
                 onClick={() => handleSubscribe(plan.plan_id)}
                 className={`w-full btn flex items-center justify-center space-x-2 ${
-                  plan.isContactSales ? 'btn-outline' : 'btn-primary'
+                  plan.isContactSales ? 'btn-outline' : 'bg-[#00333e] text-white'
                 }`}
                 disabled={isLoading}
               >
@@ -301,14 +301,14 @@ const Subscription: React.FC = () => {
               placeholder="+255XXXXXXXXX"
             />
             <button
-              className="btn btn-primary w-full"
+              className="btn bg-[#00333e] text-white w-full"
               onClick={handlePayment}
               disabled={isLoading}
             >
               {isLoading ? 'Processing...' : 'Pay Now'}
             </button>
             <button
-              className="btn btn-secondary w-full mt-2"
+              className="btn bg-[#6f888c] text-white w-full mt-2"
               onClick={() => setShowPaymentModal(false)}
               disabled={isLoading}
             >

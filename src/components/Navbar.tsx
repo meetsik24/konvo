@@ -221,7 +221,7 @@ const Navbar: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                className="p-2 text-gray-600 rounded-full hover:bg-primary-50 hover:text-primary-500 transition-colors relative"
+                className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors relative"
               >
                 <Bell className="w-6 h-6" />
                 {notifications.length > 0 && (
@@ -235,7 +235,7 @@ const Navbar: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setIsWorkspaceListOpen(!isWorkspaceListOpen)}
-                className="flex items-center gap-2 p-2 text-gray-600 rounded-full hover:bg-primary-50 hover:text-primary-500 transition-colors"
+                className="flex items-center gap-2 p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
                 disabled={isLoading}
               >
                 <Coffee className="w-6 h-6" />
@@ -247,7 +247,7 @@ const Navbar: React.FC = () => {
             {/* Create Workspace Button */}
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 p-2 text-gray-600 rounded-full hover:bg-primary-50 hover:text-primary-500 transition-colors"
+              className="flex items-center gap-2 p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
               disabled={isLoading}
             >
               <Plus className="w-6 h-6" />
@@ -257,12 +257,12 @@ const Navbar: React.FC = () => {
             {/* Settings and Profile Section */}
             <Link
               to="/account"
-              className="p-2 text-gray-600 rounded-full hover:bg-primary-50 hover:text-primary-500 transition-colors"
+              className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
             >
               <Settings className="w-6 h-6" />
             </Link>
 
-            <div className="flex items-center gap-3 bg-primary-50 px-4 py-2 rounded-full">
+            <div className="flex items-center gap-3 bg-[#fddf0d] px-4 py-2 rounded-full">
               <img
                 className="w-10 h-10 rounded-full border-2 border-primary-200"
                 src={avatarUrl}
@@ -280,7 +280,7 @@ const Navbar: React.FC = () => {
 
             <button
               onClick={handleLogout}
-              className="p-2 text-gray-600 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"
+              className="p-2 text-[#00333e] rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"
             >
               <LogOut className="w-6 h-6" />
             </button>
@@ -292,16 +292,16 @@ const Navbar: React.FC = () => {
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold text-gray-800 mb-6">Create New Workspace</h2>
+            <h2 className="text-lg font-semibold text-[#00333e] mb-6">Create New Workspace</h2>
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
             <form onSubmit={handleCreateWorkspace}>
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Workspace Name</label>
+                <label className="block text-sm font-medium text-[#00333e] mb-2">Workspace Name</label>
                 <input
                   type="text"
                   value={newWorkspaceName}
                   onChange={(e) => setNewWorkspaceName(e.target.value)}
-                  className="input w-full text-gray-600 border-primary-200 focus:border-primary-500 focus:ring-primary-500 rounded-xl"
+                  className="input w-full text-[#00333e] border-[#6f888c] focus:border-[#00333e] focus:ring-[#00333e] rounded-xl"
                   placeholder="Enter workspace name"
                   required
                   disabled={isLoading}
@@ -311,14 +311,14 @@ const Navbar: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="btn px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200"
+                  className="btn px-4 py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-xl hover:bg-gray-200"
                   disabled={isLoading}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary px-4 py-2 text-sm font-medium text-white rounded-xl"
+                  className="btn bg-[#00333e] text-white px-4 py-2 text-sm font-medium rounded-xl"
                   disabled={isLoading}
                 >
                   {isLoading ? 'Creating...' : 'Create'}

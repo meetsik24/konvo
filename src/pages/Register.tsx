@@ -75,12 +75,12 @@ const Register: React.FC = () => {
         className="max-w-md w-full space-y-8"
       >
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-[#00333e]">
             Create your account
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-[#6f888c]">
             Already have an account?{' '}
-            <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
+            <Link to="/login" className="font-medium text-[#fddf0d] hover:text-[#00333e]">
               Sign in
             </Link>
           </p>
@@ -174,7 +174,7 @@ const Register: React.FC = () => {
           <div>
             <button
               type="submit"
-              className="btn btn-primary w-full flex justify-center items-center"
+              className="btn bg-[#00333e] text-white w-full flex justify-center items-center"
               disabled={loading}
             >
               {loading ? 'Registering...' : (
