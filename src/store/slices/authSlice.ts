@@ -2,7 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface AuthState {
   isAuthenticated: boolean;
-  user: { email: string; name: string; phoneNumber?: string } | null; // Added phoneNumber
+  user: { email: string; username: string; full_name?: string; mobile_number?: string; avatar?: string } | null;
   token: string | null;
   error: string | null;
 }
@@ -18,11 +18,18 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setCredentials: (state, action: PayloadAction<{ user: { email: string; name: string; phoneNumber?: string }; token: string }>) => {
+    setCredentials: (state, action: PayloadAction<{ user: { email: string; username: string; full_name?: string; mobile_number?: string; avatar?: string }; token: string }>) => {
       state.isAuthenticated = true;
       state.user = action.payload.user;
       state.token = action.payload.token;
       state.error = null;
+    },
+    updateUserProfile: (state, action: PayloadAction<{ user: { email: string; username: string; full_name?: string; mobile_number?: string; avatar?: string } }>) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload.user };
+      } else {
+        state.user = action.payload.user; // In case user is null, initialize it
+      }
     },
     setError: (state, action: PayloadAction<string>) => {
       state.error = action.payload;
@@ -32,10 +39,10 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.error = null;
-      localStorage.removeItem("token");
+      localStorage.removeItem('token');
     },
   },
 });
 
-export const { setCredentials, setError, logout } = authSlice.actions;
+export const { setCredentials, updateUserProfile, setError, logout } = authSlice.actions;
 export default authSlice.reducer;
