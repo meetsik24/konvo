@@ -209,12 +209,11 @@ const Navbar: React.FC = () => {
       <div className="px-6 mx-auto max-w-7xl">
         <div className="flex justify-between h-20">
           {/* Logo Section */}
-          <div className="flex items-center">
+            <div className="flex items-center">
             <Link to="/" className="flex items-center gap-2">
-              <img src="/assets/briq2.png" alt="Briq Logo" className="w-8 h-8" />
-              <span className="text-2xl font-bold text-primary-500">Briq</span>
+              <img src="/assets/briq2.png" alt="Briq Logo" className="w-17 h-20" />
             </Link>
-          </div>
+            </div>
 
           {/* Control Section */}
           <div className="flex items-center gap-6">
