@@ -1,133 +1,153 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
 import { CreditCard, Check, MessageSquare } from 'lucide-react';
+import { getPlans, getSubscriptionUsage, subscribeToPlan, renewSubscription, upgradeSubscription } from '../services/api';
+import type { RootState } from '../store';
 
-interface PricingPlan {
-  id: string;
-  name: string;
-  minimumVolume: number; // Minimum SMS volume
-  pricePerSms: string; // TZS per SMS (string to handle "Contact Sales")
-  features: string[];
-  isContactSales?: boolean; // For Paradiso package
+interface Plan {
+  plan_name: string;
+  description: string;
+  sms_count: number;
+  email_count: number;
+  call_minutes: number;
+  price: string;
+  duration: string;
+  plan_id: string;
+  isContactSales?: boolean; // Added for UI logic
 }
 
-interface SubscriptionDetails {
-  planId: string;
-  smsUsed: number;
+interface SubscriptionUsage {
+  user_id: string;
+  plan_id: string;
+  sms_count: number;
+  email_count: number;
+  call_minute_count: number;
+  timestamp: string;
 }
 
-const plans: PricingPlan[] = [
-  {
-    id: 'kitonga',
-    name: 'Kitonga Package',
-    minimumVolume: 1,
-    pricePerSms: '17 TZS',
-    features: [
-      'Free Dashboard Access',
-      'Standard Quick Service Support',
-      'Gateway API Access / No Code Integration',
-      'Real-Time Status Updates',
-      'Data Reports (Monthly)',
-      'Dashboard Demonstration',
-    ],
-  },
-  {
-    id: 'bumbuli',
-    name: 'Bumbuli Package',
-    minimumVolume: 6000,
-    pricePerSms: '16 TZS',
-    features: [
-      'Free Dashboard Access with Extended Features',
-      'Priority Quick Service Support',
-      'Campaign Management',
-      'Gateway API Access / No Code Integration',
-      'Real-Time Status Updates',
-      'Data Reports (Quarterly)',
-      'Enhanced Dashboard Demonstration (with added analytics insights)',
-    ],
-  },
-  {
-    id: 'kibaigwa',
-    name: 'Kibaigwa Package',
-    minimumVolume: 55000,
-    pricePerSms: '15 TZS',
-    features: [
-      'Free Dashboard Access with Advanced Analytics',
-      'Priority+ Quick Service Support',
-      'Campaign Management',
-      'Gateway API Access / No Code Integration',
-      'Real-Time Status Updates with Alert Notifications',
-      'Data Reports (Weekly)',
-      'Customizable Dashboard Demonstration',
-    ],
-  },
-  {
-    id: 'kilimahewa',
-    name: 'Kilimahewa Package',
-    minimumVolume: 410000,
-    pricePerSms: '14 TZS',
-    features: [
-      'Free Enterprise-Grade Dashboard Access with Full Analytics',
-      '24/7 Dedicated Quick Service Support',
-      'Campaign Management',
-      'Gateway API Access / No Code Integration',
-      'Real-Time Status Updates with Predictive Alerts',
-      'Data Reports (Daily or Real-Time Insights)',
-      'Personalized Dashboard Demonstration & Training',
-    ],
-  },
-  {
-    id: 'paradiso',
-    name: 'Paradiso Package',
-    minimumVolume: 500001,
-    pricePerSms: 'Contact Sales (Up to 10 TZS)',
-    features: [
-      'Fully Custom Dashboard Access tailored to your needs',
-      'Premium Dedicated Quick Service Support with custom SLA',
-      'Campaign Management',
-      'Custom Gateway API Integration / No Code Integration',
-      'Real-Time Status Updates with Custom Alerts & Monitoring',
-      'Data Reports at a frequency of your choice',
-      'In-depth Dashboard Demonstration & Onboarding',
-    ],
-    isContactSales: true,
-  },
-];
-
-const Subscription = () => {
-  const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionDetails | null>(null);
+const Subscription: React.FC = () => {
+  const { token } = useSelector((state: RootState) => state.auth);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionUsage | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Fetch plans and subscription details on mount
   useEffect(() => {
-    const fetchSubscriptionDetails = async () => {
-      // Replace with actual API call
-      const details: SubscriptionDetails = {
-        planId: 'kibaigwa',
-        smsUsed: 30000, // Example usage
-      };
-      setSubscriptionDetails(details);
+    const fetchPlansAndSubscription = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch plans
+        const plansData = await getPlans(token);
+        // Add isContactSales flag for plans with "Contact Sales" pricing
+        const updatedPlans = plansData.map(plan => ({
+          ...plan,
+          isContactSales: plan.price.toLowerCase().includes('contact sales'),
+        }));
+        setPlans(updatedPlans);
+
+        // Fetch subscription usage
+        const subscriptionData = await getSubscriptionUsage(token);
+        setSubscriptionDetails(subscriptionData);
+      } catch (err: any) {
+        console.error('Error fetching data:', err);
+        setError('Failed to load plans or subscription details.');
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    fetchSubscriptionDetails();
-  }, []);
+    if (token) {
+      fetchPlansAndSubscription();
+    }
+  }, [token]);
 
+  // Handle subscription actions
   const handleSubscribe = async (planId: string) => {
-    if (planId === 'paradiso') {
-      console.log('Redirecting to contact sales for Paradiso Package');
+    setError(null);
+    setSuccess(null);
+    setSelectedPlanId(planId);
+
+    const selectedPlan = plans.find(plan => plan.plan_id === planId);
+    if (selectedPlan?.isContactSales) {
+      console.log('Redirecting to contact sales for plan:', planId);
       // Could redirect to a contact form or sales page
       return;
     }
-    setShowPaymentModal(true);
-    console.log(`Subscribing to plan: ${planId}`);
+
+    // If already subscribed, treat as upgrade
+    if (subscriptionDetails) {
+      await handleUpgrade(planId);
+    } else {
+      setShowPaymentModal(true);
+    }
+  };
+
+  const handleRenew = async () => {
+    setError(null);
+    setSuccess(null);
+    setIsLoading(true);
+    try {
+      await renewSubscription(token);
+      setSuccess('Subscription renewed successfully!');
+      // Refetch subscription details
+      const subscriptionData = await getSubscriptionUsage(token);
+      setSubscriptionDetails(subscriptionData);
+    } catch (err: any) {
+      console.error('Error renewing subscription:', err);
+      setError('Failed to renew subscription.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpgrade = async (planId: string) => {
+    setError(null);
+    setSuccess(null);
+    setIsLoading(true);
+    try {
+      await upgradeSubscription(token, planId);
+      setSuccess('Subscription upgraded successfully!');
+      // Refetch subscription details
+      const subscriptionData = await getSubscriptionUsage(token);
+      setSubscriptionDetails(subscriptionData);
+    } catch (err: any) {
+      console.error('Error upgrading subscription:', err);
+      setError('Failed to upgrade subscription.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handlePayment = async () => {
-    console.log(`Paying with mobile money number: ${mobileMoneyNumber}`);
-    setShowPaymentModal(false);
+    if (!selectedPlanId) return;
+
+    setError(null);
+    setSuccess(null);
+    setIsLoading(true);
+    try {
+      await subscribeToPlan(token, selectedPlanId);
+      setSuccess('Successfully subscribed to the plan!');
+      setShowPaymentModal(false);
+      setMobileMoneyNumber('');
+      setSelectedPlanId(null);
+      // Refetch subscription details
+      const subscriptionData = await getSubscriptionUsage(token);
+      setSubscriptionDetails(subscriptionData);
+    } catch (err: any) {
+      console.error('Error subscribing to plan:', err);
+      setError('Failed to subscribe to the plan.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const currentPlan = plans.find((plan) => plan.id === subscriptionDetails?.planId);
+  const currentPlan = plans.find(plan => plan.plan_id === subscriptionDetails?.plan_id);
 
   return (
     <motion.div
@@ -140,6 +160,11 @@ const Subscription = () => {
         <p className="mt-4 text-xl text-gray-600">Choose the perfect SMS package for your needs</p>
       </div>
 
+      {/* Error and Success Messages */}
+      {error && <div className="text-red-500 text-center mb-4">{error}</div>}
+      {success && <div className="text-green-500 text-center mb-4">{success}</div>}
+
+      {/* Current Subscription */}
       {subscriptionDetails && currentPlan && (
         <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
           <div className="px-4 py-5 sm:px-6">
@@ -150,12 +175,36 @@ const Subscription = () => {
             <dl>
               <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Package</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{currentPlan.name}</dd>
+                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{currentPlan.plan_name}</dd>
               </div>
               <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">SMS Used</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  {subscriptionDetails.smsUsed.toLocaleString()} / Unlimited (Min: {currentPlan.minimumVolume.toLocaleString()})
+                  {subscriptionDetails.sms_count.toLocaleString()} / {currentPlan.sms_count.toLocaleString()} (Min: {currentPlan.sms_count.toLocaleString()})
+                </dd>
+              </div>
+              <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt className="text-sm font-medium text-gray-500">Email Used</dt>
+                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                  {subscriptionDetails.email_count.toLocaleString()} / {currentPlan.email_count.toLocaleString()}
+                </dd>
+              </div>
+              <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt className="text-sm font-medium text-gray-500">Call Minutes Used</dt>
+                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                  {subscriptionDetails.call_minute_count.toLocaleString()} / {currentPlan.call_minutes.toLocaleString()}
+                </dd>
+              </div>
+              <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt className="text-sm font-medium text-gray-500">Actions</dt>
+                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                  <button
+                    onClick={handleRenew}
+                    className="btn btn-primary mr-2"
+                    disabled={isLoading}
+                  >
+                    Renew
+                  </button>
                 </dd>
               </div>
             </dl>
@@ -163,34 +212,35 @@ const Subscription = () => {
         </div>
       )}
 
+      {/* Plans List */}
       <div className="grid gap-8 lg:grid-cols-3 lg:gap-x-6 mt-16">
         {plans.map((plan) => (
           <motion.div
-            key={plan.id}
+            key={plan.plan_id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className={`relative rounded-2xl border ${
-              plan.id === 'bumbuli' ? 'border-primary-500' : 'border-gray-200'
+              plan.plan_name.toLowerCase().includes('bumbuli') ? 'border-primary-500' : 'border-gray-200'
             } shadow-sm flex flex-col`}
           >
-            {plan.id === 'bumbuli' && ( // Marking Bumbuli as popular as an example
+            {plan.plan_name.toLowerCase().includes('bumbuli') && (
               <div className="absolute top-0 right-0 -mr-1 -mt-1 px-3 py-1 bg-primary-500 text-white text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
                 Popular
               </div>
             )}
 
             <div className="p-8">
-              <h3 className="text-2xl font-semibold text-gray-900">{plan.name}</h3>
+              <h3 className="text-2xl font-semibold text-gray-900">{plan.plan_name}</h3>
 
               <div className="mt-4">
-                <span className="text-3xl font-extrabold text-gray-900">{plan.pricePerSms}</span>
+                <span className="text-3xl font-extrabold text-gray-900">{plan.price}</span>
                 <span className="ml-2 text-gray-500">per SMS</span>
               </div>
 
               <div className="mt-6">
                 <h4 className="text-sm font-medium text-gray-900 mb-4">Deliverables</h4>
                 <ul className="space-y-4">
-                  {plan.features.map((feature, index) => (
+                  {plan.description.split('\n').map((feature, index) => (
                     <li key={index} className="flex items-start">
                       <Check className="w-5 h-5 text-green-500 shrink-0" />
                       <span className="ml-3 text-gray-700">{feature}</span>
@@ -201,20 +251,30 @@ const Subscription = () => {
 
               <div className="mt-6">
                 <p className="text-sm text-gray-600">
-                  Minimum Volume: {plan.minimumVolume.toLocaleString()} SMS
+                  Minimum SMS Volume: {plan.sms_count.toLocaleString()}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Minimum Email Volume: {plan.email_count.toLocaleString()}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Call Minutes: {plan.call_minutes.toLocaleString()}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Duration: {plan.duration}
                 </p>
               </div>
             </div>
 
             <div className="p-8 mt-auto">
               <button
-                onClick={() => handleSubscribe(plan.id)}
+                onClick={() => handleSubscribe(plan.plan_id)}
                 className={`w-full btn flex items-center justify-center space-x-2 ${
                   plan.isContactSales ? 'btn-outline' : 'btn-primary'
                 }`}
+                disabled={isLoading}
               >
                 <CreditCard className="w-5 h-5" />
-                <span>{plan.isContactSales ? 'Contact Sales' : 'Subscribe Now'}</span>
+                <span>{plan.isContactSales ? 'Contact Sales' : subscriptionDetails ? 'Upgrade Plan' : 'Subscribe Now'}</span>
               </button>
             </div>
           </motion.div>
@@ -240,12 +300,17 @@ const Subscription = () => {
               onChange={(e) => setMobileMoneyNumber(e.target.value)}
               placeholder="+255XXXXXXXXX"
             />
-            <button className="btn btn-primary w-full" onClick={handlePayment}>
-              Pay Now
+            <button
+              className="btn btn-primary w-full"
+              onClick={handlePayment}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Processing...' : 'Pay Now'}
             </button>
             <button
               className="btn btn-secondary w-full mt-2"
               onClick={() => setShowPaymentModal(false)}
+              disabled={isLoading}
             >
               Cancel
             </button>
