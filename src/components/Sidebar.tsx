@@ -27,15 +27,15 @@ const Sidebar: React.FC = () => {
   }, [workspaces, currentWorkspaceId, activeWorkspace, isWorkspaceSelected]);
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r-2 border-primary-100 flex flex-col">
+    <aside className="w-64 min-h-screen bg-white border-r-2 border-[#6f888c] flex flex-col">
       <div className="flex flex-col h-full py-6">
         {/* Workspace Header */}
         <div className="px-4 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">Workspace</h2>
+          <h2 className="text-lg font-semibold text-[#00333e] mb-3">Workspace</h2>
           <div
             className={`px-4 py-3 text-base font-medium rounded-xl transition-all duration-200 ${
               isWorkspaceSelected // Changed from activeWorkspace to isWorkspaceSelected
-                ? 'text-primary-600 bg-primary-50 border border-primary-200'
+                ? 'text-[#00333e] bg-[#fddf0d] border border-[#6f888c]'
                 : 'text-gray-400 bg-gray-100 italic'
             }`}
           >
@@ -57,8 +57,8 @@ const Sidebar: React.FC = () => {
                   !isWorkspaceSelected
                     ? 'text-gray-400 cursor-not-allowed bg-gray-50'
                     : isActive
-                    ? 'bg-primary-500 text-white shadow-md shadow-primary-500/20'
-                    : 'text-gray-600 hover:bg-primary-50 hover:text-primary-600'
+                    ? 'bg-[#00333e] text-white shadow-md shadow-[#00333e]/20'
+                    : 'text-[#00333e] hover:bg-[#fddf0d] hover:text-[#00333e]'
                 }`
               }
               onClick={(e) => {
