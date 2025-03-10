@@ -397,6 +397,16 @@ export const reviewSenderIdRequest = async (workspaceId: string, requestId: stri
   }
 };
 
+// Review a sender ID request// Sender IDs
+export const getApprovedSenderIds = async (workspaceId: string) => {
+  try {
+    const response = await api.get(`/sender-ids/approved?workspace_id=${workspaceId}`);
+    return response.data; // Returns array of objects with sender_id, user_id, is_approved, etc.
+  } catch (error: any) {
+    console.error('getApprovedSenderIds API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
 
 
 
@@ -530,5 +540,69 @@ export interface SubscriptionUsage {
 }
 
 
+
+
+
+
+//SEND-SMS
+
+
+export const sendInstantMessage = async (workspaceId: string, data: {
+  recipients: string[];
+  message: string;
+  sender_id?: string;
+  schedule?: string;
+}) => {
+  try {
+    const response = await api.post('/messages/send-instant', {
+      workspace_id: workspaceId,
+      ...data,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('sendInstantMessage API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getMessageLogs = async () => {
+  try {
+    const response = await api.get('/messages/logs');
+    return response.data;
+  } catch (error: any) {
+    console.error('getMessageLogs API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getUserMessages = async () => {
+  try {
+    const response = await api.get('/messages/me');
+    return response.data;
+  } catch (error: any) {
+    console.error('getUserMessages API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getMessagesByRecipient = async (recipient: string) => {
+  try {
+    const response = await api.get(`/messages/recipient/${recipient}`);
+    return response.data;
+  } catch (error: any) {
+    console.error('getMessagesByRecipient API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getMessageDetail = async (messageId: string) => {
+  try {
+    const response = await api.get(`/messages/${messageId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error('getMessageDetail API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
 
 export default api;

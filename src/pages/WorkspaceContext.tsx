@@ -3,12 +3,38 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { getWorkspaces, createWorkspace, apiUpdateWorkspace as updateWorkspace, deleteWorkspace } from '../services/api';
 
+// Define interfaces for Campaigns and SenderIds to match SendSMS and SenderID components
+interface Campaign {
+  campaign_id: string;
+  workspace_id: string;
+  name: string;
+  description: string;
+  launch_date: string;
+  created_by: string;
+  created_at: string;
+}
+
+interface SenderId {
+  sender_id: string;
+  user_id: string;
+  is_approved: boolean;
+  approved_at?: string;
+  name: string;
+  created_at?: string;
+  request_id?: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  requested_at?: string;
+  reviewed_at?: string;
+}
+
 interface Workspace {
   workspace_id: string;
   user_id: string;
   name: string;
   description: string;
   created_at: string;
+  campaigns?: Campaign[]; // Add campaigns as an optional field
+  senderIds?: SenderId[]; // Add senderIds as an optional field
 }
 
 interface WorkspaceContextType {
@@ -19,7 +45,7 @@ interface WorkspaceContextType {
   updateWorkspace: (id: string, data: Partial<Workspace>) => Promise<void>;
   deleteWorkspace: (id: string) => Promise<void>;
   getCurrentWorkspace: () => Workspace | undefined;
-  refreshWorkspaces: () => Promise<void>; // New method to force refresh
+  refreshWorkspaces: () => Promise<void>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -42,24 +68,31 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     try {
       const data = await getWorkspaces();
-      setWorkspaces(data);
+      // Ensure each workspace has campaigns and senderIds fields (even if empty)
+      const formattedWorkspaces = Array.isArray(data)
+        ? data.map((ws: Workspace) => ({
+            ...ws,
+            campaigns: ws.campaigns || [],
+            senderIds: ws.senderIds || [],
+          }))
+        : [];
+      setWorkspaces(formattedWorkspaces);
 
       // Validate and update current workspace ID
       const storedId = localStorage.getItem('currentWorkspaceId');
-      const isValidId = data.some((ws) => ws.workspace_id === storedId);
-      const newCurrentId = isValidId ? storedId : data[0]?.workspace_id || null;
+      const isValidId = formattedWorkspaces.some((ws) => ws.workspace_id === storedId);
+      const newCurrentId = isValidId ? storedId : formattedWorkspaces[0]?.workspace_id || null;
 
       if (newCurrentId !== currentWorkspaceId) {
         setCurrentWorkspaceIdState(newCurrentId);
         localStorage.setItem('currentWorkspaceId', newCurrentId || '');
       }
-    } catch (error) {
-      console.error('Workspace fetch error:', error);
+    } catch (error: any) {
+      console.error('Workspace fetch error:', error.response?.data || error.message);
       setWorkspaces([]);
       setCurrentWorkspaceIdState(null);
       localStorage.removeItem('currentWorkspaceId');
       if (error.response?.status === 401) {
-        // Handle unauthorized (e.g., logout or redirect)
         console.warn('Unauthorized access, consider logging out');
       }
     }
@@ -80,13 +113,19 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!name.trim()) throw new Error('Workspace name cannot be empty');
     try {
       const newWorkspace = await createWorkspace(name);
-      setWorkspaces((prev) => [...prev, newWorkspace]);
+      // Initialize campaigns and senderIds as empty arrays
+      const formattedNewWorkspace = {
+        ...newWorkspace,
+        campaigns: [],
+        senderIds: [],
+      };
+      setWorkspaces((prev) => [...prev, formattedNewWorkspace]);
       if (!currentWorkspaceId) {
         setCurrentWorkspaceIdState(newWorkspace.workspace_id);
         localStorage.setItem('currentWorkspaceId', newWorkspace.workspace_id);
       }
-    } catch (error) {
-      console.error('Workspace creation failed:', error);
+    } catch (error: any) {
+      console.error('Workspace creation failed:', error.response?.data || error.message);
       throw error;
     }
   }, [currentWorkspaceId]);
@@ -97,13 +136,22 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     try {
       const updatedWorkspace = await updateWorkspace(id, data);
       setWorkspaces((prev) =>
-        prev.map((ws) => (ws.workspace_id === id ? { ...ws, ...updatedWorkspace } : ws))
+        prev.map((ws) =>
+          ws.workspace_id === id
+            ? {
+                ...ws,
+                ...updatedWorkspace,
+                campaigns: updatedWorkspace.campaigns || ws.campaigns || [], // Preserve or update campaigns
+                senderIds: updatedWorkspace.senderIds || ws.senderIds || [], // Preserve or update senderIds
+              }
+            : ws
+        )
       );
       if (id === currentWorkspaceId) {
         await fetchWorkspaces(); // Re-fetch to ensure consistency
       }
-    } catch (error) {
-      console.error('Workspace update failed:', error);
+    } catch (error: any) {
+      console.error('Workspace update failed:', error.response?.data || error.message);
       throw error;
     }
   }, [currentWorkspaceId, fetchWorkspaces]);
@@ -121,8 +169,8 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           localStorage.setItem('currentWorkspaceId', newId || '');
           await fetchWorkspaces(); // Re-fetch to ensure consistency
         }
-      } catch (error) {
-        console.error('Workspace deletion failed:', error);
+      } catch (error: any) {
+        console.error('Workspace deletion failed:', error.response?.data || error.message);
         throw error;
       }
     }
@@ -134,33 +182,36 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, [workspaces, currentWorkspaceId]);
 
   // Memoized context value
-  const contextValue = useMemo(() => ({
-    workspaces,
-    currentWorkspaceId,
-    setCurrentWorkspaceId: (id: string) => {
-      if (workspaces.some((ws) => ws.workspace_id === id)) {
-        setCurrentWorkspaceIdState(id);
-        localStorage.setItem('currentWorkspaceId', id);
-      } else {
-        console.warn('Invalid workspace ID:', id);
-        setCurrentWorkspaceIdState(null);
-        localStorage.removeItem('currentWorkspaceId');
-      }
-    },
-    addWorkspace: handleAddWorkspace,
-    updateWorkspace: handleUpdateWorkspace,
-    deleteWorkspace: handleDeleteWorkspace,
-    getCurrentWorkspace,
-    refreshWorkspaces,
-  }), [
-    workspaces,
-    currentWorkspaceId,
-    handleAddWorkspace,
-    handleUpdateWorkspace,
-    handleDeleteWorkspace,
-    getCurrentWorkspace,
-    refreshWorkspaces,
-  ]);
+  const contextValue = useMemo(
+    () => ({
+      workspaces,
+      currentWorkspaceId,
+      setCurrentWorkspaceId: (id: string) => {
+        if (workspaces.some((ws) => ws.workspace_id === id)) {
+          setCurrentWorkspaceIdState(id);
+          localStorage.setItem('currentWorkspaceId', id);
+        } else {
+          console.warn('Invalid workspace ID:', id);
+          setCurrentWorkspaceIdState(null);
+          localStorage.removeItem('currentWorkspaceId');
+        }
+      },
+      addWorkspace: handleAddWorkspace,
+      updateWorkspace: handleUpdateWorkspace,
+      deleteWorkspace: handleDeleteWorkspace,
+      getCurrentWorkspace,
+      refreshWorkspaces,
+    }),
+    [
+      workspaces,
+      currentWorkspaceId,
+      handleAddWorkspace,
+      handleUpdateWorkspace,
+      handleDeleteWorkspace,
+      getCurrentWorkspace,
+      refreshWorkspaces,
+    ]
+  );
 
   return <WorkspaceContext.Provider value={contextValue}>{children}</WorkspaceContext.Provider>;
 };
