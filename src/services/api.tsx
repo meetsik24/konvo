@@ -98,26 +98,26 @@ export const fetchDashboardData = async (): Promise<{ stats: any[]; data: any[] 
 };
 
 // Logs Endpoints
-export const fetchLogs = async (): Promise<{
-  smsLogs: any;
-  emailLogs: any;
-}> => {
+interface LogResponse {
+  user_id: string;
+  logs: {
+    log_id: string;
+    message_id: string;
+    status: 'pending' | 'delivered' | 'failed';
+    timestamp: string;
+    error_details?: string;
+  }[];
+}
+
+// Fetch SMS logs
+export const fetchLogs = async (): Promise<LogResponse> => {
   try {
-    const [smsResponse, emailResponse] = await Promise.all([
-      api.get('/messages/logs'),
-      api.get('/logs/email'), // Placeholder; replace with actual email logs endpoint if available
-    ]);
-
-    console.log('fetchLogs API response - SMS:', smsResponse.data);
-    console.log('fetchLogs API response - Email:', emailResponse.data);
-
-    return {
-      smsLogs: smsResponse.data, // Expecting { user_id: string, logs: [{ log_id, message_id, status, timestamp, error_details }] }
-      emailLogs: emailResponse.data, // Expecting similar structure for email logs
-    };
+    const response = await api.get('/messages/logs');
+    return response.data;
   } catch (error: any) {
-    console.error('fetchLogs API error:', error.response?.data || error.message);
-    throw error;
+    const message = error.response?.data?.message || error.message;
+    console.error('fetchLogs error:', message);
+    throw new Error(`Failed to fetch logs: ${message}`);
   }
 };
 
