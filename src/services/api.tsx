@@ -138,7 +138,7 @@ export const getWorkspaces = async () => {
   }
 };
 
-export const apiUpdateWorkspace = async (id: string, data: Partial<Workspace>) => {
+export const UpdateWorkspace = async (id: string, data: Partial<Workspace>) => {
   const response = await fetch(`/api/workspaces/${id}`, {
     method: 'PATCH',
     headers: {
