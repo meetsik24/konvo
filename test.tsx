@@ -10,7 +10,7 @@ const api = axios.create({
   },
 });
 
-//  Attach Token Automatically Before Each Request
+// Attach Token Automatically Before Each Request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -22,7 +22,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-//  Register User
+// Register User
 export const registerUser = async (name: string, email: string, phoneNumber: string, password: string) => {
   try {
     const response = await api.post("/auth/register", {
@@ -38,7 +38,7 @@ export const registerUser = async (name: string, email: string, phoneNumber: str
   }
 };
 
-//  Login User & Store Token in Local Storage
+// Login User & Store Token in Local Storage
 export const loginUser = async (identifier: string, password: string) => {
   try {
     const formData = new FormData();
@@ -65,13 +65,13 @@ export const loginUser = async (identifier: string, password: string) => {
   }
 };
 
-//  Logout Function (Clear Token)
+// Logout Function (Clear Token)
 export const logoutUser = () => {
   localStorage.removeItem("token");
   console.log("Logged out successfully!");
 };
 
-
+// Fetch Dashboard Data
 export const fetchDashboardData = async (): Promise<{ stats: any[]; data: any[] }> => {
   const [totalMessages, campaigns, fails, contacts, messageVolume] = await Promise.all([
     fetchTotalMessages().catch(() => null),
@@ -98,42 +98,38 @@ export const fetchDashboardData = async (): Promise<{ stats: any[]; data: any[] 
 };
 
 // Logs Endpoints
-export const fetchLogs = async (): Promise<{
-  smsLogs: any;
-  emailLogs: any;
-}> => {
+export const fetchSMSLogs = async () => {
   try {
-    const [smsResponse, emailResponse] = await Promise.all([
-      api.get('/messages/logs'),
-      api.get('/logs/email'), // Placeholder; replace with actual email logs endpoint if available
-    ]);
-
-    console.log('fetchLogs API response - SMS:', smsResponse.data);
-    console.log('fetchLogs API response - Email:', emailResponse.data);
-
-    return {
-      smsLogs: smsResponse.data, // Expecting { user_id: string, logs: [{ log_id, message_id, status, timestamp, error_details }] }
-      emailLogs: emailResponse.data, // Expecting similar structure for email logs
-    };
+    const response = await api.get("/messages/logs"); // Updated to use the correct endpoint
+    console.log('fetchSMSLogs API response:', response.data);
+    return response.data; // Expecting { user_id: string, logs: [{ log_id, message_id, status, timestamp, error_details }] }
   } catch (error: any) {
-    console.error('fetchLogs API error:', error.response?.data || error.message);
+    console.error('fetchSMSLogs API error:', error.response?.data || error.message);
     throw error;
   }
 };
 
+export const fetchEmailLogs = async () => {
+  try {
+    const response = await api.get("/logs/email"); // Keeping this as a placeholder; replace with actual email logs endpoint if available
+    console.log('fetchEmailLogs API response:', response.data);
+    return response.data; // Expecting { user_id: string, logs: [{ log_id, message_id, status, timestamp, error_details }] }
+  } catch (error: any) {
+    console.error('fetchEmailLogs API error:', error.response?.data || error.message);
+    throw error;
+  }
+};
 
-//WORKSPACE
-
+// WORKSPACE
 export const createWorkspace = async (name: string) => {
   const response = await api.post("/workspaces/", { name });
   return response.data;
 };
 
-
 export const getWorkspaces = async () => {
   console.log('getWorkspaces API call initiated');
   try {
-    const response = await api.get('/workspaces'); // Removed trailing slash
+    const response = await api.get('/workspaces');
     console.log('getWorkspaces API response:', response.data);
     return response.data;
   } catch (error: any) {
@@ -168,15 +164,14 @@ export const deleteWorkspace = async (id: string) => {
   try {
     const response = await api.delete(`/workspaces/${id}`);
     console.log('deleteWorkspace API response:', response.data);
-    return response.data; // Might be empty (204 No Content), adjust if needed
+    return response.data;
   } catch (error: any) {
     console.error('deleteWorkspace API error:', error);
     throw error;
   }
 };
 
-
-//CAMPAIGNS
+// CAMPAIGNS
 export const getCampaigns = async () => {
   console.log('getCampaigns API call initiated');
   try {
@@ -225,9 +220,7 @@ export const deleteCampaign = async (campaignId: string) => {
   }
 };
 
-
-//CONTACTS
-
+// CONTACTS
 export const getContacts = async (workspaceId: string) => {
   console.log('getContacts API call initiated for workspace:', workspaceId);
   try {
@@ -264,14 +257,13 @@ export const deleteContact = async (contactId: string) => {
   }
 };
 
-
 // Group Endpoints
 export const getWorkspaceGroups = async (workspaceId: string) => {
   console.log('getWorkspaceGroups API call initiated for workspace:', workspaceId);
   try {
     const response = await api.get(`/workspaces/${workspaceId}/contact-groups`);
     console.log('getWorkspaceGroups API response:', response.data);
-    return response.data; // Expecting [{ group_id, workspace_id, name, created_at }]
+    return response.data;
   } catch (error: any) {
     console.error('getWorkspaceGroups API error:', error.response ? error.response.data : error);
     throw error;
@@ -283,7 +275,7 @@ export const getCampaignGroups = async (campaignId: string) => {
   try {
     const response = await api.get(`/campaigns/${campaignId}/contact-groups`);
     console.log('getCampaignGroups API response:', response.data);
-    return response.data; // Expecting [{ group_id, workspace_id, name, created_at }]
+    return response.data;
   } catch (error: any) {
     console.error('getCampaignGroups API error:', error.response ? error.response.data : error);
     throw error;
@@ -295,7 +287,7 @@ export const createGroup = async (data: { name: string; workspace_id: string }) 
   try {
     const response = await api.post('/contact-groups/', data);
     console.log('createGroup API response:', response.data);
-    return response.data; // Expecting { group_id, workspace_id, name, created_at }
+    return response.data;
   } catch (error: any) {
     console.error('createGroup API error:', error.response ? error.response.data : error);
     throw error;
@@ -350,11 +342,6 @@ export const getGroupContacts = async (workspaceId: string, groupId: string) => 
   }
 };
 
-
-
-
-
-
 // Request a new sender ID
 export const requestSenderId = async (workspaceId: string, data: { sender_id: string }) => {
   console.log('requestSenderId API call initiated for workspace:', workspaceId, 'with data:', data);
@@ -407,7 +394,7 @@ export const reviewSenderIdRequest = async (workspaceId: string, requestId: stri
   }
 };
 
-// Review a sender ID request// Sender IDs
+// Sender IDs
 export const getApprovedSenderIds = async (workspaceId: string) => {
   try {
     const response = await api.get(`/sender-ids/approved?workspace_id=${workspaceId}`);
@@ -418,10 +405,7 @@ export const getApprovedSenderIds = async (workspaceId: string) => {
   }
 };
 
-
-
-//UPDATE PROFILE:
-
+// UPDATE PROFILE:
 export const getProfile = async (token: string) => {
   console.log('getProfile API call initiated');
   try {
@@ -434,7 +418,7 @@ export const getProfile = async (token: string) => {
       username: response.data.username,
       full_name: response.data.full_name,
       mobile_number: response.data.mobile_number,
-      avatar: response.data.avatar || undefined, // Map avatar if it exists
+      avatar: response.data.avatar || undefined,
     };
     return userData as { email: string; username: string; full_name?: string; mobile_number?: string; avatar?: string };
   } catch (error: any) {
@@ -472,8 +456,6 @@ export const changePassword = async (token: string, data: { current_password: st
     throw error;
   }
 };
-
-
 
 // PLANS AND SUBSCRIPTIONS:
 export const getPlans = async (): Promise<Plan[]> => {
@@ -549,14 +531,7 @@ export interface SubscriptionUsage {
   timestamp: string;
 }
 
-
-
-
-
-
-//SEND-SMS
-
-
+// SEND-SMS
 export const sendInstantMessage = async (workspaceId: string, data: {
   recipients: string[];
   message: string;
@@ -578,6 +553,7 @@ export const sendInstantMessage = async (workspaceId: string, data: {
 export const getMessageLogs = async () => {
   try {
     const response = await api.get('/messages/logs');
+    console.log('getMessageLogs API response:', response.data);
     return response.data;
   } catch (error: any) {
     console.error('getMessageLogs API error:', error.response?.data || error.message);

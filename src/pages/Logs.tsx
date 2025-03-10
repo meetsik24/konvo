@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { History, MessageSquare, Mail, Check, X, Clock, Search, Trash2 } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
-import { fetchSMSLogs, fetchEmailLogs } from '../services/api';
+import { fetchLogs} from '../services/api';
 
 interface LogEntry {
   id: string;
@@ -22,35 +22,45 @@ const Logs: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Map API response to LogEntry
+  const mapApiLogToLogEntry = (apiLog: any): LogEntry => ({
+    id: apiLog.log_id,
+    recipient: apiLog.recipient || 'Unknown', // Placeholder; adjust based on actual API response
+    content: apiLog.content || 'No content', // Placeholder; adjust based on actual API response
+    status: apiLog.status as 'delivered' | 'failed' | 'pending',
+    timestamp: apiLog.timestamp,
+  });
+
   useEffect(() => {
     setLogs(workspace?.logs || []);
     setError(null);
   }, [currentWorkspaceId, workspace]);
 
-  const fetchLogs = async (type: 'sms' | 'email') => {
+  const fetchLogsData = async (type: 'sms' | 'email') => {
     setLoading(true);
     setError(null);
     try {
-      const data = type === 'sms' ? await fetchSMSLogs() : await fetchEmailLogs();
-      if (!data || !Array.isArray(data) || data.length === 0) {
+      const data = await fetchLogs();
+      const logsToUse = type === 'sms' ? data.smsLogs : data.emailLogs;
+      if (!logsToUse || !Array.isArray(logsToUse.logs) || logsToUse.logs.length === 0) {
         throw new Error(`No ${type} logs returned from the server.`);
       }
-      setLogs(data);
+      const mappedLogs = logsToUse.logs.map(mapApiLogToLogEntry);
+      setLogs(mappedLogs);
       if (currentWorkspaceId) {
-        updateWorkspace(currentWorkspaceId, { logs: data });
+        updateWorkspace(currentWorkspaceId, { logs: mappedLogs });
       }
       setError(null);
     } catch (error) {
       console.error(`Failed to fetch ${type} logs:`, error);
-      setError(`Unable to fetch ${type} logs from the server.`);
+      setError(`Unable to fetch ${type} logs from the server. ${error.message}`);
       setLogs([]);
     } finally {
       setLoading(false);
-    }
-  };
+    };
 
   useEffect(() => {
-    fetchLogs(activeTab);
+    fetchLogsData(activeTab);
   }, [activeTab, currentWorkspaceId]);
 
   const handleDeleteLog = (id: string) => {
@@ -145,6 +155,7 @@ const Logs: React.FC = () => {
       </div>
     </motion.div>
   );
+};
 };
 
 export default Logs;
