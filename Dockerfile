@@ -1,5 +1,5 @@
-# Use the official Node.js image as the base image
-FROM node:23
+# Use an architecture-independent Node.js image
+FROM --platform=$BUILDPLATFORM node:lts 
 
 # Set the working directory
 WORKDIR /app
@@ -7,8 +7,11 @@ WORKDIR /app
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Set npm config to ignore platform-specific dependencies
+RUN npm config set legacy-peer-deps true
+
+# Force npm to install dependencies without architecture restrictions
+RUN npm install --ignore-scripts
 
 # Copy the rest of the application code
 COPY . .
@@ -18,5 +21,3 @@ EXPOSE 5173
 
 # Start the application
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
-
-# Paris Ops
