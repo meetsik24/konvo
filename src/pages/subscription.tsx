@@ -11,7 +11,7 @@ import {
   Plan,
   SubscriptionUsage,
 } from '../services/api';
-import type { RootState } from '../store';
+import type { RootState } from '..';
 
 interface Contact {
   name: string;

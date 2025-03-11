@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, LogOut, Plus, X, Coffee, ChevronDown, Trash2 } from 'lucide-react';
 import { logout, updateUserProfile } from '../store/slices/authSlice';
 import { getProfile } from '../services/api';
-import type { RootState } from '../store';
+import type { RootState } from '..';
 import { useWorkspace } from '../pages/WorkspaceContext';
 
 interface Notification {

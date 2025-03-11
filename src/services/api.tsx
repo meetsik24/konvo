@@ -22,22 +22,31 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-//  Register User
-export const registerUser = async (name: string, email: string, phoneNumber: string, password: string) => {
+
+//REGISTER USER 
+export const registerUser = async (username: string, fullName: string, email: string, mobileNumber: string, password: string) => {
   try {
     const response = await api.post("/auth/register", {
-      name,
+      username,
       email,
-      phoneNumber,
-      password
+      password,
+      full_name: fullName,
+      mobile_number: mobileNumber,
     });
+    console.log("Registration successful:", response.data);
     return response.data;
-  } catch (error) {
-    console.error("Registration failed:", error.response?.data || error.message);
-    throw error;
+  } catch (error: any) {
+    const errorMsg = error.response?.data?.message || error.response?.data?.detail || error.message;
+    const validationErrors = error.response?.data?.errors || error.response?.data;
+    console.error("Registration failed:", {
+      message: errorMsg,
+      validationErrors,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+    throw { message: errorMsg, validationErrors };
   }
 };
-
 //  Login User & Store Token in Local Storage
 export const loginUser = async (identifier: string, password: string) => {
   try {

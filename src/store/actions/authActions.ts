@@ -15,22 +15,7 @@ export const register = createAsyncThunk(
   }
 );
 
-export const sendOtp = createAsyncThunk(
-  "auth/sendOtp",
-  async (phoneNumber: string, { rejectWithValue }) => {
-    try {
-      const channel = "sms";  // Can be "sms"
-      const length = 6;  // OTP length
-      const structure = "numeric";  // Type of OTP
-      const caseType = "upper";  // OTP case format
 
-      const response = await requestOtp(channel, phoneNumber, length, structure, caseType);
-      return response;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to send OTP");
-    }
-  }
-);
 
 
 // **2️⃣ Verify OTP**
