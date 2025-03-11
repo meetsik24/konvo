@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.2.1",
-    "@rollup/rollup-linux-x64-gnu": "^4.34.8",
     "@types/papaparse": "^5.3.15",
     "axios": "^1.8.1",
     "framer-motion": "^11.0.8",
