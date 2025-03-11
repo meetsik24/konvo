@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
 import { User, Lock, Edit, Check, X } from 'lucide-react';
 import { getProfile, updateProfile, changePassword } from '../services/api'; // Adjust path
-import type { RootState } from '../store';
+import type { RootState } from '..';
 import { useNavigate } from 'react-router-dom';
 
 interface UserProfile {

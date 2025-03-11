@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import type { RootState } from '../store';
+import type { RootState } from '..';
 import { getWorkspaces, createWorkspace, UpdateWorkspace as updateWorkspace, deleteWorkspace } from '../services/api';
 
 // Define interfaces for Campaigns and SenderIds to match SendSMS and SenderID components

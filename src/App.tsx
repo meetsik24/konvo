@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import { store } from './store';
+import { store } from './store/store'; // Update the import to point to /store/store.tsx
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
@@ -30,7 +30,7 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-            {/* <Route path="/verify" element={<Verify />} />  */} 
+              {/* <Route path="/verify" element={<Verify />} /> */}
               <Route element={<Layout />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/send-sms" element={<SendSMS />} />
