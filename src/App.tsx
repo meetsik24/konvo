@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import { store } from './store/store'; // Update the import to point to /store/store.tsx
+import { store } from './store/store';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
@@ -14,7 +14,7 @@ import Voice from './pages/Voice';
 import Chatbot from './pages/Chatbot';
 import SMSCampaigns from './pages/campaigns';
 import Logs from './pages/Logs';
-import Verify from './pages/Verify';
+
 import Subscription from './pages/subscription';
 import SenderID from './pages/SenderID';
 import Contacts from './pages/Contacts';
@@ -30,7 +30,6 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              {/* <Route path="/verify" element={<Verify />} /> */}
               <Route element={<Layout />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/send-sms" element={<SendSMS />} />

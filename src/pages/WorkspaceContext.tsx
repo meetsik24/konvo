@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '..';
-import { getWorkspaces, createWorkspace, UpdateWorkspace as updateWorkspace, deleteWorkspace } from '../services/api';
+import { useSelector, useDispatch } from 'react-redux';
+import type { RootState } from '../store/store'; // Adjust path as needed
+import { getWorkspaces, createWorkspace, UpdateWorkspace as UpdateWorkspace, deleteWorkspace } from '../services/api';
+import { logout } from '../store/slices/authSlice';
 
 // Define interfaces for Campaigns and SenderIds to match SendSMS and SenderID components
 interface Campaign {
@@ -33,8 +34,8 @@ interface Workspace {
   name: string;
   description: string;
   created_at: string;
-  campaigns?: Campaign[]; // Add campaigns as an optional field
-  senderIds?: SenderId[]; // Add senderIds as an optional field
+  campaigns?: Campaign[];
+  senderIds?: SenderId[];
 }
 
 interface WorkspaceContextType {
@@ -46,29 +47,35 @@ interface WorkspaceContextType {
   deleteWorkspace: (id: string) => Promise<void>;
   getCurrentWorkspace: () => Workspace | undefined;
   refreshWorkspaces: () => Promise<void>;
+  isLoading: boolean; // Add loading state
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const dispatch = useDispatch();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentWorkspaceId, setCurrentWorkspaceIdState] = useState<string | null>(() => {
     return localStorage.getItem('currentWorkspaceId') || null;
   });
+  const [isLoading, setIsLoading] = useState(true); // Add loading state
   const token = useSelector((state: RootState) => state.auth.token);
 
   // Fetch workspaces
   const fetchWorkspaces = useCallback(async () => {
-    if (!token) {
-      setWorkspaces([]);
-      setCurrentWorkspaceIdState(null);
-      localStorage.removeItem('currentWorkspaceId');
-      return;
-    }
-
+    setIsLoading(true);
     try {
+      // Check if token exists in localStorage if Redux state is not yet hydrated
+      const storedToken = localStorage.getItem('token');
+      if (!token && !storedToken) {
+        setWorkspaces([]);
+        setCurrentWorkspaceIdState(null);
+        localStorage.removeItem('currentWorkspaceId');
+        setIsLoading(false);
+        return;
+      }
+
       const data = await getWorkspaces();
-      // Ensure each workspace has campaigns and senderIds fields (even if empty)
       const formattedWorkspaces = Array.isArray(data)
         ? data.map((ws: Workspace) => ({
             ...ws,
@@ -85,18 +92,25 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
       if (newCurrentId !== currentWorkspaceId) {
         setCurrentWorkspaceIdState(newCurrentId);
-        localStorage.setItem('currentWorkspaceId', newCurrentId || '');
+        if (newCurrentId) {
+          localStorage.setItem('currentWorkspaceId', newCurrentId);
+        } else {
+          localStorage.removeItem('currentWorkspaceId');
+        }
       }
     } catch (error: any) {
       console.error('Workspace fetch error:', error.response?.data || error.message);
-      setWorkspaces([]);
-      setCurrentWorkspaceIdState(null);
-      localStorage.removeItem('currentWorkspaceId');
       if (error.response?.status === 401) {
-        console.warn('Unauthorized access, consider logging out');
+        // Unauthorized: Log out the user
+        dispatch(logout());
+        setWorkspaces([]);
+        setCurrentWorkspaceIdState(null);
+        localStorage.removeItem('currentWorkspaceId');
       }
+    } finally {
+      setIsLoading(false);
     }
-  }, [token, currentWorkspaceId]);
+  }, [token, currentWorkspaceId, dispatch]);
 
   // Refresh workspaces on demand
   const refreshWorkspaces = useCallback(async () => {
@@ -113,7 +127,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!name.trim()) throw new Error('Workspace name cannot be empty');
     try {
       const newWorkspace = await createWorkspace(name);
-      // Initialize campaigns and senderIds as empty arrays
       const formattedNewWorkspace = {
         ...newWorkspace,
         campaigns: [],
@@ -134,21 +147,21 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const handleUpdateWorkspace = useCallback(async (id: string, data: Partial<Workspace>) => {
     if (!id || !data) throw new Error('Invalid workspace ID or data');
     try {
-      const updatedWorkspace = await updateWorkspace(id, data);
+      const updatedWorkspace = await UpdateWorkspace(id, data);
       setWorkspaces((prev) =>
         prev.map((ws) =>
           ws.workspace_id === id
             ? {
                 ...ws,
                 ...updatedWorkspace,
-                campaigns: updatedWorkspace.campaigns || ws.campaigns || [], // Preserve or update campaigns
-                senderIds: updatedWorkspace.senderIds || ws.senderIds || [], // Preserve or update senderIds
+                campaigns: updatedWorkspace.campaigns || ws.campaigns || [],
+                senderIds: updatedWorkspace.senderIds || ws.senderIds || [],
               }
             : ws
         )
       );
       if (id === currentWorkspaceId) {
-        await fetchWorkspaces(); // Re-fetch to ensure consistency
+        await fetchWorkspaces();
       }
     } catch (error: any) {
       console.error('Workspace update failed:', error.response?.data || error.message);
@@ -167,7 +180,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
           const newId = workspaces[0]?.workspace_id || null;
           setCurrentWorkspaceIdState(newId);
           localStorage.setItem('currentWorkspaceId', newId || '');
-          await fetchWorkspaces(); // Re-fetch to ensure consistency
+          await fetchWorkspaces();
         }
       } catch (error: any) {
         console.error('Workspace deletion failed:', error.response?.data || error.message);
@@ -201,6 +214,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       deleteWorkspace: handleDeleteWorkspace,
       getCurrentWorkspace,
       refreshWorkspaces,
+      isLoading, // Expose loading state
     }),
     [
       workspaces,
@@ -210,6 +224,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       handleDeleteWorkspace,
       getCurrentWorkspace,
       refreshWorkspaces,
+      isLoading,
     ]
   );
 
