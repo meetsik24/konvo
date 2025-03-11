@@ -11,7 +11,6 @@ import {
   deleteGroup,
   addContactsToGroup,
   getContacts,
-  getGroupContacts
 } from '../services/api';
 
 interface Contact {
@@ -20,7 +19,7 @@ interface Contact {
   phone_number: string;
   email: string;
   workspace_id: string;
-  group_id: string;
+  group_id?: string; // Optional to handle contacts without a group
 }
 
 interface Group {
@@ -28,7 +27,7 @@ interface Group {
   name: string;
   workspace_id: string;
   created_at: string;
-  count?: number;
+  count: number;
 }
 
 interface ContactModalProps {
@@ -36,7 +35,7 @@ interface ContactModalProps {
   onClose: () => void;
   onSubmit: () => void;
   contact: { name: string; phone_number: string; email: string; group_id: string };
-  setContact: (contact: any) => void;
+  setContact: (contact: Partial<Contact>) => void;
   groups: Group[];
   title: string;
 }
@@ -48,7 +47,7 @@ const ContactModal: React.FC<ContactModalProps> = ({
   contact,
   setContact,
   groups,
-  title
+  title,
 }) => {
   if (!isOpen) return null;
 
@@ -96,20 +95,19 @@ const ContactModal: React.FC<ContactModalProps> = ({
               value={contact.group_id}
               onChange={(e) => setContact({ ...contact, group_id: e.target.value })}
             >
-              {groups.map((group) => (
-                <option key={group.group_id} value={group.group_id}>
-                  {group.name}
-                </option>
-              ))}
+              <option value="all">None</option>
+              {groups
+                .filter((group) => group.group_id !== 'all')
+                .map((group) => (
+                  <option key={group.group_id} value={group.group_id}>
+                    {group.name}
+                  </option>
+                ))}
             </select>
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="btn btn-secondary">
-              Cancel
-            </button>
-            <button onClick={onSubmit} className="btn btn-primary">
-              {title}
-            </button>
+            <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+            <button onClick={onSubmit} className="btn btn-primary">{title}</button>
           </div>
         </div>
       </div>
@@ -121,61 +119,72 @@ const Contacts: React.FC = () => {
   const { currentWorkspaceId } = useWorkspace();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState('all');
+  const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [showAddContact, setShowAddContact] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [newContact, setNewContact] = useState({ name: '', phone_number: '', email: '', group_id: 'all' });
-  const [newGroup, setNewGroup] = useState({ name: '' });
+  const [newContact, setNewContact] = useState<Partial<Contact>>({
+    name: '',
+    phone_number: '',
+    email: '',
+    group_id: 'all',
+  });
+  const [newGroupName, setNewGroupName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  const filteredContacts = useMemo(() => {
-    return contacts.filter((contact) =>
-      (selectedGroup === 'all' || contact.group_id === selectedGroup) &&
-      (contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       contact.phone_number.includes(searchQuery) ||
-       contact.email.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [contacts, selectedGroup, searchQuery]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchContactsAndGroups = useCallback(async () => {
-    if (!currentWorkspaceId) return;
-    
+    if (!currentWorkspaceId) {
+      setError('No workspace selected.');
+      return;
+    }
+
     setIsLoading(true);
     try {
+      // Fetch all contacts and groups in parallel
       const [contactsResponse, groupsResponse] = await Promise.all([
         getContacts(currentWorkspaceId),
-        getWorkspaceGroups(currentWorkspaceId)
+        getWorkspaceGroups(currentWorkspaceId),
       ]);
 
-      // Ensure contactsResponse is an array; fallback to empty array if not
-      const contactsData = Array.isArray(contactsResponse) ? contactsResponse : [];
-      console.log('Fetched contacts:', contactsData); // Debug log
+      // Normalize contacts data
+      const contactsData = Array.isArray(contactsResponse)
+        ? contactsResponse
+        : contactsResponse?.data || [];
+      console.log('Fetched contacts with group_id:', contactsData.map((c) => ({ id: c.id, group_id: c.group_id })));
 
-      const updatedGroups = [
-        { 
-          group_id: 'all', 
-          name: 'All Contacts', 
-          workspace_id: currentWorkspaceId, 
-          created_at: '', 
-          count: contactsData.length 
-        },
-        ...groupsResponse.map((group: Group) => ({
+      // Compute group contacts by filtering workspace contacts
+      const fetchedGroups = groupsResponse.map((group: Group) => {
+        const groupContacts = contactsData.filter(
+          (contact: Contact) => contact.group_id === group.group_id
+        );
+        return {
           ...group,
-          count: contactsData.filter((c: Contact) => c.group_id === group.group_id).length,
-        })),
+          count: groupContacts.length,
+        };
+      });
+
+      // Construct the "All Contacts" group
+      const updatedGroups: Group[] = [
+        {
+          group_id: 'all',
+          name: 'All Contacts',
+          workspace_id: currentWorkspaceId,
+          created_at: '',
+          count: contactsData.length,
+        },
+        ...fetchedGroups,
       ];
 
       setContacts(contactsData);
       setGroups(updatedGroups);
       setError(null);
     } catch (error: any) {
-      console.error('Failed to fetch data:', error);
-      setError('Unable to fetch contacts or groups');
-      setContacts([]); // Reset to empty array on error
-      setGroups([]); // Reset groups as well
+      console.error('Failed to fetch data:', error.response?.data || error.message);
+      setError(error.response?.data?.message || 'Unable to fetch contacts or groups.');
+      setContacts([]);
+      setGroups([]);
     } finally {
       setIsLoading(false);
     }
@@ -185,135 +194,154 @@ const Contacts: React.FC = () => {
     fetchContactsAndGroups();
   }, [fetchContactsAndGroups]);
 
-  const handleAddContact = async () => {
-    if (!currentWorkspaceId) return;
+  const handleAddContact = useCallback(async () => {
+    if (!currentWorkspaceId) {
+      setError('No workspace selected.');
+      return;
+    }
 
-    const trimmedName = newContact.name.trim();
-    const trimmedPhone = newContact.phone_number.trim();
-    const trimmedEmail = newContact.email.trim();
+    const { name, phone_number, email, group_id } = newContact;
+    const trimmedName = name?.trim() || '';
+    const trimmedPhone = phone_number?.trim() || '';
+    const trimmedEmail = email?.trim() || '';
 
     if (!trimmedName || !trimmedPhone || !trimmedEmail) {
-      setError('All fields are required');
+      setError('All fields are required.');
       return;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError('Please enter a valid email address');
+      setError('Please enter a valid email address.');
       return;
     }
 
     try {
-      const contactPayload = {
+      const contactPayload: Omit<Contact, 'id'> = {
         name: trimmedName,
         phone_number: trimmedPhone,
         email: trimmedEmail,
         workspace_id: currentWorkspaceId,
-        group_id: newContact.group_id === 'all' ? undefined : newContact.group_id
+        ...(group_id && group_id !== 'all' ? { group_id } : {}),
       };
 
       const createdContact = await createContact(contactPayload);
-      
-      // Optimistic update
-      setContacts(prev => [...prev, createdContact]);
-      
-      if (createdContact.group_id) {
-        await addContactsToGroup(createdContact.group_id, [createdContact.id]);
+      setContacts((prev) => [...prev, createdContact]);
+
+      if (group_id && group_id !== 'all') {
+        await addContactsToGroup(group_id, [createdContact.id]);
       }
 
       await fetchContactsAndGroups();
       setShowAddContact(false);
       setNewContact({ name: '', phone_number: '', email: '', group_id: 'all' });
+      setError(null);
     } catch (error: any) {
-      console.error('Error adding contact:', error);
-      setError(error.response?.data?.detail || 'Failed to add contact');
+      console.error('Error adding contact:', error.response?.data || error.message);
+      setError(error.response?.data?.detail || 'Failed to add contact.');
     }
-  };
+  }, [currentWorkspaceId, newContact, fetchContactsAndGroups]);
 
-  const handleDeleteContact = async (id: string) => {
+  const handleDeleteContact = useCallback(async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this contact?')) return;
-    
+
     try {
       await deleteContact(id);
-      setContacts(prev => prev.filter(c => c.id !== id));
+      setContacts((prev) => prev.filter((c) => c.id !== id));
       await fetchContactsAndGroups();
+      setError(null);
     } catch (error: any) {
-      console.error('Error deleting contact:', error);
-      setError('Failed to delete contact');
+      console.error('Error deleting contact:', error.response?.data || error.message);
+      setError(error.response?.data?.message || 'Failed to delete contact.');
     }
-  };
+  }, [fetchContactsAndGroups]);
 
-  const handleAddGroup = async () => {
-    if (!currentWorkspaceId || !newGroup.name.trim()) return;
+  const handleAddGroup = useCallback(async () => {
+    if (!currentWorkspaceId || !newGroupName.trim()) {
+      setError('Group name is required.');
+      return;
+    }
 
     try {
-      const groupPayload = { 
-        name: newGroup.name.trim(), 
-        workspace_id: currentWorkspaceId 
+      const groupPayload = {
+        name: newGroupName.trim(),
+        workspace_id: currentWorkspaceId,
       };
-      
       const createdGroup = await createGroup(groupPayload);
-      setGroups(prev => [...prev, { ...createdGroup, count: 0 }]);
+      setGroups((prev) => [
+        ...prev,
+        { ...createdGroup, count: 0, created_at: new Date().toISOString() },
+      ]);
       setShowAddGroup(false);
-      setNewGroup({ name: '' });
+      setNewGroupName('');
+      setError(null);
     } catch (error: any) {
-      console.error('Error adding group:', error);
-      setError(error.response?.data?.detail || 'Failed to add group');
+      console.error('Error adding group:', error.response?.data || error.message);
+      setError(error.response?.data?.detail || 'Failed to add group.');
     }
-  };
+  }, [currentWorkspaceId, newGroupName]);
 
-  const handleDeleteGroup = async (groupId: string) => {
-    if (groupId === 'all' || !window.confirm('Are you sure?')) return;
+  const handleDeleteGroup = useCallback(async (groupId: string) => {
+    if (groupId === 'all' || !window.confirm('Are you sure you want to delete this group?')) return;
 
     try {
       await deleteGroup(groupId);
-      setGroups(prev => prev.filter(g => g.group_id !== groupId));
+      setGroups((prev) => prev.filter((g) => g.group_id !== groupId));
+      if (selectedGroup === groupId) setSelectedGroup('all');
       await fetchContactsAndGroups();
+      setError(null);
     } catch (error: any) {
-      console.error('Error deleting group:', error);
-      setError('Failed to delete group');
+      console.error('Error deleting group:', error.response?.data || error.message);
+      setError(error.response?.data?.message || 'Failed to delete group.');
     }
-  };
+  }, [selectedGroup, fetchContactsAndGroups]);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !currentWorkspaceId) return;
+  const handleFileUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file || !currentWorkspaceId) return;
 
-    Papa.parse(file, {
-      header: true,
-      complete: async (results) => {
-        const validContacts = results.data
-          .filter((row: any) => row.name && row.phone && row.email)
-          .map((row: any) => ({
-            name: row.name.toString(),
-            phone_number: row.phone.toString(),
-            email: row.email.toString(),
-            workspace_id: currentWorkspaceId,
-            group_id: selectedGroup === 'all' ? undefined : selectedGroup
-          }));
+      Papa.parse(file, {
+        header: true,
+        complete: async (results) => {
+          const validContacts = results.data
+            .filter((row: any) => row.name && row.phone && row.email)
+            .map((row: any) => ({
+              name: row.name.toString(),
+              phone_number: row.phone.toString(),
+              email: row.email.toString(),
+              workspace_id: currentWorkspaceId,
+              ...(selectedGroup !== 'all' ? { group_id: selectedGroup } : {}),
+            }));
 
-        try {
-          const createdContacts = await Promise.all(
-            validContacts.map(contact => createContact(contact))
-          );
-
-          if (selectedGroup !== 'all') {
-            await addContactsToGroup(
-              selectedGroup,
-              createdContacts.map(c => c.id)
+          try {
+            const createdContacts = await Promise.all(
+              validContacts.map((contact) => createContact(contact))
             );
+
+            if (selectedGroup !== 'all') {
+              await addContactsToGroup(
+                selectedGroup,
+                createdContacts.map((c) => c.id)
+              );
+            }
+
+            await fetchContactsAndGroups();
+            setError(null);
+          } catch (error: any) {
+            console.error('Error importing contacts:', error.response?.data || error.message);
+            setError(error.response?.data?.message || 'Failed to import some contacts.');
           }
+        },
+        error: (error) => {
+          console.error('CSV parsing error:', error);
+          setError('Failed to parse the CSV file.');
+        },
+      });
+    },
+    [currentWorkspaceId, selectedGroup, fetchContactsAndGroups]
+  );
 
-          setContacts(prev => [...prev, ...createdContacts]);
-          await fetchContactsAndGroups();
-        } catch (error: any) {
-          console.error('Error importing contacts:', error);
-          setError('Failed to import some contacts');
-        }
-      }
-    });
-  };
-
-  const downloadTemplate = () => {
+  const downloadTemplate = useCallback(() => {
     const csv = Papa.unparse([{ name: '', phone: '', email: '' }]);
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -321,24 +349,42 @@ const Contacts: React.FC = () => {
     a.href = url;
     a.download = 'contacts_template.csv';
     a.click();
-  };
+    window.URL.revokeObjectURL(url);
+  }, []);
+
+  const filteredContacts = useMemo(() => {
+    const group = groups.find((g) => g.group_id === selectedGroup);
+    const contactsToFilter = contacts.filter(
+      (contact) => !group || group.group_id === 'all' || contact.group_id === group.group_id
+    );
+    return contactsToFilter.filter(
+      (contact) =>
+        contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        contact.phone_number.includes(searchQuery) ||
+        contact.email.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [contacts, groups, selectedGroup, searchQuery]);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-6 p-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-6xl mx-auto space-y-6 p-6"
+    >
       <div className="flex items-center gap-3 mb-8">
         <Users className="w-8 h-8 text-primary-500" />
         <h1 className="text-3xl font-bold text-gray-800">Contacts</h1>
       </div>
-      
+
       {error && <div className="text-red-500 mb-4 p-3 rounded bg-red-50">{error}</div>}
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Groups Sidebar */}
         <div className="lg:col-span-1">
           <div className="card p-6 bg-white rounded-lg shadow-sm">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">Groups</h2>
-              <button 
+              <button
                 onClick={() => setShowAddGroup(true)}
                 className="btn btn-icon btn-ghost hover:bg-gray-100 rounded-full p-2"
               >
@@ -351,8 +397,8 @@ const Contacts: React.FC = () => {
                   <button
                     onClick={() => setSelectedGroup(group.group_id)}
                     className={`w-full text-left px-4 py-2 rounded-lg flex justify-between items-center transition-colors ${
-                      selectedGroup === group.group_id 
-                        ? 'bg-primary-50 text-primary-600' 
+                      selectedGroup === group.group_id
+                        ? 'bg-primary-50 text-primary-600'
                         : 'hover:bg-gray-50'
                     }`}
                   >
@@ -378,28 +424,28 @@ const Contacts: React.FC = () => {
           <div className="card p-6 bg-white rounded-lg shadow-sm">
             <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
               <div className="flex gap-2 flex-wrap">
-                <button 
+                <button
                   onClick={() => setShowAddContact(true)}
                   className="btn btn-primary flex items-center gap-2"
                 >
                   <UserPlus className="w-5 h-5" />
                   Add Contact
                 </button>
-                <button 
+                <button
                   onClick={() => fileInputRef.current?.click()}
                   className="btn btn-secondary flex items-center gap-2"
                 >
                   <Upload className="w-5 h-5" />
                   Import CSV
                 </button>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  className="hidden" 
-                  accept=".csv" 
-                  onChange={handleFileUpload} 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept=".csv"
+                  onChange={handleFileUpload}
                 />
-                <button 
+                <button
                   onClick={downloadTemplate}
                   className="btn btn-ghost flex items-center gap-2 text-gray-600"
                 >
@@ -444,7 +490,7 @@ const Contacts: React.FC = () => {
                                 name: contact.name,
                                 phone_number: contact.phone_number,
                                 email: contact.email,
-                                group_id: contact.group_id
+                                group_id: contact.group_id || 'all',
                               });
                               setShowAddContact(true);
                             }}
@@ -468,7 +514,7 @@ const Contacts: React.FC = () => {
                 <div className="p-4 text-center text-gray-500">Loading contacts...</div>
               )}
               {!isLoading && filteredContacts.length === 0 && (
-                <div className="p-4 text-center text-gray-500">No contacts found</div>
+                <div className="p-4 text-center text-gray-500">No contacts found.</div>
               )}
             </div>
           </div>
@@ -478,7 +524,11 @@ const Contacts: React.FC = () => {
       {/* Modals */}
       <ContactModal
         isOpen={showAddContact}
-        onClose={() => setShowAddContact(false)}
+        onClose={() => {
+          setShowAddContact(false);
+          setNewContact({ name: '', phone_number: '', email: '', group_id: 'all' });
+          setError(null);
+        }}
         onSubmit={handleAddContact}
         contact={newContact}
         setContact={setNewContact}
@@ -492,8 +542,12 @@ const Contacts: React.FC = () => {
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Add Group</h2>
-              <button 
-                onClick={() => setShowAddGroup(false)}
+              <button
+                onClick={() => {
+                  setShowAddGroup(false);
+                  setNewGroupName('');
+                  setError(null);
+                }}
                 className="text-gray-500 hover:text-gray-700"
               >
                 <X className="w-5 h-5" />
@@ -505,21 +559,22 @@ const Contacts: React.FC = () => {
                 <input
                   type="text"
                   className="input w-full"
-                  value={newGroup.name}
-                  onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
                 />
               </div>
               <div className="flex justify-end gap-2">
-                <button 
-                  onClick={() => setShowAddGroup(false)}
+                <button
+                  onClick={() => {
+                    setShowAddGroup(false);
+                    setNewGroupName('');
+                    setError(null);
+                  }}
                   className="btn btn-secondary"
                 >
                   Cancel
                 </button>
-                <button 
-                  onClick={handleAddGroup}
-                  className="btn btn-primary"
-                >
+                <button onClick={handleAddGroup} className="btn btn-primary">
                   Add Group
                 </button>
               </div>
