@@ -1,18 +1,29 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { persistStore, persistReducer } from 'redux-persist';
-import storage from 'redux-persist/lib/storage'; // Use localStorage
+import storage from 'redux-persist/lib/storage'; // defaults to localStorage for web
+import { thunk } from 'redux-thunk';
 import authReducer from './slices/authSlice';
 
-// Configure persistence
+// Persist configuration
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: ['auth'], // Only persist the auth reducer
+  whitelist: ['auth'], // Persist the entire auth slice
+  transforms: [
+    (state) => ({
+      ...state,
+      auth: {
+        ...state.auth,
+        user: state.auth.user ? { ...state.auth.user } : null, // Ensure user is an object or null
+      },
+    }),
+  ],
 };
 
+// Create a persisted reducer
 const persistedReducer = persistReducer(persistConfig, authReducer);
 
-// Create the store with the persisted reducer
+// Configure the store with redux-thunk middleware
 export const store = configureStore({
   reducer: {
     auth: persistedReducer,
@@ -20,9 +31,11 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: ['persist/PERSIST'], // Ignore redux-persist actions
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+        ignoredPaths: ['auth.user'],
       },
-    }),
+    }).concat(thunk), // Add redux-thunk middleware
+  devTools: process.env.NODE_ENV !== 'production', // Enable Redux DevTools in development
 });
 
 export const persistor = persistStore(store);
