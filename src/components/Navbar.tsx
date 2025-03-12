@@ -43,19 +43,16 @@ const Navbar: React.FC = () => {
     { id: '4', type: 'other', message: 'System maintenance scheduled for tomorrow.', timestamp: '2025-03-05T15:00:00Z' },
   ]);
 
-
-
-
   useEffect(() => {
-    // Only fetch the user profile if a token exists and the auth status is not already loading
-    if (!token || status === 'loading') {
-      console.debug('Skipping profile fetch - token:', token, 'status:', status);
+    // Only fetch the user profile if a token exists, user is not loaded, and status is not loading
+    if (!token || status === 'loading' || user) {
+      console.debug('Skipping profile fetch - token:', token, 'status:', status, 'user:', !!user);
       return;
     }
-  
+
     console.debug('Fetching user profile with token:', token);
     setIsLoading(true);
-  
+
     // Dispatch the thunk and handle the Promise directly
     dispatch(fetchUserProfile(token) as any)
       .unwrap()
@@ -72,8 +69,7 @@ const Navbar: React.FC = () => {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [token, dispatch, status]); // Dependencies: token triggers fetch
-
+  }, [token, dispatch, status, user]); // Add user to dependencies
 
   const handleLogout = useCallback(() => {
     console.log('Logging out user:', user?.email);

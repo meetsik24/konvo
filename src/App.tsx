@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store } from './store/store';
-import { AppDispatch, RootState } from './store/store'; // Adjust the import based on your store file
-import { fetchUserProfile, logout } from './store/slices/authSlice'; // Import auth actions
+import { AppDispatch, RootState } from './store/store';
+import { fetchUserProfile, logout } from './store/slices/authSlice';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
@@ -25,19 +25,7 @@ import { WorkspaceProvider } from './pages/WorkspaceContext';
 // Custom Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token, status } = useSelector((state: RootState) => state.auth);
-  const dispatch = useDispatch<AppDispatch>();
   const location = useLocation();
-
-  useEffect(() => {
-    // Fetch user profile if token exists and status is not loading
-    if (token && status !== 'loading') {
-      dispatch(fetchUserProfile(token)).catch((err) => {
-        console.error('Failed to fetch user profile:', err);
-        // Log out if the token is invalid
-        dispatch(logout());
-      });
-    }
-  }, [token, dispatch, status]);
 
   // Redirect to /login if no token or if profile fetch fails
   if (!token || status === 'failed') {
@@ -47,9 +35,20 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// App Component with Initial Redirect Logic
+// App Component with Initial Fetch Logic
 function App() {
-  const { token, status } = useSelector((state: RootState) => state.auth);
+  const { token, status, user } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
+
+  // Fetch user profile on app mount if token exists and user is not loaded
+  useEffect(() => {
+    if (token && !user && status !== 'loading') {
+      dispatch(fetchUserProfile(token)).catch((err) => {
+        console.error('Failed to fetch user profile on app mount:', err);
+        dispatch(logout());
+      });
+    }
+  }, [token, dispatch, status, user]);
 
   // Determine the initial redirect based on authentication state
   const initialPath = !token || status === 'failed' ? '/login' : '/dashboard';
@@ -69,7 +68,13 @@ function App() {
               <Route path="/register" element={<Register />} />
 
               {/* Protected Routes wrapped in Layout */}
-              <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/send-sms" element={<SendSMS />} />
                 <Route path="/campaigns" element={<SMSCampaigns />} />
