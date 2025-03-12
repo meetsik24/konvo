@@ -2,9 +2,10 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, LogOut, Plus, X, Coffee, ChevronDown, Trash2 } from 'lucide-react';
-import { logout, updateUserProfile } from '../store/slices/authSlice';
-import { getProfile } from '../services/api';
-import type { RootState } from '..';
+import { logout, fetchUserProfile } from '../store/slices/authSlice';
+import { store } from '../store/store';
+
+import type { RootState } from '../store/store';
 import { useWorkspace } from '../pages/WorkspaceContext';
 
 interface Notification {
@@ -15,9 +16,9 @@ interface Notification {
 }
 
 const Navbar: React.FC = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<typeof store.dispatch>();
   const navigate = useNavigate();
-  const { user, token } = useSelector((state: RootState) => state.auth);
+  const { user, token, status } = useSelector((state: RootState) => state.auth);
   const {
     workspaces,
     currentWorkspaceId,
@@ -25,6 +26,7 @@ const Navbar: React.FC = () => {
     addWorkspace,
     deleteWorkspace,
     refreshWorkspaces,
+    isLoading: workspaceLoading,
   } = useWorkspace();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -41,26 +43,33 @@ const Navbar: React.FC = () => {
     { id: '4', type: 'other', message: 'System maintenance scheduled for tomorrow.', timestamp: '2025-03-05T15:00:00Z' },
   ]);
 
-  // Fetch full profile to get username and avatar on mount
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (token && (!user?.username || !user?.avatar)) { // Fetch if username or avatar is missing
-        setIsLoading(true);
-        try {
-          const profileData = await getProfile(token);
-          console.log('Fetched profile data for avatar:', profileData);
-          dispatch(updateUserProfile({ user: profileData }));
-          setError(null);
-        } catch (err: any) {
-          console.error('Error fetching profile:', err);
-          setError('Failed to load user profile.');
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-    fetchUserProfile();
-  }, [token, user?.username, user?.avatar, dispatch]);
+    // Only fetch the user profile if a token exists, user is not loaded, and status is not loading
+    if (!token || status === 'loading' || user) {
+      console.debug('Skipping profile fetch - token:', token, 'status:', status, 'user:', !!user);
+      return;
+    }
+
+    console.debug('Fetching user profile with token:', token);
+    setIsLoading(true);
+
+    // Dispatch the thunk and handle the Promise directly
+    dispatch(fetchUserProfile(token) as any)
+      .unwrap()
+      .then((result) => {
+        console.debug('Profile fetch successful:', result);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to load user profile.';
+        console.error('Error fetching profile:', errorMessage);
+        setError(errorMessage);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [token, dispatch, status, user]); // Add user to dependencies
 
   const handleLogout = useCallback(() => {
     console.log('Logging out user:', user?.email);
@@ -159,7 +168,7 @@ const Navbar: React.FC = () => {
         workspaces.map((workspace) => (
           <div
             key={workspace.workspace_id}
-            className="flex items-center justify-between px-4 py-3 hover:bg-gray-100 transition-colors"
+            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
           >
             <button
               onClick={() => {
@@ -171,7 +180,7 @@ const Navbar: React.FC = () => {
                   ? 'text-primary-600 font-semibold'
                   : 'text-gray-700 hover:text-primary-500'
               }`}
-              disabled={isLoading}
+              disabled={isLoading || workspaceLoading}
             >
               {workspace.name}
             </button>
@@ -179,7 +188,7 @@ const Navbar: React.FC = () => {
               <button
                 onClick={() => handleDeleteWorkspace(workspace.workspace_id)}
                 className="text-red-400 hover:text-red-600 p-1"
-                disabled={isLoading}
+                disabled={isLoading || workspaceLoading}
                 title="Delete workspace"
               >
                 <Trash2 className="w-4 h-4" />
@@ -189,31 +198,31 @@ const Navbar: React.FC = () => {
         ))
       )}
     </div>
-  ), [workspaces, currentWorkspaceId, handleDeleteWorkspace, isLoading, setCurrentWorkspaceId]);
+  ), [workspaces, currentWorkspaceId, handleDeleteWorkspace, isLoading, workspaceLoading, setCurrentWorkspaceId]);
 
   // Effect to sync UI with workspace changes
   useEffect(() => {
-    if (workspaces.length > 0 && !currentWorkspaceId) {
+    if (workspaces.length > 0 && !currentWorkspaceId && !workspaceLoading) {
       const newId = workspaces[0].workspace_id;
       setCurrentWorkspaceId(newId);
       localStorage.setItem('currentWorkspaceId', newId);
     }
-  }, [workspaces, currentWorkspaceId, setCurrentWorkspaceId]);
+  }, [workspaces, currentWorkspaceId, setCurrentWorkspaceId, workspaceLoading]);
 
-  // Compute avatar URL with better fallback
-  const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || 'User')}&background=ffaa00&color=fff`;
-  console.log('Avatar URL:', avatarUrl); // Log to debug
+  // Compute avatar URL with green background for UI consistency
+  const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || 'User')}&background=006400&color=fff`;
+  console.log('User data in Navbar:', user); // Debug user state
 
   return (
     <nav className="bg-white border-b-2 border-primary-100">
       <div className="px-6 mx-auto max-w-7xl">
         <div className="flex justify-between h-20">
           {/* Logo Section */}
-            <div className="flex items-center">
+          <div className="flex items-center">
             <Link to="/" className="flex items-center gap-2">
               <img src="/assets/briq2.png" alt="Briq Logo" className="w-17 h-20" />
             </Link>
-            </div>
+          </div>
 
           {/* Control Section */}
           <div className="flex items-center gap-6">
@@ -236,7 +245,7 @@ const Navbar: React.FC = () => {
               <button
                 onClick={() => setIsWorkspaceListOpen(!isWorkspaceListOpen)}
                 className="flex items-center gap-2 p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
-                disabled={isLoading}
+                disabled={isLoading || workspaceLoading}
               >
                 <Coffee className="w-6 h-6" />
                 <ChevronDown className="w-4 h-4" />
@@ -248,7 +257,7 @@ const Navbar: React.FC = () => {
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="flex items-center gap-2 p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
-              disabled={isLoading}
+              disabled={isLoading || workspaceLoading}
             >
               <Plus className="w-6 h-6" />
               <span className="hidden md:inline text-sm">Workspace</span>
@@ -264,17 +273,17 @@ const Navbar: React.FC = () => {
 
             <div className="flex items-center gap-3 bg-[#fddf0d] px-4 py-2 rounded-full">
               <img
-                className="w-10 h-10 rounded-full border-2 border-primary-200"
+                className="w-10 h-10 rounded-full border-2 border-green-500"
                 src={avatarUrl}
                 alt={user?.username || 'User'}
                 onError={(e) => {
                   console.error('Avatar load error, falling back to default image');
-                  e.currentTarget.src = '/assets/default-avatar.png'; // Fallback to local image
+                  e.currentTarget.src = '/assets/default-avatar.png';
                 }}
               />
               <div className="hidden md:block">
-                <div className="text-sm font-bold text-gray-700">{user?.username || 'User'}</div>
-                <div className="text-xs text-gray-500">{user?.email}</div>
+                <div className="text-sm font-bold text-gray-700">{user?.username || 'Loading...'}</div>
+                <div className="text-xs text-gray-500">{user?.email || 'Loading...'}</div>
               </div>
             </div>
 
@@ -304,7 +313,7 @@ const Navbar: React.FC = () => {
                   className="input w-full text-[#00333e] border-[#6f888c] focus:border-[#00333e] focus:ring-[#00333e] rounded-xl"
                   placeholder="Enter workspace name"
                   required
-                  disabled={isLoading}
+                  disabled={isLoading || workspaceLoading}
                 />
               </div>
               <div className="flex justify-end gap-3">
@@ -312,16 +321,16 @@ const Navbar: React.FC = () => {
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
                   className="btn px-4 py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-xl hover:bg-gray-200"
-                  disabled={isLoading}
+                  disabled={isLoading || workspaceLoading}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   className="btn bg-[#00333e] text-white px-4 py-2 text-sm font-medium rounded-xl"
-                  disabled={isLoading}
+                  disabled={isLoading || workspaceLoading}
                 >
-                  {isLoading ? 'Creating...' : 'Create'}
+                  {isLoading || workspaceLoading ? 'Creating...' : 'Create'}
                 </button>
               </div>
             </form>

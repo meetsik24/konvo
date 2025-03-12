@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { loginUser, registerUser } from "../../services/api";
+import { loginUser, registerUser, getProfile } from "../../services/api";
 
 // **1️⃣ Register User**
 export const register = createAsyncThunk(
@@ -11,10 +11,12 @@ export const register = createAsyncThunk(
   ) => {
     try {
       const response = await registerUser(username, fullName, email, mobileNumber, password);
+      console.log('Register response:', response); // Debug log
       // Immediately dispatch login after successful registration
-      await dispatch(login({ username, password })).unwrap();
-      return response;
+      const loginResponse = await dispatch(login({ username, password })).unwrap();
+      return loginResponse; // Return login response to populate user data
     } catch (error: any) {
+      console.error('Register error:', error.response?.data || error.message);
       return rejectWithValue(error.response?.data?.message || "Registration failed");
     }
   }
@@ -26,24 +28,62 @@ export const login = createAsyncThunk(
   async ({ username, password }: { username: string; password: string }, { rejectWithValue }) => {
     try {
       const response = await loginUser(username, password);
+      console.log('Login response:', response); // Debug log
       localStorage.setItem("token", response.token);
-      return response;
+      // Ensure the user data is extracted correctly based on API response structure
+      const userData = response.user || response; // Fallback to response if user is not nested
+      return { token: response.token, user: userData };
     } catch (error: any) {
+      console.error('Login error:', error.response?.data || error.message);
       return rejectWithValue(error.response?.data?.message || "Login failed");
     }
   }
 );
 
-// **3️⃣ Auth Slice**
+// **3️⃣ Fetch User Profile**
+export const fetchUserProfile = createAsyncThunk(
+  "auth/fetchUserProfile",
+  async (token: string, { rejectWithValue }) => {
+    try {
+      const profileData = await getProfile(token);
+      console.log('Profile fetch response:', profileData); // Debug log
+      return profileData;
+    } catch (error: any) {
+      console.error('Profile fetch error:', error.response?.data || error.message);
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch profile");
+    }
+  }
+);
+
+// **4️⃣ Initialize Auth State from localStorage**
+const initializeAuthState = () => {
+  const token = localStorage.getItem("token");
+  // Optionally, attempt to restore user data from localStorage if persisted
+  const persistedState = localStorage.getItem("persist:root");
+  let user = null;
+  if (persistedState) {
+    try {
+      const parsedState = JSON.parse(persistedState);
+      const authState = JSON.parse(parsedState.auth || '{}');
+      user = authState.user || null;
+    } catch (e) {
+      console.error('Error parsing persisted state:', e);
+    }
+  }
+
+  return {
+    user,
+    token: token || null,
+    error: null,
+    status: 'idle',
+    successMessage: null,
+  };
+};
+
+// **5️⃣ Auth Slice**
 const authSlice = createSlice({
   name: 'auth',
-  initialState: {
-    user: null,
-    token: null,
-    error: null,
-    status: 'idle', // idle | loading | succeeded | failed
-    successMessage: null, // State for success message
-  },
+  initialState: initializeAuthState(),
   reducers: {
     setCredentials: (state, action) => {
       state.user = action.payload.user;
@@ -68,6 +108,7 @@ const authSlice = createSlice({
       state.error = null;
       state.status = 'idle';
       localStorage.removeItem("token");
+      localStorage.removeItem("currentWorkspaceId");
     },
     updateUserProfile: (state, action) => {
       state.user = { ...state.user, ...action.payload.user };
@@ -90,7 +131,7 @@ const authSlice = createSlice({
       .addCase(register.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.error = null;
-        state.user = action.payload; // Store user data from registration
+        state.user = action.payload.user; // Use login response user data
       })
       .addCase(register.rejected, (state, action) => {
         state.status = 'failed';
@@ -109,9 +150,25 @@ const authSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload as string;
+      })
+      .addCase(fetchUserProfile.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchUserProfile.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.user = action.payload; // Ensure user is updated with profile data
+        state.error = null;
+      })
+      .addCase(fetchUserProfile.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string;
       });
   },
 });
 
+// Export the reducer actions
 export const { setCredentials, setError, clearAuthState, logout, updateUserProfile, setSuccessMessage, clearSuccessMessage } = authSlice.actions;
+
+// Export the reducer as default
 export default authSlice.reducer;

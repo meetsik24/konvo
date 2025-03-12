@@ -1,4 +1,3 @@
-// SendSMS.tsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, Send, Clock, Users, BarChart2, Bot } from 'lucide-react';
@@ -44,22 +43,24 @@ interface MessageLog {
   timestamp?: string;
 }
 
+// Updated SenderId interface to match the API response structure
 interface SenderId {
   sender_id: string;
-  user_id: string;
-  is_approved: boolean;
-  approved_at?: string;
   name: string;
-  created_at?: string;
+  status?: string;
 }
 
+// Fallback sender IDs in case API fails
+const FALLBACK_SENDER_IDS: SenderId[] = [
+  { sender_id: 'default_sender', name: 'Default Sender' }
+];
+
 const SendSMS: React.FC = () => {
-  const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId } = useWorkspace();
-  const workspace = getCurrentWorkspace();
-  const [campaigns, setCampaigns] = useState<Campaign[]>(workspace?.campaigns || []);
+  const { currentWorkspaceId } = useWorkspace();
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignGroups, setCampaignGroups] = useState<{ [key: string]: Group[] }>({});
-  const [contacts, setContacts] = useState<Contact[]>(workspace?.contacts || []);
-  const [senderIds, setSenderIds] = useState<SenderId[]>(workspace?.senderIds || []);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [senderIds, setSenderIds] = useState<SenderId[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
   const [selectedSenderId, setSelectedSenderId] = useState<string>('');
   const [message, setMessage] = useState('');
@@ -72,42 +73,76 @@ const SendSMS: React.FC = () => {
   const [sendMode, setSendMode] = useState<'campaign' | 'contacts'>('campaign');
   const [manualContacts, setManualContacts] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [useFallbackSenderIds, setUseFallbackSenderIds] = useState(false);
 
   // Fetch data on mount or workspace change
   useEffect(() => {
     const fetchData = async () => {
-      if (!currentWorkspaceId) {
-        setError('No workspace selected.');
-        return;
-      }
       setIsLoading(true);
       try {
-        console.log('Fetching data for workspace:', currentWorkspaceId); // Debug workspace ID
+        if (!currentWorkspaceId) {
+          setError('No workspace selected.');
+          return;
+        }
 
-        // Fetch approved sender IDs (same logic as SenderID.tsx)
-        const approvedResponse = await getApprovedSenderIds(currentWorkspaceId);
-        const formattedSenderIds: SenderId[] = Array.isArray(approvedResponse)
-          ? approvedResponse.map((item: SenderId) => ({
-              ...item,
-              is_approved: true,
-            }))
-          : [];
-        console.log('Fetched Sender IDs:', formattedSenderIds); // Debug sender IDs
-        setSenderIds(formattedSenderIds);
-        setSelectedSenderId(formattedSenderIds.length > 0 ? formattedSenderIds[0].sender_id : '');
-        updateWorkspace(currentWorkspaceId, { senderIds: formattedSenderIds });
+        console.log(`Fetching data for workspace ID: ${currentWorkspaceId}`);
+
+        // Fetch approved sender IDs for dropdown - Updated to match the API endpoint
+        try {
+          console.log(`Fetching sender IDs for workspace: ${currentWorkspaceId}`);
+          const response = await getApprovedSenderIds(currentWorkspaceId);
+          console.log('Sender IDs API response:', response);
+          
+          // Process the response according to the actual API structure
+          let approvedSenderIds: SenderId[] = [];
+          
+          if (Array.isArray(response)) {
+            // Handle case where response is directly an array
+            approvedSenderIds = response.map(sender => ({
+              sender_id: sender.sender_id,
+              name: sender.name || sender.sender_id,
+              status: sender.status
+            }));
+          } else if (response?.data && Array.isArray(response.data)) {
+            // Handle case where response has a data property containing an array
+            approvedSenderIds = response.data.map(sender => ({
+              sender_id: sender.sender_id,
+              name: sender.name || sender.sender_id,
+              status: sender.status
+            }));
+          } else {
+            console.error('Unexpected sender IDs response format:', response);
+            throw new Error('Invalid sender IDs response format');
+          }
+          
+          console.log('Processed Approved Sender IDs:', approvedSenderIds);
+          setSenderIds(approvedSenderIds);
+          setUseFallbackSenderIds(false);
+          
+          // Set initial selected sender ID if any exist
+          if (approvedSenderIds.length > 0) {
+            setSelectedSenderId(approvedSenderIds[0].sender_id);
+          }
+        } catch (senderIdError) {
+          console.error('Failed to fetch sender IDs, using fallback data:', senderIdError);
+          setSenderIds(FALLBACK_SENDER_IDS);
+          setUseFallbackSenderIds(true);
+          setSelectedSenderId(FALLBACK_SENDER_IDS[0].sender_id);
+          // Still set error but don't break the UI completely
+          setError('Warning: Using fallback sender IDs due to API error');
+        }
 
         // Fetch campaigns
         const campaignsData = await getCampaigns(currentWorkspaceId);
+        console.log('Campaigns Data:', campaignsData);
         const formattedCampaigns = Array.isArray(campaignsData) ? campaignsData : campaignsData?.data || [];
         setCampaigns(formattedCampaigns);
-        updateWorkspace(currentWorkspaceId, { campaigns: formattedCampaigns });
 
         // Fetch contacts
         const contactsData = await getContacts(currentWorkspaceId);
+        console.log('Contacts Data:', contactsData);
         const formattedContacts = Array.isArray(contactsData) ? contactsData : contactsData?.data || [];
         setContacts(formattedContacts);
-        updateWorkspace(currentWorkspaceId, { contacts: formattedContacts });
 
         // Fetch campaign groups
         const campaignGroupsData: { [key: string]: Group[] } = {};
@@ -116,15 +151,21 @@ const SendSMS: React.FC = () => {
           campaignGroupsData[campaign.campaign_id] = Array.isArray(groups) ? groups : groups?.data || [];
         }
         setCampaignGroups(campaignGroupsData);
+        console.log('Campaign Groups Data:', campaignGroupsData);
 
         // Fetch message logs
         const logsData = await getMessageLogs();
+        console.log('Message Logs Data:', logsData);
         setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
 
-        setError(null);
-      } catch (err) {
+        // Only clear error if we're not using fallback sender IDs
+        if (!useFallbackSenderIds) {
+          setError(null);
+        }
+      } catch (err: any) {
         const message = err.response?.data?.message || err.message || 'Failed to fetch data.';
-        console.error('Fetch error:', message); // Debug error
+        console.error('Fetch error:', message);
+        console.error('Error details:', err);
         setError(message);
       } finally {
         setIsLoading(false);
@@ -132,7 +173,7 @@ const SendSMS: React.FC = () => {
     };
 
     fetchData();
-  }, [currentWorkspaceId, updateWorkspace]);
+  }, [currentWorkspaceId]);
 
   // Generate AI message
   const generateAIMessage = async () => {
@@ -188,6 +229,11 @@ const SendSMS: React.FC = () => {
         throw new Error('No valid recipients found.');
       }
 
+      console.log('Sending message to:', recipientPhones);
+      console.log('Using sender ID:', selectedSenderId);
+      console.log('Message:', message);
+      console.log('Schedule:', schedule || 'Immediate');
+
       await sendInstantMessage(currentWorkspaceId, {
         recipients: recipientPhones,
         message,
@@ -202,9 +248,11 @@ const SendSMS: React.FC = () => {
       setKeywords('');
       setError(null);
 
+      // Refresh message logs after sending
       const logsData = await getMessageLogs();
       setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
-    } catch (err) {
+    } catch (err: any) {
+      console.error('Send SMS error:', err);
       setError(err.response?.data?.message || err.message || 'Failed to send SMS.');
     } finally {
       setIsSending(false);
@@ -221,7 +269,8 @@ const SendSMS: React.FC = () => {
     const recipientPhones: string[] = [];
     for (const group of groups) {
       const groupContacts = await getGroupContacts(currentWorkspaceId, group.group_id);
-      recipientPhones.push(...groupContacts.map((contact: Contact) => contact.phone_number));
+      const contacts = Array.isArray(groupContacts) ? groupContacts : groupContacts?.data || [];
+      recipientPhones.push(...contacts.map((contact: Contact) => contact.phone_number));
     }
     return [...new Set(recipientPhones)];
   };
@@ -238,19 +287,29 @@ const SendSMS: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-6"
+      className="max-w-4xl mx-auto space-y-6 p-6"
     >
       <div className="flex items-center gap-3 mb-8">
         <MessageSquare className="w-8 h-8 text-primary-500" />
         <h1 className="text-3xl font-bold text-gray-800">Send SMS</h1>
       </div>
+      
+      {useFallbackSenderIds && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
+          <p className="font-bold">Warning</p>
+          <p>Using fallback sender IDs due to API error. Some features may be limited.</p>
+        </div>
+      )}
+      
       {error && <div className="text-red-500 mb-4">{error}</div>}
+      
       {isLoading && (
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto" />
           <p className="text-gray-600 mt-2">Loading data...</p>
         </div>
       )}
+      
       {!isLoading && (
         <>
           <div className="card p-8">
@@ -282,21 +341,32 @@ const SendSMS: React.FC = () => {
                 </div>
               </div>
 
+              {/* Sender ID Selection - Updated to match API structure */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Sender ID</label>
                 <select
-                  className="input"
+                  className="input w-full"
                   value={selectedSenderId}
                   onChange={(e) => setSelectedSenderId(e.target.value)}
                   required
                 >
                   <option value="" disabled>Select a sender ID</option>
-                  {senderIds.map((sender) => (
-                    <option key={sender.sender_id} value={sender.sender_id}>
-                      {sender.name} ({sender.sender_id})
-                    </option>
-                  ))}
+                  {senderIds.length > 0 ? (
+                    senderIds.map((sender) => (
+                      <option key={sender.sender_id} value={sender.sender_id}>
+                        {sender.name} ({sender.sender_id})
+                        {sender.status ? ` - ${sender.status}` : ''}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No approved sender IDs available</option>
+                  )}
                 </select>
+                {senderIds.length === 0 && (
+                  <p className="text-sm text-amber-600 mt-1">
+                    You need to request and get approval for a Sender ID before sending messages.
+                  </p>
+                )}
               </div>
 
               {sendMode === 'campaign' ? (
@@ -304,7 +374,7 @@ const SendSMS: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Select Campaign</label>
                     <select
-                      className="input"
+                      className="input w-full"
                       value={selectedCampaignId}
                       onChange={(e) => setSelectedCampaignId(e.target.value)}
                       required={sendMode === 'campaign'}
@@ -322,7 +392,7 @@ const SendSMS: React.FC = () => {
                     <div className="text-sm text-gray-600">
                       {campaignGroups[selectedCampaignId]?.length > 0 ? (
                         campaignGroups[selectedCampaignId].map((group) => (
-                          <span key={group.group_id} className="inline-block bg-gray-200 text-gray-700 px-2 py-1 rounded mr-2">
+                          <span key={group.group_id} className="inline-block bg-gray-200 text-gray-700 px-2 py-1 rounded mr-2 mb-2">
                             {group.name}
                           </span>
                         ))
@@ -336,7 +406,7 @@ const SendSMS: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Enter Contacts</label>
                   <textarea
-                    className="input min-h-[120px]"
+                    className="input min-h-[120px] w-full"
                     placeholder="Enter phone numbers (comma-separated or one per line, e.g., +1234567890, +0987654321)"
                     value={manualContacts}
                     onChange={(e) => setManualContacts(e.target.value)}
@@ -371,7 +441,7 @@ const SendSMS: React.FC = () => {
                   </div>
                 </div>
                 <textarea
-                  className="input min-h-[120px]"
+                  className="input min-h-[120px] w-full"
                   placeholder="Type your SMS message here..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -386,7 +456,7 @@ const SendSMS: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Schedule (Optional)</label>
                 <input
                   type="datetime-local"
-                  className="input"
+                  className="input w-full"
                   value={schedule}
                   onChange={(e) => setSchedule(e.target.value)}
                 />
@@ -394,7 +464,7 @@ const SendSMS: React.FC = () => {
               <div className="flex justify-end gap-4">
                 <button
                   type="submit"
-                  disabled={isSending}
+                  disabled={isSending || senderIds.length === 0}
                   className="btn btn-primary flex items-center gap-2"
                 >
                   <Send className="w-5 h-5" />
@@ -403,6 +473,7 @@ const SendSMS: React.FC = () => {
               </div>
             </form>
           </div>
+
           <div className="card p-8">
             <h2 className="text-lg font-semibold mb-4">Sent SMS Logs</h2>
             {messageLogs.length === 0 ? (
@@ -421,6 +492,7 @@ const SendSMS: React.FC = () => {
               </div>
             )}
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="card p-6">
               <Users className="w-6 h-6 text-primary-500 mb-3" />
@@ -436,6 +508,18 @@ const SendSMS: React.FC = () => {
               <BarChart2 className="w-6 h-6 text-primary-500 mb-3" />
               <h3 className="text-lg font-semibold mb-2">Sender IDs</h3>
               <p className="text-gray-600">{senderIds.length} available</p>
+              {senderIds.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {senderIds.map((sender) => (
+                    <div key={sender.sender_id} className="text-sm">
+                      <span className="inline-block bg-gray-200 text-gray-700 px-2 py-1 rounded mr-2 mb-1">
+                        {sender.name}
+                        {sender.status && <span className="ml-1 text-xs">({sender.status})</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </>

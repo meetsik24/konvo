@@ -81,30 +81,6 @@ export const logoutUser = () => {
 };
 
 
-export const fetchDashboardData = async (): Promise<{ stats: any[]; data: any[] }> => {
-  const [totalMessages, campaigns, fails, contacts, messageVolume] = await Promise.all([
-    fetchTotalMessages().catch(() => null),
-    fetchNumberOfCampaigns().catch(() => null),
-    fetchTotalFails().catch(() => null),
-    fetchTotalContacts().catch(() => null),
-    fetchMessageVolume().catch(() => null),
-  ]);
-
-  const stats = [
-    { title: 'Total Messages', value: totalMessages?.toString() || '0', icon: 'MessageSquare', color: 'bg-blue-500' },
-    { title: 'Number of Campaigns', value: campaigns?.toString() || '0', icon: 'Megaphone', color: 'bg-yellow-500' },
-    { title: 'Total Fails', value: fails?.toString() || '0', icon: 'XCircle', color: 'bg-red-500' },
-    { title: 'Total Contacts', value: contacts?.toString() || '0', icon: 'Users', color: 'bg-teal-500' },
-  ];
-
-  const data = messageVolume || [];
-
-  if (!totalMessages && !campaigns && !fails && !contacts && !messageVolume) {
-    throw new Error('All dashboard data fetches failed.');
-  }
-
-  return { stats, data };
-};
 
 // Logs Endpoints
 interface LogResponse {
