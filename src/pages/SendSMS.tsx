@@ -1,19 +1,18 @@
-// SendSMS.tsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Send, Clock, Users, BarChart2, Bot } from 'lucide-react';
+import { MessageSquare, Send, Clock, Users, BarChart2, Bot, RefreshCw } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import {
   getCampaigns,
   getCampaignGroups,
   getContacts,
   getGroupContacts,
-  getApprovedSenderIds,
   sendInstantMessage,
   getMessageLogs,
 } from '../services/api';
+import { useApprovedSenderIds } from './useApprovedSenderIds';
+import { fetchSenderIds } from './senderIdService';
 
-// Define interfaces for type safety
 interface Campaign {
   campaign_id: string;
   workspace_id: string;
@@ -51,15 +50,17 @@ interface SenderId {
   approved_at?: string;
   name: string;
   created_at?: string;
+  request_id?: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  requested_at?: string;
+  reviewed_at?: string;
 }
 
 const SendSMS: React.FC = () => {
-  const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId } = useWorkspace();
-  const workspace = getCurrentWorkspace();
-  const [campaigns, setCampaigns] = useState<Campaign[]>(workspace?.campaigns || []);
+  const { currentWorkspaceId } = useWorkspace();
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignGroups, setCampaignGroups] = useState<{ [key: string]: Group[] }>({});
-  const [contacts, setContacts] = useState<Contact[]>(workspace?.contacts || []);
-  const [senderIds, setSenderIds] = useState<SenderId[]>(workspace?.senderIds || []);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
   const [selectedSenderId, setSelectedSenderId] = useState<string>('');
   const [message, setMessage] = useState('');
@@ -73,7 +74,9 @@ const SendSMS: React.FC = () => {
   const [manualContacts, setManualContacts] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch data on mount or workspace change
+  // Fetch sender IDs and use the hook
+  const { senderIds, formattedOptions, isLoading: senderIdsLoading, error: senderIdsError, refresh } = useApprovedSenderIds(null);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!currentWorkspaceId) {
@@ -82,34 +85,21 @@ const SendSMS: React.FC = () => {
       }
       setIsLoading(true);
       try {
-        console.log('Fetching data for workspace:', currentWorkspaceId); // Debug workspace ID
+        console.log('Fetching data for workspace:', currentWorkspaceId);
 
-        // Fetch approved sender IDs (same logic as SenderID.tsx)
-        const approvedResponse = await getApprovedSenderIds(currentWorkspaceId);
-        const formattedSenderIds: SenderId[] = Array.isArray(approvedResponse)
-          ? approvedResponse.map((item: SenderId) => ({
-              ...item,
-              is_approved: true,
-            }))
-          : [];
-        console.log('Fetched Sender IDs:', formattedSenderIds); // Debug sender IDs
-        setSenderIds(formattedSenderIds);
-        setSelectedSenderId(formattedSenderIds.length > 0 ? formattedSenderIds[0].sender_id : '');
-        updateWorkspace(currentWorkspaceId, { senderIds: formattedSenderIds });
+        // Fetch sender IDs
+        const fetchedSenderIds = await fetchSenderIds(currentWorkspaceId, false, false); // Assuming non-admin view for SendSMS
+        refresh(fetchedSenderIds);
 
-        // Fetch campaigns
+        // Fetch other data
         const campaignsData = await getCampaigns(currentWorkspaceId);
         const formattedCampaigns = Array.isArray(campaignsData) ? campaignsData : campaignsData?.data || [];
         setCampaigns(formattedCampaigns);
-        updateWorkspace(currentWorkspaceId, { campaigns: formattedCampaigns });
 
-        // Fetch contacts
         const contactsData = await getContacts(currentWorkspaceId);
         const formattedContacts = Array.isArray(contactsData) ? contactsData : contactsData?.data || [];
         setContacts(formattedContacts);
-        updateWorkspace(currentWorkspaceId, { contacts: formattedContacts });
 
-        // Fetch campaign groups
         const campaignGroupsData: { [key: string]: Group[] } = {};
         for (const campaign of formattedCampaigns) {
           const groups = await getCampaignGroups(campaign.campaign_id);
@@ -117,14 +107,13 @@ const SendSMS: React.FC = () => {
         }
         setCampaignGroups(campaignGroupsData);
 
-        // Fetch message logs
         const logsData = await getMessageLogs();
         setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
 
         setError(null);
       } catch (err) {
         const message = err.response?.data?.message || err.message || 'Failed to fetch data.';
-        console.error('Fetch error:', message); // Debug error
+        console.error('Fetch error:', message);
         setError(message);
       } finally {
         setIsLoading(false);
@@ -132,9 +121,8 @@ const SendSMS: React.FC = () => {
     };
 
     fetchData();
-  }, [currentWorkspaceId, updateWorkspace]);
+  }, [currentWorkspaceId, refresh]);
 
-  // Generate AI message
   const generateAIMessage = async () => {
     if (!keywords.trim()) {
       setError('Please enter keywords to generate a message.');
@@ -154,7 +142,6 @@ const SendSMS: React.FC = () => {
     }
   };
 
-  // Handle sending SMS
   const handleSendSMS = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentWorkspaceId) {
@@ -211,7 +198,6 @@ const SendSMS: React.FC = () => {
     }
   };
 
-  // Get recipients for campaign mode
   const getCampaignRecipients = async (): Promise<string[]> => {
     const selectedCampaign = campaigns.find((c) => c.campaign_id === selectedCampaignId);
     if (!selectedCampaign) {
@@ -226,13 +212,26 @@ const SendSMS: React.FC = () => {
     return [...new Set(recipientPhones)];
   };
 
-  // Get recipients for manual contacts mode
   const getManualRecipients = (): string[] => {
     return manualContacts
       .split(/[\n,]+/)
       .map((phone) => phone.trim())
       .filter(Boolean);
   };
+
+  const refreshSenderIds = async () => {
+    setIsLoading(true);
+    try {
+      const fetchedSenderIds = await fetchSenderIds(currentWorkspaceId, false, false); // Assuming non-admin view
+      refresh(fetchedSenderIds);
+    } catch (err) {
+      setError(err.message || 'Failed to refresh sender IDs.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const isOverallLoading = isLoading || senderIdsLoading;
 
   return (
     <motion.div
@@ -244,17 +243,26 @@ const SendSMS: React.FC = () => {
         <MessageSquare className="w-8 h-8 text-primary-500" />
         <h1 className="text-3xl font-bold text-gray-800">Send SMS</h1>
       </div>
-      {error && <div className="text-red-500 mb-4">{error}</div>}
-      {isLoading && (
+      {(error || senderIdsError) && <div className="text-red-500 mb-4">{error || senderIdsError}</div>}
+      {isOverallLoading && (
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto" />
           <p className="text-gray-600 mt-2">Loading data...</p>
         </div>
       )}
-      {!isLoading && (
+      {!isOverallLoading && (
         <>
           <div className="card p-8">
             <h2 className="text-lg font-semibold mb-4">Send SMS</h2>
+            <div className="mb-4">
+              <button
+                onClick={refreshSenderIds}
+                className="btn btn-sm btn-secondary flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh Sender IDs
+              </button>
+            </div>
             <form onSubmit={handleSendSMS} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Send Mode</label>
@@ -291,9 +299,9 @@ const SendSMS: React.FC = () => {
                   required
                 >
                   <option value="" disabled>Select a sender ID</option>
-                  {senderIds.map((sender) => (
-                    <option key={sender.sender_id} value={sender.sender_id}>
-                      {sender.name} ({sender.sender_id})
+                  {formattedOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
