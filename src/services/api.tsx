@@ -110,8 +110,13 @@ export const fetchLogs = async (): Promise<LogResponse> => {
 //WORKSPACE
 
 export const createWorkspace = async (name: string) => {
-  const response = await api.post("/workspaces/", { name });
-  return response.data;
+  try {
+    const response = await api.post("/workspaces", { name });
+    return response.data;
+  } catch (error: any) {
+    console.error('Failed to create workspace:', error.response?.data || error.message);
+    throw new Error('Failed to create workspace');
+  }
 };
 
 
@@ -133,8 +138,13 @@ export const getWorkspaces = async () => {
   }
 };
 
+interface Workspace {
+  name: string;
+  // Add other properties of Workspace as needed
+}
+
 export const UpdateWorkspace = async (id: string, data: Partial<Workspace>) => {
-  const response = await fetch(`/api/workspaces/${id}`, {
+  const response = await fetch(`/workspaces/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -544,9 +554,9 @@ export interface SubscriptionUsage {
 
 export const sendInstantMessage = async (workspaceId: string, data: {
   recipients: string[];
-  message: string;
-  sender_id?: string;
-  schedule?: string;
+  content: string;  // Changed from 'message' to 'content'
+  sender_id: string;  // Made required to match schema
+
 }) => {
   try {
     const response = await api.post('/messages/send-instant', {
