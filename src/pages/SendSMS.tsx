@@ -10,6 +10,7 @@ import {
   getApprovedSenderIds,
   sendInstantMessage,
   getMessageLogs,
+  getWorkspaceGroups, // Added to validate groups
 } from '../services/api';
 
 // Define interfaces for type safety
@@ -26,14 +27,15 @@ interface Campaign {
 interface Group {
   group_id: string;
   name: string;
+  workspace_id?: string;
 }
 
 interface Contact {
-  id: string;
+  contact_id: string;
   name: string;
   phone_number: string;
   email?: string;
-  group_id?: string;
+  group_ids?: string[];
 }
 
 interface MessageLog {
@@ -51,7 +53,7 @@ interface SenderId {
 
 // Fallback sender IDs in case API fails
 const FALLBACK_SENDER_IDS: SenderId[] = [
-  { sender_id: 'default_sender', name: 'Default Sender' }
+  { sender_id: 'default_sender', name: 'Default Sender' },
 ];
 
 const SendSMS: React.FC = () => {
@@ -60,6 +62,7 @@ const SendSMS: React.FC = () => {
   const [campaignGroups, setCampaignGroups] = useState<{ [key: string]: Group[] }>({});
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [senderIds, setSenderIds] = useState<SenderId[]>([]);
+  const [validGroups, setValidGroups] = useState<Group[]>([]); // Added to store valid workspace groups
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
   const [selectedSenderId, setSelectedSenderId] = useState<string>('');
   const [message, setMessage] = useState('');
@@ -95,23 +98,25 @@ const SendSMS: React.FC = () => {
           let approvedSenderIds: SenderId[] = [];
 
           if (Array.isArray(response)) {
-            approvedSenderIds = response.map(sender => ({
+            approvedSenderIds = response.map((sender) => ({
               sender_id: sender.sender_id,
               name: sender.name || sender.sender_id,
-              status: sender.status
+              status: sender.status,
             }));
           } else if (response?.data && Array.isArray(response.data)) {
             approvedSenderIds = response.data.map((sender: any) => ({
               sender_id: sender.sender_id,
               name: sender.name || sender.sender_id,
-              status: sender.status
+              status: sender.status,
             }));
           } else if (response && typeof response === 'object' && response.sender_id) {
-            approvedSenderIds = [{
-              sender_id: response.sender_id,
-              name: response.name || response.sender_id,
-              status: response.is_approved ? 'approved' : 'pending'
-            }];
+            approvedSenderIds = [
+              {
+                sender_id: response.sender_id,
+                name: response.name || response.sender_id,
+                status: response.is_approved ? 'approved' : 'pending',
+              },
+            ];
           } else {
             console.error('Unexpected sender IDs response format:', response);
             throw new Error('Invalid sender IDs response format');
@@ -133,10 +138,10 @@ const SendSMS: React.FC = () => {
         }
 
         // Fetch campaigns
-        const campaignsData = await getCampaigns(currentWorkspaceId);
+        const campaignsData = await getCampaigns();
         console.log('Campaigns Data:', campaignsData);
         const formattedCampaigns = Array.isArray(campaignsData) ? campaignsData : campaignsData?.data || [];
-        setCampaigns(formattedCampaigns);
+        setCampaigns(formattedCampaigns.filter((campaign: Campaign) => campaign.workspace_id === currentWorkspaceId));
 
         // Fetch contacts
         const contactsData = await getContacts(currentWorkspaceId);
@@ -144,11 +149,26 @@ const SendSMS: React.FC = () => {
         const formattedContacts = Array.isArray(contactsData) ? contactsData : contactsData?.data || [];
         setContacts(formattedContacts);
 
+        // Fetch workspace groups to validate campaign groups
+        const workspaceGroups = await getWorkspaceGroups(currentWorkspaceId);
+        console.log('Workspace Groups:', workspaceGroups);
+        setValidGroups(Array.isArray(workspaceGroups) ? workspaceGroups : workspaceGroups?.data || []);
+
         // Fetch campaign groups
         const campaignGroupsData: { [key: string]: Group[] } = {};
         for (const campaign of formattedCampaigns) {
-          const groups = await getCampaignGroups(campaign.campaign_id);
-          campaignGroupsData[campaign.campaign_id] = Array.isArray(groups) ? groups : groups?.data || [];
+          try {
+            const groups = await getCampaignGroups(campaign.campaign_id);
+            const formattedGroups = Array.isArray(groups) ? groups : groups?.data || [];
+            // Validate groups against workspace groups
+            const validCampaignGroups = formattedGroups.filter((group: Group) =>
+              validGroups.some((validGroup: Group) => validGroup.group_id === group.group_id)
+            );
+            campaignGroupsData[campaign.campaign_id] = validCampaignGroups;
+          } catch (groupError) {
+            console.error(`Failed to fetch groups for campaign ${campaign.campaign_id}:`, groupError);
+            campaignGroupsData[campaign.campaign_id] = [];
+          }
         }
         setCampaignGroups(campaignGroupsData);
         console.log('Campaign Groups Data:', campaignGroupsData);
@@ -173,6 +193,34 @@ const SendSMS: React.FC = () => {
 
     fetchData();
   }, [currentWorkspaceId]);
+
+  // Refresh campaign groups when the selected campaign changes
+  useEffect(() => {
+    const fetchCampaignGroups = async () => {
+      if (!selectedCampaignId) return;
+      try {
+        const groups = await getCampaignGroups(selectedCampaignId);
+        const formattedGroups = Array.isArray(groups) ? groups : groups?.data || [];
+        // Validate groups against workspace groups
+        const validCampaignGroups = formattedGroups.filter((group: Group) =>
+          validGroups.some((validGroup: Group) => validGroup.group_id === group.group_id)
+        );
+        console.log(`Refreshed groups for campaign ${selectedCampaignId}:`, validCampaignGroups);
+        setCampaignGroups((prev) => ({
+          ...prev,
+          [selectedCampaignId]: validCampaignGroups,
+        }));
+      } catch (error) {
+        console.error(`Failed to refresh groups for campaign ${selectedCampaignId}:`, error);
+        setCampaignGroups((prev) => ({
+          ...prev,
+          [selectedCampaignId]: [],
+        }));
+        setError('Failed to fetch groups for the selected campaign.');
+      }
+    };
+    fetchCampaignGroups();
+  }, [selectedCampaignId, validGroups]);
 
   // Generate AI message
   const generateAIMessage = async () => {
@@ -220,12 +268,10 @@ const SendSMS: React.FC = () => {
 
     setIsSending(true);
     try {
-      const recipientPhones = sendMode === 'campaign'
-        ? await getCampaignRecipients()
-        : getManualRecipients();
+      const recipientPhones = sendMode === 'campaign' ? await getCampaignRecipients() : getManualRecipients();
 
       if (recipientPhones.length === 0) {
-        throw new Error('No valid recipients found.');
+        throw new Error('No valid recipients found. Please ensure the campaign has associated groups with contacts.');
       }
 
       console.log('Sending message to:', recipientPhones);
@@ -239,7 +285,6 @@ const SendSMS: React.FC = () => {
         recipients: recipientPhones,
         content: message,
         sender_id: selectedSenderId,
-        ...(sendMode === 'campaign' && schedule ? { schedule } : {}),
       });
 
       setMessage('');
@@ -253,7 +298,7 @@ const SendSMS: React.FC = () => {
       setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
     } catch (err: any) {
       console.error('Send SMS error:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to send SMS.');
+      setError(err.message || 'Failed to send SMS. Please check the campaign groups and try again.');
     } finally {
       setIsSending(false);
     }
@@ -266,21 +311,46 @@ const SendSMS: React.FC = () => {
       throw new Error('Selected campaign not found.');
     }
     const groups = campaignGroups[selectedCampaignId] || [];
+    if (groups.length === 0) {
+      throw new Error('No groups assigned to this campaign.');
+    }
+
+    console.log(`Processing groups for campaign ${selectedCampaignId}:`, groups);
+
     const recipientPhones: string[] = [];
     for (const group of groups) {
-      const groupContacts = await getGroupContacts(currentWorkspaceId, group.group_id);
-      const contacts = Array.isArray(groupContacts) ? groupContacts : groupContacts?.data || [];
-      recipientPhones.push(...contacts.map((contact: Contact) => contact.phone_number));
+      if (!group.group_id) {
+        console.warn(`Skipping group with missing group_id:`, group);
+        continue;
+      }
+      if (!currentWorkspaceId) {
+        throw new Error('Workspace ID is null.');
+      }
+      try {
+        const groupContacts = await getGroupContacts(currentWorkspaceId, group.group_id);
+        const contacts = Array.isArray(groupContacts) ? groupContacts : groupContacts?.data || [];
+        const phoneNumbers = contacts.map((contact: Contact) => contact.phone_number).filter(Boolean);
+        recipientPhones.push(...phoneNumbers);
+        console.log(`Found ${phoneNumbers.length} contacts in group ${group.group_id}`);
+      } catch (error) {
+        console.error(`Failed to fetch contacts for group ${group.group_id}:`, error);
+        // Continue to the next group instead of failing completely
+      }
     }
-    return [...new Set(recipientPhones)];
+
+    const uniquePhones = [...new Set(recipientPhones)];
+    console.log(`Found ${uniquePhones.length} unique recipients for campaign ${selectedCampaignId}`);
+    return uniquePhones;
   };
 
   // Get recipients for manual contacts mode
   const getManualRecipients = (): string[] => {
-    return manualContacts
+    const phones = manualContacts
       .split(/[\n,]+/)
       .map((phone) => phone.trim())
       .filter(Boolean);
+    console.log(`Manual recipients:`, phones);
+    return phones;
   };
 
   return (
@@ -391,7 +461,10 @@ const SendSMS: React.FC = () => {
                     <div className="text-sm text-gray-600">
                       {campaignGroups[selectedCampaignId]?.length > 0 ? (
                         campaignGroups[selectedCampaignId].map((group) => (
-                          <span key={group.group_id} className="inline-block bg-gray-200 text-gray-700 px-2 py-1 rounded mr-2 mb-2">
+                          <span
+                            key={group.group_id}
+                            className="inline-block bg-gray-200 text-gray-700 px-2 py-1 rounded mr-2 mb-2"
+                          >
                             {group.name}
                           </span>
                         ))

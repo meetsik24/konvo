@@ -329,6 +329,10 @@ export const getContactGroups = async (workspaceId: string, contactId: string): 
   }
 };
 
+
+
+
+
 export const addContactsToGroup = async (groupId: string, contactIds: string[]) => {
   console.log('addContactsToGroup API call initiated for group:', groupId, 'with contacts:', contactIds);
   try {
@@ -365,18 +369,30 @@ export const deleteGroup = async (groupId: string) => {
   }
 };
 
-export const getGroupContacts = async (workspaceId: string, groupId: string) => {
-  console.log(`getGroupContacts API call initiated for workspace: ${workspaceId}, group: ${groupId}`);
+// Updated getGroupContacts with correct endpoint
+export const getGroupContacts = async (workspaceId: string, groupId: string): Promise<Contact[]> => {
   try {
-    const response = await api.get(`/workspaces/${workspaceId}/group/${groupId}/contacts`);
-    console.log('getGroupContacts API response:', response.data);
+    console.log(`Fetching contacts for group ${groupId} in workspace ${workspaceId}`);
+    const response = await api.get(`/workspaces/${workspaceId}/groups/${groupId}/contacts`);
+    console.log(`Contacts for group ${groupId}:`, response.data);
     return response.data;
   } catch (error: any) {
-    console.error('getGroupContacts API error:', error.response ? error.response.data : error);
-    throw error;
+    console.error(`getGroupContacts API error for group ${groupId}:`, error.response?.data || error.message);
+    // Fallback: Fetch all contacts and filter by group_ids
+    try {
+      console.log(`Falling back to fetching all contacts for workspace ${workspaceId}`);
+      const allContacts = await getContacts(workspaceId);
+      const filteredContacts = allContacts.filter(
+        (contact) => contact.group_ids && contact.group_ids.includes(groupId)
+      );
+      console.log(`Filtered contacts for group ${groupId}:`, filteredContacts);
+      return filteredContacts;
+    } catch (fallbackError: any) {
+      console.error('Fallback failed:', fallbackError.response?.data || fallbackError.message);
+      return []; // Return empty array instead of throwing error
+    }
   }
 };
-
 
 
 
