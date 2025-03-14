@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Send, Clock, Users, BarChart2, Bot } from 'lucide-react';
+import { MessageSquare, Send, Clock, Users, BarChart2, Bot, CheckCircle } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import {
   getCampaigns,
@@ -10,7 +10,7 @@ import {
   getApprovedSenderIds,
   sendInstantMessage,
   getMessageLogs,
-  getWorkspaceGroups, // Added to validate groups
+  getWorkspaceGroups,
 } from '../services/api';
 
 // Define interfaces for type safety
@@ -62,7 +62,7 @@ const SendSMS: React.FC = () => {
   const [campaignGroups, setCampaignGroups] = useState<{ [key: string]: Group[] }>({});
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [senderIds, setSenderIds] = useState<SenderId[]>([]);
-  const [validGroups, setValidGroups] = useState<Group[]>([]); // Added to store valid workspace groups
+  const [validGroups, setValidGroups] = useState<Group[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
   const [selectedSenderId, setSelectedSenderId] = useState<string>('');
   const [message, setMessage] = useState('');
@@ -76,6 +76,7 @@ const SendSMS: React.FC = () => {
   const [manualContacts, setManualContacts] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [useFallbackSenderIds, setUseFallbackSenderIds] = useState(false);
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false); // State for notification
 
   // Fetch data on mount or workspace change
   useEffect(() => {
@@ -294,6 +295,10 @@ const SendSMS: React.FC = () => {
       setKeywords('');
       setError(null);
 
+      // Show success notification
+      setShowSuccessNotification(true);
+      setTimeout(() => setShowSuccessNotification(false), 3000); // Hide after 3 seconds
+
       const logsData = await getMessageLogs();
       setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
     } catch (err: any) {
@@ -357,8 +362,31 @@ const SendSMS: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-6 p-6"
+      className="max-w-4xl mx-auto space-y-6 p-6 relative"
     >
+      {/* Success Notification */}
+      {showSuccessNotification && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={{ duration: 0.5, type: 'spring', stiffness: 120 }}
+          className="fixed inset-0 flex items-center justify-center z-50"
+        >
+          <div className="bg-green-500 text-white p-8 rounded-xl shadow-2xl flex flex-col items-center gap-4 w-96">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, duration: 0.3 }}
+            >
+              <CheckCircle className="w-16 h-16" />
+            </motion.div>
+            <span className="text-2xl font-semibold">SMS Sent Successfully!</span>
+            <p className="text-sm text-green-100">Your message has been sent to all recipients.</p>
+          </div>
+        </motion.div>
+      )}
+
       <div className="flex items-center gap-3 mb-8">
         <MessageSquare className="w-8 h-8 text-primary-500" />
         <h1 className="text-3xl font-bold text-gray-800">Send SMS</h1>
