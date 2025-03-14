@@ -110,8 +110,13 @@ export const fetchLogs = async (): Promise<LogResponse> => {
 //WORKSPACE
 
 export const createWorkspace = async (name: string) => {
-  const response = await api.post("/workspaces/", { name });
-  return response.data;
+  try {
+    const response = await api.post("/workspaces", { name });
+    return response.data;
+  } catch (error: any) {
+    console.error('Failed to create workspace:', error.response?.data || error.message);
+    throw new Error('Failed to create workspace');
+  }
 };
 
 
@@ -133,8 +138,13 @@ export const getWorkspaces = async () => {
   }
 };
 
+interface Workspace {
+  name: string;
+  // Add other properties of Workspace as needed
+}
+
 export const UpdateWorkspace = async (id: string, data: Partial<Workspace>) => {
-  const response = await fetch(`/api/workspaces/${id}`, {
+  const response = await fetch(`/workspaces/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -213,15 +223,14 @@ export const deleteCampaign = async (campaignId: string) => {
 
 //CONTACTS
 
-export const getContacts = async (workspaceId: string) => {
-  console.log('getContacts API call initiated for workspace:', workspaceId);
+export const getContacts = async (workspaceId: string): Promise<Contact[]> => {
   try {
     const response = await api.get(`/workspaces/${workspaceId}/contacts`);
-    console.log('getContacts API response:', response.data);
+    console.log('Raw contacts response:', response.data); // Debug log
     return response.data;
   } catch (error: any) {
-    console.error('getContacts API error:', error.response ? error.response.data : error);
-    throw error;
+    console.error('Error fetching contacts:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || 'Failed to fetch contacts');
   }
 };
 
@@ -237,15 +246,35 @@ export const createContact = async (data: { name: string; phone_number: string; 
   }
 };
 
-export const deleteContact = async (contactId: string) => {
-  console.log('deleteContact API call initiated for contact:', contactId);
+// Update an existing contact (new endpoint)
+// Define the Contact interface if not already defined
+interface Contact {
+  name: string;
+  phone_number: string;
+  email: string;
+  workspace_id: string;
+  group_id?: string;
+}
+
+export const updateContact = async (contactId: string, contact: Partial<Contact>): Promise<Contact> => {
   try {
-    const response = await api.delete(`/contacts/${contactId}`);
-    console.log('deleteContact API response:', response.data);
+    const response = await api.patch(`/contacts/${contactId}`, contact);
     return response.data;
-  } catch (error: any) {
-    console.error('deleteContact API error:', error.response ? error.response.data : error);
+  } catch (error) {
+    console.error('Error updating contact:', error);
     throw error;
+  }
+};
+
+export const deleteContact = async (contactId: string): Promise<void> => {
+  if (!contactId) {
+    throw new Error('Contact ID is undefined');
+  }
+  try {
+    await api.delete(`/contacts/${contactId}`);
+  } catch (error: any) {
+    console.error('deleteContact API error:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.detail || 'Failed to delete contact');
   }
 };
 
@@ -283,6 +312,19 @@ export const createGroup = async (data: { name: string; workspace_id: string }) 
     return response.data; // Expecting { group_id, workspace_id, name, created_at }
   } catch (error: any) {
     console.error('createGroup API error:', error.response ? error.response.data : error);
+    throw error;
+  }
+};
+
+
+
+
+export const getContactGroups = async (workspaceId: string, contactId: string): Promise<Group[]> => {
+  try {
+    const response = await api.get(`/contacts/${contactId}/contact-groups`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching groups for contact ${contactId}:`, error);
     throw error;
   }
 };
@@ -544,9 +586,9 @@ export interface SubscriptionUsage {
 
 export const sendInstantMessage = async (workspaceId: string, data: {
   recipients: string[];
-  message: string;
-  sender_id?: string;
-  schedule?: string;
+  content: string;  // Changed from 'message' to 'content'
+  sender_id: string;  // Made required to match schema
+
 }) => {
   try {
     const response = await api.post('/messages/send-instant', {

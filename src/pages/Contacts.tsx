@@ -1,43 +1,77 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, Component } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Upload, Trash2, Edit2, Search, UserPlus, FolderPlus, Download, X } from 'lucide-react';
 import Papa from 'papaparse';
 import { useWorkspace } from './WorkspaceContext';
 import {
   createContact,
+  updateContact,
   deleteContact,
   getWorkspaceGroups,
   createGroup,
   deleteGroup,
   addContactsToGroup,
   getContacts,
+  getContactGroups,
 } from '../services/api';
 
+// Error Boundary Component
+class ErrorBoundary extends Component<{ children: React.ReactNode }> {
+  state: { hasError: boolean; error: Error | null } = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 text-red-500 bg-red-50 rounded">
+          <h2>Something went wrong.</h2>
+          <p>{this.state.error?.message || 'An unexpected error occurred.'}</p>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            className="mt-2 btn btn-primary"
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 interface Contact {
-  id: string;
+  contact_id: string; // Changed from 'id' to 'contact_id'
   name: string;
   phone_number: string;
   email: string;
   workspace_id: string;
-  group_id?: string; // Optional to handle contacts without a group
+  group_ids?: string[];
 }
 
 interface Group {
   group_id: string;
   name: string;
   workspace_id: string;
-  created_at: string;
-  count: number;
+  created_at?: string;
+  count?: number;
 }
 
 interface ContactModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: () => void;
-  contact: { name: string; phone_number: string; email: string; group_id: string };
+  onSubmit: (contact: Partial<Contact>) => void;
+  contact: Partial<Contact>;
   setContact: (contact: Partial<Contact>) => void;
   groups: Group[];
   title: string;
+  isEdit: boolean;
 }
 
 const ContactModal: React.FC<ContactModalProps> = ({
@@ -48,8 +82,11 @@ const ContactModal: React.FC<ContactModalProps> = ({
   setContact,
   groups,
   title,
+  isEdit,
 }) => {
   if (!isOpen) return null;
+
+  console.log('Groups in modal:', groups);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -66,7 +103,7 @@ const ContactModal: React.FC<ContactModalProps> = ({
             <input
               type="text"
               className="input w-full"
-              value={contact.name}
+              value={contact.name || ''}
               onChange={(e) => setContact({ ...contact, name: e.target.value })}
             />
           </div>
@@ -75,7 +112,7 @@ const ContactModal: React.FC<ContactModalProps> = ({
             <input
               type="tel"
               className="input w-full"
-              value={contact.phone_number}
+              value={contact.phone_number || ''}
               onChange={(e) => setContact({ ...contact, phone_number: e.target.value })}
             />
           </div>
@@ -84,30 +121,33 @@ const ContactModal: React.FC<ContactModalProps> = ({
             <input
               type="email"
               className="input w-full"
-              value={contact.email}
+              value={contact.email || ''}
               onChange={(e) => setContact({ ...contact, email: e.target.value })}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Group</label>
+            <label className="block text-sm font-medium mb-1">Assign to Groups</label>
             <select
-              className="input w-full"
-              value={contact.group_id}
-              onChange={(e) => setContact({ ...contact, group_id: e.target.value })}
+              multiple
+              className="input w-full min-h-[100px]"
+              value={contact.group_ids || []}
+              onChange={(e) => {
+                const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
+                setContact({ ...contact, group_ids: selectedOptions });
+              }}
             >
-              <option value="all">None</option>
               {groups
-                .filter((group) => group.group_id !== 'all')
+                .filter((group) => group.group_id && group.group_id !== 'all')
                 .map((group) => (
                   <option key={group.group_id} value={group.group_id}>
-                    {group.name}
+                    {group.name || `Group ${group.group_id}`}
                   </option>
                 ))}
             </select>
           </div>
           <div className="flex justify-end gap-2">
             <button onClick={onClose} className="btn btn-secondary">Cancel</button>
-            <button onClick={onSubmit} className="btn btn-primary">{title}</button>
+            <button onClick={() => onSubmit(contact)} className="btn btn-primary">{title}</button>
           </div>
         </div>
       </div>
@@ -121,13 +161,20 @@ const Contacts: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [showAddContact, setShowAddContact] = useState(false);
+  const [showEditContact, setShowEditContact] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [newContact, setNewContact] = useState<Partial<Contact>>({
     name: '',
     phone_number: '',
     email: '',
-    group_id: 'all',
+    group_ids: [],
+  });
+  const [editContact, setEditContact] = useState<Partial<Contact>>({
+    name: '',
+    phone_number: '',
+    email: '',
+    group_ids: [],
   });
   const [newGroupName, setNewGroupName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -142,49 +189,64 @@ const Contacts: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // Fetch all contacts and groups in parallel
       const [contactsResponse, groupsResponse] = await Promise.all([
         getContacts(currentWorkspaceId),
         getWorkspaceGroups(currentWorkspaceId),
       ]);
 
-      // Normalize contacts data
       const contactsData = Array.isArray(contactsResponse)
         ? contactsResponse
         : contactsResponse?.data || [];
-      console.log('Fetched contacts with group_id:', contactsData.map((c) => ({ id: c.id, group_id: c.group_id })));
+      const groupsData = Array.isArray(groupsResponse)
+        ? groupsResponse
+        : groupsResponse?.data || [];
 
-      // Compute group contacts by filtering workspace contacts
-      const fetchedGroups = groupsResponse.map((group: Group) => {
-        const groupContacts = contactsData.filter(
-          (contact: Contact) => contact.group_id === group.group_id
+      // Check for missing contact_ids in contacts
+      const invalidContacts = contactsData.filter((contact: Contact) => !contact.contact_id);
+      if (invalidContacts.length > 0) {
+        console.warn('Found contacts with missing contact_ids:', invalidContacts);
+      }
+
+      const updatedContacts = await Promise.all(
+        contactsData.map(async (contact: Contact) => {
+          const contactGroupsResponse = await getContactGroups(currentWorkspaceId, contact.contact_id);
+          const contactGroups = Array.isArray(contactGroupsResponse)
+            ? contactGroupsResponse
+            : contactGroupsResponse?.data || [];
+          return {
+            ...contact,
+            group_ids: contactGroups.map((group: Group) => group.group_id || ''),
+          };
+        })
+      );
+
+      const updatedGroups = groupsData.map((group: Group) => {
+        const groupContacts = updatedContacts.filter(
+          (contact: Contact) => contact.group_ids && contact.group_ids.includes(group.group_id)
         );
         return {
           ...group,
           count: groupContacts.length,
+          created_at: group.created_at || new Date().toISOString(),
         };
       });
 
-      // Construct the "All Contacts" group
-      const updatedGroups: Group[] = [
-        {
-          group_id: 'all',
-          name: 'All Contacts',
-          workspace_id: currentWorkspaceId,
-          created_at: '',
-          count: contactsData.length,
-        },
-        ...fetchedGroups,
-      ];
+      const allGroup = {
+        group_id: 'all',
+        name: 'All Contacts',
+        workspace_id: currentWorkspaceId,
+        created_at: '',
+        count: updatedContacts.length,
+      };
 
-      setContacts(contactsData);
-      setGroups(updatedGroups);
+      setContacts(updatedContacts);
+      setGroups([allGroup, ...updatedGroups]);
+      console.log('Fetched contacts:', updatedContacts);
       setError(null);
     } catch (error: any) {
-      console.error('Failed to fetch data:', error.response?.data || error.message);
-      setError(error.response?.data?.message || 'Unable to fetch contacts or groups.');
-      setContacts([]);
-      setGroups([]);
+      const errorMessage = error.message || 'An unexpected error occurred.';
+      console.error('Fetch error:', error);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -194,13 +256,13 @@ const Contacts: React.FC = () => {
     fetchContactsAndGroups();
   }, [fetchContactsAndGroups]);
 
-  const handleAddContact = useCallback(async () => {
+  const handleAddContact = useCallback(async (contact: Partial<Contact>) => {
     if (!currentWorkspaceId) {
       setError('No workspace selected.');
       return;
     }
 
-    const { name, phone_number, email, group_id } = newContact;
+    const { name, phone_number, email, group_ids } = contact;
     const trimmedName = name?.trim() || '';
     const trimmedPhone = phone_number?.trim() || '';
     const trimmedEmail = email?.trim() || '';
@@ -216,44 +278,108 @@ const Contacts: React.FC = () => {
     }
 
     try {
-      const contactPayload: Omit<Contact, 'id'> = {
+      const contactPayload: Omit<Contact, 'contact_id'> = {
         name: trimmedName,
         phone_number: trimmedPhone,
         email: trimmedEmail,
         workspace_id: currentWorkspaceId,
-        ...(group_id && group_id !== 'all' ? { group_id } : {}),
       };
-
       const createdContact = await createContact(contactPayload);
-      setContacts((prev) => [...prev, createdContact]);
 
-      if (group_id && group_id !== 'all') {
-        await addContactsToGroup(group_id, [createdContact.id]);
+      if (group_ids && group_ids.length > 0) {
+        const groupsToAdd = group_ids.filter((groupId) => groupId !== 'all');
+        await Promise.all(
+          groupsToAdd.map(async (groupId) => {
+            await addContactsToGroup(groupId, [createdContact.contact_id]);
+          })
+        );
       }
 
       await fetchContactsAndGroups();
       setShowAddContact(false);
-      setNewContact({ name: '', phone_number: '', email: '', group_id: 'all' });
+      setNewContact({ name: '', phone_number: '', email: '', group_ids: [] });
       setError(null);
     } catch (error: any) {
-      console.error('Error adding contact:', error.response?.data || error.message);
-      setError(error.response?.data?.detail || 'Failed to add contact.');
+      console.error('Error adding contact:', error);
+      setError(error.message || 'Failed to add contact.');
     }
-  }, [currentWorkspaceId, newContact, fetchContactsAndGroups]);
+  }, [currentWorkspaceId, fetchContactsAndGroups]);
 
-  const handleDeleteContact = useCallback(async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this contact?')) return;
+  const handleUpdateContact = useCallback(async (contact: Partial<Contact>) => {
+    if (!currentWorkspaceId || !contact.contact_id) {
+      setError('No workspace or contact selected.');
+      return;
+    }
+
+    const { contact_id, name, phone_number, email, group_ids } = contact;
+    const trimmedName = name?.trim() || '';
+    const trimmedPhone = phone_number?.trim() || '';
+    const trimmedEmail = email?.trim() || '';
+
+    if (!trimmedName || !trimmedPhone || !trimmedEmail) {
+      setError('All fields are required.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
 
     try {
-      await deleteContact(id);
-      setContacts((prev) => prev.filter((c) => c.id !== id));
+      await updateContact(contact_id, {
+        name: trimmedName,
+        phone_number: trimmedPhone,
+        email: trimmedEmail,
+        workspace_id: currentWorkspaceId,
+      });
+
+      if (group_ids) {
+        const currentGroups = await getContactGroups(currentWorkspaceId, contact_id);
+        const currentGroupIds = currentGroups.map((group: Group) => group.group_id || '');
+        const groupsToAdd = group_ids.filter((groupId) => !currentGroupIds.includes(groupId) && groupId !== 'all');
+
+        await Promise.all(
+          groupsToAdd.map(async (groupId) => {
+            await addContactsToGroup(groupId, [contact_id]);
+          })
+        );
+      }
+
+      await fetchContactsAndGroups();
+      setShowEditContact(false);
+      setEditContact({ name: '', phone_number: '', email: '', group_ids: [] });
+      setError(null);
+    } catch (error: any) {
+      console.error('Error updating contact:', error);
+      setError(error.message || 'Failed to update contact.');
+    }
+  }, [currentWorkspaceId, fetchContactsAndGroups]);
+
+  const handleDeleteContact = useCallback(async (contactId: string) => {
+    if (!contactId) {
+      setError('Contact ID is undefined. Cannot delete.');
+      console.error('Attempted to delete contact with undefined ID');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this contact?')) return;
+
+    if (!currentWorkspaceId) {
+      setError('No workspace selected.');
+      return;
+    }
+
+    try {
+      await deleteContact(contactId);
+      setContacts((prev) => prev.filter((c) => c.contact_id !== contactId));
       await fetchContactsAndGroups();
       setError(null);
     } catch (error: any) {
-      console.error('Error deleting contact:', error.response?.data || error.message);
-      setError(error.response?.data?.message || 'Failed to delete contact.');
+      console.error('Error deleting contact:', error);
+      setError(error.message || 'Failed to delete contact.');
     }
-  }, [fetchContactsAndGroups]);
+  }, [currentWorkspaceId, fetchContactsAndGroups]);
 
   const handleAddGroup = useCallback(async () => {
     if (!currentWorkspaceId || !newGroupName.trim()) {
@@ -273,12 +399,13 @@ const Contacts: React.FC = () => {
       ]);
       setShowAddGroup(false);
       setNewGroupName('');
+      await fetchContactsAndGroups();
       setError(null);
     } catch (error: any) {
-      console.error('Error adding group:', error.response?.data || error.message);
-      setError(error.response?.data?.detail || 'Failed to add group.');
+      console.error('Error adding group:', error);
+      setError(error.message || 'Failed to add group.');
     }
-  }, [currentWorkspaceId, newGroupName]);
+  }, [currentWorkspaceId, newGroupName, fetchContactsAndGroups]);
 
   const handleDeleteGroup = useCallback(async (groupId: string) => {
     if (groupId === 'all' || !window.confirm('Are you sure you want to delete this group?')) return;
@@ -290,8 +417,8 @@ const Contacts: React.FC = () => {
       await fetchContactsAndGroups();
       setError(null);
     } catch (error: any) {
-      console.error('Error deleting group:', error.response?.data || error.message);
-      setError(error.response?.data?.message || 'Failed to delete group.');
+      console.error('Error deleting group:', error);
+      setError(error.message || 'Failed to delete group.');
     }
   }, [selectedGroup, fetchContactsAndGroups]);
 
@@ -310,7 +437,6 @@ const Contacts: React.FC = () => {
               phone_number: row.phone.toString(),
               email: row.email.toString(),
               workspace_id: currentWorkspaceId,
-              ...(selectedGroup !== 'all' ? { group_id: selectedGroup } : {}),
             }));
 
           try {
@@ -321,15 +447,15 @@ const Contacts: React.FC = () => {
             if (selectedGroup !== 'all') {
               await addContactsToGroup(
                 selectedGroup,
-                createdContacts.map((c) => c.id)
+                createdContacts.map((c) => c.contact_id)
               );
             }
 
             await fetchContactsAndGroups();
             setError(null);
           } catch (error: any) {
-            console.error('Error importing contacts:', error.response?.data || error.message);
-            setError(error.response?.data?.message || 'Failed to import some contacts.');
+            console.error('Error importing contacts:', error);
+            setError(error.message || 'Failed to import some contacts.');
           }
         },
         error: (error) => {
@@ -353,236 +479,280 @@ const Contacts: React.FC = () => {
   }, []);
 
   const filteredContacts = useMemo(() => {
-    const group = groups.find((g) => g.group_id === selectedGroup);
-    const contactsToFilter = contacts.filter(
-      (contact) => !group || group.group_id === 'all' || contact.group_id === group.group_id
-    );
-    return contactsToFilter.filter(
+    // Filter out contacts without a contact_id
+    const validContacts = contacts.filter((contact) => {
+      if (!contact.contact_id) {
+        console.warn('Contact missing contact_id:', contact);
+        return false;
+      }
+      return true;
+    });
+
+    return validContacts.filter(
       (contact) =>
-        contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        contact.phone_number.includes(searchQuery) ||
-        contact.email.toLowerCase().includes(searchQuery.toLowerCase())
+        (selectedGroup === 'all' || (contact.group_ids && contact.group_ids.includes(selectedGroup))) &&
+        (contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          contact.phone_number.includes(searchQuery) ||
+          contact.email.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   }, [contacts, groups, selectedGroup, searchQuery]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-6xl mx-auto space-y-6 p-6"
-    >
-      <div className="flex items-center gap-3 mb-8">
-        <Users className="w-8 h-8 text-primary-500" />
-        <h1 className="text-3xl font-bold text-gray-800">Contacts</h1>
-      </div>
+    <ErrorBoundary>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-6xl mx-auto space-y-6 p-6"
+      >
+        <div className="flex items-center gap-3 mb-8">
+          <Users className="w-8 h-8 text-primary-500" />
+          <h1 className="text-3xl font-bold text-gray-800">Contacts</h1>
+        </div>
 
-      {error && <div className="text-red-500 mb-4 p-3 rounded bg-red-50">{error}</div>}
+        {error && (
+          <div className="text-red-500 mb-4 p-3 rounded bg-red-50">
+            {typeof error === 'string' ? error : 'An unexpected error occurred.'}
+          </div>
+        )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Groups Sidebar */}
-        <div className="lg:col-span-1">
-          <div className="card p-6 bg-white rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Groups</h2>
-              <button
-                onClick={() => setShowAddGroup(true)}
-                className="btn btn-icon btn-ghost hover:bg-gray-100 rounded-full p-2"
-              >
-                <FolderPlus className="w-5 h-5 text-primary-500" />
-              </button>
-            </div>
-            <div className="space-y-2">
-              {groups.map((group) => (
-                <div key={group.group_id} className="flex justify-between items-center group">
-                  <button
-                    onClick={() => setSelectedGroup(group.group_id)}
-                    className={`w-full text-left px-4 py-2 rounded-lg flex justify-between items-center transition-colors ${
-                      selectedGroup === group.group_id
-                        ? 'bg-primary-50 text-primary-600'
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <span className="truncate">{group.name}</span>
-                    <span className="text-sm text-gray-500 ml-2">{group.count}</span>
-                  </button>
-                  {group.group_id !== 'all' && (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Groups Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="card p-6 bg-white rounded-lg shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Groups</h2>
+                <button
+                  onClick={() => setShowAddGroup(true)}
+                  className="btn btn-icon btn-ghost hover:bg-gray-100 rounded-full p-2"
+                >
+                  <FolderPlus className="w-5 h-5 text-primary-500" />
+                </button>
+              </div>
+              <div className="space-y-2">
+                {groups.map((group) => (
+                  <div key={group.group_id} className="flex justify-between items-center group">
                     <button
-                      onClick={() => handleDeleteGroup(group.group_id)}
-                      className="btn btn-icon btn-ghost text-red-500 hover:text-red-700 ml-2"
+                      onClick={() => setSelectedGroup(group.group_id)}
+                      className={`w-full text-left px-4 py-2 rounded-lg flex justify-between items-center transition-colors ${
+                        selectedGroup === group.group_id
+                          ? 'bg-primary-50 text-primary-600'
+                          : 'hover:bg-gray-50'
+                      }`}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <span className="truncate">{group.name}</span>
+                      <span className="text-sm text-gray-500 ml-2">{group.count}</span>
                     </button>
-                  )}
+                    {group.group_id !== 'all' && (
+                      <button
+                        onClick={() => handleDeleteGroup(group.group_id)}
+                        className="btn btn-icon btn-ghost text-red-500 hover:text-red-700 ml-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="lg:col-span-3">
+            <div className="card p-6 bg-white rounded-lg shadow-sm">
+              <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      setNewContact({ name: '', phone_number: '', email: '', group_ids: [] });
+                      setShowAddContact(true);
+                    }}
+                    className="btn btn-primary flex items-center gap-2"
+                  >
+                    <UserPlus className="w-5 h-5" />
+                    Add Contact
+                  </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="btn btn-secondary flex items-center gap-2"
+                  >
+                    <Upload className="w-5 h-5" />
+                    Import CSV
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept=".csv"
+                    onChange={handleFileUpload}
+                  />
+                  <button
+                    onClick={downloadTemplate}
+                    className="btn btn-ghost flex items-center gap-2 text-gray-600"
+                  >
+                    <Download className="w-5 h-5" />
+                    Template
+                  </button>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="lg:col-span-3">
-          <div className="card p-6 bg-white rounded-lg shadow-sm">
-            <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => setShowAddContact(true)}
-                  className="btn btn-primary flex items-center gap-2"
-                >
-                  <UserPlus className="w-5 h-5" />
-                  Add Contact
-                </button>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="btn btn-secondary flex items-center gap-2"
-                >
-                  <Upload className="w-5 h-5" />
-                  Import CSV
-                </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept=".csv"
-                  onChange={handleFileUpload}
-                />
-                <button
-                  onClick={downloadTemplate}
-                  className="btn btn-ghost flex items-center gap-2 text-gray-600"
-                >
-                  <Download className="w-5 h-5" />
-                  Template
-                </button>
+                <div className="relative flex-1 max-w-xs">
+                  <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search contacts..."
+                    className="input pl-10 w-full"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="relative flex-1 max-w-xs">
-                <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search contacts..."
-                  className="input pl-10 w-full"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
 
-            {/* Contacts Table */}
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="text-left py-3 px-4 font-medium">Name</th>
-                    <th className="text-left py-3 px-4 font-medium">Phone</th>
-                    <th className="text-left py-3 px-4 font-medium">Email</th>
-                    <th className="text-right py-3 px-4 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredContacts.map((contact) => (
-                    <tr key={contact.id} className="hover:bg-gray-50 border-t">
-                      <td className="py-3 px-4">{contact.name}</td>
-                      <td className="py-3 px-4">{contact.phone_number}</td>
-                      <td className="py-3 px-4">{contact.email}</td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => {
-                              setNewContact({
-                                name: contact.name,
-                                phone_number: contact.phone_number,
-                                email: contact.email,
-                                group_id: contact.group_id || 'all',
-                              });
-                              setShowAddContact(true);
-                            }}
-                            className="btn btn-icon btn-ghost text-gray-600 hover:text-primary-500"
-                          >
-                            <Edit2 className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteContact(contact.id)}
-                            className="btn btn-icon btn-ghost text-gray-600 hover:text-red-500"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </td>
+              {/* Contacts Table */}
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left py-3 px-4 font-medium">Name</th>
+                      <th className="text-left py-3 px-4 font-medium">Phone</th>
+                      <th className="text-left py-3 px-4 font-medium">Email</th>
+                      <th className="text-left py-3 px-4 font-medium">Groups</th>
+                      <th className="text-right py-3 px-4 font-medium">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              {isLoading && (
-                <div className="p-4 text-center text-gray-500">Loading contacts...</div>
-              )}
-              {!isLoading && filteredContacts.length === 0 && (
-                <div className="p-4 text-center text-gray-500">No contacts found.</div>
-              )}
+                  </thead>
+                  <tbody>
+                    {filteredContacts.map((contact) => (
+                      <tr key={contact.contact_id} className="hover:bg-gray-50 border-t">
+                        <td className="py-3 px-4">{contact.name}</td>
+                        <td className="py-3 px-4">{contact.phone_number}</td>
+                        <td className="py-3 px-4">{contact.email}</td>
+                        <td className="py-3 px-4">
+                          {contact.group_ids && contact.group_ids.length > 0
+                            ? contact.group_ids
+                                .map((groupId) => groups.find((g) => g.group_id === groupId)?.name)
+                                .filter(Boolean)
+                                .join(', ')
+                            : 'None'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => {
+                                console.log('Editing contact:', contact);
+                                setEditContact({
+                                  contact_id: contact.contact_id,
+                                  name: contact.name,
+                                  phone_number: contact.phone_number,
+                                  email: contact.email,
+                                  group_ids: contact.group_ids || [],
+                                });
+                                setShowEditContact(true);
+                              }}
+                              className="btn btn-icon btn-ghost text-gray-600 hover:text-primary-500"
+                            >
+                              <Edit2 className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                console.log('Deleting contact:', contact);
+                                handleDeleteContact(contact.contact_id);
+                              }}
+                              className="btn btn-icon btn-ghost text-gray-600 hover:text-red-500"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {isLoading && <div className="p-4 text-center text-gray-500">Loading contacts...</div>}
+                {!isLoading && filteredContacts.length === 0 && (
+                  <div className="p-4 text-center text-gray-500">No contacts found.</div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Modals */}
-      <ContactModal
-        isOpen={showAddContact}
-        onClose={() => {
-          setShowAddContact(false);
-          setNewContact({ name: '', phone_number: '', email: '', group_id: 'all' });
-          setError(null);
-        }}
-        onSubmit={handleAddContact}
-        contact={newContact}
-        setContact={setNewContact}
-        groups={groups}
-        title="Add Contact"
-      />
+        {/* Add Contact Modal */}
+        <ContactModal
+          isOpen={showAddContact}
+          onClose={() => {
+            setShowAddContact(false);
+            setNewContact({ name: '', phone_number: '', email: '', group_ids: [] });
+            setError(null);
+          }}
+          onSubmit={handleAddContact}
+          contact={newContact}
+          setContact={setNewContact}
+          groups={groups}
+          title="Add Contact"
+          isEdit={false}
+        />
 
-      {/* Add Group Modal */}
-      {showAddGroup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Add Group</h2>
-              <button
-                onClick={() => {
-                  setShowAddGroup(false);
-                  setNewGroupName('');
-                  setError(null);
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Group Name</label>
-                <input
-                  type="text"
-                  className="input w-full"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
+        {/* Edit Contact Modal */}
+        <ContactModal
+          isOpen={showEditContact}
+          onClose={() => {
+            setShowEditContact(false);
+            setEditContact({ name: '', phone_number: '', email: '', group_ids: [] });
+            setError(null);
+          }}
+          onSubmit={handleUpdateContact}
+          contact={editContact}
+          setContact={setEditContact}
+          groups={groups}
+          title="Edit Contact"
+          isEdit={true}
+        />
+
+        {/* Add Group Modal */}
+        {showAddGroup && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Add Group</h2>
                 <button
                   onClick={() => {
                     setShowAddGroup(false);
                     setNewGroupName('');
                     setError(null);
                   }}
-                  className="btn btn-secondary"
+                  className="text-gray-500 hover:text-gray-700"
                 >
-                  Cancel
+                  <X className="w-5 h-5" />
                 </button>
-                <button onClick={handleAddGroup} className="btn btn-primary">
-                  Add Group
-                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Group Name</label>
+                  <input
+                    type="text"
+                    className="input w-full"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setShowAddGroup(false);
+                      setNewGroupName('');
+                      setError(null);
+                    }}
+                    className="btn btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button onClick={handleAddGroup} className="btn btn-primary">
+                    Add Group
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </motion.div>
+        )}
+      </motion.div>
+    </ErrorBoundary>
   );
 };
 

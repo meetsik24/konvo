@@ -43,7 +43,6 @@ interface MessageLog {
   timestamp?: string;
 }
 
-// Updated SenderId interface to match the API response structure
 interface SenderId {
   sender_id: string;
   name: string;
@@ -87,39 +86,41 @@ const SendSMS: React.FC = () => {
 
         console.log(`Fetching data for workspace ID: ${currentWorkspaceId}`);
 
-        // Fetch approved sender IDs for dropdown - Updated to match the API endpoint
+        // Fetch approved sender IDs
         try {
           console.log(`Fetching sender IDs for workspace: ${currentWorkspaceId}`);
           const response = await getApprovedSenderIds(currentWorkspaceId);
           console.log('Sender IDs API response:', response);
-          
-          // Process the response according to the actual API structure
+
           let approvedSenderIds: SenderId[] = [];
-          
+
           if (Array.isArray(response)) {
-            // Handle case where response is directly an array
             approvedSenderIds = response.map(sender => ({
               sender_id: sender.sender_id,
               name: sender.name || sender.sender_id,
               status: sender.status
             }));
           } else if (response?.data && Array.isArray(response.data)) {
-            // Handle case where response has a data property containing an array
-            approvedSenderIds = response.data.map(sender => ({
+            approvedSenderIds = response.data.map((sender: any) => ({
               sender_id: sender.sender_id,
               name: sender.name || sender.sender_id,
               status: sender.status
             }));
+          } else if (response && typeof response === 'object' && response.sender_id) {
+            approvedSenderIds = [{
+              sender_id: response.sender_id,
+              name: response.name || response.sender_id,
+              status: response.is_approved ? 'approved' : 'pending'
+            }];
           } else {
             console.error('Unexpected sender IDs response format:', response);
             throw new Error('Invalid sender IDs response format');
           }
-          
+
           console.log('Processed Approved Sender IDs:', approvedSenderIds);
           setSenderIds(approvedSenderIds);
           setUseFallbackSenderIds(false);
-          
-          // Set initial selected sender ID if any exist
+
           if (approvedSenderIds.length > 0) {
             setSelectedSenderId(approvedSenderIds[0].sender_id);
           }
@@ -128,7 +129,6 @@ const SendSMS: React.FC = () => {
           setSenderIds(FALLBACK_SENDER_IDS);
           setUseFallbackSenderIds(true);
           setSelectedSenderId(FALLBACK_SENDER_IDS[0].sender_id);
-          // Still set error but don't break the UI completely
           setError('Warning: Using fallback sender IDs due to API error');
         }
 
@@ -158,7 +158,6 @@ const SendSMS: React.FC = () => {
         console.log('Message Logs Data:', logsData);
         setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
 
-        // Only clear error if we're not using fallback sender IDs
         if (!useFallbackSenderIds) {
           setError(null);
         }
@@ -232,13 +231,15 @@ const SendSMS: React.FC = () => {
       console.log('Sending message to:', recipientPhones);
       console.log('Using sender ID:', selectedSenderId);
       console.log('Message:', message);
-      console.log('Schedule:', schedule || 'Immediate');
+      if (sendMode === 'campaign') {
+        console.log('Schedule:', schedule || 'Immediate');
+      }
 
       await sendInstantMessage(currentWorkspaceId, {
         recipients: recipientPhones,
-        message,
+        content: message,
         sender_id: selectedSenderId,
-        schedule: schedule || undefined,
+        ...(sendMode === 'campaign' && schedule ? { schedule } : {}),
       });
 
       setMessage('');
@@ -248,7 +249,6 @@ const SendSMS: React.FC = () => {
       setKeywords('');
       setError(null);
 
-      // Refresh message logs after sending
       const logsData = await getMessageLogs();
       setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
     } catch (err: any) {
@@ -293,23 +293,23 @@ const SendSMS: React.FC = () => {
         <MessageSquare className="w-8 h-8 text-primary-500" />
         <h1 className="text-3xl font-bold text-gray-800">Send SMS</h1>
       </div>
-      
+
       {useFallbackSenderIds && (
         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
           <p className="font-bold">Warning</p>
           <p>Using fallback sender IDs due to API error. Some features may be limited.</p>
         </div>
       )}
-      
+
       {error && <div className="text-red-500 mb-4">{error}</div>}
-      
+
       {isLoading && (
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto" />
           <p className="text-gray-600 mt-2">Loading data...</p>
         </div>
       )}
-      
+
       {!isLoading && (
         <>
           <div className="card p-8">
@@ -341,7 +341,6 @@ const SendSMS: React.FC = () => {
                 </div>
               </div>
 
-              {/* Sender ID Selection - Updated to match API structure */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Sender ID</label>
                 <select
@@ -452,15 +451,19 @@ const SendSMS: React.FC = () => {
                   <span>{Math.ceil(message.length / 160)} message(s)</span>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Schedule (Optional)</label>
-                <input
-                  type="datetime-local"
-                  className="input w-full"
-                  value={schedule}
-                  onChange={(e) => setSchedule(e.target.value)}
-                />
-              </div>
+
+              {sendMode === 'campaign' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Schedule (Optional)</label>
+                  <input
+                    type="datetime-local"
+                    className="input w-full"
+                    value={schedule}
+                    onChange={(e) => setSchedule(e.target.value)}
+                  />
+                </div>
+              )}
+
               <div className="flex justify-end gap-4">
                 <button
                   type="submit"
