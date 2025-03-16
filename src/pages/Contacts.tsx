@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, Component } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Upload, Trash2, Edit2, Search, UserPlus, FolderPlus, Download, X } from 'lucide-react';
+import { Users, Upload, Trash2, Edit2, Search, UserPlus, FolderPlus, Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import Papa from 'papaparse';
 import { useWorkspace } from './WorkspaceContext';
 import {
@@ -13,6 +13,7 @@ import {
   addContactsToGroup,
   getContacts,
   getContactGroups,
+  getGroupContacts,
 } from '../services/api';
 
 // Error Boundary Component
@@ -47,7 +48,7 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }> {
 }
 
 interface Contact {
-  contact_id: string; // Changed from 'id' to 'contact_id'
+  contact_id: string;
   name: string;
   phone_number: string;
   email: string;
@@ -105,6 +106,7 @@ const ContactModal: React.FC<ContactModalProps> = ({
               className="input w-full"
               value={contact.name || ''}
               onChange={(e) => setContact({ ...contact, name: e.target.value })}
+              required
             />
           </div>
           <div>
@@ -114,10 +116,11 @@ const ContactModal: React.FC<ContactModalProps> = ({
               className="input w-full"
               value={contact.phone_number || ''}
               onChange={(e) => setContact({ ...contact, phone_number: e.target.value })}
+              required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="block text-sm font-medium mb-1">Email (Optional)</label>
             <input
               type="email"
               className="input w-full"
@@ -155,6 +158,77 @@ const ContactModal: React.FC<ContactModalProps> = ({
   );
 };
 
+interface ImportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (groupId: string, file: File) => void;
+  groups: Group[];
+}
+
+const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, groups }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string>('all');
+  const [error, setError] = useState<string | null>(null);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = () => {
+    if (fileInputRef.current?.files?.[0]) {
+      onSubmit(selectedGroup, fileInputRef.current.files[0]);
+      onClose();
+    } else {
+      setError('Please select a CSV file to import.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Import CSV</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Select Group</label>
+            <select
+              className="input w-full"
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+            >
+              <option value="all">All Contacts</option>
+              {groups
+                .filter((group) => group.group_id && group.group_id !== 'all')
+                .map((group) => (
+                  <option key={group.group_id} value={group.group_id}>
+                    {group.name || `Group ${group.group_id}`}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Upload CSV File</label>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="input w-full"
+              accept=".csv"
+              onChange={() => setError(null)}
+            />
+          </div>
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+          <div className="flex justify-end gap-2">
+            <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+            <button onClick={handleSubmit} className="btn btn-primary">Import</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Contacts: React.FC = () => {
   const { currentWorkspaceId } = useWorkspace();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -163,6 +237,7 @@ const Contacts: React.FC = () => {
   const [showAddContact, setShowAddContact] = useState(false);
   const [showEditContact, setShowEditContact] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [newContact, setNewContact] = useState<Partial<Contact>>({
     name: '',
@@ -181,6 +256,11 @@ const Contacts: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalContacts, setTotalContacts] = useState(0);
+  const contactsPerPage = 50;
+
   const fetchContactsAndGroups = useCallback(async () => {
     if (!currentWorkspaceId) {
       setError('No workspace selected.');
@@ -189,19 +269,34 @@ const Contacts: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const [contactsResponse, groupsResponse] = await Promise.all([
-        getContacts(currentWorkspaceId),
-        getWorkspaceGroups(currentWorkspaceId),
-      ]);
+      const offset = (currentPage - 1) * contactsPerPage;
+      let contactsResponse;
+      let total = 0;
 
-      const contactsData = Array.isArray(contactsResponse)
-        ? contactsResponse
-        : contactsResponse?.data || [];
+      // Fetch contacts based on selected group
+      if (selectedGroup === 'all') {
+        contactsResponse = await getContacts(currentWorkspaceId, {
+          limit: contactsPerPage,
+          offset: offset,
+        });
+        total = contactsResponse?.data?.total || contactsResponse.data.length;
+      } else {
+        contactsResponse = await getGroupContacts(currentWorkspaceId, selectedGroup, {
+          limit: contactsPerPage,
+          offset: offset,
+        });
+        total = contactsResponse?.data?.total || contactsResponse.data.length;
+      }
+
+      const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
+
+      const contactsData = Array.isArray(contactsResponse.data)
+        ? contactsResponse.data
+        : contactsResponse?.data?.contacts || [];
       const groupsData = Array.isArray(groupsResponse)
         ? groupsResponse
         : groupsResponse?.data || [];
 
-      // Check for missing contact_ids in contacts
       const invalidContacts = contactsData.filter((contact: Contact) => !contact.contact_id);
       if (invalidContacts.length > 0) {
         console.warn('Found contacts with missing contact_ids:', invalidContacts);
@@ -220,28 +315,42 @@ const Contacts: React.FC = () => {
         })
       );
 
-      const updatedGroups = groupsData.map((group: Group) => {
-        const groupContacts = updatedContacts.filter(
-          (contact: Contact) => contact.group_ids && contact.group_ids.includes(group.group_id)
-        );
-        return {
-          ...group,
-          count: groupContacts.length,
-          created_at: group.created_at || new Date().toISOString(),
-        };
-      });
+      // Fetch contact count for each group if not provided by the backend
+      const updatedGroups = await Promise.all(
+        groupsData.map(async (group: Group) => {
+          let groupContactCount = group.count || 0;
+          if (!group.count) {
+            try {
+              const groupContactsResponse = await getGroupContacts(currentWorkspaceId, group.group_id, {
+                limit: 0, // Fetch all contacts to get the count
+                offset: 0,
+              });
+              groupContactCount = groupContactsResponse?.data?.total || groupContactsResponse.data.length || 0;
+            } catch (err) {
+              console.warn(`Failed to fetch contact count for group ${group.group_id}:`, err);
+            }
+          }
+          return {
+            ...group,
+            count: groupContactCount,
+            created_at: group.created_at || new Date().toISOString(),
+          };
+        })
+      );
 
       const allGroup = {
         group_id: 'all',
         name: 'All Contacts',
         workspace_id: currentWorkspaceId,
         created_at: '',
-        count: updatedContacts.length,
+        count: total,
       };
 
       setContacts(updatedContacts);
+      setTotalContacts(total);
       setGroups([allGroup, ...updatedGroups]);
       console.log('Fetched contacts:', updatedContacts);
+      console.log('Updated groups with counts:', [allGroup, ...updatedGroups]);
       setError(null);
     } catch (error: any) {
       const errorMessage = error.message || 'An unexpected error occurred.';
@@ -250,7 +359,7 @@ const Contacts: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkspaceId]);
+  }, [currentWorkspaceId, currentPage, selectedGroup]);
 
   useEffect(() => {
     fetchContactsAndGroups();
@@ -267,12 +376,12 @@ const Contacts: React.FC = () => {
     const trimmedPhone = phone_number?.trim() || '';
     const trimmedEmail = email?.trim() || '';
 
-    if (!trimmedName || !trimmedPhone || !trimmedEmail) {
-      setError('All fields are required.');
+    if (!trimmedName || !trimmedPhone) {
+      setError('Name and phone number are required.');
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setError('Please enter a valid email address.');
       return;
     }
@@ -281,7 +390,7 @@ const Contacts: React.FC = () => {
       const contactPayload: Omit<Contact, 'contact_id'> = {
         name: trimmedName,
         phone_number: trimmedPhone,
-        email: trimmedEmail,
+        email: trimmedEmail || '',
         workspace_id: currentWorkspaceId,
       };
       const createdContact = await createContact(contactPayload);
@@ -299,6 +408,7 @@ const Contacts: React.FC = () => {
       setShowAddContact(false);
       setNewContact({ name: '', phone_number: '', email: '', group_ids: [] });
       setError(null);
+      setCurrentPage(1); // Reset to first page after adding a contact
     } catch (error: any) {
       console.error('Error adding contact:', error);
       setError(error.message || 'Failed to add contact.');
@@ -316,12 +426,12 @@ const Contacts: React.FC = () => {
     const trimmedPhone = phone_number?.trim() || '';
     const trimmedEmail = email?.trim() || '';
 
-    if (!trimmedName || !trimmedPhone || !trimmedEmail) {
-      setError('All fields are required.');
+    if (!trimmedName || !trimmedPhone) {
+      setError('Name and phone number are required.');
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setError('Please enter a valid email address.');
       return;
     }
@@ -330,7 +440,7 @@ const Contacts: React.FC = () => {
       await updateContact(contact_id, {
         name: trimmedName,
         phone_number: trimmedPhone,
-        email: trimmedEmail,
+        email: trimmedEmail || '',
         workspace_id: currentWorkspaceId,
       });
 
@@ -350,6 +460,7 @@ const Contacts: React.FC = () => {
       setShowEditContact(false);
       setEditContact({ name: '', phone_number: '', email: '', group_ids: [] });
       setError(null);
+      setCurrentPage(1); // Reset to first page after updating a contact
     } catch (error: any) {
       console.error('Error updating contact:', error);
       setError(error.message || 'Failed to update contact.');
@@ -372,9 +483,9 @@ const Contacts: React.FC = () => {
 
     try {
       await deleteContact(contactId);
-      setContacts((prev) => prev.filter((c) => c.contact_id !== contactId));
       await fetchContactsAndGroups();
       setError(null);
+      setCurrentPage(1); // Reset to first page after deleting a contact
     } catch (error: any) {
       console.error('Error deleting contact:', error);
       setError(error.message || 'Failed to delete contact.');
@@ -416,43 +527,54 @@ const Contacts: React.FC = () => {
       if (selectedGroup === groupId) setSelectedGroup('all');
       await fetchContactsAndGroups();
       setError(null);
+      setCurrentPage(1); // Reset to first page after deleting a group
     } catch (error: any) {
       console.error('Error deleting group:', error);
       setError(error.message || 'Failed to delete group.');
     }
   }, [selectedGroup, fetchContactsAndGroups]);
 
-  const handleFileUpload = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file || !currentWorkspaceId) return;
+  const handleImportSubmit = useCallback(
+    async (groupId: string, file: File) => {
+      if (!currentWorkspaceId) {
+        setError('No workspace selected.');
+        return;
+      }
 
       Papa.parse(file, {
         header: true,
         complete: async (results) => {
           const validContacts = results.data
-            .filter((row: any) => row.name && row.phone && row.email)
+            .filter((row: any) => row.name && row.phone)
             .map((row: any) => ({
               name: row.name.toString(),
               phone_number: row.phone.toString(),
-              email: row.email.toString(),
+              email: row.email ? row.email.toString() : '',
               workspace_id: currentWorkspaceId,
             }));
+
+          if (validContacts.length === 0) {
+            setError('No valid contacts found in the CSV file.');
+            return;
+          }
 
           try {
             const createdContacts = await Promise.all(
               validContacts.map((contact) => createContact(contact))
             );
 
-            if (selectedGroup !== 'all') {
+            if (groupId !== 'all') {
+              console.log('Assigning contacts to group:', groupId, createdContacts.map((c) => c.contact_id));
               await addContactsToGroup(
-                selectedGroup,
+                groupId,
                 createdContacts.map((c) => c.contact_id)
               );
             }
 
             await fetchContactsAndGroups();
             setError(null);
+            setCurrentPage(1); // Reset to first page after importing contacts
+            setSelectedGroup(groupId); // Automatically select the group to show the imported contacts
           } catch (error: any) {
             console.error('Error importing contacts:', error);
             setError(error.message || 'Failed to import some contacts.');
@@ -464,7 +586,7 @@ const Contacts: React.FC = () => {
         },
       });
     },
-    [currentWorkspaceId, selectedGroup, fetchContactsAndGroups]
+    [currentWorkspaceId, fetchContactsAndGroups]
   );
 
   const downloadTemplate = useCallback(() => {
@@ -478,24 +600,27 @@ const Contacts: React.FC = () => {
     window.URL.revokeObjectURL(url);
   }, []);
 
-  const filteredContacts = useMemo(() => {
-    // Filter out contacts without a contact_id
-    const validContacts = contacts.filter((contact) => {
-      if (!contact.contact_id) {
-        console.warn('Contact missing contact_id:', contact);
-        return false;
-      }
-      return true;
-    });
+  // Pagination logic
+  const totalPages = Math.ceil(totalContacts / contactsPerPage);
+  const startIndex = (currentPage - 1) * contactsPerPage + 1;
+  const endIndex = Math.min(currentPage * contactsPerPage, totalContacts);
 
-    return validContacts.filter(
-      (contact) =>
-        (selectedGroup === 'all' || (contact.group_ids && contact.group_ids.includes(selectedGroup))) &&
-        (contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          contact.phone_number.includes(searchQuery) ||
-          contact.email.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [contacts, groups, selectedGroup, searchQuery]);
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Reset to first page when search or group changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedGroup, searchQuery]);
 
   return (
     <ErrorBoundary>
@@ -572,19 +697,12 @@ const Contacts: React.FC = () => {
                     Add Contact
                   </button>
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => setShowImportModal(true)}
                     className="btn btn-secondary flex items-center gap-2"
                   >
                     <Upload className="w-5 h-5" />
                     Import CSV
                   </button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept=".csv"
-                    onChange={handleFileUpload}
-                  />
                   <button
                     onClick={downloadTemplate}
                     className="btn btn-ghost flex items-center gap-2 text-gray-600"
@@ -618,11 +736,11 @@ const Contacts: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredContacts.map((contact) => (
+                    {contacts.map((contact) => (
                       <tr key={contact.contact_id} className="hover:bg-gray-50 border-t">
                         <td className="py-3 px-4">{contact.name}</td>
                         <td className="py-3 px-4">{contact.phone_number}</td>
-                        <td className="py-3 px-4">{contact.email}</td>
+                        <td className="py-3 px-4">{contact.email || 'N/A'}</td>
                         <td className="py-3 px-4">
                           {contact.group_ids && contact.group_ids.length > 0
                             ? contact.group_ids
@@ -665,10 +783,40 @@ const Contacts: React.FC = () => {
                   </tbody>
                 </table>
                 {isLoading && <div className="p-4 text-center text-gray-500">Loading contacts...</div>}
-                {!isLoading && filteredContacts.length === 0 && (
+                {!isLoading && contacts.length === 0 && (
                   <div className="p-4 text-center text-gray-500">No contacts found.</div>
                 )}
               </div>
+
+              {/* Pagination Controls */}
+              {!isLoading && contacts.length > 0 && (
+                <div className="flex justify-between items-center mt-4">
+                  <div className="text-sm text-gray-600">
+                    Showing {startIndex} to {endIndex} of {totalContacts} contacts
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handlePreviousPage}
+                      disabled={currentPage === 1}
+                      className={`btn btn-ghost flex items-center gap-2 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-600">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={handleNextPage}
+                      disabled={currentPage === totalPages}
+                      className={`btn btn-ghost flex items-center gap-2 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      Next
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -751,6 +899,18 @@ const Contacts: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Import CSV Modal */}
+        <ImportModal
+          isOpen={showImportModal}
+          onClose={() => {
+            setShowImportModal(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            setError(null);
+          }}
+          onSubmit={handleImportSubmit}
+          groups={groups}
+        />
       </motion.div>
     </ErrorBoundary>
   );
