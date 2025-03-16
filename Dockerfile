@@ -29,7 +29,7 @@ RUN npm install -g serve
 COPY --from=builder /app/dist /app/dist
 
 # Expose port 3000 (or any other port you prefer)
-EXPOSE 3000
+EXPOSE 5173
 
 # Start the server to serve built Vite files
-CMD ["serve", "-s", "dist", "-l", "3000"]
+CMD ["serve", "-s", "dist", "-l", "5173"]
