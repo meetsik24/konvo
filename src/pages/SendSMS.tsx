@@ -622,7 +622,7 @@ const SendSMS: React.FC = () => {
                       </span>
                     </div>
                   ))}
-                </div>
+                </div> 
               )}
             </div>
           </div>
