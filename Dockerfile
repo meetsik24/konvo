@@ -1,26 +1,35 @@
-# Use Node.js 18 image
-FROM node:18
+# Use Node.js 18 for building the project
+FROM node:18-alpine AS builder
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Remove node_modules and package-lock.json if they exist
-RUN rm -rf node_modules package-lock.json
-
-# Set npm config to ignore platform-specific dependencies
-RUN npm config set legacy-peer-deps true
-
-# Force npm to install dependencies without architecture restrictions
-RUN npm install --ignore-scripts
+# Install dependencies
+RUN npm install --frozen-lockfile
 
 # Copy the rest of the application code
 COPY . .
 
-# Expose the port the app runs on
+# Build the Vite project
+RUN npm run build
+
+# Use a lightweight Node.js server for serving static files
+FROM node:18-alpine AS runner
+
+# Set working directory in final container
+WORKDIR /app
+
+# Install a static file server
+RUN npm install -g serve
+
+# Copy built files from previous stage
+COPY --from=builder /app/dist /app/dist
+
+# Expose port 5173 (or any other port you prefer)
 EXPOSE 5173
 
-# Start the application
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+# Start the server to serve built Vite files
+CMD ["serve", "-s", "dist", "-l", "5173"]
