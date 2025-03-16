@@ -28,7 +28,7 @@ RUN npm install -g serve
 # Copy built files from previous stage
 COPY --from=builder /app/dist /app/dist
 
-# Expose port 3000 (or any other port you prefer)
+# Expose port 5173 (or any other port you prefer)
 EXPOSE 5173
 
 # Start the server to serve built Vite files
