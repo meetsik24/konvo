@@ -13,6 +13,7 @@ import {
   addContactsToGroup,
   getContacts,
   getContactGroups,
+  getGroupContacts,
 } from '../services/api';
 
 // Error Boundary Component
@@ -270,6 +271,7 @@ const Contacts: React.FC = () => {
     try {
       const offset = (currentPage - 1) * contactsPerPage;
       let contactsResponse;
+      let total = 0;
 
       // Fetch contacts based on selected group
       if (selectedGroup === 'all') {
@@ -277,11 +279,13 @@ const Contacts: React.FC = () => {
           limit: contactsPerPage,
           offset: offset,
         });
+        total = contactsResponse?.data?.total || contactsResponse.data.length;
       } else {
-        contactsResponse = await getContactGroups(currentWorkspaceId, selectedGroup, {
+        contactsResponse = await getGroupContacts(currentWorkspaceId, selectedGroup, {
           limit: contactsPerPage,
           offset: offset,
         });
+        total = contactsResponse?.data?.total || contactsResponse.data.length;
       }
 
       const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
@@ -289,7 +293,6 @@ const Contacts: React.FC = () => {
       const contactsData = Array.isArray(contactsResponse.data)
         ? contactsResponse.data
         : contactsResponse?.data?.contacts || [];
-      const total = contactsResponse?.data?.total || contactsData.length;
       const groupsData = Array.isArray(groupsResponse)
         ? groupsResponse
         : groupsResponse?.data || [];
@@ -312,13 +315,28 @@ const Contacts: React.FC = () => {
         })
       );
 
-      const updatedGroups = groupsData.map((group: Group) => {
-        return {
-          ...group,
-          count: group.count || 0, // API should return count, otherwise fetch separately if needed
-          created_at: group.created_at || new Date().toISOString(),
-        };
-      });
+      // Fetch contact count for each group if not provided by the backend
+      const updatedGroups = await Promise.all(
+        groupsData.map(async (group: Group) => {
+          let groupContactCount = group.count || 0;
+          if (!group.count) {
+            try {
+              const groupContactsResponse = await getGroupContacts(currentWorkspaceId, group.group_id, {
+                limit: 0, // Fetch all contacts to get the count
+                offset: 0,
+              });
+              groupContactCount = groupContactsResponse?.data?.total || groupContactsResponse.data.length || 0;
+            } catch (err) {
+              console.warn(`Failed to fetch contact count for group ${group.group_id}:`, err);
+            }
+          }
+          return {
+            ...group,
+            count: groupContactCount,
+            created_at: group.created_at || new Date().toISOString(),
+          };
+        })
+      );
 
       const allGroup = {
         group_id: 'all',
@@ -332,6 +350,7 @@ const Contacts: React.FC = () => {
       setTotalContacts(total);
       setGroups([allGroup, ...updatedGroups]);
       console.log('Fetched contacts:', updatedContacts);
+      console.log('Updated groups with counts:', [allGroup, ...updatedGroups]);
       setError(null);
     } catch (error: any) {
       const errorMessage = error.message || 'An unexpected error occurred.';
@@ -517,7 +536,10 @@ const Contacts: React.FC = () => {
 
   const handleImportSubmit = useCallback(
     async (groupId: string, file: File) => {
-      if (!currentWorkspaceId) return;
+      if (!currentWorkspaceId) {
+        setError('No workspace selected.');
+        return;
+      }
 
       Papa.parse(file, {
         header: true,
@@ -531,12 +553,18 @@ const Contacts: React.FC = () => {
               workspace_id: currentWorkspaceId,
             }));
 
+          if (validContacts.length === 0) {
+            setError('No valid contacts found in the CSV file.');
+            return;
+          }
+
           try {
             const createdContacts = await Promise.all(
               validContacts.map((contact) => createContact(contact))
             );
 
             if (groupId !== 'all') {
+              console.log('Assigning contacts to group:', groupId, createdContacts.map((c) => c.contact_id));
               await addContactsToGroup(
                 groupId,
                 createdContacts.map((c) => c.contact_id)
@@ -546,6 +574,7 @@ const Contacts: React.FC = () => {
             await fetchContactsAndGroups();
             setError(null);
             setCurrentPage(1); // Reset to first page after importing contacts
+            setSelectedGroup(groupId); // Automatically select the group to show the imported contacts
           } catch (error: any) {
             console.error('Error importing contacts:', error);
             setError(error.message || 'Failed to import some contacts.');
