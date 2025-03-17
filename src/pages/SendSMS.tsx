@@ -47,13 +47,22 @@ interface MessageLog {
 
 interface SenderId {
   sender_id: string;
+  user_id: string;
+  is_approved: boolean;
+  approved_at?: string;
   name: string;
-  status?: string;
+  created_at: string;
 }
 
 // Fallback sender IDs in case API fails
 const FALLBACK_SENDER_IDS: SenderId[] = [
-  { sender_id: 'default_sender', name: 'Default Sender' },
+  { 
+    sender_id: 'default_sender', 
+    name: 'Default Sender',
+    user_id: 'default_user',
+    is_approved: true,
+    created_at: new Date().toISOString()
+  },
 ];
 
 const SendSMS: React.FC = () => {
@@ -76,7 +85,7 @@ const SendSMS: React.FC = () => {
   const [manualContacts, setManualContacts] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [useFallbackSenderIds, setUseFallbackSenderIds] = useState(false);
-  const [showSuccessNotification, setShowSuccessNotification] = useState(false); // State for notification
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
 
   // Fetch data on mount or workspace change
   useEffect(() => {
@@ -98,26 +107,42 @@ const SendSMS: React.FC = () => {
 
           let approvedSenderIds: SenderId[] = [];
 
+          // Handle array response
           if (Array.isArray(response)) {
-            approvedSenderIds = response.map((sender) => ({
-              sender_id: sender.sender_id,
-              name: sender.name || sender.sender_id,
-              status: sender.status,
-            }));
-          } else if (response?.data && Array.isArray(response.data)) {
-            approvedSenderIds = response.data.map((sender: any) => ({
-              sender_id: sender.sender_id,
-              name: sender.name || sender.sender_id,
-              status: sender.status,
-            }));
-          } else if (response && typeof response === 'object' && response.sender_id) {
-            approvedSenderIds = [
-              {
-                sender_id: response.sender_id,
-                name: response.name || response.sender_id,
-                status: response.is_approved ? 'approved' : 'pending',
-              },
-            ];
+            approvedSenderIds = response
+              .filter(sender => sender.is_approved === true)
+              .map((sender) => ({
+                sender_id: sender.sender_id,
+                user_id: sender.user_id,
+                is_approved: sender.is_approved,
+                approved_at: sender.approved_at,
+                name: sender.name || sender.sender_id,
+                created_at: sender.created_at,
+              }));
+          }
+          // Handle nested data array response
+          else if (response?.data && Array.isArray(response.data)) {
+            approvedSenderIds = response.data
+              .filter(sender => sender.is_approved === true)
+              .map((sender: any) => ({
+                sender_id: sender.sender_id,
+                user_id: sender.user_id,
+                is_approved: sender.is_approved,
+                approved_at: sender.approved_at,
+                name: sender.name || sender.sender_id,
+                created_at: sender.created_at,
+              }));
+          }
+          // Handle single object response
+          else if (response && typeof response === 'object' && response.sender_id && response.is_approved === true) {
+            approvedSenderIds = [{
+              sender_id: response.sender_id,
+              user_id: response.user_id,
+              is_approved: response.is_approved,
+              approved_at: response.approved_at,
+              name: response.name || response.sender_id,
+              created_at: response.created_at,
+            }];
           } else {
             console.error('Unexpected sender IDs response format:', response);
             throw new Error('Invalid sender IDs response format');
@@ -129,6 +154,9 @@ const SendSMS: React.FC = () => {
 
           if (approvedSenderIds.length > 0) {
             setSelectedSenderId(approvedSenderIds[0].sender_id);
+          } else {
+            setSelectedSenderId('');
+            setError('No approved sender IDs available');
           }
         } catch (senderIdError) {
           console.error('Failed to fetch sender IDs, using fallback data:', senderIdError);
@@ -161,7 +189,6 @@ const SendSMS: React.FC = () => {
           try {
             const groups = await getCampaignGroups(campaign.campaign_id);
             const formattedGroups = Array.isArray(groups) ? groups : groups?.data || [];
-            // Validate groups against workspace groups
             const validCampaignGroups = formattedGroups.filter((group: Group) =>
               validGroups.some((validGroup: Group) => validGroup.group_id === group.group_id)
             );
@@ -202,7 +229,6 @@ const SendSMS: React.FC = () => {
       try {
         const groups = await getCampaignGroups(selectedCampaignId);
         const formattedGroups = Array.isArray(groups) ? groups : groups?.data || [];
-        // Validate groups against workspace groups
         const validCampaignGroups = formattedGroups.filter((group: Group) =>
           validGroups.some((validGroup: Group) => validGroup.group_id === group.group_id)
         );
@@ -295,9 +321,8 @@ const SendSMS: React.FC = () => {
       setKeywords('');
       setError(null);
 
-      // Show success notification
       setShowSuccessNotification(true);
-      setTimeout(() => setShowSuccessNotification(false), 3000); // Hide after 3 seconds
+      setTimeout(() => setShowSuccessNotification(false), 3000);
 
       const logsData = await getMessageLogs();
       setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
@@ -339,7 +364,6 @@ const SendSMS: React.FC = () => {
         console.log(`Found ${phoneNumbers.length} contacts in group ${group.group_id}`);
       } catch (error) {
         console.error(`Failed to fetch contacts for group ${group.group_id}:`, error);
-        // Continue to the next group instead of failing completely
       }
     }
 
@@ -364,7 +388,6 @@ const SendSMS: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-4xl mx-auto space-y-6 p-6 relative"
     >
-      {/* Success Notification */}
       {showSuccessNotification && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
@@ -452,14 +475,13 @@ const SendSMS: React.FC = () => {
                     senderIds.map((sender) => (
                       <option key={sender.sender_id} value={sender.sender_id}>
                         {sender.name} ({sender.sender_id})
-                        {sender.status ? ` - ${sender.status}` : ''}
                       </option>
                     ))
                   ) : (
                     <option value="" disabled>No approved sender IDs available</option>
                   )}
                 </select>
-                {senderIds.length === 0 && (
+                {senderIds.length === 0 && !useFallbackSenderIds && (
                   <p className="text-sm text-amber-600 mt-1">
                     You need to request and get approval for a Sender ID before sending messages.
                   </p>
@@ -611,18 +633,17 @@ const SendSMS: React.FC = () => {
             <div className="card p-6">
               <BarChart2 className="w-6 h-6 text-primary-500 mb-3" />
               <h3 className="text-lg font-semibold mb-2">Sender IDs</h3>
-              <p className="text-gray-600">{senderIds.length} available</p>
+              <p className="text-gray-600">{senderIds.length} approved available</p>
               {senderIds.length > 0 && (
                 <div className="mt-2 space-y-2">
                   {senderIds.map((sender) => (
                     <div key={sender.sender_id} className="text-sm">
                       <span className="inline-block bg-gray-200 text-gray-700 px-2 py-1 rounded mr-2 mb-1">
                         {sender.name}
-                        {sender.status && <span className="ml-1 text-xs">({sender.status})</span>}
                       </span>
                     </div>
                   ))}
-                </div> 
+                </div>
               )}
             </div>
           </div>
