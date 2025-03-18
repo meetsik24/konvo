@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, Component } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Upload, Trash2, Edit2, Search, UserPlus, FolderPlus, Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Upload, Trash2, Edit2, Search, UserPlus, FolderPlus, Download, X } from 'lucide-react';
 import Papa from 'papaparse';
 import { useWorkspace } from './WorkspaceContext';
 import {
@@ -15,6 +15,7 @@ import {
   getContactGroups,
   getGroupContacts,
 } from '../services/api';
+import DataTable, { TableColumn } from 'react-data-table-component';
 
 // Error Boundary Component
 class ErrorBoundary extends Component<{ children: React.ReactNode }> {
@@ -53,7 +54,8 @@ interface Contact {
   phone_number: string;
   email: string;
   workspace_id: string;
-  group_ids?: string[];
+  created_at: string;
+  group_ids?: string[]; // Not part of API response, added after fetching groups
 }
 
 interface Group {
@@ -256,10 +258,10 @@ const Contacts: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Pagination states
+  // Pagination states (server-side)
   const [currentPage, setCurrentPage] = useState(1);
   const [totalContacts, setTotalContacts] = useState(0);
-  const contactsPerPage = 50;
+  const contactsPerPage = 50; // Match API's default page size
 
   const fetchContactsAndGroups = useCallback(async () => {
     if (!currentWorkspaceId) {
@@ -271,61 +273,66 @@ const Contacts: React.FC = () => {
     try {
       const offset = (currentPage - 1) * contactsPerPage;
       let contactsResponse;
-      let total = 0;
 
-      // Fetch contacts based on selected group
+      // Fetch contacts based on selected group with pagination
       if (selectedGroup === 'all') {
         contactsResponse = await getContacts(currentWorkspaceId, {
           limit: contactsPerPage,
           offset: offset,
         });
-        total = contactsResponse?.data?.total || contactsResponse.data.length;
+        console.log('All contacts response:', contactsResponse);
       } else {
         contactsResponse = await getGroupContacts(currentWorkspaceId, selectedGroup, {
           limit: contactsPerPage,
           offset: offset,
         });
-        total = contactsResponse?.data?.total || contactsResponse.data.length;
+        console.log('Group contacts response:', contactsResponse);
       }
 
       const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
+      console.log('Groups response:', groupsResponse);
 
-      const contactsData = Array.isArray(contactsResponse.data)
-        ? contactsResponse.data
-        : contactsResponse?.data?.contacts || [];
-      const groupsData = Array.isArray(groupsResponse)
-        ? groupsResponse
-        : groupsResponse?.data || [];
+      // Handle the API response schema
+      const contactsData = contactsResponse?.contacts || [];
+      const total = contactsResponse?.total_count || 0;
+      const groupsData = Array.isArray(groupsResponse) ? groupsResponse : groupsResponse?.data || [];
 
+      // Validate contacts
       const invalidContacts = contactsData.filter((contact: Contact) => !contact.contact_id);
       if (invalidContacts.length > 0) {
         console.warn('Found contacts with missing contact_ids:', invalidContacts);
       }
 
+      // Fetch group IDs for each contact
       const updatedContacts = await Promise.all(
         contactsData.map(async (contact: Contact) => {
-          const contactGroupsResponse = await getContactGroups(currentWorkspaceId, contact.contact_id);
-          const contactGroups = Array.isArray(contactGroupsResponse)
-            ? contactGroupsResponse
-            : contactGroupsResponse?.data || [];
-          return {
-            ...contact,
-            group_ids: contactGroups.map((group: Group) => group.group_id || ''),
-          };
+          try {
+            const contactGroupsResponse = await getContactGroups(currentWorkspaceId, contact.contact_id);
+            const contactGroups = Array.isArray(contactGroupsResponse)
+              ? contactGroupsResponse
+              : contactGroupsResponse?.data || [];
+            return {
+              ...contact,
+              group_ids: contactGroups.map((group: Group) => group.group_id || ''),
+            };
+          } catch (err) {
+            console.warn(`Failed to fetch groups for contact ${contact.contact_id}:`, err);
+            return { ...contact, group_ids: [] };
+          }
         })
       );
 
-      // Fetch contact count for each group if not provided by the backend
+      // Fetch contact count for each group
       const updatedGroups = await Promise.all(
         groupsData.map(async (group: Group) => {
           let groupContactCount = group.count || 0;
-          if (!group.count) {
+          if (!group.count || group.count === 0) {
             try {
               const groupContactsResponse = await getGroupContacts(currentWorkspaceId, group.group_id, {
                 limit: 0, // Fetch all contacts to get the count
                 offset: 0,
               });
-              groupContactCount = groupContactsResponse?.data?.total || groupContactsResponse.data.length || 0;
+              groupContactCount = groupContactsResponse?.total_count || 0;
             } catch (err) {
               console.warn(`Failed to fetch contact count for group ${group.group_id}:`, err);
             }
@@ -349,7 +356,7 @@ const Contacts: React.FC = () => {
       setContacts(updatedContacts);
       setTotalContacts(total);
       setGroups([allGroup, ...updatedGroups]);
-      console.log('Fetched contacts:', updatedContacts);
+      console.log('Updated contacts:', updatedContacts);
       console.log('Updated groups with counts:', [allGroup, ...updatedGroups]);
       setError(null);
     } catch (error: any) {
@@ -359,7 +366,7 @@ const Contacts: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkspaceId, currentPage, selectedGroup]);
+  }, [currentWorkspaceId, selectedGroup, currentPage]);
 
   useEffect(() => {
     fetchContactsAndGroups();
@@ -387,7 +394,7 @@ const Contacts: React.FC = () => {
     }
 
     try {
-      const contactPayload: Omit<Contact, 'contact_id'> = {
+      const contactPayload: Omit<Contact, 'contact_id' | 'created_at'> = {
         name: trimmedName,
         phone_number: trimmedPhone,
         email: trimmedEmail || '',
@@ -404,11 +411,11 @@ const Contacts: React.FC = () => {
         );
       }
 
+      setCurrentPage(1); // Reset to first page after adding a contact
       await fetchContactsAndGroups();
       setShowAddContact(false);
       setNewContact({ name: '', phone_number: '', email: '', group_ids: [] });
       setError(null);
-      setCurrentPage(1); // Reset to first page after adding a contact
     } catch (error: any) {
       console.error('Error adding contact:', error);
       setError(error.message || 'Failed to add contact.');
@@ -448,19 +455,26 @@ const Contacts: React.FC = () => {
         const currentGroups = await getContactGroups(currentWorkspaceId, contact_id);
         const currentGroupIds = currentGroups.map((group: Group) => group.group_id || '');
         const groupsToAdd = group_ids.filter((groupId) => !currentGroupIds.includes(groupId) && groupId !== 'all');
+        const groupsToRemove = currentGroupIds.filter(
+          (groupId: string) => groupId !== 'all' && !group_ids.includes(groupId)
+        );
 
+        // Add to new groups
         await Promise.all(
           groupsToAdd.map(async (groupId) => {
             await addContactsToGroup(groupId, [contact_id]);
           })
         );
+
+        // Note: If your backend supports removing contacts from groups, you might need an API call here
+        // For now, assuming the backend handles this automatically
       }
 
+      setCurrentPage(1); // Reset to first page after updating a contact
       await fetchContactsAndGroups();
       setShowEditContact(false);
       setEditContact({ name: '', phone_number: '', email: '', group_ids: [] });
       setError(null);
-      setCurrentPage(1); // Reset to first page after updating a contact
     } catch (error: any) {
       console.error('Error updating contact:', error);
       setError(error.message || 'Failed to update contact.');
@@ -483,9 +497,9 @@ const Contacts: React.FC = () => {
 
     try {
       await deleteContact(contactId);
+      setCurrentPage(1); // Reset to first page after deleting a contact
       await fetchContactsAndGroups();
       setError(null);
-      setCurrentPage(1); // Reset to first page after deleting a contact
     } catch (error: any) {
       console.error('Error deleting contact:', error);
       setError(error.message || 'Failed to delete contact.');
@@ -510,6 +524,7 @@ const Contacts: React.FC = () => {
       ]);
       setShowAddGroup(false);
       setNewGroupName('');
+      setCurrentPage(1); // Reset to first page after adding a group
       await fetchContactsAndGroups();
       setError(null);
     } catch (error: any) {
@@ -525,9 +540,9 @@ const Contacts: React.FC = () => {
       await deleteGroup(groupId);
       setGroups((prev) => prev.filter((g) => g.group_id !== groupId));
       if (selectedGroup === groupId) setSelectedGroup('all');
+      setCurrentPage(1); // Reset to first page after deleting a group
       await fetchContactsAndGroups();
       setError(null);
-      setCurrentPage(1); // Reset to first page after deleting a group
     } catch (error: any) {
       console.error('Error deleting group:', error);
       setError(error.message || 'Failed to delete group.');
@@ -571,9 +586,9 @@ const Contacts: React.FC = () => {
               );
             }
 
+            setCurrentPage(1); // Reset to first page after importing contacts
             await fetchContactsAndGroups();
             setError(null);
-            setCurrentPage(1); // Reset to first page after importing contacts
             setSelectedGroup(groupId); // Automatically select the group to show the imported contacts
           } catch (error: any) {
             console.error('Error importing contacts:', error);
@@ -600,22 +615,80 @@ const Contacts: React.FC = () => {
     window.URL.revokeObjectURL(url);
   }, []);
 
-  // Pagination logic
-  const totalPages = Math.ceil(totalContacts / contactsPerPage);
-  const startIndex = (currentPage - 1) * contactsPerPage + 1;
-  const endIndex = Math.min(currentPage * contactsPerPage, totalContacts);
+  // Define columns for the DataTable
+  const columns: TableColumn<Contact>[] = [
+    {
+      name: 'Name',
+      selector: (row: Contact) => row.name,
+      sortable: true,
+    },
+    {
+      name: 'Phone',
+      selector: (row: Contact) => row.phone_number,
+      sortable: true,
+    },
+    {
+      name: 'Email',
+      selector: (row: Contact) => row.email || 'N/A',
+      sortable: true,
+    },
+    {
+      name: 'Groups',
+      selector: (row: Contact) =>
+        row.group_ids && row.group_ids.length > 0
+          ? row.group_ids
+              .map((groupId) => groups.find((g) => g.group_id === groupId)?.name)
+              .filter(Boolean)
+              .join(', ')
+          : 'None',
+      sortable: false,
+    },
+    {
+      name: 'Actions',
+      cell: (row: Contact) => (
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => {
+              console.log('Editing contact:', row);
+              setEditContact({
+                contact_id: row.contact_id,
+                name: row.name,
+                phone_number: row.phone_number,
+                email: row.email,
+                group_ids: row.group_ids || [],
+              });
+              setShowEditContact(true);
+            }}
+            className="btn btn-icon btn-ghost text-gray-600 hover:text-primary-500"
+          >
+            <Edit2 className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => {
+              console.log('Deleting contact:', row);
+              handleDeleteContact(row.contact_id);
+            }}
+            className="btn btn-icon btn-ghost text-gray-600 hover:text-red-500"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
+        </div>
+      ),
+      ignoreRowClick: true,
+      allowOverflow: true,
+      button: true,
+    },
+  ];
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
+  // Filter contacts based on search query (client-side filtering for display)
+  const filteredContacts = useMemo(() => {
+    return contacts.filter(
+      (contact) =>
+        contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        contact.phone_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (contact.email && contact.email.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  }, [contacts, searchQuery]);
 
   // Reset to first page when search or group changes
   useEffect(() => {
@@ -723,100 +796,40 @@ const Contacts: React.FC = () => {
                 </div>
               </div>
 
-              {/* Contacts Table */}
-              <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left py-3 px-4 font-medium">Name</th>
-                      <th className="text-left py-3 px-4 font-medium">Phone</th>
-                      <th className="text-left py-3 px-4 font-medium">Email</th>
-                      <th className="text-left py-3 px-4 font-medium">Groups</th>
-                      <th className="text-right py-3 px-4 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {contacts.map((contact) => (
-                      <tr key={contact.contact_id} className="hover:bg-gray-50 border-t">
-                        <td className="py-3 px-4">{contact.name}</td>
-                        <td className="py-3 px-4">{contact.phone_number}</td>
-                        <td className="py-3 px-4">{contact.email || 'N/A'}</td>
-                        <td className="py-3 px-4">
-                          {contact.group_ids && contact.group_ids.length > 0
-                            ? contact.group_ids
-                                .map((groupId) => groups.find((g) => g.group_id === groupId)?.name)
-                                .filter(Boolean)
-                                .join(', ')
-                            : 'None'}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => {
-                                console.log('Editing contact:', contact);
-                                setEditContact({
-                                  contact_id: contact.contact_id,
-                                  name: contact.name,
-                                  phone_number: contact.phone_number,
-                                  email: contact.email,
-                                  group_ids: contact.group_ids || [],
-                                });
-                                setShowEditContact(true);
-                              }}
-                              className="btn btn-icon btn-ghost text-gray-600 hover:text-primary-500"
-                            >
-                              <Edit2 className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                console.log('Deleting contact:', contact);
-                                handleDeleteContact(contact.contact_id);
-                              }}
-                              className="btn btn-icon btn-ghost text-gray-600 hover:text-red-500"
-                            >
-                              <Trash2 className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {isLoading && <div className="p-4 text-center text-gray-500">Loading contacts...</div>}
-                {!isLoading && contacts.length === 0 && (
-                  <div className="p-4 text-center text-gray-500">No contacts found.</div>
-                )}
-              </div>
-
-              {/* Pagination Controls */}
-              {!isLoading && contacts.length > 0 && (
-                <div className="flex justify-between items-center mt-4">
-                  <div className="text-sm text-gray-600">
-                    Showing {startIndex} to {endIndex} of {totalContacts} contacts
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handlePreviousPage}
-                      disabled={currentPage === 1}
-                      className={`btn btn-ghost flex items-center gap-2 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                      Previous
-                    </button>
-                    <span className="text-sm text-gray-600">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <button
-                      onClick={handleNextPage}
-                      disabled={currentPage === totalPages}
-                      className={`btn btn-ghost flex items-center gap-2 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      Next
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              )}
+              {/* DataTable Integration */}
+              <DataTable
+                columns={columns}
+                data={filteredContacts}
+                pagination
+                paginationServer
+                paginationTotalRows={totalContacts}
+                paginationPerPage={contactsPerPage}
+                onChangePage={(page) => setCurrentPage(page)}
+                progressPending={isLoading}
+                progressComponent={<div className="p-4 text-center text-gray-500">Loading contacts...</div>}
+                noDataComponent={<div className="p-4 text-center text-gray-500">No contacts found.</div>}
+                customStyles={{
+                  headCells: {
+                    style: {
+                      backgroundColor: '#f9fafb',
+                      fontWeight: '600',
+                      padding: '12px',
+                    },
+                  },
+                  cells: {
+                    style: {
+                      padding: '12px',
+                    },
+                  },
+                  table: {
+                    style: {
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                    },
+                  },
+                }}
+              />
             </div>
           </div>
         </div>
