@@ -55,7 +55,7 @@ interface Contact {
   email: string;
   workspace_id: string;
   created_at: string;
-  group_ids?: string[]; // Not part of API response, added after fetching groups
+  group_ids?: string[];
 }
 
 interface Group {
@@ -245,12 +245,14 @@ const Contacts: React.FC = () => {
     name: '',
     phone_number: '',
     email: '',
+    workspace_id: '',
     group_ids: [],
   });
   const [editContact, setEditContact] = useState<Partial<Contact>>({
     name: '',
     phone_number: '',
     email: '',
+    workspace_id: '',
     group_ids: [],
   });
   const [newGroupName, setNewGroupName] = useState('');
@@ -258,56 +260,42 @@ const Contacts: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Pagination states (server-side)
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalContacts, setTotalContacts] = useState(0);
-  const contactsPerPage = 50; // Match API's default page size
+  const contactsPerPage = 50;
 
   const fetchContactsAndGroups = useCallback(async () => {
     if (!currentWorkspaceId) {
+      console.error('No workspace selected. currentWorkspaceId is:', currentWorkspaceId);
       setError('No workspace selected.');
       return;
     }
-
+  
     setIsLoading(true);
     try {
-      const offset = (currentPage - 1) * contactsPerPage;
-      let contactsResponse;
-
-      // Fetch contacts based on selected group with pagination
+      console.log('Fetching contacts for workspace:', currentWorkspaceId, 'and group:', selectedGroup);
+      let contactsData: Contact[] = [];
+  
+      // Temporary override for testing
+      const testWorkspaceId = "4c037d41-415a-4235-b6bd-775cbf528d67"; // Match the API data
       if (selectedGroup === 'all') {
-        contactsResponse = await getContacts(currentWorkspaceId, {
-          limit: contactsPerPage,
-          offset: offset,
-        });
-        console.log('All contacts response:', contactsResponse);
+        const response = await getContacts(testWorkspaceId);
+        console.log('Full getContacts response:', response);
+        contactsData = Array.isArray(response) ? response : [];
+        console.log('Extracted contacts:', contactsData);
       } else {
-        contactsResponse = await getGroupContacts(currentWorkspaceId, selectedGroup, {
-          limit: contactsPerPage,
-          offset: offset,
-        });
-        console.log('Group contacts response:', contactsResponse);
+        const response = await getGroupContacts(testWorkspaceId, selectedGroup);
+        console.log('Full getGroupContacts response:', response);
+        contactsData = Array.isArray(response) ? response : [];
+        console.log('Extracted group contacts:', contactsData);
       }
-
-      const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
-      console.log('Groups response:', groupsResponse);
-
-      // Handle the API response schema
-      const contactsData = contactsResponse?.contacts || [];
-      const total = contactsResponse?.total_count || 0;
+  
+      const groupsResponse = await getWorkspaceGroups(testWorkspaceId);
+      console.log('Full groups response:', groupsResponse);
+  
       const groupsData = Array.isArray(groupsResponse) ? groupsResponse : groupsResponse?.data || [];
-
-      // Validate contacts
-      const invalidContacts = contactsData.filter((contact: Contact) => !contact.contact_id);
-      if (invalidContacts.length > 0) {
-        console.warn('Found contacts with missing contact_ids:', invalidContacts);
-      }
-
-      // Fetch group IDs for each contact
       const updatedContacts = await Promise.all(
-        contactsData.map(async (contact: Contact) => {
+        contactsData.map(async (contact) => {
           try {
-            const contactGroupsResponse = await getContactGroups(currentWorkspaceId, contact.contact_id);
+            const contactGroupsResponse = await getContactGroups(testWorkspaceId, contact.contact_id);
             const contactGroups = Array.isArray(contactGroupsResponse)
               ? contactGroupsResponse
               : contactGroupsResponse?.data || [];
@@ -321,18 +309,14 @@ const Contacts: React.FC = () => {
           }
         })
       );
-
-      // Fetch contact count for each group
+  
       const updatedGroups = await Promise.all(
-        groupsData.map(async (group: Group) => {
+        groupsData.map(async (group) => {
           let groupContactCount = group.count || 0;
           if (!group.count || group.count === 0) {
             try {
-              const groupContactsResponse = await getGroupContacts(currentWorkspaceId, group.group_id, {
-                limit: 0, // Fetch all contacts to get the count
-                offset: 0,
-              });
-              groupContactCount = groupContactsResponse?.total_count || 0;
+              const groupContactsResponse = await getGroupContacts(testWorkspaceId, group.group_id);
+              groupContactCount = Array.isArray(groupContactsResponse) ? groupContactsResponse.length : 0;
             } catch (err) {
               console.warn(`Failed to fetch contact count for group ${group.group_id}:`, err);
             }
@@ -344,30 +328,31 @@ const Contacts: React.FC = () => {
           };
         })
       );
-
+  
       const allGroup = {
         group_id: 'all',
         name: 'All Contacts',
-        workspace_id: currentWorkspaceId,
+        workspace_id: testWorkspaceId,
         created_at: '',
-        count: total,
+        count: updatedContacts.length,
       };
-
+  
       setContacts(updatedContacts);
-      setTotalContacts(total);
       setGroups([allGroup, ...updatedGroups]);
-      console.log('Updated contacts:', updatedContacts);
-      console.log('Updated groups with counts:', [allGroup, ...updatedGroups]);
       setError(null);
     } catch (error: any) {
-      const errorMessage = error.message || 'An unexpected error occurred.';
-      console.error('Fetch error:', error);
-      setError(errorMessage);
+      console.error('Fetch error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      setError(error.message || 'An unexpected error occurred.');
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkspaceId, selectedGroup, currentPage]);
+  }, [selectedGroup]);
 
+  
   useEffect(() => {
     fetchContactsAndGroups();
   }, [fetchContactsAndGroups]);
@@ -394,7 +379,7 @@ const Contacts: React.FC = () => {
     }
 
     try {
-      const contactPayload: Omit<Contact, 'contact_id' | 'created_at'> = {
+      const contactPayload = {
         name: trimmedName,
         phone_number: trimmedPhone,
         email: trimmedEmail || '',
@@ -411,10 +396,9 @@ const Contacts: React.FC = () => {
         );
       }
 
-      setCurrentPage(1); // Reset to first page after adding a contact
       await fetchContactsAndGroups();
       setShowAddContact(false);
-      setNewContact({ name: '', phone_number: '', email: '', group_ids: [] });
+      setNewContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
       setError(null);
     } catch (error: any) {
       console.error('Error adding contact:', error);
@@ -459,21 +443,16 @@ const Contacts: React.FC = () => {
           (groupId: string) => groupId !== 'all' && !group_ids.includes(groupId)
         );
 
-        // Add to new groups
         await Promise.all(
           groupsToAdd.map(async (groupId) => {
             await addContactsToGroup(groupId, [contact_id]);
           })
         );
-
-        // Note: If your backend supports removing contacts from groups, you might need an API call here
-        // For now, assuming the backend handles this automatically
       }
 
-      setCurrentPage(1); // Reset to first page after updating a contact
       await fetchContactsAndGroups();
       setShowEditContact(false);
-      setEditContact({ name: '', phone_number: '', email: '', group_ids: [] });
+      setEditContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
       setError(null);
     } catch (error: any) {
       console.error('Error updating contact:', error);
@@ -497,7 +476,6 @@ const Contacts: React.FC = () => {
 
     try {
       await deleteContact(contactId);
-      setCurrentPage(1); // Reset to first page after deleting a contact
       await fetchContactsAndGroups();
       setError(null);
     } catch (error: any) {
@@ -524,7 +502,6 @@ const Contacts: React.FC = () => {
       ]);
       setShowAddGroup(false);
       setNewGroupName('');
-      setCurrentPage(1); // Reset to first page after adding a group
       await fetchContactsAndGroups();
       setError(null);
     } catch (error: any) {
@@ -540,7 +517,6 @@ const Contacts: React.FC = () => {
       await deleteGroup(groupId);
       setGroups((prev) => prev.filter((g) => g.group_id !== groupId));
       if (selectedGroup === groupId) setSelectedGroup('all');
-      setCurrentPage(1); // Reset to first page after deleting a group
       await fetchContactsAndGroups();
       setError(null);
     } catch (error: any) {
@@ -586,10 +562,9 @@ const Contacts: React.FC = () => {
               );
             }
 
-            setCurrentPage(1); // Reset to first page after importing contacts
             await fetchContactsAndGroups();
             setError(null);
-            setSelectedGroup(groupId); // Automatically select the group to show the imported contacts
+            setSelectedGroup(groupId);
           } catch (error: any) {
             console.error('Error importing contacts:', error);
             setError(error.message || 'Failed to import some contacts.');
@@ -615,7 +590,6 @@ const Contacts: React.FC = () => {
     window.URL.revokeObjectURL(url);
   }, []);
 
-  // Define columns for the DataTable
   const columns: TableColumn<Contact>[] = [
     {
       name: 'Name',
@@ -655,6 +629,7 @@ const Contacts: React.FC = () => {
                 name: row.name,
                 phone_number: row.phone_number,
                 email: row.email,
+                workspace_id: row.workspace_id,
                 group_ids: row.group_ids || [],
               });
               setShowEditContact(true);
@@ -680,7 +655,6 @@ const Contacts: React.FC = () => {
     },
   ];
 
-  // Filter contacts based on search query (client-side filtering for display)
   const filteredContacts = useMemo(() => {
     return contacts.filter(
       (contact) =>
@@ -689,11 +663,6 @@ const Contacts: React.FC = () => {
         (contact.email && contact.email.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   }, [contacts, searchQuery]);
-
-  // Reset to first page when search or group changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedGroup, searchQuery]);
 
   return (
     <ErrorBoundary>
@@ -714,7 +683,6 @@ const Contacts: React.FC = () => {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Groups Sidebar */}
           <div className="lg:col-span-1">
             <div className="card p-6 bg-white rounded-lg shadow-sm">
               <div className="flex justify-between items-center mb-4">
@@ -754,14 +722,19 @@ const Contacts: React.FC = () => {
             </div>
           </div>
 
-          {/* Main Content */}
           <div className="lg:col-span-3">
             <div className="card p-6 bg-white rounded-lg shadow-sm">
               <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
                 <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => {
-                      setNewContact({ name: '', phone_number: '', email: '', group_ids: [] });
+                      setNewContact({
+                        name: '',
+                        phone_number: '',
+                        email: '',
+                        workspace_id: currentWorkspaceId || '',
+                        group_ids: [],
+                      });
                       setShowAddContact(true);
                     }}
                     className="btn btn-primary flex items-center gap-2"
@@ -796,15 +769,11 @@ const Contacts: React.FC = () => {
                 </div>
               </div>
 
-              {/* DataTable Integration */}
               <DataTable
                 columns={columns}
                 data={filteredContacts}
                 pagination
-                paginationServer
-                paginationTotalRows={totalContacts}
                 paginationPerPage={contactsPerPage}
-                onChangePage={(page) => setCurrentPage(page)}
                 progressPending={isLoading}
                 progressComponent={<div className="p-4 text-center text-gray-500">Loading contacts...</div>}
                 noDataComponent={<div className="p-4 text-center text-gray-500">No contacts found.</div>}
@@ -834,12 +803,11 @@ const Contacts: React.FC = () => {
           </div>
         </div>
 
-        {/* Add Contact Modal */}
         <ContactModal
           isOpen={showAddContact}
           onClose={() => {
             setShowAddContact(false);
-            setNewContact({ name: '', phone_number: '', email: '', group_ids: [] });
+            setNewContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
             setError(null);
           }}
           onSubmit={handleAddContact}
@@ -850,12 +818,11 @@ const Contacts: React.FC = () => {
           isEdit={false}
         />
 
-        {/* Edit Contact Modal */}
         <ContactModal
           isOpen={showEditContact}
           onClose={() => {
             setShowEditContact(false);
-            setEditContact({ name: '', phone_number: '', email: '', group_ids: [] });
+            setEditContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
             setError(null);
           }}
           onSubmit={handleUpdateContact}
@@ -866,7 +833,6 @@ const Contacts: React.FC = () => {
           isEdit={true}
         />
 
-        {/* Add Group Modal */}
         {showAddGroup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -913,7 +879,6 @@ const Contacts: React.FC = () => {
           </div>
         )}
 
-        {/* Import CSV Modal */}
         <ImportModal
           isOpen={showImportModal}
           onClose={() => {

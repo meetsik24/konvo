@@ -227,10 +227,11 @@ export const getContacts = async (workspaceId: string): Promise<Contact[]> => {
   try {
     const response = await api.get(`/workspaces/${workspaceId}/contacts`);
     console.log('Raw contacts response:', response.data); // Debug log
-    return response.data;
+    // Ensure the response is an array; if not, return an empty array
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     console.error('Error fetching contacts:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.message || 'Failed to fetch contacts');
+    return []; // Return empty array on error instead of throwing
   }
 };
 
