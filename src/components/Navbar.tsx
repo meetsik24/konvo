@@ -124,10 +124,14 @@ const Navbar: React.FC = () => {
 
   const handleDismissNotification = useCallback(async (id: string) => {
     try {
+      console.log(`Attempting to dismiss notification with ID: ${id}`);
       await deleteNotification(id);
       setNotifications((prev) => prev.filter((notif) => notif.notification_id !== id));
+      setError(null); // Clear any previous errors
     } catch (err: any) {
-      setError(err.message || 'Failed to dismiss notification');
+      const errorMessage = err.message || 'Failed to dismiss notification';
+      console.error(`Failed to dismiss notification ${id}:`, errorMessage);
+      setError(errorMessage);
     }
   }, []);
 
