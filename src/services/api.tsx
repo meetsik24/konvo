@@ -659,4 +659,67 @@ export const getMessageDetail = async (messageId: string) => {
   }
 };
 
+
+
+//Notifications
+interface Notification {
+  notification_id: string;
+  user_id: string;
+  message: string;
+  created_at: string;
+  is_read: boolean;
+}
+
+// Fetch all notifications
+export const fetchNotifications = async (): Promise<Notification[]> => {
+  try {
+    const response = await api.get('/notifications/');
+    console.log('Raw fetchNotifications response:', response.data);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    console.error('Error fetching notifications:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+    return [];
+  }
+};
+
+// Delete a notification
+export const deleteNotification = async (notificationId: string): Promise<void> => {
+  try {
+    await api.delete(`/notifications/${notificationId}`);
+    console.log(`Notification ${notificationId} deleted successfully`);
+  } catch (error: any) {
+    console.error(`Error deleting notification ${notificationId}:`, {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      headers: error.response?.headers,
+    });
+    throw new Error(
+      error.response?.data?.message ||
+        error.message ||
+        `Failed to delete notification ${notificationId}`
+    );
+  }
+};
+
+// Mark a notification as read
+export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
+  try {
+    await api.put(`/notifications/${notificationId}/read`);
+    console.log(`Notification ${notificationId} marked as read`);
+  } catch (error: any) {
+    console.error(`Error marking notification ${notificationId} as read:`, {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+    throw error;
+  }
+};
+
+
 export default api;
