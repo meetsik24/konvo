@@ -5,7 +5,7 @@ import { Users, MessageSquare, XCircle, Megaphone, RefreshCw, Folder } from 'luc
 import { useWorkspace } from './WorkspaceContext';
 import {
   getCampaigns,
-  getMessageLogs,
+  fetchLogs, // Updated import to match api.tsx
   getContactMetrics,
 } from '../services/api';
 
@@ -28,11 +28,11 @@ interface DashboardData {
 
 const initialDashboardData: DashboardData = {
   stats: [
-    { title: 'Total Messages', value: '0', icon: MessageSquare, color: 'bg-blue-500' },
-    { title: 'Number of Campaigns', value: '0', icon: Megaphone, color: 'bg-yellow-500' },
-    { title: 'Total Fails', value: '0', icon: XCircle, color: 'bg-red-500' },
-    { title: 'Total Contacts', value: '0', icon: Users, color: 'bg-teal-500' },
-    { title: 'Total Contact Groups', value: '0', icon: Folder, color: 'bg-purple-500' },
+    { title: 'Messages Sent', value: '0', icon: MessageSquare, color: 'bg-green-500' },
+    { title: 'Number of Campaigns', value: '0', icon: Megaphone, color: 'bg-green-500' },
+    { title: 'Total Fails', value: '0', icon: XCircle, color: 'bg-green-500' },
+    { title: 'Total Contacts', value: '0', icon: Users, color: 'bg-green-500' },
+    { title: 'Total Contact Groups', value: '0', icon: Folder, color: 'bg-green-500' },
   ],
   data: [],
 };
@@ -43,6 +43,18 @@ const Dashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData>(initialDashboardData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch all message logs (non-paginated)
+  const fetchAllMessageLogs = useCallback(async () => {
+    try {
+      const response = await fetchLogs(); // Updated to use fetchLogs
+      const logs = response.logs || [];
+      console.log(`Total message logs: ${logs.length}`);
+      return logs;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch message logs');
+    }
+  }, []);
 
   // Sync with workspace data only when currentWorkspaceId changes
   useEffect(() => {
@@ -56,7 +68,7 @@ const Dashboard: React.FC = () => {
     } else {
       setDashboardData(initialDashboardData);
     }
-  }, [currentWorkspaceId, workspace?.dashboardData]); // Depend only on currentWorkspaceId and dashboardData
+  }, [currentWorkspaceId, workspace?.dashboardData]);
 
   // Fetch dashboard data when component mounts or workspace changes
   const loadDashboardData = useCallback(async () => {
@@ -65,31 +77,33 @@ const Dashboard: React.FC = () => {
       return;
     }
 
-    // Check if data is already loaded and non-empty
     const hasValidData =
       workspace?.dashboardData?.stats?.some((stat) => stat.value !== '0') ||
       workspace?.dashboardData?.data?.length > 0;
     if (hasValidData) {
-      return; // Skip fetching if valid data exists
+      return;
     }
 
     setIsLoading(true);
     setError(null);
     try {
-      const [campaigns, contactsMetrics, logsResponse] = await Promise.all([
+      const [campaigns, contactsMetrics, logs] = await Promise.all([
         getCampaigns(),
         getContactMetrics(),
-        getMessageLogs(),
+        fetchAllMessageLogs(),
       ]);
 
-      const logs = logsResponse?.logs || [];
-      const totalMessages = logs.length;
+      const messagesSent = logs.filter(
+        (log: any) => log.status === 'sent' && log.response_group_name === 'PENDING'
+      ).length;
       const numberOfCampaigns = Array.isArray(campaigns) ? campaigns.length : 0;
-      const totalFails = logs.filter((log) => log.status === 'failed').length;
+      const totalFails = logs.filter(
+        (log: any) => log.response_group_name === 'REJECTED'
+      ).length;
       const totalContacts = contactsMetrics.total_contacts || 0;
       const totalContactGroups = contactsMetrics.total_contact_groups || 0;
 
-      const messageVolume = logs.reduce((acc: { [key: string]: number }, log) => {
+      const messageVolume = logs.reduce((acc: { [key: string]: number }, log: any) => {
         const date = new Date(log.timestamp).toLocaleDateString();
         acc[date] = (acc[date] || 0) + 1;
         return acc;
@@ -98,16 +112,15 @@ const Dashboard: React.FC = () => {
 
       const newDashboardData: DashboardData = {
         stats: [
-          { title: 'Total Messages', value: totalMessages.toString(), icon: MessageSquare, color: 'bg-blue-500' },
-          { title: 'Number of Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, color: 'bg-yellow-500' },
-          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, color: 'bg-red-500' },
-          { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, color: 'bg-teal-500' },
-          { title: 'Total Contact Groups', value: totalContactGroups.toString(), icon: Folder, color: 'bg-purple-500' },
+          { title: 'Messages Sent', value: messagesSent.toString(), icon: MessageSquare, color: 'bg-green-500' },
+          { title: 'Number of Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, color: 'bg-green-500' },
+          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, color: 'bg-green-500' },
+          { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, color: 'bg-green-500' },
+          { title: 'Total Contact Groups', value: totalContactGroups.toString(), icon: Folder, color: 'bg-green-500' },
         ],
         data: dataPoints,
       };
 
-      // Only update if data has meaningful values
       if (!newDashboardData.stats.some((stat) => stat.value !== '0') && !newDashboardData.data.length) {
         throw new Error('No valid dashboard data returned from the server.');
       }
@@ -123,7 +136,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkspaceId, updateWorkspace, workspace?.dashboardData]);
+  }, [currentWorkspaceId, updateWorkspace, workspace?.dashboardData, fetchAllMessageLogs]);
 
   useEffect(() => {
     loadDashboardData();
@@ -134,20 +147,23 @@ const Dashboard: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [campaigns, contactsMetrics, logsResponse] = await Promise.all([
+      const [campaigns, contactsMetrics, logs] = await Promise.all([
         getCampaigns(),
         getContactMetrics(),
-        getMessageLogs(),
+        fetchAllMessageLogs(),
       ]);
 
-      const logs = logsResponse?.logs || [];
-      const totalMessages = logs.length;
+      const messagesSent = logs.filter(
+        (log: any) => log.status === 'sent' && log.response_group_name === 'PENDING'
+      ).length;
       const numberOfCampaigns = Array.isArray(campaigns) ? campaigns.length : 0;
-      const totalFails = logs.filter((log) => log.status === 'failed').length;
+      const totalFails = logs.filter(
+        (log: any) => log.response_group_name === 'REJECTED'
+      ).length;
       const totalContacts = contactsMetrics.total_contacts || 0;
       const totalContactGroups = contactsMetrics.total_contact_groups || 0;
 
-      const messageVolume = logs.reduce((acc: { [key: string]: number }, log) => {
+      const messageVolume = logs.reduce((acc: { [key: string]: number }, log: any) => {
         const date = new Date(log.timestamp).toLocaleDateString();
         acc[date] = (acc[date] || 0) + 1;
         return acc;
@@ -156,11 +172,11 @@ const Dashboard: React.FC = () => {
 
       const newDashboardData: DashboardData = {
         stats: [
-          { title: 'Total Messages', value: totalMessages.toString(), icon: MessageSquare, color: 'bg-blue-500' },
-          { title: 'Number of Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, color: 'bg-yellow-500' },
-          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, color: 'bg-red-500' },
-          { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, color: 'bg-teal-500' },
-          { title: 'Total Contact Groups', value: totalContactGroups.toString(), icon: Folder, color: 'bg-purple-500' },
+          { title: 'Messages Sent', value: messagesSent.toString(), icon: MessageSquare, color: 'bg-green-500' },
+          { title: 'Number of Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, color: 'bg-green-500' },
+          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, color: 'bg-green-500' },
+          { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, color: 'bg-green-500' },
+          { title: 'Total Contact Groups', value: totalContactGroups.toString(), icon: Folder, color: 'bg-green-500' },
         ],
         data: dataPoints,
       };
@@ -177,7 +193,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkspaceId, updateWorkspace]);
+  }, [currentWorkspaceId, updateWorkspace, fetchAllMessageLogs]);
 
   return (
     <div className="space-y-6">
