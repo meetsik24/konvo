@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { CreditCard, Check, X } from 'lucide-react';
 import {
   getPlans,
@@ -19,7 +19,13 @@ interface Contact {
   email: string;
 }
 
-// Hardcoded list of sales contacts
+interface PaymentDetails {
+  planId: string;
+  smsCount: number;
+  totalAmount: number;
+  action: 'subscribe' | 'upgrade' | 'renew';
+}
+
 const salesContacts: Contact[] = [
   {
     name: "Innocent Singo",
@@ -32,9 +38,11 @@ const Subscription: React.FC = () => {
   const { token } = useSelector((state: RootState) => state.auth);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionUsage | null>(null);
+  const [showSmsInputModal, setShowSmsInputModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [smsCountInput, setSmsCountInput] = useState('');
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,7 +61,7 @@ const Subscription: React.FC = () => {
           console.warn('No plans were returned from the API');
         }
 
-        setPlans(plansData); // No need to add isContactSales if not used
+        setPlans(plansData);
 
         try {
           const subscriptionData = await getSubscriptionUsage();
@@ -77,84 +85,92 @@ const Subscription: React.FC = () => {
     }
   }, [token]);
 
-  const handleSubscribe = async (planId: string) => {
+  const calculateTotalAmount = (plan: Plan, smsCount: number): number => {
+    if (smsCount <= 0) return 0;
+
+    const basePrice = parseFloat(plan.price) || 0;
+
+    let pricePerSms: number;
+    if (smsCount >= 1 && smsCount <= 5999) {
+      pricePerSms = basePrice;
+    } else if (smsCount >= 6000 && smsCount <= 54999) {
+      pricePerSms = basePrice - 1;
+    } else if (smsCount >= 55000 && smsCount <= 499999) {
+      pricePerSms = basePrice - 2;
+    } else {
+      pricePerSms = basePrice - 3;
+    }
+
+    const totalAmount = smsCount * pricePerSms;
+    return Math.round(totalAmount);
+  };
+
+  const handleInitiatePayment = (planId: string, action: 'subscribe' | 'upgrade' | 'renew') => {
     setError(null);
     setSuccess(null);
-    setSelectedPlanId(planId);
+    setPaymentDetails(null);
+    setSmsCountInput('');
 
     const selectedPlan = plans.find(plan => plan.plan_id === planId);
-    console.log('Selected plan:', selectedPlan);
-    console.log('subscriptionDetails:', subscriptionDetails);
+    if (selectedPlan) {
+      // Initialize the SMS count input to the plan's minimum
+      setSmsCountInput(selectedPlan.sms_count.toString());
+    }
 
+    setShowSmsInputModal(true);
+    setPaymentDetails({ planId, smsCount: 0, totalAmount: 0, action });
+  };
+
+  const handleSubscribe = (planId: string) => {
+    const selectedPlan = plans.find(plan => plan.plan_id === planId);
     if (!selectedPlan) {
       setError('Could not find the selected plan. Please try again.');
       return;
     }
 
-    // Remove isContactSales logic; assume all plans use payment flow
     if (subscriptionDetails) {
-      console.log('Upgrading subscription for plan:', planId);
-      await handleUpgrade(planId);
+      handleInitiatePayment(planId, 'upgrade');
     } else {
-      console.log('Opening payment modal for plan:', planId);
-      setShowPaymentModal(true);
+      handleInitiatePayment(planId, 'subscribe');
     }
   };
 
-  const handleRenew = async () => {
-    if (!token) {
-      setError('Authentication token is missing. Please log in again.');
+  const handleRenew = () => {
+    if (!subscriptionDetails || !subscriptionDetails.plan_id) {
+      setError('No active subscription found to renew.');
       return;
     }
-
-    setError(null);
-    setSuccess(null);
-    setIsLoading(true);
-    try {
-      await renewSubscription();
-      setSuccess('Subscription renewed successfully!');
-
-      try {
-        const subscriptionData = await getSubscriptionUsage();
-        setSubscriptionDetails(subscriptionData);
-      } catch (subErr: any) {
-        console.error('Error refreshing subscription after renewal:', subErr.message, 'Status:', subErr.response?.status);
-        setError('Subscription was renewed but failed to refresh details. Please reload the page.');
-      }
-    } catch (err: any) {
-      console.error('Error renewing subscription:', err.message, 'Status:', err.response?.status);
-      setError('Failed to renew subscription. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    handleInitiatePayment(subscriptionDetails.plan_id, 'renew');
   };
 
-  const handleUpgrade = async (planId: string) => {
-    if (!token) {
-      setError('Authentication token is missing. Please log in again.');
+  const handleSmsCountSubmit = () => {
+    const smsCount = parseInt(smsCountInput, 10);
+    if (isNaN(smsCount) || smsCount <= 0) {
+      setError('Please enter a valid number of SMS (greater than 0).');
       return;
     }
 
-    setError(null);
-    setSuccess(null);
-    setIsLoading(true);
-    try {
-      await upgradeSubscription(planId);
-      setSuccess('Subscription upgraded successfully!');
-
-      try {
-        const subscriptionData = await getSubscriptionUsage();
-        setSubscriptionDetails(subscriptionData);
-      } catch (subErr: any) {
-        console.error('Error refreshing subscription after upgrade:', subErr.message, 'Status:', subErr.response?.status);
-        setError('Subscription was upgraded but failed to refresh details. Please reload the page.');
-      }
-    } catch (err: any) {
-      console.error('Error upgrading subscription:', err.message, 'Status:', err.response?.status);
-      setError('Failed to upgrade subscription. Please try again.');
-    } finally {
-      setIsLoading(false);
+    if (!paymentDetails) {
+      setError('Payment details are missing. Please try again.');
+      return;
     }
+
+    const selectedPlan = plans.find(plan => plan.plan_id === paymentDetails.planId);
+    if (!selectedPlan) {
+      setError('Could not find the selected plan. Please try again.');
+      return;
+    }
+
+    // Enforce the minimum SMS limit with a red popup error
+    if (smsCount < selectedPlan.sms_count) {
+      setError(`The number of SMS must be at least ${selectedPlan.sms_count.toLocaleString()} for the ${selectedPlan.plan_name} plan.`);
+      return;
+    }
+
+    const totalAmount = calculateTotalAmount(selectedPlan, smsCount);
+    setPaymentDetails({ ...paymentDetails, smsCount, totalAmount });
+    setShowSmsInputModal(false);
+    setShowPaymentModal(true);
   };
 
   const handlePayment = async () => {
@@ -163,8 +179,8 @@ const Subscription: React.FC = () => {
       return;
     }
 
-    if (!selectedPlanId) {
-      setError('No plan selected. Please select a plan first.');
+    if (!paymentDetails) {
+      setError('Payment details are missing. Please try again.');
       return;
     }
 
@@ -172,22 +188,30 @@ const Subscription: React.FC = () => {
     setSuccess(null);
     setIsLoading(true);
     try {
-      await subscribeToPlan(selectedPlanId);
-      setSuccess('Successfully subscribed to the plan!');
+      if (paymentDetails.action === 'subscribe') {
+        await subscribeToPlan(paymentDetails.planId);
+      } else if (paymentDetails.action === 'upgrade') {
+        await upgradeSubscription(paymentDetails.planId);
+      } else if (paymentDetails.action === 'renew') {
+        await renewSubscription();
+      }
+
+      setSuccess(`Successfully ${paymentDetails.action}d the plan!`);
       setShowPaymentModal(false);
       setMobileMoneyNumber('');
-      setSelectedPlanId(null);
+      setPaymentDetails(null);
+      setSmsCountInput('');
 
       try {
         const subscriptionData = await getSubscriptionUsage();
         setSubscriptionDetails(subscriptionData);
       } catch (subErr: any) {
-        console.error('Error refreshing subscription after new subscription:', subErr.message, 'Status:', subErr.response?.status);
-        setError('Subscription was successful but failed to refresh details. Please reload the page.');
+        console.error(`Error refreshing subscription after ${paymentDetails.action}:`, subErr.message, 'Status:', subErr.response?.status);
+        setError(`Subscription was ${paymentDetails.action}d but failed to refresh details. Please reload the page.`);
       }
     } catch (err: any) {
-      console.error('Error subscribing to plan:', err.message, 'Status:', err.response?.status);
-      setError('Failed to subscribe to the plan. Please try again.');
+      console.error(`Error ${paymentDetails.action}ing plan:`, err.message, 'Status:', err.response?.status);
+      setError(`Failed to ${paymentDetails.action} the plan. Please try again.`);
     } finally {
       setIsLoading(false);
     }
@@ -206,17 +230,45 @@ const Subscription: React.FC = () => {
         <p className="mt-4 text-xl text-[#6f888c]">Choose the perfect SMS package for your needs</p>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700 text-center mb-4">
-          <p>{error}</p>
-        </div>
-      )}
-      
-      {success && (
-        <div className="bg-green-50 border border-green-200 rounded-md p-4 text-green-700 text-center mb-4">
-          <p>{success}</p>
-        </div>
-      )}
+      {/* Error Popup */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-500 text-white rounded-lg p-4 shadow-lg max-w-md w-full"
+          >
+            <div className="flex justify-between items-center">
+              <p>{error}</p>
+              <button onClick={() => setError(null)} className="text-white hover:text-gray-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Success Popup */}
+      <AnimatePresence>
+        {success && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-500 text-white rounded-lg p-4 shadow-lg max-w-md w-full"
+          >
+            <div className="flex justify-between items-center">
+              <p>{success}</p>
+              <button onClick={() => setSuccess(null)} className="text-white hover:text-gray-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {isLoading && !plans.length && (
         <div className="text-center py-12">
@@ -242,8 +294,6 @@ const Subscription: React.FC = () => {
                   {subscriptionDetails.sms_count.toLocaleString()} / {currentPlan.sms_count.toLocaleString()} (Min: {currentPlan.sms_count.toLocaleString()})
                 </dd>
               </div>
-             
-             
               <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">Actions</dt>
                 <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
@@ -352,10 +402,55 @@ const Subscription: React.FC = () => {
         </button>
       </div>
 
-      {showPaymentModal && (
+      {showSmsInputModal && paymentDetails && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
           <div className="bg-white p-8 rounded-lg shadow-lg">
-            <h2 className="text-xl font-semibold mb-4">Enter Mobile Money Number</h2>
+            <h2 className="text-xl font-semibold mb-4">Enter Number of SMS</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              For the <strong>{plans.find(plan => plan.plan_id === paymentDetails.planId)?.plan_name}</strong> plan, you must purchase at least{' '}
+              <strong>{plans.find(plan => plan.plan_id === paymentDetails.planId)?.sms_count.toLocaleString()}</strong> SMS.
+            </p>
+            <input
+              type="number"
+              className="input mb-4 w-full"
+              value={smsCountInput}
+              onChange={(e) => setSmsCountInput(e.target.value)}
+              placeholder="Enter number of SMS"
+              step="1"
+              aria-label="Number of SMS"
+            />
+            <button
+              className="btn bg-[#00333e] text-white w-full"
+              onClick={handleSmsCountSubmit}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Processing...' : 'Continue'}
+            </button>
+            <button
+              className="btn bg-[#6f888c] text-white w-full mt-2"
+              onClick={() => setShowSmsInputModal(false)}
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showPaymentModal && paymentDetails && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+          <div className="bg-white p-8 rounded-lg shadow-lg">
+            <h2 className="text-xl font-semibold mb-4">Payment Details</h2>
+            <p className="mb-2">
+              <strong>Plan:</strong> {plans.find(plan => plan.plan_id === paymentDetails.planId)?.plan_name}
+            </p>
+            <p className="mb-2">
+              <strong>Number of SMS:</strong> {paymentDetails.smsCount.toLocaleString()}
+            </p>
+            <p className="mb-4">
+              <strong>Total Amount:</strong> {paymentDetails.totalAmount.toLocaleString()} TZS
+            </p>
+            <h3 className="text-lg font-semibold mb-2">Enter Mobile Money Number</h3>
             <input
               type="text"
               className="input mb-4 w-full"
