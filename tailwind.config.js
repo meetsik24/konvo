@@ -35,7 +35,7 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Quicksand', 'Inter var', 'sans-serif'],
+        sans: ['exo', 'Inter var', 'sans-serif'],
       },
       backgroundImage: {
         'doodle-pattern': "url('https://images.unsplash.com/photo-1615800098779-1be32e60cca3?q=80&w=1920&auto=format&fit=crop')",

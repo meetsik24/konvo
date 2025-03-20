@@ -25,7 +25,7 @@ const Login: React.FC = () => {
     try {
       const { token, user } = await loginUser(formData.identifier, formData.password);
       dispatch(setCredentials({ user, token }));
-      navigate('/');
+      navigate('/dashboard'); // Changed from '/' to '/dashboard'
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || 'Invalid credentials or server error';
       setLocalError(errorMsg);

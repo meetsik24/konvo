@@ -60,8 +60,7 @@ function App() {
     }
   }, [token, dispatch, status, user]);
 
-  // Initial redirect path
-  const initialPath = !token || status === 'failed' ? '/login' : '/dashboard';
+  // Initial redirect path (removed unused variable)
 
   return (
     <Provider store={store}>

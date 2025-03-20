@@ -23,11 +23,11 @@ const Register: React.FC = () => {
   const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
 
   useEffect(() => {
-    // Navigate to dashboard after successful login (indicated by token presence)
+    // Navigate to dashboard after successful registration (indicated by token presence)
     if (status === 'succeeded' && successMessage && token) {
       const timer = setTimeout(() => {
         dispatch(clearSuccessMessage());
-        navigate('/'); // Navigate to dashboard
+        navigate('/dashboard'); // Changed from '/' to '/dashboard'
       }, 3000); // Display success message for 3 seconds
       return () => clearTimeout(timer);
     }
