@@ -25,7 +25,10 @@
     "recharts": "^2.12.2",
     "redux-persist": "^6.0.0",
     "redux-thunk": "^3.1.0",
-    "styled-components": "^6.1.15"
+    "styled-components": "^6.1.15",
+    "@lottiefiles/react-lottie-player": "^3.5.3",
+    "lottie-react": "^2.4.0",
+    "clsx": "^2.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

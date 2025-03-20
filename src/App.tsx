@@ -4,6 +4,16 @@ import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store } from './store/store';
 import { AppDispatch, RootState } from './store/store';
 import { fetchUserProfile, logout } from './store/slices/authSlice';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Landing Page Components
+import Navbar from './landing/components/Navbar';
+import Footer from './landing/components/Footer';
+import Home from './landing/pages/Home';
+import Contact from './landing/pages/Contact';
+
+
+// Dashboard Components
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
@@ -19,15 +29,15 @@ import Logs from './pages/Logs';
 import Subscription from './pages/subscription';
 import SenderID from './pages/SenderID';
 import Contacts from './pages/Contacts';
+
 import { ContactsProvider } from './components/ContactsContext';
 import { WorkspaceProvider } from './pages/WorkspaceContext';
 
-// Custom Protected Route Component
+// Protected Route for Dashboard Pages
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token, status } = useSelector((state: RootState) => state.auth);
   const location = useLocation();
 
-  // Redirect to /login if no token or if profile fetch fails
   if (!token || status === 'failed') {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -35,22 +45,22 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// App Component with Initial Fetch Logic
+// Main App Component
 function App() {
   const { token, status, user } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
 
-  // Fetch user profile on app mount if token exists and user is not loaded
+  // Fetch user profile if authenticated
   useEffect(() => {
     if (token && !user && status !== 'loading') {
       dispatch(fetchUserProfile(token)).catch((err) => {
-        console.error('Failed to fetch user profile on app mount:', err);
+        console.error('Failed to fetch user profile:', err);
         dispatch(logout());
       });
     }
   }, [token, dispatch, status, user]);
 
-  // Determine the initial redirect based on authentication state
+  // Initial redirect path
   const initialPath = !token || status === 'failed' ? '/login' : '/dashboard';
 
   return (
@@ -58,39 +68,43 @@ function App() {
       <WorkspaceProvider>
         <ContactsProvider>
           <Router>
-            <Routes>
-              {/* Public Routes */}
-              <Route
-                path="/"
-                element={<Navigate to={initialPath} replace />}
-              />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+            <div className="min-h-screen flex flex-col">
+              <AnimatePresence mode="wait">
+                <Routes>
+                  {/* Landing Page Routes */}
+                  <Route path="/" element={<><Navbar /><Home /><Footer /></>} />
+                  <Route path="/contact" element={<><Navbar /><Contact /><Footer /></>} />
 
-              {/* Protected Routes wrapped in Layout */}
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/send-sms" element={<SendSMS />} />
-                <Route path="/campaigns" element={<SMSCampaigns />} />
-                <Route path="/send-email" element={<SendEmail />} />
-                <Route path="/voice" element={<Voice />} />
-                <Route path="/chatbot" element={<Chatbot />} />
-                <Route path="/account" element={<Account />} />
-                <Route path="/logs" element={<Logs />} />
-                <Route path="/subscription" element={<Subscription />} />
-                <Route path="/senderid" element={<SenderID />} />
-                <Route path="/contacts" element={<Contacts />} />
-              </Route>
+                  {/* Authentication Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
 
-              {/* Catch-all Route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                  {/* Dashboard Protected Routes */}
+                  <Route
+                    element={
+                      <ProtectedRoute>
+                        <Layout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/send-sms" element={<SendSMS />} />
+                    <Route path="/campaigns" element={<SMSCampaigns />} />
+                    <Route path="/send-email" element={<SendEmail />} />
+                    <Route path="/voice" element={<Voice />} />
+                    <Route path="/chatbot" element={<Chatbot />} />
+                    <Route path="/account" element={<Account />} />
+                    <Route path="/logs" element={<Logs />} />
+                    <Route path="/subscription" element={<Subscription />} />
+                    <Route path="/senderid" element={<SenderID />} />
+                    <Route path="/contacts" element={<Contacts />} />
+                  </Route>
+
+                  {/* Catch-All 404 Page */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </AnimatePresence>
+            </div>
           </Router>
         </ContactsProvider>
       </WorkspaceProvider>
