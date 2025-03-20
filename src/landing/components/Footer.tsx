@@ -1,31 +1,188 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { X, Instagram, Linkedin } from 'lucide-react';
 
-const Footer: React.FC = () => {
+export default function Footer() {
   return (
-    <footer className="bg-[#00333e] text-white py-12">
-      <div className="container mx-auto px-6 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-        >
-          <h3 className="text-2xl font-semibold mb-6" style={{ fontFamily: 'Exo, sans-serif' }}>Connect With Us</h3>
-          <div className="flex justify-center space-x-6 mb-6">
-            <a href="https://twitter.com" className="text-[#fddfd0] hover:text-white text-lg transition-colors">Twitter</a>
-            <a href="https://linkedin.com" className="text-[#fddfd0] hover:text-white text-lg transition-colors">LinkedIn</a>
-            <a href="https://facebook.com" className="text-[#fddfd0] hover:text-white text-lg transition-colors">Facebook</a>
+    <footer
+      className="py-12"
+      style={{
+        background: 'linear-gradient(180deg, #1a1a1a 0%, #000000 100%)',
+      }}
+    >
+      <div className="container mx-auto px-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+          {/* Logo and Tagline */}
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-white">Briq</span>
+            </div>
+            <p
+              className="mt-2 text-sm text-gray-400"
+              style={{ fontFamily: 'Montserrat, sans-serif' }}
+            >
+              Scale operations with additional integrations or add-ons.
+            </p>
+            <div className="mt-4 flex gap-4">
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer">
+                <X className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
+              </a>
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer">
+                <Instagram className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
+              </a>
+              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer">
+                <Linkedin className="h-5 w-5 text-gray-400 hover:text-white transition-colors" />
+              </a>
+            </div>
           </div>
-          <p className="text-sm mb-4" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-            <span className="text-[#fddfd0]">Email:</span> support@briq.com | <span className="text-[#fddfd0]">Phone:</span> +255 788 344 348
-          </p>
-          <p className="text-xs" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-            © 2025 Briq. All rights reserved. | <a href="/terms" className="text-[#fddfd0] hover:text-white">Terms</a> | <a href="/privacy" className="text-[#fddfd0] hover:text-white">Privacy</a>
-          </p>
-        </motion.div>
+
+          {/* Navigation */}
+          <div>
+            <h3
+              className="text-lg font-semibold text-white mb-4"
+              style={{ fontFamily: 'Exo, sans-serif' }}
+            >
+              Navigation
+            </h3>
+            <ul className="space-y-2">
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors"
+                  style={{ fontFamily: 'Montserrat, sans-serif' }}
+                >
+                  Case Studies
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors"
+                  style={{ fontFamily: 'Montserrat, sans-serif' }}
+                >
+                  Testimonials
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors"
+                  style={{ fontFamily: 'Montserrat, sans-serif' }}
+                >
+                  Insight
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Resources */}
+          <div>
+            <h3
+              className="text-lg font-semibold text-white mb-4"
+              style={{ fontFamily: 'Exo, sans-serif' }}
+            >
+              Resources
+            </h3>
+            <ul className="space-y-2">
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors"
+                  style={{ fontFamily: 'Montserrat, sans-serif' }}
+                >
+                  Terms & Privacy
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors"
+                  style={{ fontFamily: 'Montserrat, sans-serif' }}
+                >
+                  404
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors"
+                  style={{ fontFamily: 'Montserrat, sans-serif' }}
+                >
+                  Changelog
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Miscellaneous */}
+          <div>
+            <h3
+              className="text-lg font-semibold text-white mb-4"
+              style={{ fontFamily: 'Exo, sans-serif' }}
+            >
+              Miscellaneous
+            </h3>
+            <ul className="space-y-2">
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors"
+                  style={{ fontFamily: 'Montserrat, sans-serif' }}
+                >
+                  Insights
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors"
+                  style={{ fontFamily: 'Montserrat, sans-serif' }}
+                >
+                  About
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors"
+                  style={{ fontFamily: 'Montserrat, sans-serif' }}
+                >
+                  FAQs
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Company */}
+          <div>
+            <h3
+              className="text-lg font-semibold text-white mb-4"
+              style={{ fontFamily: 'Exo, sans-serif' }}
+            >
+              Company
+            </h3>
+            <ul className="space-y-2">
+              <li>
+                <a
+                  href="#"
+                  className="text-gray-400 hover:text-white transition-colors"
+                  style={{ fontFamily: 'Montserrat, sans-serif' }}
+                >
+                  Careers
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/contact"
+                  className="text-gray-400 hover:text-white transition-colors"
+                  style={{ fontFamily: 'Montserrat, sans-serif' }}
+                >
+                  Contact
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
     </footer>
   );
-};
-
-export default Footer;
+}

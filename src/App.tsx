@@ -71,8 +71,8 @@ function App() {
               <AnimatePresence mode="wait">
                 <Routes>
                   {/* Landing Page Routes */}
-                  <Route path="/" element={<><Navbar /><Home /><Footer /></>} />
-                  <Route path="/contact" element={<><Navbar /><Contact /><Footer /></>} />
+                  <Route path="/" element={<Home />} />
+                  
 
                   {/* Authentication Routes */}
                   <Route path="/login" element={<Login />} />
