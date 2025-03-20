@@ -12,10 +12,15 @@ import {
   deleteGroup,
   addContactsToGroup,
   getContacts,
-  getContactGroups,
   getGroupContacts,
 } from '../services/api';
 import DataTable, { TableColumn } from 'react-data-table-component';
+import styled from 'styled-components';
+
+// Styled DataTable to filter out invalid props
+const StyledDataTable = styled(DataTable).withConfig({
+  shouldForwardProp: (prop) => !['allowOverflow', 'button'].includes(prop),
+})``;
 
 // Error Boundary Component
 class ErrorBoundary extends Component<{ children: React.ReactNode }> {
@@ -88,8 +93,6 @@ const ContactModal: React.FC<ContactModalProps> = ({
   isEdit,
 }) => {
   if (!isOpen) return null;
-
-  console.log('Groups in modal:', groups);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -260,7 +263,45 @@ const Contacts: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const contactsPerPage = 50;
+  const fetchAllContacts = useCallback(
+    async (workspaceId: string, groupId?: string) => {
+      const perPage = 50; // Default perPage from API
+      let allContacts: Contact[] = [];
+      let totalPages = 1;
+      let totalCount = 0;
+
+      try {
+        // Fetch the first page to get total_count and total_pages
+        const firstResponse = groupId
+          ? await getGroupContacts(workspaceId, groupId, 1, perPage)
+          : await getContacts(workspaceId, 1, perPage);
+        allContacts = firstResponse.contacts || [];
+        totalCount = firstResponse.total_count || 0;
+        totalPages = firstResponse.total_pages || 1;
+
+        console.log(`Total contacts: ${totalCount}, Total pages: ${totalPages}`);
+
+        if (totalPages > 1) {
+          // Fetch remaining pages concurrently
+          const pageRequests = Array.from({ length: totalPages - 1 }, (_, i) => {
+            const page = i + 2; // Start from page 2
+            return groupId
+              ? getGroupContacts(workspaceId, groupId, page, perPage)
+              : getContacts(workspaceId, page, perPage);
+          });
+
+          const responses = await Promise.all(pageRequests);
+          const additionalContacts = responses.flatMap((res) => res.contacts || []);
+          allContacts = [...allContacts, ...additionalContacts];
+        }
+
+        return allContacts;
+      } catch (error: any) {
+        throw new Error(`Failed to fetch all contacts: ${error.message}`);
+      }
+    },
+    []
+  );
 
   const fetchContactsAndGroups = useCallback(async () => {
     if (!currentWorkspaceId) {
@@ -268,75 +309,60 @@ const Contacts: React.FC = () => {
       setError('No workspace selected.');
       return;
     }
-  
+
     setIsLoading(true);
     try {
       console.log('Fetching contacts for workspace:', currentWorkspaceId, 'and group:', selectedGroup);
-      let contactsData: Contact[] = [];
-  
-      // Temporary override for testing
-      const testWorkspaceId = "4c037d41-415a-4235-b6bd-775cbf528d67"; // Match the API data
-      if (selectedGroup === 'all') {
-        const response = await getContacts(testWorkspaceId);
-        console.log('Full getContacts response:', response);
-        contactsData = Array.isArray(response) ? response : [];
-        console.log('Extracted contacts:', contactsData);
-      } else {
-        const response = await getGroupContacts(testWorkspaceId, selectedGroup);
-        console.log('Full getGroupContacts response:', response);
-        contactsData = Array.isArray(response) ? response : [];
-        console.log('Extracted group contacts:', contactsData);
-      }
-  
-      const groupsResponse = await getWorkspaceGroups(testWorkspaceId);
-      console.log('Full groups response:', groupsResponse);
-  
+
+      // Fetch all contacts
+      const contactsData = selectedGroup === 'all'
+        ? await fetchAllContacts(currentWorkspaceId)
+        : await fetchAllContacts(currentWorkspaceId, selectedGroup);
+      console.log('Fetched contacts:', contactsData.length);
+
+      // Fetch all groups
+      const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
       const groupsData = Array.isArray(groupsResponse) ? groupsResponse : groupsResponse?.data || [];
-      const updatedContacts = await Promise.all(
-        contactsData.map(async (contact) => {
-          try {
-            const contactGroupsResponse = await getContactGroups(testWorkspaceId, contact.contact_id);
-            const contactGroups = Array.isArray(contactGroupsResponse)
-              ? contactGroupsResponse
-              : contactGroupsResponse?.data || [];
-            return {
-              ...contact,
-              group_ids: contactGroups.map((group: Group) => group.group_id || ''),
-            };
-          } catch (err) {
-            console.warn(`Failed to fetch groups for contact ${contact.contact_id}:`, err);
-            return { ...contact, group_ids: [] };
-          }
-        })
-      );
-  
-      const updatedGroups = await Promise.all(
-        groupsData.map(async (group) => {
-          let groupContactCount = group.count || 0;
-          if (!group.count || group.count === 0) {
-            try {
-              const groupContactsResponse = await getGroupContacts(testWorkspaceId, group.group_id);
-              groupContactCount = Array.isArray(groupContactsResponse) ? groupContactsResponse.length : 0;
-            } catch (err) {
-              console.warn(`Failed to fetch contact count for group ${group.group_id}:`, err);
+      console.log('Fetched groups:', groupsData);
+
+      // Build a mapping of contacts to their groups
+      const contactToGroupsMap: { [contactId: string]: string[] } = {};
+      contactsData.forEach((contact) => {
+        contactToGroupsMap[contact.contact_id] = [];
+      });
+
+      // Fetch group contacts to map contacts to groups
+      const groupContactsPromises = groupsData.map(async (group) => {
+        try {
+          const groupContacts = await fetchAllContacts(currentWorkspaceId, group.group_id);
+          groupContacts.forEach((contact) => {
+            if (contactToGroupsMap[contact.contact_id]) {
+              contactToGroupsMap[contact.contact_id].push(group.group_id);
             }
-          }
-          return {
-            ...group,
-            count: groupContactCount,
-            created_at: group.created_at || new Date().toISOString(),
-          };
-        })
-      );
-  
+          });
+          return { ...group, count: groupContacts.length };
+        } catch (err) {
+          console.warn(`Failed to fetch contacts for group ${group.group_id}:`, err);
+          return { ...group, count: 0 };
+        }
+      });
+
+      const updatedGroups = await Promise.all(groupContactsPromises);
+
+      // Update contacts with their group_ids
+      const updatedContacts = contactsData.map((contact) => ({
+        ...contact,
+        group_ids: contactToGroupsMap[contact.contact_id] || [],
+      }));
+
       const allGroup = {
         group_id: 'all',
         name: 'All Contacts',
-        workspace_id: testWorkspaceId,
+        workspace_id: currentWorkspaceId,
         created_at: '',
-        count: updatedContacts.length,
+        count: contactsData.length,
       };
-  
+
       setContacts(updatedContacts);
       setGroups([allGroup, ...updatedGroups]);
       setError(null);
@@ -350,180 +376,202 @@ const Contacts: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedGroup]);
+  }, [currentWorkspaceId, selectedGroup, fetchAllContacts]);
 
-  
   useEffect(() => {
     fetchContactsAndGroups();
   }, [fetchContactsAndGroups]);
 
-  const handleAddContact = useCallback(async (contact: Partial<Contact>) => {
-    if (!currentWorkspaceId) {
-      setError('No workspace selected.');
-      return;
-    }
-
-    const { name, phone_number, email, group_ids } = contact;
-    const trimmedName = name?.trim() || '';
-    const trimmedPhone = phone_number?.trim() || '';
-    const trimmedEmail = email?.trim() || '';
-
-    if (!trimmedName || !trimmedPhone) {
-      setError('Name and phone number are required.');
-      return;
-    }
-
-    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-
-    try {
-      const contactPayload = {
-        name: trimmedName,
-        phone_number: trimmedPhone,
-        email: trimmedEmail || '',
-        workspace_id: currentWorkspaceId,
-      };
-      const createdContact = await createContact(contactPayload);
-
-      if (group_ids && group_ids.length > 0) {
-        const groupsToAdd = group_ids.filter((groupId) => groupId !== 'all');
-        await Promise.all(
-          groupsToAdd.map(async (groupId) => {
-            await addContactsToGroup(groupId, [createdContact.contact_id]);
-          })
-        );
+  const handleAddContact = useCallback(
+    async (contact: Partial<Contact>) => {
+      if (!currentWorkspaceId) {
+        setError('No workspace selected.');
+        return;
       }
 
-      await fetchContactsAndGroups();
-      setShowAddContact(false);
-      setNewContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
-      setError(null);
-    } catch (error: any) {
-      console.error('Error adding contact:', error);
-      setError(error.message || 'Failed to add contact.');
-    }
-  }, [currentWorkspaceId, fetchContactsAndGroups]);
+      const { name, phone_number, email, group_ids } = contact;
+      const trimmedName = name?.trim() || '';
+      const trimmedPhone = phone_number?.trim() || '';
+      const trimmedEmail = email?.trim() || '';
 
-  const handleUpdateContact = useCallback(async (contact: Partial<Contact>) => {
-    if (!currentWorkspaceId || !contact.contact_id) {
-      setError('No workspace or contact selected.');
-      return;
-    }
-
-    const { contact_id, name, phone_number, email, group_ids } = contact;
-    const trimmedName = name?.trim() || '';
-    const trimmedPhone = phone_number?.trim() || '';
-    const trimmedEmail = email?.trim() || '';
-
-    if (!trimmedName || !trimmedPhone) {
-      setError('Name and phone number are required.');
-      return;
-    }
-
-    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-
-    try {
-      await updateContact(contact_id, {
-        name: trimmedName,
-        phone_number: trimmedPhone,
-        email: trimmedEmail || '',
-        workspace_id: currentWorkspaceId,
-      });
-
-      if (group_ids) {
-        const currentGroups = await getContactGroups(currentWorkspaceId, contact_id);
-        const currentGroupIds = currentGroups.map((group: Group) => group.group_id || '');
-        const groupsToAdd = group_ids.filter((groupId) => !currentGroupIds.includes(groupId) && groupId !== 'all');
-        const groupsToRemove = currentGroupIds.filter(
-          (groupId: string) => groupId !== 'all' && !group_ids.includes(groupId)
-        );
-
-        await Promise.all(
-          groupsToAdd.map(async (groupId) => {
-            await addContactsToGroup(groupId, [contact_id]);
-          })
-        );
+      if (!trimmedName || !trimmedPhone) {
+        setError('Name and phone number are required.');
+        return;
       }
 
-      await fetchContactsAndGroups();
-      setShowEditContact(false);
-      setEditContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
-      setError(null);
-    } catch (error: any) {
-      console.error('Error updating contact:', error);
-      setError(error.message || 'Failed to update contact.');
-    }
-  }, [currentWorkspaceId, fetchContactsAndGroups]);
+      if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        setError('Please enter a valid email address.');
+        return;
+      }
 
-  const handleDeleteContact = useCallback(async (contactId: string) => {
-    if (!contactId) {
-      setError('Contact ID is undefined. Cannot delete.');
-      console.error('Attempted to delete contact with undefined ID');
-      return;
-    }
+      try {
+        const contactPayload = {
+          name: trimmedName,
+          phone_number: trimmedPhone,
+          email: trimmedEmail || '',
+          workspace_id: currentWorkspaceId,
+        };
+        const createdContact = await createContact(contactPayload);
 
-    if (!window.confirm('Are you sure you want to delete this contact?')) return;
+        if (group_ids && group_ids.length > 0) {
+          const groupsToAdd = group_ids.filter((groupId) => groupId !== 'all');
+          await Promise.all(
+            groupsToAdd.map(async (groupId) => {
+              await addContactsToGroup(groupId, [createdContact.contact_id]);
+            })
+          );
+        }
 
-    if (!currentWorkspaceId) {
-      setError('No workspace selected.');
-      return;
-    }
+        await fetchContactsAndGroups();
+        setShowAddContact(false);
+        setNewContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
+        setError(null);
+      } catch (error: any) {
+        console.error('Error adding contact:', error);
+        setError(error.message || 'Failed to add contact.');
+      }
+    },
+    [currentWorkspaceId, fetchContactsAndGroups]
+  );
 
-    try {
-      await deleteContact(contactId);
-      await fetchContactsAndGroups();
-      setError(null);
-    } catch (error: any) {
-      console.error('Error deleting contact:', error);
-      setError(error.message || 'Failed to delete contact.');
-    }
-  }, [currentWorkspaceId, fetchContactsAndGroups]);
+  const handleUpdateContact = useCallback(
+    async (contact: Partial<Contact>) => {
+      if (!currentWorkspaceId || !contact.contact_id) {
+        setError('No workspace or contact selected.');
+        return;
+      }
 
-  const handleAddGroup = useCallback(async () => {
-    if (!currentWorkspaceId || !newGroupName.trim()) {
-      setError('Group name is required.');
-      return;
-    }
+      const { contact_id, name, phone_number, email, group_ids } = contact;
+      const trimmedName = name?.trim() || '';
+      const trimmedPhone = phone_number?.trim() || '';
+      const trimmedEmail = email?.trim() || '';
 
-    try {
-      const groupPayload = {
-        name: newGroupName.trim(),
-        workspace_id: currentWorkspaceId,
-      };
-      const createdGroup = await createGroup(groupPayload);
-      setGroups((prev) => [
-        ...prev,
-        { ...createdGroup, count: 0, created_at: new Date().toISOString() },
-      ]);
-      setShowAddGroup(false);
-      setNewGroupName('');
-      await fetchContactsAndGroups();
-      setError(null);
-    } catch (error: any) {
-      console.error('Error adding group:', error);
-      setError(error.message || 'Failed to add group.');
-    }
-  }, [currentWorkspaceId, newGroupName, fetchContactsAndGroups]);
+      if (!trimmedName || !trimmedPhone) {
+        setError('Name and phone number are required.');
+        return;
+      }
 
-  const handleDeleteGroup = useCallback(async (groupId: string) => {
-    if (groupId === 'all' || !window.confirm('Are you sure you want to delete this group?')) return;
+      if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        setError('Please enter a valid email address.');
+        return;
+      }
 
-    try {
-      await deleteGroup(groupId);
-      setGroups((prev) => prev.filter((g) => g.group_id !== groupId));
-      if (selectedGroup === groupId) setSelectedGroup('all');
-      await fetchContactsAndGroups();
-      setError(null);
-    } catch (error: any) {
-      console.error('Error deleting group:', error);
-      setError(error.message || 'Failed to delete group.');
-    }
-  }, [selectedGroup, fetchContactsAndGroups]);
+      try {
+        await updateContact(contact_id, {
+          name: trimmedName,
+          phone_number: trimmedPhone,
+          email: trimmedEmail || '',
+          workspace_id: currentWorkspaceId,
+        });
+
+        if (group_ids) {
+          const contactToGroupsMap: { [contactId: string]: string[] } = { [contact_id]: [] };
+          const groupsData = groups.filter((g) => g.group_id !== 'all');
+          await Promise.all(
+            groupsData.map(async (group) => {
+              const groupContacts = await fetchAllContacts(currentWorkspaceId, group.group_id);
+              if (groupContacts.some((c) => c.contact_id === contact_id)) {
+                contactToGroupsMap[contact_id].push(group.group_id);
+              }
+            })
+          );
+          const currentGroupIds = contactToGroupsMap[contact_id];
+          const groupsToAdd = group_ids.filter(
+            (groupId) => !currentGroupIds.includes(groupId) && groupId !== 'all'
+          );
+
+          await Promise.all(
+            groupsToAdd.map(async (groupId) => {
+              await addContactsToGroup(groupId, [contact_id]);
+            })
+          );
+        }
+
+        await fetchContactsAndGroups();
+        setShowEditContact(false);
+        setEditContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
+        setError(null);
+      } catch (error: any) {
+        console.error('Error updating contact:', error);
+        setError(error.message || 'Failed to update contact.');
+      }
+    },
+    [currentWorkspaceId, groups, fetchContactsAndGroups, fetchAllContacts]
+  );
+
+  const handleDeleteContact = useCallback(
+    async (contactId: string) => {
+      if (!contactId) {
+        setError('Contact ID is undefined. Cannot delete.');
+        console.error('Attempted to delete contact with undefined ID');
+        return;
+      }
+
+      if (!window.confirm('Are you sure you want to delete this contact?')) return;
+
+      if (!currentWorkspaceId) {
+        setError('No workspace selected.');
+        return;
+      }
+
+      try {
+        await deleteContact(contactId);
+        await fetchContactsAndGroups();
+        setError(null);
+      } catch (error: any) {
+        console.error('Error deleting contact:', error);
+        setError(error.message || 'Failed to delete contact.');
+      }
+    },
+    [currentWorkspaceId, fetchContactsAndGroups]
+  );
+
+  const handleAddGroup = useCallback(
+    async () => {
+      if (!currentWorkspaceId || !newGroupName.trim()) {
+        setError('Group name is required.');
+        return;
+      }
+
+      try {
+        const groupPayload = {
+          name: newGroupName.trim(),
+          workspace_id: currentWorkspaceId,
+        };
+        const createdGroup = await createGroup(groupPayload);
+        setGroups((prev) => [
+          ...prev,
+          { ...createdGroup, count: 0, created_at: new Date().toISOString() },
+        ]);
+        setShowAddGroup(false);
+        setNewGroupName('');
+        await fetchContactsAndGroups();
+        setError(null);
+      } catch (error: any) {
+        console.error('Error adding group:', error);
+        setError(error.message || 'Failed to add group.');
+      }
+    },
+    [currentWorkspaceId, newGroupName, fetchContactsAndGroups]
+  );
+
+  const handleDeleteGroup = useCallback(
+    async (groupId: string) => {
+      if (groupId === 'all' || !window.confirm('Are you sure you want to delete this group?')) return;
+
+      try {
+        await deleteGroup(groupId);
+        setGroups((prev) => prev.filter((g) => g.group_id !== groupId));
+        if (selectedGroup === groupId) setSelectedGroup('all');
+        await fetchContactsAndGroups();
+        setError(null);
+      } catch (error: any) {
+        console.error('Error deleting group:', error);
+        setError(error.message || 'Failed to delete group.');
+      }
+    },
+    [selectedGroup, fetchContactsAndGroups]
+  );
 
   const handleImportSubmit = useCallback(
     async (groupId: string, file: File) => {
@@ -608,13 +656,13 @@ const Contacts: React.FC = () => {
     },
     {
       name: 'Groups',
-      selector: (row: Contact) =>
-        row.group_ids && row.group_ids.length > 0
-          ? row.group_ids
-              .map((groupId) => groups.find((g) => g.group_id === groupId)?.name)
-              .filter(Boolean)
-              .join(', ')
-          : 'None',
+      selector: (row: Contact) => {
+        const groupNames = (row.group_ids || [])
+          .map((groupId) => groups.find((g) => g.group_id === groupId)?.name)
+          .filter(Boolean)
+          .join(', ');
+        return groupNames || 'None';
+      },
       sortable: false,
     },
     {
@@ -769,11 +817,16 @@ const Contacts: React.FC = () => {
                 </div>
               </div>
 
-              <DataTable
+              <StyledDataTable
                 columns={columns}
                 data={filteredContacts}
                 pagination
-                paginationPerPage={contactsPerPage}
+                paginationPerPage={25}
+                paginationRowsPerPageOptions={[10, 25, 50, 100]}
+                paginationComponentOptions={{
+                  rowsPerPageText: 'Contacts per page:',
+                  rangeSeparatorText: 'of',
+                }}
                 progressPending={isLoading}
                 progressComponent={<div className="p-4 text-center text-gray-500">Loading contacts...</div>}
                 noDataComponent={<div className="p-4 text-center text-gray-500">No contacts found.</div>}
@@ -797,7 +850,15 @@ const Contacts: React.FC = () => {
                       overflow: 'hidden',
                     },
                   },
+                  pagination: {
+                    style: {
+                      borderTop: '1px solid #e5e7eb',
+                      padding: '10px',
+                    },
+                  },
                 }}
+                highlightOnHover
+                striped
               />
             </div>
           </div>

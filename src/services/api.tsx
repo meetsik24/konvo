@@ -1,7 +1,7 @@
 // services/api.tsx
 import axios from "axios";
 
-const API_BASE_URL = "http://143.110.232.76:8000/";
+const API_BASE_URL = "http://143.110.232.76:8000";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,7 +10,7 @@ const api = axios.create({
   },
 });
 
-//  Attach Token Automatically Before Each Request
+// Attach Token Automatically Before Each Request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -22,9 +22,154 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Add Response Interceptor for 401 Unauthorized
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
 
-//REGISTER USER 
-export const registerUser = async (username: string, fullName: string, email: string, mobileNumber: string, password: string) => {
+// Interfaces
+interface User {
+  email: string;
+  username: string;
+  full_name?: string;
+  mobile_number?: string;
+  avatar?: string;
+}
+
+interface Contact {
+  contact_id: string;
+  workspace_id: string;
+  name: string;
+  phone_number: string;
+  email: string;
+  created_at: string;
+}
+
+interface ContactsResponse {
+  contacts: Contact[];
+  total_count: number;
+  total_pages: number;
+  current_page: number;
+}
+
+interface Group {
+  group_id: string;
+  name: string;
+  workspace_id: string;
+  created_at?: string;
+  count?: number;
+}
+
+interface Workspace {
+  workspace_id: string;
+  name: string;
+  created_at: string;
+}
+
+interface Campaign {
+  campaign_id: string;
+  name: string;
+  description?: string;
+  launch_date?: string;
+  workspace_id: string;
+  created_at: string;
+}
+
+interface Notification {
+  notification_id: string;
+  user_id: string;
+  message: string;
+  created_at: string;
+  is_read: boolean;
+}
+
+interface LogResponse {
+  user_id: string;
+  logs: {
+    log_id: string;
+    message_id: string;
+    status: "pending" | "delivered" | "failed";
+    timestamp: string;
+    error_details?: string;
+  }[];
+}
+
+interface Plan {
+  plan_name: string;
+  description: string;
+  sms_count: number;
+  email_count: number;
+  call_minutes: number;
+  price: string;
+  duration: string;
+  plan_id: string;
+  isContactSales?: boolean;
+}
+
+interface SubscriptionUsage {
+  user_id: string;
+  plan_id: string;
+  sms_count: number;
+  email_count: number;
+  call_minute_count: number;
+  timestamp: string;
+}
+
+interface SenderId {
+  sender_id: string;
+  user_id: string;
+  is_approved: boolean;
+  approved_at?: string;
+  name: string;
+  created_at?: string;
+  request_id?: string;
+  status?: "pending" | "approved" | "rejected";
+  requested_at?: string;
+  reviewed_at?: string;
+}
+
+interface Message {
+  message_id: string;
+  user_id: string;
+  workspace_id: string;
+  sender_id: string;
+  recipients: string[];
+  content: string;
+  status: "pending" | "delivered" | "failed";
+  created_at: string;
+  error_details?: string;
+}
+
+// Utility function for consistent error handling
+const handleApiError = (error: any, defaultMessage: string): never => {
+  const message =
+    error.response?.data?.message ||
+    error.response?.data?.detail ||
+    error.message ||
+    defaultMessage;
+  console.error(`${defaultMessage}:`, {
+    message,
+    status: error.response?.status,
+    data: error.response?.data,
+  });
+  throw new Error(message);
+};
+
+// AUTHENTICATION
+export const registerUser = async (
+  username: string,
+  fullName: string,
+  email: string,
+  mobileNumber: string,
+  password: string
+): Promise<User> => {
   try {
     const response = await api.post("/auth/register", {
       username,
@@ -47,637 +192,532 @@ export const registerUser = async (username: string, fullName: string, email: st
     throw { message: errorMsg, validationErrors };
   }
 };
-//  Login User & Store Token in Local Storage
-export const loginUser = async (identifier: string, password: string) => {
+
+export const loginUser = async (identifier: string, password: string): Promise<{ token: string; user: User }> => {
   try {
     const formData = new FormData();
-    formData.append('grant_type', 'password');
-    formData.append('username', identifier);
-    formData.append('password', password);
-    formData.append('scope', '');
-    formData.append('client_id', '');
-    formData.append('client_secret', '');
+    formData.append("grant_type", "password");
+    formData.append("username", identifier);
+    formData.append("password", password);
+    formData.append("scope", "");
+    formData.append("client_id", "");
+    formData.append("client_secret", "");
 
     const response = await api.post("/auth/login", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
 
-    const { access_token, user } = response.data; // Ensure correct field name
+    const { access_token, user } = response.data;
     if (access_token) {
-      localStorage.setItem("token", access_token); // Store token for reuse
+      localStorage.setItem("token", access_token);
     }
-    
+
     return { token: access_token, user };
-  } catch (error) {
-    console.error("Login failed:", error.response?.data || error.message);
-    throw error;
+  } catch (error: any) {
+    handleApiError(error, "Login failed");
   }
 };
 
-//  Logout Function (Clear Token)
-export const logoutUser = () => {
+export const logoutUser = (): void => {
   localStorage.removeItem("token");
   console.log("Logged out successfully!");
 };
 
-
-
-// Logs Endpoints
-interface LogResponse {
-  user_id: string;
-  logs: {
-    log_id: string;
-    message_id: string;
-    status: 'pending' | 'delivered' | 'failed';
-    timestamp: string;
-    error_details?: string;
-  }[];
-}
-
-// Fetch SMS logs
+// LOGS
 export const fetchLogs = async (): Promise<LogResponse> => {
   try {
-    const response = await api.get('/messages/logs');
+    const response = await api.get("/messages/logs");
     return response.data;
   } catch (error: any) {
-    const message = error.response?.data?.message || error.message;
-    console.error('fetchLogs error:', message);
-    throw new Error(`Failed to fetch logs: ${message}`);
+    handleApiError(error, "Failed to fetch logs");
   }
 };
 
-
-//WORKSPACE
-
-export const createWorkspace = async (name: string) => {
+// WORKSPACES
+export const createWorkspace = async (name: string): Promise<Workspace> => {
   try {
     const response = await api.post("/workspaces", { name });
     return response.data;
   } catch (error: any) {
-    console.error('Failed to create workspace:', error.response?.data || error.message);
-    throw new Error('Failed to create workspace');
+    handleApiError(error, "Failed to create workspace");
   }
 };
 
-
-export const getWorkspaces = async () => {
-  console.log('getWorkspaces API call initiated');
+export const getWorkspaces = async (): Promise<Workspace[]> => {
+  console.log("getWorkspaces API call initiated");
   try {
-    const response = await api.get('/workspaces'); // Removed trailing slash
-    console.log('getWorkspaces API response:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('getWorkspaces API error:', {
-      message: error.message,
-      response: error.response ? {
-        status: error.response.status,
-        data: error.response.data,
-      } : 'No response data',
-    });
-    throw error;
-  }
-};
-
-interface Workspace {
-  name: string;
-  // Add other properties of Workspace as needed
-}
-
-export const UpdateWorkspace = async (id: string, data: Partial<Workspace>) => {
-  const response = await fetch(`/workspaces/${id}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    throw new Error('Failed to update workspace');
-  }
-  const updatedData = await response.json();
-  return updatedData;
-};
-
-export const deleteWorkspace = async (id: string) => {
-  console.log('deleteWorkspace API call initiated for ID:', id);
-  try {
-    const response = await api.delete(`/workspaces/${id}`);
-    console.log('deleteWorkspace API response:', response.data);
-    return response.data; // Might be empty (204 No Content), adjust if needed
-  } catch (error: any) {
-    console.error('deleteWorkspace API error:', error);
-    throw error;
-  }
-};
-
-
-//CAMPAIGNS
-export const getCampaigns = async () => {
-  console.log('getCampaigns API call initiated');
-  try {
-    const response = await api.get('/campaigns');
-    console.log('getCampaigns API response:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('getCampaigns API error:', error);
-    throw error;
-  }
-};
-
-export const createCampaign = async (data: { name: string; description?: string; launch_date?: string; workspace_id: string }) => {
-  console.log('createCampaign API call initiated with data:', data);
-  try {
-    const response = await api.post('/campaigns', data);
-    console.log('createCampaign API response:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('createCampaign API error:', error);
-    throw error;
-  }
-};
-
-export const updateCampaign = async (campaignId: string, data: Partial<{ name: string; description?: string; launch_date?: string }>) => {
-  console.log('updateCampaign API call initiated for campaign:', campaignId, 'with data:', data);
-  try {
-    const response = await api.patch(`/campaigns/${campaignId}`, data);
-    console.log('updateCampaign API response:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('updateCampaign API error:', error);
-    throw error;
-  }
-};
-
-export const deleteCampaign = async (campaignId: string) => {
-  console.log('deleteCampaign API call initiated for campaign:', campaignId);
-  try {
-    const response = await api.delete(`/campaigns/${campaignId}`);
-    console.log('deleteCampaign API response:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('deleteCampaign API error:', error);
-    throw error;
-  }
-};
-
-
-//CONTACTS
-
-export const getContacts = async (workspaceId: string): Promise<Contact[]> => {
-  try {
-    const response = await api.get(`/workspaces/${workspaceId}/contacts`);
-    console.log('Raw contacts response:', response.data); // Debug log
-    // Ensure the response is an array; if not, return an empty array
+    const response = await api.get("/workspaces");
+    console.log("getWorkspaces API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.error('Error fetching contacts:', error.response?.data || error.message);
-    return []; // Return empty array on error instead of throwing
+    handleApiError(error, "Failed to fetch workspaces");
   }
 };
 
-export const createContact = async (data: { name: string; phone_number: string; email: string; workspace_id: string; group_id?: string }) => {
-  console.log('createContact API call initiated with data:', data);
+export const updateWorkspace = async (id: string, data: Partial<Workspace>): Promise<Workspace> => {
   try {
-    const response = await api.post('/contacts/', data);
-    console.log('createContact API response:', response.data);
+    const response = await api.patch(`/workspaces/${id}`, data);
     return response.data;
   } catch (error: any) {
-    console.error('createContact API error:', error.response ? error.response.data : error);
-    throw error;
+    handleApiError(error, "Failed to update workspace");
   }
 };
 
-// Update an existing contact (new endpoint)
-// Define the Contact interface if not already defined
-interface Contact {
+export const deleteWorkspace = async (id: string): Promise<void> => {
+  console.log("deleteWorkspace API call initiated for ID:", id);
+  try {
+    await api.delete(`/workspaces/${id}`);
+    console.log("Workspace deleted successfully");
+  } catch (error: any) {
+    handleApiError(error, "Failed to delete workspace");
+  }
+};
+
+// CAMPAIGNS
+export const getCampaigns = async (): Promise<Campaign[]> => {
+  console.log("getCampaigns API call initiated");
+  try {
+    const response = await api.get("/campaigns");
+    console.log("getCampaigns API response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch campaigns");
+  }
+};
+
+export const createCampaign = async (data: {
+  name: string;
+  description?: string;
+  launch_date?: string;
+  workspace_id: string;
+}): Promise<Campaign> => {
+  console.log("createCampaign API call initiated with data:", data);
+  try {
+    const response = await api.post("/campaigns", data);
+    console.log("createCampaign API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to create campaign");
+  }
+};
+
+export const updateCampaign = async (
+  campaignId: string,
+  data: Partial<{ name: string; description?: string; launch_date?: string }>
+): Promise<Campaign> => {
+  console.log("updateCampaign API call initiated for campaign:", campaignId, "with data:", data);
+  try {
+    const response = await api.patch(`/campaigns/${campaignId}`, data);
+    console.log("updateCampaign API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to update campaign");
+  }
+};
+
+export const deleteCampaign = async (campaignId: string): Promise<void> => {
+  console.log("deleteCampaign API call initiated for campaign:", campaignId);
+  try {
+    await api.delete(`/campaigns/${campaignId}`);
+    console.log("Campaign deleted successfully");
+  } catch (error: any) {
+    handleApiError(error, "Failed to delete campaign");
+  }
+};
+
+// CONTACTS
+export const getContacts = async (
+  workspaceId: string,
+  page: number = 1,
+  perPage: number = 100
+): Promise<ContactsResponse> => {
+  try {
+    const response = await api.get(`/workspaces/${workspaceId}/contacts`, {
+      params: { page, per_page: perPage },
+    });
+    console.log("Raw getContacts response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch contacts");
+  }
+};
+
+export const getGroupContacts = async (
+  workspaceId: string,
+  groupId: string,
+  page: number = 1,
+  perPage: number = 50
+): Promise<ContactsResponse> => {
+  try {
+    console.log(`Fetching contacts for group ${groupId} in workspace ${workspaceId}`);
+    const response = await api.get(`/workspaces/${workspaceId}/groups/${groupId}/contacts`, {
+      params: { page, per_page: perPage },
+    });
+    console.log(`Raw getGroupContacts response for group ${groupId}:`, response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, `Failed to fetch contacts for group ${groupId}`);
+  }
+};
+
+export const createContact = async (data: {
   name: string;
   phone_number: string;
   email: string;
   workspace_id: string;
   group_id?: string;
-}
+}): Promise<Contact> => {
+  console.log("createContact API call initiated with data:", data);
+  try {
+    const response = await api.post("/contacts", data);
+    console.log("createContact API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to create contact");
+  }
+};
+
+export const bulkUploadContacts = async (workspaceId: string, file: File): Promise<any> => {
+  console.log("bulkUploadContacts API call initiated for workspace:", workspaceId);
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("workspace_id", workspaceId);
+    const response = await api.post("/contacts/bulk-upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    console.log("bulkUploadContacts API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to bulk upload contacts");
+  }
+};
 
 export const updateContact = async (contactId: string, contact: Partial<Contact>): Promise<Contact> => {
   try {
     const response = await api.patch(`/contacts/${contactId}`, contact);
+    console.log("updateContact API response:", response.data);
     return response.data;
-  } catch (error) {
-    console.error('Error updating contact:', error);
-    throw error;
+  } catch (error: any) {
+    handleApiError(error, "Failed to update contact");
   }
 };
 
 export const deleteContact = async (contactId: string): Promise<void> => {
   if (!contactId) {
-    throw new Error('Contact ID is undefined');
+    throw new Error("Contact ID is undefined");
   }
   try {
     await api.delete(`/contacts/${contactId}`);
+    console.log(`Contact ${contactId} deleted successfully`);
   } catch (error: any) {
-    console.error('deleteContact API error:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.detail || 'Failed to delete contact');
+    handleApiError(error, "Failed to delete contact");
   }
 };
 
+export const getContactMetrics = async (): Promise<any> => {
+  try {
+    const response = await api.get("/contacts/metrics");
+    console.log("getContactMetrics API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch contact metrics");
+  }
+};
 
-// Group Endpoints
-export const getWorkspaceGroups = async (workspaceId: string) => {
-  console.log('getWorkspaceGroups API call initiated for workspace:', workspaceId);
+// GROUPS
+export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> => {
+  console.log("getWorkspaceGroups API call initiated for workspace:", workspaceId);
   try {
     const response = await api.get(`/workspaces/${workspaceId}/contact-groups`);
-    console.log('getWorkspaceGroups API response:', response.data);
-    return response.data; // Expecting [{ group_id, workspace_id, name, created_at }]
+    console.log("getWorkspaceGroups API response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.error('getWorkspaceGroups API error:', error.response ? error.response.data : error);
-    throw error;
+    handleApiError(error, "Failed to fetch workspace groups");
   }
 };
 
-export const getCampaignGroups = async (campaignId: string) => {
-  console.log('getCampaignGroups API call initiated for campaign:', campaignId);
+export const getCampaignGroups = async (campaignId: string): Promise<Group[]> => {
+  console.log("getCampaignGroups API call initiated for campaign:", campaignId);
   try {
     const response = await api.get(`/campaigns/${campaignId}/contact-groups`);
-    console.log('getCampaignGroups API response:', response.data);
-    return response.data; // Expecting [{ group_id, workspace_id, name, created_at }]
+    console.log("getCampaignGroups API response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.error('getCampaignGroups API error:', error.response ? error.response.data : error);
-    throw error;
+    handleApiError(error, "Failed to fetch campaign groups");
   }
 };
 
-export const createGroup = async (data: { name: string; workspace_id: string }) => {
-  console.log('createGroup API call initiated with data:', data);
+export const createGroup = async (data: { name: string; workspace_id: string }): Promise<Group> => {
+  console.log("createGroup API call initiated with data:", data);
   try {
-    const response = await api.post('/contact-groups/', data);
-    console.log('createGroup API response:', response.data);
-    return response.data; // Expecting { group_id, workspace_id, name, created_at }
+    const response = await api.post("/contact-groups", data);
+    console.log("createGroup API response:", response.data);
+    return response.data;
   } catch (error: any) {
-    console.error('createGroup API error:', error.response ? error.response.data : error);
-    throw error;
+    handleApiError(error, "Failed to create group");
   }
 };
-
-
-
 
 export const getContactGroups = async (workspaceId: string, contactId: string): Promise<Group[]> => {
   try {
-    const response = await api.get(`/contacts/${contactId}/contact-groups`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching groups for contact ${contactId}:`, error);
-    throw error;
+    const response = await api.get(`/workspaces/${workspaceId}/contacts/${contactId}/groups`);
+    console.log("Raw getContactGroups response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    handleApiError(error, `Failed to fetch groups for contact ${contactId}`);
   }
 };
 
-
-
-
-
-export const addContactsToGroup = async (groupId: string, contactIds: string[]) => {
-  console.log('addContactsToGroup API call initiated for group:', groupId, 'with contacts:', contactIds);
+export const addContactsToGroup = async (groupId: string, contactIds: string[]): Promise<void> => {
+  console.log("addContactsToGroup API call initiated for group:", groupId, "with contacts:", contactIds);
   try {
-    const response = await api.post(`/contact-groups/${groupId}/add-contacts`, { contact_ids: contactIds });
-    console.log('addContactsToGroup API response:', response.data);
+    await api.post(`/contact-groups/${groupId}/add-contacts`, { contact_ids: contactIds });
+    console.log("Contacts added to group successfully");
+  } catch (error: any) {
+    handleApiError(error, "Failed to add contacts to group");
+  }
+};
+
+export const assignGroupToCampaign = async (groupId: string, campaignId: string): Promise<void> => {
+  console.log("assignGroupToCampaign API call initiated for group:", groupId, "to campaign:", campaignId);
+  try {
+    await api.post(`/contact-groups/${groupId}/assign-to-campaign`, { campaign_id: campaignId });
+    console.log("Group assigned to campaign successfully");
+  } catch (error: any) {
+    handleApiError(error, "Failed to assign group to campaign");
+  }
+};
+
+export const deleteGroup = async (groupId: string): Promise<void> => {
+  console.log("deleteGroup API call initiated for group:", groupId);
+  try {
+    await api.delete(`/contact-groups/${groupId}`);
+    console.log("Group deleted successfully");
+  } catch (error: any) {
+    handleApiError(error, "Failed to delete group");
+  }
+};
+
+// SENDER IDS
+export const requestSenderId = async (workspaceId: string, data: { sender_id: string }): Promise<SenderId> => {
+  console.log("requestSenderId API call initiated for workspace:", workspaceId, "with data:", data);
+  try {
+    const response = await api.post("/sender-ids/request", { ...data, workspace_id: workspaceId });
+    console.log("requestSenderId API response:", response.data);
     return response.data;
   } catch (error: any) {
-    console.error('addContactsToGroup API error:', error.response ? error.response.data : error);
-    throw error;
+    handleApiError(error, "Failed to request sender ID");
   }
 };
 
-export const assignGroupToCampaign = async (groupId: string, campaignId: string) => {
-  console.log('assignGroupToCampaign API call initiated for group:', groupId, 'to campaign:', campaignId);
-  try {
-    const response = await api.post(`/contact-groups/${groupId}/assign-to-campaign`, { campaign_id: campaignId });
-    console.log('assignGroupToCampaign API response:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('assignGroupToCampaign API error:', error.response ? error.response.data : error);
-    throw error;
-  }
-};
-
-export const deleteGroup = async (groupId: string) => {
-  console.log('deleteGroup API call initiated for group:', groupId);
-  try {
-    const response = await api.delete(`/contact-groups/${groupId}`);
-    console.log('deleteGroup API response:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('deleteGroup API error:', error.response ? error.response.data : error);
-    throw error;
-  }
-};
-
-// Updated getGroupContacts with correct endpoint
-export const getGroupContacts = async (workspaceId: string, groupId: string): Promise<Contact[]> => {
-  try {
-    console.log(`Fetching contacts for group ${groupId} in workspace ${workspaceId}`);
-    const response = await api.get(`/workspaces/${workspaceId}/groups/${groupId}/contacts`);
-    console.log(`Contacts for group ${groupId}:`, response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error(`getGroupContacts API error for group ${groupId}:`, error.response?.data || error.message);
-    // Fallback: Fetch all contacts and filter by group_ids
-    try {
-      console.log(`Falling back to fetching all contacts for workspace ${workspaceId}`);
-      const allContacts = await getContacts(workspaceId);
-      const filteredContacts = allContacts.filter(
-        (contact) => contact.group_ids && contact.group_ids.includes(groupId)
-      );
-      console.log(`Filtered contacts for group ${groupId}:`, filteredContacts);
-      return filteredContacts;
-    } catch (fallbackError: any) {
-      console.error('Fallback failed:', fallbackError.response?.data || fallbackError.message);
-      return []; // Return empty array instead of throwing error
-    }
-  }
-};
-
-
-
-
-
-// Request a new sender ID
-export const requestSenderId = async (workspaceId: string, data: { sender_id: string }) => {
-  console.log('requestSenderId API call initiated for workspace:', workspaceId, 'with data:', data);
-  try {
-    const response = await api.post(`/sender-ids/request`, { ...data, workspace_id: workspaceId });
-    console.log('requestSenderId API response:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('requestSenderId API error:', error.response ? error.response.data : error);
-    throw error;
-  }
-};
-
-// Get user sender ID requests
-export const getUserSenderRequests = async (workspaceId: string) => {
-  console.log('getUserSenderRequests API call initiated for workspace:', workspaceId);
+export const getUserSenderRequests = async (workspaceId: string): Promise<SenderId[]> => {
+  console.log("getUserSenderRequests API call initiated for workspace:", workspaceId);
   try {
     const response = await api.get(`/sender-ids/requests?workspace_id=${workspaceId}`);
-    console.log('getUserSenderRequests API response:', response.data);
-    return response.data;
+    console.log("getUserSenderRequests API response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.error('getUserSenderRequests API error:', error.response ? error.response.data : error);
-    throw error;
+    handleApiError(error, "Failed to fetch user sender requests");
   }
 };
 
-// Get admin sender ID requests
-export const getAdminSenderRequests = async (workspaceId: string) => {
-  console.log('getAdminSenderRequests API call initiated for workspace:', workspaceId);
+export const getAdminSenderRequests = async (workspaceId: string): Promise<SenderId[]> => {
+  console.log("getAdminSenderRequests API call initiated for workspace:", workspaceId);
   try {
     const response = await api.get(`/admin/sender-ids/requests?workspace_id=${workspaceId}`);
-    console.log('getAdminSenderRequests API response:', response.data);
-    return response.data;
+    console.log("getAdminSenderRequests API response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.error('getAdminSenderRequests API error:', error.response ? error.response.data : error);
-    throw error;
+    handleApiError(error, "Failed to fetch admin sender requests");
   }
 };
 
-// Review a sender ID request
-export const reviewSenderIdRequest = async (workspaceId: string, requestId: string, data: { status: 'approved' | 'rejected' }) => {
-  console.log('reviewSenderIdRequest API call initiated for request:', requestId, 'with data:', data);
+export const reviewSenderIdRequest = async (
+  workspaceId: string,
+  requestId: string,
+  data: { status: "approved" | "rejected" }
+): Promise<SenderId> => {
+  console.log("reviewSenderIdRequest API call initiated for request:", requestId, "with data:", data);
   try {
-    const response = await api.patch(`/admin/sender-ids/${requestId}/review`, { ...data, workspace_id: workspaceId });
-    console.log('reviewSenderIdRequest API response:', response.data);
+    const response = await api.patch(`/admin/sender-ids/${requestId}/review`, {
+      ...data,
+      workspace_id: workspaceId,
+    });
+    console.log("reviewSenderIdRequest API response:", response.data);
     return response.data;
   } catch (error: any) {
-    console.error('reviewSenderIdRequest API error:', error.response ? error.response.data : error);
-    throw error;
+    handleApiError(error, "Failed to review sender ID request");
   }
 };
 
-// Review a sender ID request// Sender IDs
-export const getApprovedSenderIds = async (workspaceId: string) => {
+export const getApprovedSenderIds = async (workspaceId: string): Promise<SenderId[]> => {
   try {
     const response = await api.get(`/sender-ids/approved?workspace_id=${workspaceId}`);
-    return response.data; // Returns array of objects with sender_id, user_id, is_approved, etc.
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.error('getApprovedSenderIds API error:', error.response?.data || error.message);
-    throw error;
+    handleApiError(error, "Failed to fetch approved sender IDs");
   }
 };
 
-
-
-//UPDATE PROFILE:
-
-export const getProfile = async (token: string) => {
-  console.log('getProfile API call initiated');
+// PROFILE
+export const getProfile = async (): Promise<User> => {
+  console.log("getProfile API call initiated");
   try {
-    const response = await api.get('/users/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    console.log('getProfile API response:', response.data);
-    const userData = {
+    const response = await api.get("/users/me");
+    console.log("getProfile API response:", response.data);
+    return {
       email: response.data.email,
       username: response.data.username,
       full_name: response.data.full_name,
       mobile_number: response.data.mobile_number,
-      avatar: response.data.avatar || undefined, // Map avatar if it exists
+      avatar: response.data.avatar || undefined,
     };
-    return userData as { email: string; username: string; full_name?: string; mobile_number?: string; avatar?: string };
   } catch (error: any) {
-    console.error('getProfile API error:', error.response ? error.response.data : error);
-    throw error;
+    handleApiError(error, "Failed to fetch user profile");
   }
 };
 
-// Update user profile
-export const updateProfile = async (token: string, data: { full_name: string; email: string; mobile_number: string }) => {
-  console.log('updateProfile API call initiated with data:', data);
+export const updateProfile = async (data: {
+  full_name: string;
+  email: string;
+  mobile_number: string;
+}): Promise<User> => {
+  console.log("updateProfile API call initiated with data:", data);
   try {
-    const response = await api.patch('/users/me', data, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    console.log('updateProfile API response:', response.data);
+    const response = await api.patch("/users/me", data);
+    console.log("updateProfile API response:", response.data);
     return response.data;
   } catch (error: any) {
-    console.error('updateProfile API error:', error.response ? error.response.data : error);
-    throw error;
+    handleApiError(error, "Failed to update user profile");
   }
 };
 
-// Change user password
-export const changePassword = async (token: string, data: { current_password: string; new_password: string }) => {
-  console.log('changePassword API call initiated with data:', data);
+export const changePassword = async (data: {
+  current_password: string;
+  new_password: string;
+}): Promise<void> => {
+  console.log("changePassword API call initiated with data:", data);
   try {
-    const response = await api.patch('/users/change-password', data, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    console.log('changePassword API response:', response.data);
-    return response.data;
+    await api.patch("/users/change-password", data);
+    console.log("Password changed successfully");
   } catch (error: any) {
-    console.error('changePassword API error:', error.response ? error.response.data : error);
-    throw error;
+    handleApiError(error, "Failed to change password");
   }
 };
 
-
-
-// PLANS AND SUBSCRIPTIONS:
+// PLANS AND SUBSCRIPTIONS
 export const getPlans = async (): Promise<Plan[]> => {
   try {
-    const response = await api.get('/plans');
-    console.log('getPlans API response:', response.data);
-    return response.data;
+    const response = await api.get("/plans");
+    console.log("getPlans API response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.error('getPlans API error:', error.response?.data || error.message);
-    throw error;
+    handleApiError(error, "Failed to fetch plans");
   }
 };
 
 export const getSubscriptionUsage = async (): Promise<SubscriptionUsage> => {
   try {
-    const response = await api.get('/subscriptions/usage');
-    console.log('getSubscriptionUsage API response:', response.data);
+    const response = await api.get("/subscriptions/usage");
+    console.log("getSubscriptionUsage API response:", response.data);
     return response.data;
   } catch (error: any) {
-    console.error('getSubscriptionUsage API error:', error.response?.data || error.message);
-    throw error;
+    handleApiError(error, "Failed to fetch subscription usage");
   }
 };
 
 export const subscribeToPlan = async (planId: string): Promise<void> => {
   try {
-    const response = await api.post('/subscriptions/subscribe', { plan_id: planId });
-    console.log('subscribeToPlan API response:', response.data);
+    await api.post("/subscriptions/subscribe", { plan_id: planId });
+    console.log("Subscribed to plan successfully");
   } catch (error: any) {
-    console.error('subscribeToPlan API error:', error.response?.data || error.message);
-    throw error;
+    handleApiError(error, "Failed to subscribe to plan");
   }
 };
 
 export const renewSubscription = async (): Promise<void> => {
   try {
-    const response = await api.post('/subscriptions/renew', {});
-    console.log('renewSubscription API response:', response.data);
+    await api.post("/subscriptions/renew", {});
+    console.log("Subscription renewed successfully");
   } catch (error: any) {
-    console.error('renewSubscription API error:', error.response?.data || error.message);
-    throw error;
+    handleApiError(error, "Failed to renew subscription");
   }
 };
 
 export const upgradeSubscription = async (planId: string): Promise<void> => {
   try {
-    const response = await api.post('/subscriptions/upgrade', { plan_id: planId });
-    console.log('upgradeSubscription API response:', response.data);
+    await api.post("/subscriptions/upgrade", { plan_id: planId });
+    console.log("Subscription upgraded successfully");
   } catch (error: any) {
-    console.error('upgradeSubscription API error:', error.response?.data || error.message);
-    throw error;
+    handleApiError(error, "Failed to upgrade subscription");
   }
 };
 
-export interface Plan {
-  plan_name: string;
-  description: string;
-  sms_count: number;
-  email_count: number;
-  call_minutes: number;
-  price: string;
-  duration: string;
-  plan_id: string;
-  isContactSales?: boolean;
-}
-
-export interface SubscriptionUsage {
-  user_id: string;
-  plan_id: string;
-  sms_count: number;
-  email_count: number;
-  call_minute_count: number;
-  timestamp: string;
-}
-
-
-
-
-
-
-//SEND-SMS
-
-
-export const sendInstantMessage = async (workspaceId: string, data: {
-  recipients: string[];
-  content: string;  // Changed from 'message' to 'content'
-  sender_id: string;  // Made required to match schema
-
-}) => {
+// MESSAGES
+export const sendInstantMessage = async (
+  workspaceId: string,
+  data: {
+    recipients: string[];
+    content: string;
+    sender_id: string;
+  }
+): Promise<Message> => {
   try {
-    const response = await api.post('/messages/send-instant', {
+    const response = await api.post("/messages/send-instant", {
       workspace_id: workspaceId,
       ...data,
     });
     return response.data;
   } catch (error: any) {
-    console.error('sendInstantMessage API error:', error.response?.data || error.message);
-    throw error;
+    handleApiError(error, "Failed to send instant message");
   }
 };
 
-export const getMessageLogs = async () => {
+export const getMessageLogs = async (): Promise<Message[]> => {
   try {
-    const response = await api.get('/messages/logs');
-    return response.data;
+    const response = await api.get("/messages/logs");
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.error('getMessageLogs API error:', error.response?.data || error.message);
-    throw error;
+    handleApiError(error, "Failed to fetch message logs");
   }
 };
 
-export const getUserMessages = async () => {
+export const getUserMessages = async (): Promise<Message[]> => {
   try {
-    const response = await api.get('/messages/me');
-    return response.data;
+    const response = await api.get("/messages/me");
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.error('getUserMessages API error:', error.response?.data || error.message);
-    throw error;
+    handleApiError(error, "Failed to fetch user messages");
   }
 };
 
-export const getMessagesByRecipient = async (recipient: string) => {
+export const getMessagesByRecipient = async (recipient: string): Promise<Message[]> => {
   try {
     const response = await api.get(`/messages/recipient/${recipient}`);
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.error('getMessagesByRecipient API error:', error.response?.data || error.message);
-    throw error;
+    handleApiError(error, "Failed to fetch messages by recipient");
   }
 };
 
-export const getMessageDetail = async (messageId: string) => {
+export const getMessageDetail = async (messageId: string): Promise<Message> => {
   try {
     const response = await api.get(`/messages/${messageId}`);
     return response.data;
   } catch (error: any) {
-    console.error('getMessageDetail API error:', error.response?.data || error.message);
-    throw error;
+    handleApiError(error, "Failed to fetch message detail");
   }
 };
 
-
-
-//Notifications
-interface Notification {
-  notification_id: string;
-  user_id: string;
-  message: string;
-  created_at: string;
-  is_read: boolean;
-}
-
-// Fetch all notifications
+// NOTIFICATIONS
 export const fetchNotifications = async (): Promise<Notification[]> => {
   try {
-    const response = await api.get('/notifications/');
-    console.log('Raw fetchNotifications response:', response.data);
+    const response = await api.get("/notifications");
+    console.log("Raw fetchNotifications response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.error('Error fetching notifications:', {
+    console.error("Error fetching notifications:", {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
@@ -686,40 +726,22 @@ export const fetchNotifications = async (): Promise<Notification[]> => {
   }
 };
 
-// Delete a notification
 export const deleteNotification = async (notificationId: string): Promise<void> => {
   try {
     await api.delete(`/notifications/${notificationId}`);
     console.log(`Notification ${notificationId} deleted successfully`);
   } catch (error: any) {
-    console.error(`Error deleting notification ${notificationId}:`, {
-      message: error.message,
-      status: error.response?.status,
-      data: error.response?.data,
-      headers: error.response?.headers,
-    });
-    throw new Error(
-      error.response?.data?.message ||
-        error.message ||
-        `Failed to delete notification ${notificationId}`
-    );
+    handleApiError(error, `Failed to delete notification ${notificationId}`);
   }
 };
 
-// Mark a notification as read
 export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
   try {
     await api.put(`/notifications/${notificationId}/read`);
     console.log(`Notification ${notificationId} marked as read`);
   } catch (error: any) {
-    console.error(`Error marking notification ${notificationId} as read:`, {
-      message: error.message,
-      status: error.response?.status,
-      data: error.response?.data,
-    });
-    throw error;
+    handleApiError(error, `Failed to mark notification ${notificationId} as read`);
   }
 };
-
 
 export default api;

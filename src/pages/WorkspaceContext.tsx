@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store/store'; // Adjust path as needed
-import { getWorkspaces, createWorkspace, UpdateWorkspace as UpdateWorkspace, deleteWorkspace } from '../services/api';
+import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace } from '../services/api'; // Fixed import
 import { logout } from '../store/slices/authSlice';
 
 // Define interfaces for Campaigns and SenderIds to match SendSMS and SenderID components
@@ -147,7 +147,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const handleUpdateWorkspace = useCallback(async (id: string, data: Partial<Workspace>) => {
     if (!id || !data) throw new Error('Invalid workspace ID or data');
     try {
-      const updatedWorkspace = await UpdateWorkspace(id, data);
+      const updatedWorkspace = await updateWorkspace(id, data); // Fixed to use updateWorkspace
       setWorkspaces((prev) =>
         prev.map((ws) =>
           ws.workspace_id === id

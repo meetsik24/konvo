@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, MessageSquare, XCircle, Megaphone, RefreshCw } from 'lucide-react';
+import { Users, MessageSquare, XCircle, Megaphone, RefreshCw, Folder } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import {
   getCampaigns,
-  getContacts,
   getMessageLogs,
+  getContactMetrics,
 } from '../services/api';
 
 interface Stat {
@@ -17,8 +17,8 @@ interface Stat {
 }
 
 interface DataPoint {
-  name: string; // e.g., date
-  value: number; // e.g., message count
+  name: string;
+  value: number;
 }
 
 interface DashboardData {
@@ -32,6 +32,7 @@ const initialDashboardData: DashboardData = {
     { title: 'Number of Campaigns', value: '0', icon: Megaphone, color: 'bg-yellow-500' },
     { title: 'Total Fails', value: '0', icon: XCircle, color: 'bg-red-500' },
     { title: 'Total Contacts', value: '0', icon: Users, color: 'bg-teal-500' },
+    { title: 'Total Contact Groups', value: '0', icon: Folder, color: 'bg-purple-500' },
   ],
   data: [],
 };
@@ -43,101 +44,50 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync with workspace data on workspace change
+  // Sync with workspace data only when currentWorkspaceId changes
   useEffect(() => {
-    if (workspace?.dashboardData?.stats?.length || workspace?.dashboardData?.data?.length) {
+    const storedDashboardData = workspace?.dashboardData;
+    if (storedDashboardData?.stats?.length || storedDashboardData?.data?.length) {
       setDashboardData({
-        stats: workspace.dashboardData.stats || initialDashboardData.stats,
-        data: workspace.dashboardData.data || initialDashboardData.data,
+        stats: storedDashboardData.stats || initialDashboardData.stats,
+        data: storedDashboardData.data || initialDashboardData.data,
       });
       setError(null);
     } else {
       setDashboardData(initialDashboardData);
     }
-  }, [currentWorkspaceId, workspace]);
+  }, [currentWorkspaceId, workspace?.dashboardData]); // Depend only on currentWorkspaceId and dashboardData
 
   // Fetch dashboard data when component mounts or workspace changes
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      if (!currentWorkspaceId || (workspace?.dashboardData?.stats?.length && workspace?.dashboardData?.data?.length)) {
-        return; // Skip if no workspace or data already loaded in workspace
-      }
+  const loadDashboardData = useCallback(async () => {
+    if (!currentWorkspaceId) {
+      setError('No workspace selected.');
+      return;
+    }
 
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Fetch data from multiple endpoints
-        const [campaigns, contacts, logsResponse] = await Promise.all([
-          getCampaigns(),
-          getContacts(currentWorkspaceId),
-          getMessageLogs(),
-        ]);
+    // Check if data is already loaded and non-empty
+    const hasValidData =
+      workspace?.dashboardData?.stats?.some((stat) => stat.value !== '0') ||
+      workspace?.dashboardData?.data?.length > 0;
+    if (hasValidData) {
+      return; // Skip fetching if valid data exists
+    }
 
-        // Extract logs from the response (logsResponse is { user_id, logs })
-        const logs = logsResponse?.logs || [];
-
-        // Compute stats
-        const totalMessages = logs.length;
-        const numberOfCampaigns = Array.isArray(campaigns) ? campaigns.length : 0;
-        const totalFails = logs.filter((log) => log.status === 'failed').length;
-        const totalContacts = Array.isArray(contacts) ? contacts.length : 0;
-
-        // Approximate message volume by grouping logs by date
-        const messageVolume = logs.reduce((acc: { [key: string]: number }, log) => {
-          const date = new Date(log.timestamp).toLocaleDateString();
-          acc[date] = (acc[date] || 0) + 1;
-          return acc;
-        }, {});
-        const dataPoints = Object.entries(messageVolume).map(([name, value]) => ({ name, value }));
-
-        const newDashboardData: DashboardData = {
-          stats: [
-            { title: 'Total Messages', value: totalMessages.toString(), icon: MessageSquare, color: 'bg-blue-500' },
-            { title: 'Number of Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, color: 'bg-yellow-500' },
-            { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, color: 'bg-red-500' },
-            { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, color: 'bg-teal-500' },
-          ],
-          data: dataPoints,
-        };
-
-        if (!newDashboardData.stats.some((stat) => stat.value !== '0') && !newDashboardData.data.length) {
-          throw new Error('No valid dashboard data returned from the server.');
-        }
-
-        setDashboardData(newDashboardData);
-        if (currentWorkspaceId) {
-          updateWorkspace(currentWorkspaceId, { dashboardData: newDashboardData });
-        }
-        setError(null);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch dashboard data.';
-        console.error('Failed to fetch dashboard data:', err);
-        setError(errorMessage);
-        setDashboardData(initialDashboardData);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadDashboardData();
-  }, [currentWorkspaceId, updateWorkspace, workspace]);
-
-  // Refresh dashboard data manually
-  const refreshDashboardData = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      const [campaigns, contacts, logsResponse] = await Promise.all([
+      const [campaigns, contactsMetrics, logsResponse] = await Promise.all([
         getCampaigns(),
-        getContacts(currentWorkspaceId),
+        getContactMetrics(),
         getMessageLogs(),
       ]);
 
       const logs = logsResponse?.logs || [];
-
       const totalMessages = logs.length;
       const numberOfCampaigns = Array.isArray(campaigns) ? campaigns.length : 0;
       const totalFails = logs.filter((log) => log.status === 'failed').length;
-      const totalContacts = Array.isArray(contacts) ? contacts.length : 0;
+      const totalContacts = contactsMetrics.total_contacts || 0;
+      const totalContactGroups = contactsMetrics.total_contact_groups || 0;
 
       const messageVolume = logs.reduce((acc: { [key: string]: number }, log) => {
         const date = new Date(log.timestamp).toLocaleDateString();
@@ -152,6 +102,65 @@ const Dashboard: React.FC = () => {
           { title: 'Number of Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, color: 'bg-yellow-500' },
           { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, color: 'bg-red-500' },
           { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, color: 'bg-teal-500' },
+          { title: 'Total Contact Groups', value: totalContactGroups.toString(), icon: Folder, color: 'bg-purple-500' },
+        ],
+        data: dataPoints,
+      };
+
+      // Only update if data has meaningful values
+      if (!newDashboardData.stats.some((stat) => stat.value !== '0') && !newDashboardData.data.length) {
+        throw new Error('No valid dashboard data returned from the server.');
+      }
+
+      setDashboardData(newDashboardData);
+      updateWorkspace(currentWorkspaceId, { dashboardData: newDashboardData });
+      setError(null);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch dashboard data.';
+      console.error('Failed to fetch dashboard data:', err);
+      setError(errorMessage);
+      setDashboardData(initialDashboardData);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentWorkspaceId, updateWorkspace, workspace?.dashboardData]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Refresh dashboard data manually
+  const refreshDashboardData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [campaigns, contactsMetrics, logsResponse] = await Promise.all([
+        getCampaigns(),
+        getContactMetrics(),
+        getMessageLogs(),
+      ]);
+
+      const logs = logsResponse?.logs || [];
+      const totalMessages = logs.length;
+      const numberOfCampaigns = Array.isArray(campaigns) ? campaigns.length : 0;
+      const totalFails = logs.filter((log) => log.status === 'failed').length;
+      const totalContacts = contactsMetrics.total_contacts || 0;
+      const totalContactGroups = contactsMetrics.total_contact_groups || 0;
+
+      const messageVolume = logs.reduce((acc: { [key: string]: number }, log) => {
+        const date = new Date(log.timestamp).toLocaleDateString();
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+      }, {});
+      const dataPoints = Object.entries(messageVolume).map(([name, value]) => ({ name, value }));
+
+      const newDashboardData: DashboardData = {
+        stats: [
+          { title: 'Total Messages', value: totalMessages.toString(), icon: MessageSquare, color: 'bg-blue-500' },
+          { title: 'Number of Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, color: 'bg-yellow-500' },
+          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, color: 'bg-red-500' },
+          { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, color: 'bg-teal-500' },
+          { title: 'Total Contact Groups', value: totalContactGroups.toString(), icon: Folder, color: 'bg-purple-500' },
         ],
         data: dataPoints,
       };
@@ -163,11 +172,12 @@ const Dashboard: React.FC = () => {
       setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to refresh dashboard data.';
+      console.error('Error refreshing dashboard:', err);
       setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentWorkspaceId, updateWorkspace]);
 
   return (
     <div className="space-y-6">
@@ -191,7 +201,7 @@ const Dashboard: React.FC = () => {
       )}
 
       {!isLoading && (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
           {dashboardData.stats.map((stat, index) => (
             <motion.div
               key={stat.title}
