@@ -1,7 +1,7 @@
 // services/api.tsx
 import axios from "axios";
 
-const API_BASE_URL = "http://143.110.232.76:8000";
+const API_BASE_URL = "https://heading-to-paris-op.briq.tz";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
