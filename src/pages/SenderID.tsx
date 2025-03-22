@@ -26,18 +26,13 @@ interface SenderId {
 const SenderID: React.FC = () => {
   const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId, isAdmin } = useWorkspace();
   const workspace = getCurrentWorkspace();
+  // Initialize senderIds with workspace?.senderIds if available
   const [senderIds, setSenderIds] = useState<SenderId[]>(workspace?.senderIds || []);
   const [newSenderId, setNewSenderId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [reviewRequest, setReviewRequest] = useState<{ request_id: string; status: 'approved' | 'rejected' } | null>(null);
-
-  // Sync with current workspace data
-  useEffect(() => {
-    setSenderIds(workspace?.senderIds || []);
-    setError(null);
-  }, [currentWorkspaceId, workspace]);
 
   // Fetch sender IDs (approved and pending)
   useEffect(() => {
@@ -85,26 +80,21 @@ const SenderID: React.FC = () => {
           allSenderIds = allSenderIds.filter((id) => id.user_id === (workspace?.user_id || '') || id.status === 'approved');
         }
 
+        // Update state with fetched sender IDs
         setSenderIds(allSenderIds);
+        // Update workspace with the new sender IDs
         updateWorkspace(currentWorkspaceId, { senderIds: allSenderIds });
         setError(null);
       } catch (error: any) {
         console.error('Failed to fetch sender IDs:', error);
         setError(error?.response?.data?.message || 'Unable to fetch sender ID requests from the server.');
-        setSenderIds([]); // Clear sender IDs on error, no mock data
+        setSenderIds([]);
       } finally {
         setIsLoading(false);
       }
     };
     fetchSenderIds();
-  }, [currentWorkspaceId, updateWorkspace, isAdmin, isAdminView, workspace]);
-
-  // Persist changes to workspace
-  useEffect(() => {
-    if (currentWorkspaceId) {
-      updateWorkspace(currentWorkspaceId, { senderIds });
-    }
-  }, [senderIds, currentWorkspaceId, updateWorkspace]);
+  }, [currentWorkspaceId, isAdmin, isAdminView, workspace?.user_id]);
 
   const handleRequestSenderId = async () => {
     if (!newSenderId.trim()) {
@@ -125,10 +115,11 @@ const SenderID: React.FC = () => {
         is_approved: false,
         created_at: response.created_at || new Date().toISOString(),
       };
-      setSenderIds([...senderIds, newRequest]);
+      const updatedSenderIds = [...senderIds, newRequest];
+      setSenderIds(updatedSenderIds);
       setNewSenderId('');
       setError(null);
-      updateWorkspace(currentWorkspaceId, { senderIds: [...senderIds, newRequest] });
+      updateWorkspace(currentWorkspaceId, { senderIds: updatedSenderIds });
     } catch (error: any) {
       console.error('Error requesting sender ID:', error);
       setError(error?.response?.data?.message || 'Failed to request sender ID. Please try again.');
@@ -142,7 +133,7 @@ const SenderID: React.FC = () => {
     setIsLoading(true);
     try {
       await reviewSenderIdRequest(currentWorkspaceId, requestId, { status });
-      const updatedRequests = senderIds.map((req) =>
+      const updatedSenderIds = senderIds.map((req) =>
         req.request_id === requestId
           ? {
               ...req,
@@ -153,10 +144,10 @@ const SenderID: React.FC = () => {
             }
           : req
       );
-      setSenderIds(updatedRequests);
+      setSenderIds(updatedSenderIds);
       setReviewRequest(null);
       setError(null);
-      updateWorkspace(currentWorkspaceId, { senderIds: updatedRequests });
+      updateWorkspace(currentWorkspaceId, { senderIds: updatedSenderIds });
     } catch (error: any) {
       console.error('Error reviewing sender ID request:', error);
       setError(error?.response?.data?.message || 'Failed to review sender ID request.');
