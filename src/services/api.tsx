@@ -1,4 +1,4 @@
-// services/api.tsx
+
 import axios from "axios";
 
 const API_BASE_URL = "https://heading-to-paris-op.briq.tz";
