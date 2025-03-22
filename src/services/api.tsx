@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://heading-to-paris-op.briq.tz";
+const API_BASE_URL = "https://heading-to-paris-op.briq.tz";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
