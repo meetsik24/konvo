@@ -101,25 +101,23 @@ interface LogResponse {
   }[];
 }
 
-interface Plan {
-  plan_name: string;
+export interface Plan {
+  name: string;
   description: string;
-  sms_count: number;
-  email_count: number;
-  call_minutes: number;
-  price: string;
-  duration: string;
+  sms_unit_price: string;
+  call_unit_price: string;
+  minimum_sms_purchase: number;
   plan_id: string;
-  isContactSales?: boolean;
+  created_at: string;
 }
 
-interface SubscriptionUsage {
+// Define the SubscriptionUsage type based on the GET /user-credit-balance response
+export interface SubscriptionUsage {
   user_id: string;
   plan_id: string;
-  sms_count: number;
-  email_count: number;
-  call_minute_count: number;
-  timestamp: string;
+  sms_credits: number;
+  call_minutes: number;
+  last_updated: string;
 }
 
 interface SenderId {
@@ -606,51 +604,46 @@ export const changePassword = async (data: {
   }
 };
 
-// PLANS AND SUBSCRIPTIONS
+// Fetch all available plans
 export const getPlans = async (): Promise<Plan[]> => {
   try {
-    const response = await api.get("/plans");
-    console.log("getPlans API response:", response.data);
+    const response = await api.get('/plans');
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    handleApiError(error, "Failed to fetch plans");
+    handleApiError(error, 'Failed to fetch plans');
   }
 };
 
-export const getSubscriptionUsage = async (): Promise<SubscriptionUsage> => {
+// Fetch a specific plan by ID
+export const getPlanById = async (planId: string): Promise<Plan> => {
   try {
-    const response = await api.get("/subscriptions/usage");
-    console.log("getSubscriptionUsage API response:", response.data);
+    const response = await api.get(`/plans/${planId}`);
     return response.data;
   } catch (error: any) {
-    handleApiError(error, "Failed to fetch subscription usage");
+    handleApiError(error, `Failed to fetch plan with ID ${planId}`);
   }
 };
 
-export const subscribeToPlan = async (planId: string): Promise<void> => {
+// Fetch user credit balance
+export const getSubscriptionUsage = async (): Promise<SubscriptionUsage> => {
   try {
-    await api.post("/subscriptions/subscribe", { plan_id: planId });
-    console.log("Subscribed to plan successfully");
+    const response = await api.get('/user-credit-balance');
+    return response.data;
   } catch (error: any) {
-    handleApiError(error, "Failed to subscribe to plan");
+    handleApiError(error, 'Failed to fetch credit balance');
   }
 };
 
-export const renewSubscription = async (): Promise<void> => {
+// Purchase SMS credits
+export const purchaseSmsCredits = async (planId: string, smsQuantity: number, mobileMoneyNumber: string): Promise<void> => {
   try {
-    await api.post("/subscriptions/renew", {});
-    console.log("Subscription renewed successfully");
+    await api.post('/purchase-sms-credits', {
+      plan_id: planId,
+      sms_quantity: smsQuantity,
+      mobile_money_number: mobileMoneyNumber,
+    });
   } catch (error: any) {
-    handleApiError(error, "Failed to renew subscription");
-  }
-};
-
-export const upgradeSubscription = async (planId: string): Promise<void> => {
-  try {
-    await api.post("/subscriptions/upgrade", { plan_id: planId });
-    console.log("Subscription upgraded successfully");
-  } catch (error: any) {
-    handleApiError(error, "Failed to upgrade subscription");
+    handleApiError(error, 'Failed to purchase SMS credits');
   }
 };
 

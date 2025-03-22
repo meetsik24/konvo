@@ -5,7 +5,7 @@ import { Users, MessageSquare, XCircle, Megaphone, RefreshCw, Folder } from 'luc
 import { useWorkspace } from './WorkspaceContext';
 import {
   getCampaigns,
-  fetchLogs, // Updated import to match api.tsx
+  fetchLogs,
   getContactMetrics,
 } from '../services/api';
 
@@ -47,7 +47,7 @@ const Dashboard: React.FC = () => {
   // Fetch all message logs (non-paginated)
   const fetchAllMessageLogs = useCallback(async () => {
     try {
-      const response = await fetchLogs(); // Updated to use fetchLogs
+      const response = await fetchLogs();
       const logs = response.logs || [];
       console.log(`Total message logs: ${logs.length}`);
       return logs;
@@ -108,7 +108,9 @@ const Dashboard: React.FC = () => {
         acc[date] = (acc[date] || 0) + 1;
         return acc;
       }, {});
-      const dataPoints = Object.entries(messageVolume).map(([name, value]) => ({ name, value }));
+      const dataPoints = Object.entries(messageVolume)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime()); // Sort by date (oldest to newest)
 
       const newDashboardData: DashboardData = {
         stats: [
@@ -121,15 +123,11 @@ const Dashboard: React.FC = () => {
         data: dataPoints,
       };
 
-      if (!newDashboardData.stats.some((stat) => stat.value !== '0') && !newDashboardData.data.length) {
-        throw new Error('No valid dashboard data returned from the server.');
-      }
-
       setDashboardData(newDashboardData);
       updateWorkspace(currentWorkspaceId, { dashboardData: newDashboardData });
       setError(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch dashboard data.';
+      const errorMessage = err instanceof Error ? err.message : 'Unable to load dashboard data. Please try again.';
       console.error('Failed to fetch dashboard data:', err);
       setError(errorMessage);
       setDashboardData(initialDashboardData);
@@ -168,7 +166,9 @@ const Dashboard: React.FC = () => {
         acc[date] = (acc[date] || 0) + 1;
         return acc;
       }, {});
-      const dataPoints = Object.entries(messageVolume).map(([name, value]) => ({ name, value }));
+      const dataPoints = Object.entries(messageVolume)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime()); // Sort by date (oldest to newest)
 
       const newDashboardData: DashboardData = {
         stats: [
@@ -187,7 +187,7 @@ const Dashboard: React.FC = () => {
       }
       setError(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to refresh dashboard data.';
+      const errorMessage = err instanceof Error ? err.message : 'Unable to refresh dashboard data. Please try again.';
       console.error('Error refreshing dashboard:', err);
       setError(errorMessage);
     } finally {

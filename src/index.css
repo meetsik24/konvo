@@ -25,11 +25,11 @@
   }
   
   .input {
-    @apply w-full px-4 py-3 rounded-xl border-2 border-[#6f888c] focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent outline-none transition-all duration-200;
+    @apply w-full px-4 py-3 rounded-xl border border-[#6f888c] focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent outline-none transition-all duration-200;
   }
   
   .card {
-    @apply bg-white rounded-xl shadow-sm border-2 border-[#6f888c] hover:shadow-lg transition-all duration-200;
+    @apply bg-white rounded-xl shadow-sm border border-[#6f888c] hover:shadow-lg transition-all duration-200;
   }
 
   .doodle {
