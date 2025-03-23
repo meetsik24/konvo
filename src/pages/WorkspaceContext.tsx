@@ -77,8 +77,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
       const data = await getWorkspaces();
       const formattedWorkspaces = Array.isArray(data)
-        ? data.map((ws: Workspace) => ({
-            ...ws,
+        ? data.map((ws: Partial<Workspace>) => ({
+            workspace_id: ws.workspace_id || '',
+            user_id: ws.user_id || '',
+            name: ws.name || 'Unnamed Workspace',
+            description: ws.description || '',
+            created_at: ws.created_at || '',
             campaigns: ws.campaigns || [],
             senderIds: ws.senderIds || [],
           }))

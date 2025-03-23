@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "https://heading-to-paris-op.briq.tz";
+const API_BASE_URL =  "https://heading-to-paris-op.briq.tz";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -248,6 +248,7 @@ export const getWorkspaces = async (): Promise<Workspace[]> => {
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch workspaces");
+    return []; // Ensure a return value in case of an error
   }
 };
 
@@ -279,6 +280,7 @@ export const getCampaigns = async (): Promise<Campaign[]> => {
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch campaigns");
+    return []; // Ensure a return value in case of an error
   }
 };
 
@@ -336,6 +338,7 @@ export const getContacts = async (
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to fetch contacts");
+    return { contacts: [], total_count: 0, total_pages: 0, current_page: 0 }; // Fallback return value
   }
 };
 
