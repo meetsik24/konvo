@@ -706,7 +706,25 @@ export const getMessageDetail = async (messageId: string): Promise<Message> => {
 };
 
 // NOTIFICATIONS
+export const fetchNotifications = async (): Promise<Notification[]> => {
+  try {
+    // Ensure the baseURL is using HTTPS
+    if (!api.defaults.baseURL?.startsWith("https://")) {
+      throw new Error("API baseURL must use HTTPS.");
+    }
 
+    const response = await api.get("/notifications");
+    console.log("Raw fetchNotifications response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    console.error("Error fetching notifications:", {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+    return [];
+  }
+};
 
 export const deleteNotification = async (notificationId: string): Promise<void> => {
   try {
