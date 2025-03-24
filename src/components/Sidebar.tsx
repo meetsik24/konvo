@@ -4,7 +4,7 @@ import { LayoutDashboard, MessageSquare, IdCard, Megaphone, Users, Activity, Dol
 import { useWorkspace } from '../pages/WorkspaceContext';
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: 'Dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/send-sms', icon: MessageSquare, label: 'Send SMS' },
   { to: '/senderid', icon: IdCard, label: 'Sender ID' },
   { to: '/campaigns', icon: Megaphone, label: 'Campaigns' },

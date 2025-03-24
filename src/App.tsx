@@ -29,7 +29,7 @@ import Subscription from './pages/subscription';
 import SenderID from './pages/SenderID';
 import Contacts from './pages/Contacts';
 
-import { ContactsProvider } from './components/ContactsContext';
+import { ContactsProvider } from './components/ContactsContext'
 import { WorkspaceProvider } from './pages/WorkspaceContext';
 
 // Protected Route for Dashboard Pages
