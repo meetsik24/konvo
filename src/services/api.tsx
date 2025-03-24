@@ -180,7 +180,7 @@ export const registerUser = async (
   password: string
 ): Promise<User> => {
   try {
-    const response = await api.post("/auth/register", {
+    const response = await api.post("/auth/register/", {
       username,
       email,
       password,
@@ -212,7 +212,7 @@ export const loginUser = async (identifier: string, password: string): Promise<{
     formData.append("client_id", "");
     formData.append("client_secret", "");
 
-    const response = await api.post("/auth/login", formData, {
+    const response = await api.post("/auth/login/", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
 
@@ -235,7 +235,7 @@ export const logoutUser = (): void => {
 // LOGS
 export const fetchLogs = async (): Promise<LogResponse> => {
   try {
-    const response = await api.get("/messages/logs");
+    const response = await api.get("/messages/logs/");
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to fetch logs");
@@ -245,7 +245,7 @@ export const fetchLogs = async (): Promise<LogResponse> => {
 // WORKSPACES
 export const createWorkspace = async (name: string): Promise<Workspace> => {
   try {
-    const response = await api.post("/workspaces", { name });
+    const response = await api.post("/workspaces/", { name });
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to create workspace");
@@ -255,7 +255,7 @@ export const createWorkspace = async (name: string): Promise<Workspace> => {
 export const getWorkspaces = async (): Promise<Workspace[]> => {
   console.log("getWorkspaces API call initiated");
   try {
-    const response = await api.get("/workspaces");
+    const response = await api.get("/workspaces/");
     console.log("getWorkspaces API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -266,7 +266,7 @@ export const getWorkspaces = async (): Promise<Workspace[]> => {
 
 export const updateWorkspace = async (id: string, data: Partial<Workspace>): Promise<Workspace> => {
   try {
-    const response = await api.patch(`/workspaces/${id}`, data);
+    const response = await api.patch(`/workspaces/${id}/`, data);
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to update workspace");
@@ -276,7 +276,7 @@ export const updateWorkspace = async (id: string, data: Partial<Workspace>): Pro
 export const deleteWorkspace = async (id: string): Promise<void> => {
   console.log("deleteWorkspace API call initiated for ID:", id);
   try {
-    await api.delete(`/workspaces/${id}`);
+    await api.delete(`/workspaces/${id}/`);
     console.log("Workspace deleted successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to delete workspace");
@@ -287,7 +287,7 @@ export const deleteWorkspace = async (id: string): Promise<void> => {
 export const getCampaigns = async (): Promise<Campaign[]> => {
   console.log("getCampaigns API call initiated");
   try {
-    const response = await api.get("/campaigns");
+    const response = await api.get("/campaigns/");
     console.log("getCampaigns API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -304,7 +304,7 @@ export const createCampaign = async (data: {
 }): Promise<Campaign> => {
   console.log("createCampaign API call initiated with data:", data);
   try {
-    const response = await api.post("/campaigns", data);
+    const response = await api.post("/campaigns/", data);
     console.log("createCampaign API response:", response.data);
     return response.data;
   } catch (error: any) {
@@ -318,7 +318,7 @@ export const updateCampaign = async (
 ): Promise<Campaign> => {
   console.log("updateCampaign API call initiated for campaign:", campaignId, "with data:", data);
   try {
-    const response = await api.patch(`/campaigns/${campaignId}`, data);
+    const response = await api.patch(`/campaigns/${campaignId}/`, data);
     console.log("updateCampaign API response:", response.data);
     return response.data;
   } catch (error: any) {
@@ -329,7 +329,7 @@ export const updateCampaign = async (
 export const deleteCampaign = async (campaignId: string): Promise<void> => {
   console.log("deleteCampaign API call initiated for campaign:", campaignId);
   try {
-    await api.delete(`/campaigns/${campaignId}`);
+    await api.delete(`/campaigns/${campaignId}/`);
     console.log("Campaign deleted successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to delete campaign");
@@ -343,7 +343,7 @@ export const getContacts = async (
   perPage: number = 100
 ): Promise<ContactsResponse> => {
   try {
-    const response = await api.get(`/workspaces/${workspaceId}/contacts`, {
+    const response = await api.get(`/workspaces/${workspaceId}/contacts/`, {
       params: { page, per_page: perPage },
     });
     console.log("Raw getContacts response:", response.data);
@@ -362,7 +362,7 @@ export const getGroupContacts = async (
 ): Promise<ContactsResponse> => {
   try {
     console.log(`Fetching contacts for group ${groupId} in workspace ${workspaceId}`);
-    const response = await api.get(`/workspaces/${workspaceId}/groups/${groupId}/contacts`, {
+    const response = await api.get(`/workspaces/${workspaceId}/groups/${groupId}/contacts/`, {
       params: { page, per_page: perPage },
     });
     console.log(`Raw getGroupContacts response for group ${groupId}:`, response.data);
@@ -381,7 +381,7 @@ export const createContact = async (data: {
 }): Promise<Contact> => {
   console.log("createContact API call initiated with data:", data);
   try {
-    const response = await api.post("/contacts", data);
+    const response = await api.post("/contacts/", data);
     console.log("createContact API response:", response.data);
     return response.data;
   } catch (error: any) {
@@ -395,7 +395,7 @@ export const bulkUploadContacts = async (workspaceId: string, file: File): Promi
     const formData = new FormData();
     formData.append("file", file);
     formData.append("workspace_id", workspaceId);
-    const response = await api.post("/contacts/bulk-upload", formData, {
+    const response = await api.post("/contacts/bulk-upload/", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     console.log("bulkUploadContacts API response:", response.data);
@@ -407,7 +407,7 @@ export const bulkUploadContacts = async (workspaceId: string, file: File): Promi
 
 export const updateContact = async (contactId: string, contact: Partial<Contact>): Promise<Contact> => {
   try {
-    const response = await api.patch(`/contacts/${contactId}`, contact);
+    const response = await api.patch(`/contacts/${contactId}/`, contact);
     console.log("updateContact API response:", response.data);
     return response.data;
   } catch (error: any) {
@@ -420,7 +420,7 @@ export const deleteContact = async (contactId: string): Promise<void> => {
     throw new Error("Contact ID is undefined");
   }
   try {
-    await api.delete(`/contacts/${contactId}`);
+    await api.delete(`/contacts/${contactId}/`);
     console.log(`Contact ${contactId} deleted successfully`);
   } catch (error: any) {
     handleApiError(error, "Failed to delete contact");
@@ -429,7 +429,7 @@ export const deleteContact = async (contactId: string): Promise<void> => {
 
 export const getContactMetrics = async (): Promise<any> => {
   try {
-    const response = await api.get("/contacts/metrics");
+    const response = await api.get("/contacts/metrics/");
     console.log("getContactMetrics API response:", response.data);
     return response.data;
   } catch (error: any) {
@@ -441,7 +441,7 @@ export const getContactMetrics = async (): Promise<any> => {
 export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> => {
   console.log("getWorkspaceGroups API call initiated for workspace:", workspaceId);
   try {
-    const response = await api.get(`/workspaces/${workspaceId}/contact-groups`);
+    const response = await api.get(`/workspaces/${workspaceId}/contact-groups/`);
     console.log("getWorkspaceGroups API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -452,7 +452,7 @@ export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> 
 export const getCampaignGroups = async (campaignId: string): Promise<Group[]> => {
   console.log("getCampaignGroups API call initiated for campaign:", campaignId);
   try {
-    const response = await api.get(`/campaigns/${campaignId}/contact-groups`);
+    const response = await api.get(`/campaigns/${campaignId}/contact-groups/`);
     console.log("getCampaignGroups API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -463,7 +463,7 @@ export const getCampaignGroups = async (campaignId: string): Promise<Group[]> =>
 export const createGroup = async (data: { name: string; workspace_id: string }): Promise<Group> => {
   console.log("createGroup API call initiated with data:", data);
   try {
-    const response = await api.post("/contact-groups", data);
+    const response = await api.post("/contact-groups/", data);
     console.log("createGroup API response:", response.data);
     return response.data;
   } catch (error: any) {
@@ -473,7 +473,7 @@ export const createGroup = async (data: { name: string; workspace_id: string }):
 
 export const getContactGroups = async (workspaceId: string, contactId: string): Promise<Group[]> => {
   try {
-    const response = await api.get(`/workspaces/${workspaceId}/contacts/${contactId}/groups`);
+    const response = await api.get(`/workspaces/${workspaceId}/contacts/${contactId}/groups/`);
     console.log("Raw getContactGroups response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -484,7 +484,7 @@ export const getContactGroups = async (workspaceId: string, contactId: string): 
 export const addContactsToGroup = async (groupId: string, contactIds: string[]): Promise<void> => {
   console.log("addContactsToGroup API call initiated for group:", groupId, "with contacts:", contactIds);
   try {
-    await api.post(`/contact-groups/${groupId}/add-contacts`, { contact_ids: contactIds });
+    await api.post(`/contact-groups/${groupId}/add-contacts/`, { contact_ids: contactIds });
     console.log("Contacts added to group successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to add contacts to group");
@@ -494,7 +494,7 @@ export const addContactsToGroup = async (groupId: string, contactIds: string[]):
 export const assignGroupToCampaign = async (groupId: string, campaignId: string): Promise<void> => {
   console.log("assignGroupToCampaign API call initiated for group:", groupId, "to campaign:", campaignId);
   try {
-    await api.post(`/contact-groups/${groupId}/assign-to-campaign`, { campaign_id: campaignId });
+    await api.post(`/contact-groups/${groupId}/assign-to-campaign/`, { campaign_id: campaignId });
     console.log("Group assigned to campaign successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to assign group to campaign");
@@ -504,7 +504,7 @@ export const assignGroupToCampaign = async (groupId: string, campaignId: string)
 export const deleteGroup = async (groupId: string): Promise<void> => {
   console.log("deleteGroup API call initiated for group:", groupId);
   try {
-    await api.delete(`/contact-groups/${groupId}`);
+    await api.delete(`/contact-groups/${groupId}/`);
     console.log("Group deleted successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to delete group");
@@ -515,7 +515,7 @@ export const deleteGroup = async (groupId: string): Promise<void> => {
 export const requestSenderId = async (workspaceId: string, data: { sender_id: string }): Promise<SenderId> => {
   console.log("requestSenderId API call initiated for workspace:", workspaceId, "with data:", data);
   try {
-    const response = await api.post("/sender-ids/request", { ...data, workspace_id: workspaceId });
+    const response = await api.post("/sender-ids/request/", { ...data, workspace_id: workspaceId });
     console.log("requestSenderId API response:", response.data);
     return response.data;
   } catch (error: any) {
@@ -526,7 +526,7 @@ export const requestSenderId = async (workspaceId: string, data: { sender_id: st
 export const getUserSenderRequests = async (workspaceId: string): Promise<SenderId[]> => {
   console.log("getUserSenderRequests API call initiated for workspace:", workspaceId);
   try {
-    const response = await api.get(`/sender-ids/requests?workspace_id=${workspaceId}`);
+    const response = await api.get(`/sender-ids/requests/?workspace_id=${workspaceId}`);
     console.log("getUserSenderRequests API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -537,7 +537,7 @@ export const getUserSenderRequests = async (workspaceId: string): Promise<Sender
 export const getAdminSenderRequests = async (workspaceId: string): Promise<SenderId[]> => {
   console.log("getAdminSenderRequests API call initiated for workspace:", workspaceId);
   try {
-    const response = await api.get(`/admin/sender-ids/requests?workspace_id=${workspaceId}`);
+    const response = await api.get(`/admin/sender-ids/requests/?workspace_id=${workspaceId}`);
     console.log("getAdminSenderRequests API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -552,7 +552,7 @@ export const reviewSenderIdRequest = async (
 ): Promise<SenderId> => {
   console.log("reviewSenderIdRequest API call initiated for request:", requestId, "with data:", data);
   try {
-    const response = await api.patch(`/admin/sender-ids/${requestId}/review`, {
+    const response = await api.patch(`/admin/sender-ids/${requestId}/review/`, {
       ...data,
       workspace_id: workspaceId,
     });
@@ -565,7 +565,7 @@ export const reviewSenderIdRequest = async (
 
 export const getApprovedSenderIds = async (workspaceId: string): Promise<SenderId[]> => {
   try {
-    const response = await api.get(`/sender-ids/approved?workspace_id=${workspaceId}`);
+    const response = await api.get(`/sender-ids/approved/?workspace_id=${workspaceId}`);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch approved sender IDs");
@@ -576,7 +576,7 @@ export const getApprovedSenderIds = async (workspaceId: string): Promise<SenderI
 export const getProfile = async (): Promise<User> => {
   console.log("getProfile API call initiated");
   try {
-    const response = await api.get("/users/me");
+    const response = await api.get("/users/me/");
     console.log("getProfile API response:", response.data);
     return {
       email: response.data.email,
@@ -597,7 +597,7 @@ export const updateProfile = async (data: {
 }): Promise<User> => {
   console.log("updateProfile API call initiated with data:", data);
   try {
-    const response = await api.patch("/users/me", data);
+    const response = await api.patch("/users/me/", data);
     console.log("updateProfile API response:", response.data);
     return response.data;
   } catch (error: any) {
@@ -611,7 +611,7 @@ export const changePassword = async (data: {
 }): Promise<void> => {
   console.log("changePassword API call initiated with data:", data);
   try {
-    await api.patch("/users/change-password", data);
+    await api.patch("/users/change-password/", data);
     console.log("Password changed successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to change password");
@@ -621,7 +621,7 @@ export const changePassword = async (data: {
 // Fetch all available plans
 export const getPlans = async (): Promise<Plan[]> => {
   try {
-    const response = await api.get('/plans');
+    const response = await api.get('/plans/');
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, 'Failed to fetch plans');
@@ -631,7 +631,7 @@ export const getPlans = async (): Promise<Plan[]> => {
 // Fetch a specific plan by ID
 export const getPlanById = async (planId: string): Promise<Plan> => {
   try {
-    const response = await api.get(`/plans/${planId}`);
+    const response = await api.get(`/plans/${planId}/`);
     return response.data;
   } catch (error: any) {
     handleApiError(error, `Failed to fetch plan with ID ${planId}`);
@@ -641,7 +641,7 @@ export const getPlanById = async (planId: string): Promise<Plan> => {
 // Fetch user credit balance
 export const getSubscriptionUsage = async (): Promise<SubscriptionUsage> => {
   try {
-    const response = await api.get('/user-credit-balance');
+    const response = await api.get('/user-credit-balance/');
     return response.data;
   } catch (error: any) {
     handleApiError(error, 'Failed to fetch credit balance');
@@ -651,7 +651,7 @@ export const getSubscriptionUsage = async (): Promise<SubscriptionUsage> => {
 // Purchase SMS credits
 export const purchaseSmsCredits = async (planId: string, smsQuantity: number, mobileMoneyNumber: string): Promise<void> => {
   try {
-    await api.post('/purchase-sms-credits', {
+    await api.post('/purchase-sms-credits/', {
       plan_id: planId,
       sms_quantity: smsQuantity,
       mobile_money_number: mobileMoneyNumber,
@@ -671,7 +671,7 @@ export const sendInstantMessage = async (
   }
 ): Promise<Message> => {
   try {
-    const response = await api.post("/messages/send-instant", {
+    const response = await api.post("/messages/send-instant/", {
       workspace_id: workspaceId,
       ...data,
     });
@@ -683,7 +683,7 @@ export const sendInstantMessage = async (
 
 export const getMessageLogs = async (): Promise<Message[]> => {
   try {
-    const response = await api.get("/messages/logs");
+    const response = await api.get("/messages/logs/");
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch message logs");
@@ -692,7 +692,7 @@ export const getMessageLogs = async (): Promise<Message[]> => {
 
 export const getUserMessages = async (): Promise<Message[]> => {
   try {
-    const response = await api.get("/messages/me");
+    const response = await api.get("/messages/me/");
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch user messages");
@@ -701,7 +701,7 @@ export const getUserMessages = async (): Promise<Message[]> => {
 
 export const getMessagesByRecipient = async (recipient: string): Promise<Message[]> => {
   try {
-    const response = await api.get(`/messages/recipient/${recipient}`);
+    const response = await api.get(`/messages/recipient/${recipient}/`);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch messages by recipient");
@@ -710,7 +710,7 @@ export const getMessagesByRecipient = async (recipient: string): Promise<Message
 
 export const getMessageDetail = async (messageId: string): Promise<Message> => {
   try {
-    const response = await api.get(`/messages/${messageId}`);
+    const response = await api.get(`/messages/${messageId}/`);
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to fetch message detail");
@@ -725,7 +725,7 @@ export const fetchNotifications = async (): Promise<Notification[]> => {
       throw new Error("API baseURL must use HTTPS.");
     }
 
-    const response = await api.get("/notifications");
+    const response = await api.get("/notifications/");
     console.log("Raw fetchNotifications response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -740,7 +740,7 @@ export const fetchNotifications = async (): Promise<Notification[]> => {
 
 export const deleteNotification = async (notificationId: string): Promise<void> => {
   try {
-    await api.delete(`/notifications/${notificationId}`);
+    await api.delete(`/notifications/${notificationId}/`);
     console.log(`Notification ${notificationId} deleted successfully`);
   } catch (error: any) {
     handleApiError(error, `Failed to delete notification ${notificationId}`);
@@ -749,7 +749,7 @@ export const deleteNotification = async (notificationId: string): Promise<void> 
 
 export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
   try {
-    await api.put(`/notifications/${notificationId}/read`);
+    await api.put(`/notifications/${notificationId}/read/`);
     console.log(`Notification ${notificationId} marked as read`);
   } catch (error: any) {
     handleApiError(error, `Failed to mark notification ${notificationId} as read`);
