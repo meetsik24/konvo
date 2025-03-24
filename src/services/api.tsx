@@ -9,6 +9,17 @@ const api = axios.create({
   },
 });
 
+// Enforce HTTPS for all requests
+api.interceptors.request.use(
+  (config) => {
+    if (config.url && config.url.startsWith("http://")) {
+      config.url = config.url.replace("http://", "https://");
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // Attach Token Automatically Before Each Request
 api.interceptors.request.use(
   (config) => {
