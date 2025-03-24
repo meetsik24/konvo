@@ -255,7 +255,7 @@ export const createWorkspace = async (name: string): Promise<Workspace> => {
 export const getWorkspaces = async (): Promise<Workspace[]> => {
   console.log("getWorkspaces API call initiated");
   try {
-    const response = await api.get("/workspaces");
+    const response = await api.get("/workspaces/");
     console.log("getWorkspaces API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -725,7 +725,7 @@ export const fetchNotifications = async (): Promise<Notification[]> => {
       throw new Error("API baseURL must use HTTPS.");
     }
 
-    const response = await api.get("/notifications");
+    const response = await api.get("/notifications/");
     console.log("Raw fetchNotifications response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
