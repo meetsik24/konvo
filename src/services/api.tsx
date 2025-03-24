@@ -287,7 +287,7 @@ export const deleteWorkspace = async (id: string): Promise<void> => {
 export const getCampaigns = async (): Promise<Campaign[]> => {
   console.log("getCampaigns API call initiated");
   try {
-    const response = await api.get("/campaigns");
+    const response = await api.get("/campaigns/");
     console.log("getCampaigns API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
