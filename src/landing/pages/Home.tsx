@@ -54,9 +54,19 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 bg-[#1a3c47] bg-opacity-80">
-        <div className="container mx-auto px-4">
+      {/* Hero Section with Background Image */}
+      <section
+        className="pt-32 pb-20 bg-[#1a3c47] bg-opacity-80 relative"
+        style={{
+          backgroundImage: `url(/assets/hero-background.jpg)`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
+        {/* Overlay for Readability */}
+        <div className="absolute inset-0 bg-[#1a3c47] bg-opacity-70 z-0"></div>
+        <div className="container mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -68,9 +78,9 @@ export default function Home() {
               <br />
               <span className="text-[#f5c518]">Customer Management <br />Solutions</span>
             </h1>
-            <p className="text-xl text-gray-300 mb-8">
+            <p className="text-xl text-gray-200 mb-8">
               Reach your audience instantly with customized messages for
-              promotions, notifications, updates, and reminders.
+              promotions, notifications, updates, and reminders in Tanzania.
             </p>
             <motion.button
               onClick={handleGetStarted}
@@ -98,7 +108,7 @@ export default function Home() {
               Grow Your Business With BRIQ
             </h2>
             <p className="text-lg text-gray-300">
-              Explore how our solutions can transform your industry
+              Explore how our bulk SMS, SMS API, and OTP solutions can transform your business in Tanzania
             </p>
           </motion.div>
 
@@ -129,7 +139,7 @@ export default function Home() {
             <div>
               <h3 className="text-2xl font-bold text-white mb-4">BRIQ SOLUTIONS INC.</h3>
               <p className="text-gray-300">
-                Instant & Reliable Customer Management Solutions
+                Instant & Reliable Customer Management Solutions in Tanzania
               </p>
             </div>
 
