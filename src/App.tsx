@@ -7,10 +7,9 @@ import { fetchUserProfile, logout } from './store/slices/authSlice';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Landing Page Components
-import Navbar from './landing/components/Navbar';
-import Footer from './landing/components/Footer';
+
 import Home from './landing/pages/Home';
-import Contact from './landing/pages/Contact';
+
 
 
 // Dashboard Components
