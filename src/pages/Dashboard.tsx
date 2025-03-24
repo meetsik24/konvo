@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, MessageSquare, XCircle, Megaphone, RefreshCw, Folder } from 'lucide-react';
+import { Users, MessageSquare, XCircle, Megaphone, Folder } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
-import {
-  getCampaigns,
-  fetchLogs,
-  getContactMetrics,
-} from '../services/api';
+import { getCampaigns, fetchLogs, getContactMetrics } from '../services/api';
 
 interface Stat {
   title: string;
@@ -110,7 +106,7 @@ const Dashboard: React.FC = () => {
       }, {});
       const dataPoints = Object.entries(messageVolume)
         .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime()); // Sort by date (oldest to newest)
+        .sort((a, b) => new Date(b.name).getTime() - new Date(a.name).getTime()); // Oldest to newest
 
       const newDashboardData: DashboardData = {
         stats: [
@@ -140,61 +136,6 @@ const Dashboard: React.FC = () => {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  // Refresh dashboard data manually
-  const refreshDashboardData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [campaigns, contactsMetrics, logs] = await Promise.all([
-        getCampaigns(),
-        getContactMetrics(),
-        fetchAllMessageLogs(),
-      ]);
-
-      const messagesSent = logs.filter(
-        (log: any) => log.status === 'sent' && log.response_group_name === 'PENDING'
-      ).length;
-      const numberOfCampaigns = Array.isArray(campaigns) ? campaigns.length : 0;
-      const totalFails = logs.filter(
-        (log: any) => log.response_group_name === 'REJECTED'
-      ).length;
-      const totalContacts = contactsMetrics.total_contacts || 0;
-      const totalContactGroups = contactsMetrics.total_contact_groups || 0;
-
-      const messageVolume = logs.reduce((acc: { [key: string]: number }, log: any) => {
-        const date = new Date(log.timestamp).toLocaleDateString();
-        acc[date] = (acc[date] || 0) + 1;
-        return acc;
-      }, {});
-      const dataPoints = Object.entries(messageVolume)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime()); // Sort by date (oldest to newest)
-
-      const newDashboardData: DashboardData = {
-        stats: [
-          { title: 'Messages Sent', value: messagesSent.toString(), icon: MessageSquare, color: 'bg-green-500' },
-          { title: 'Number of Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, color: 'bg-green-500' },
-          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, color: 'bg-green-500' },
-          { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, color: 'bg-green-500' },
-          { title: 'Total Contact Groups', value: totalContactGroups.toString(), icon: Folder, color: 'bg-green-500' },
-        ],
-        data: dataPoints,
-      };
-
-      setDashboardData(newDashboardData);
-      if (currentWorkspaceId) {
-        updateWorkspace(currentWorkspaceId, { dashboardData: newDashboardData });
-      }
-      setError(null);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unable to refresh dashboard data. Please try again.';
-      console.error('Error refreshing dashboard:', err);
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentWorkspaceId, updateWorkspace, fetchAllMessageLogs]);
-
   return (
     <div className="space-y-6">
       {isLoading && (
@@ -207,12 +148,7 @@ const Dashboard: React.FC = () => {
       {error && !isLoading && (
         <div className="text-red-500 text-center mb-4">
           {error}
-          <button
-            onClick={refreshDashboardData}
-            className="ml-2 btn btn-sm btn-secondary"
-          >
-            <RefreshCw className="w-4 h-4" /> Retry
-          </button>
+          {/* Removed retry button */}
         </div>
       )}
 
@@ -248,14 +184,8 @@ const Dashboard: React.FC = () => {
           transition={{ delay: 0.7 }}
           className="card rounded-md shadow-sm p-6"
         >
-          <div className="flex justify-between items-center mb-4">
+          <div className="mb-4">
             <h2 className="text-lg font-semibold">Message Volume</h2>
-            <button
-              onClick={refreshDashboardData}
-              className="btn btn-sm btn-secondary"
-            >
-              <RefreshCw className="w-4 h-4" /> Refresh
-            </button>
           </div>
           <div className="h-80">
             {dashboardData.data.length > 0 ? (
