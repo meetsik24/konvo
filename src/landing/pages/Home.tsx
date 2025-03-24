@@ -58,7 +58,7 @@ export default function Home() {
       <section
         className="pt-32 pb-20 bg-[#1a3c47] bg-opacity-80 relative"
         style={{
-          backgroundImage: `url(/assets/hero-background.jpg)`,
+          backgroundImage: `url(/assets/hero.png)`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
