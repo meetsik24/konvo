@@ -529,13 +529,13 @@ const SendSMS: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Enter Contacts</label>
                   <textarea
                     className="input min-h-[120px] w-full"
-                    placeholder="Enter phone numbers (comma-separated or one per line, e.g., +1234567890, +0987654321)"
+                    placeholder="Enter phone numbers (comma-separated or one per line, e.g., 255788344348,2557884657)"
                     value={manualContacts}
                     onChange={(e) => setManualContacts(e.target.value)}
                     required={sendMode === 'contacts'}
                   />
                   <p className="text-sm text-gray-500 mt-1">
-                    Example: +1234567890, +0987654321 or one number per line.
+                    Input the number with this format, 255788344348
                   </p>
                 </div>
               )}
