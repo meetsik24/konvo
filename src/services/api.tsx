@@ -628,15 +628,15 @@ export const getPlans = async (): Promise<Plan[]> => {
   }
 };
 
-// Fetch a specific plan by ID
-export const getPlanById = async (planId: string): Promise<Plan> => {
-  try {
-    const response = await api.get(`/plans/${planId}`);
-    return response.data;
-  } catch (error: any) {
-    handleApiError(error, `Failed to fetch plan with ID ${planId}`);
-  }
-};
+// // Fetch a specific plan by ID
+// export const getPlanById = async (planId: string): Promise<Plan> => {
+//   try {
+//     const response = await api.get(`/plans/${planId}`);
+//     return response.data;
+//   } catch (error: any) {
+//     handleApiError(error, `Failed to fetch plan with ID ${planId}`);
+//   }
+// };
 
 // Fetch user credit balance
 export const getSubscriptionUsage = async (): Promise<SubscriptionUsage> => {

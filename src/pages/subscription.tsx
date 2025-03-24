@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CreditCard, Check, X, MessageSquare } from 'lucide-react';
 import {
   getPlans,
-  getPlanById,
+  //getPlanById,
   getSubscriptionUsage,
   purchaseSmsCredits,
   Plan,
@@ -63,16 +63,16 @@ const Subscription: React.FC = () => {
           const creditBalanceData = await getSubscriptionUsage();
           setSubscriptionDetails(creditBalanceData);
 
-          // Fetch the current plan if the user has a plan_id (for button logic)
-          if (creditBalanceData.plan_id) {
-            try {
-              const currentPlanData = await getPlanById(creditBalanceData.plan_id);
-              setCurrentPlan(currentPlanData);
-            } catch (planErr: any) {
-              console.error('Error fetching current plan:', planErr.message);
-              setError(planErr.message || 'Failed to fetch current plan details.');
-            }
-          }
+            // Fetch the current plan if the user has a plan_id (for button logic)
+            // if (creditBalanceData.plan_id) {
+            //   try {
+            //     const currentPlanData = await getPlanById(creditBalanceData.plan_id);
+            //     setCurrentPlan(currentPlanData);
+            //   } catch (planErr: any) {
+            //     console.error('Error fetching current plan:', planErr.message);
+            //     setError(planErr.message || 'Failed to fetch current plan details.');
+            //   }
+            // }
         } catch (subErr: any) {
           console.error('Error fetching credit balance:', subErr.message);
           setError(subErr.message || 'Failed to fetch credit balance.');
