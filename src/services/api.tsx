@@ -235,7 +235,7 @@ export const logoutUser = (): void => {
 // LOGS
 export const fetchLogs = async (): Promise<LogResponse> => {
   try {
-    const response = await api.get("/messages/logs/");
+    const response = await api.get("/messages/logs");
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to fetch logs");
@@ -287,7 +287,7 @@ export const deleteWorkspace = async (id: string): Promise<void> => {
 export const getCampaigns = async (): Promise<Campaign[]> => {
   console.log("getCampaigns API call initiated");
   try {
-    const response = await api.get("/campaigns/");
+    const response = await api.get("/campaigns");
     console.log("getCampaigns API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -343,7 +343,7 @@ export const getContacts = async (
   perPage: number = 100
 ): Promise<ContactsResponse> => {
   try {
-    const response = await api.get(`/workspaces/${workspaceId}/contacts/`, {
+    const response = await api.get(`/workspaces/${workspaceId}/contacts`, {
       params: { page, per_page: perPage },
     });
     console.log("Raw getContacts response:", response.data);
@@ -362,7 +362,7 @@ export const getGroupContacts = async (
 ): Promise<ContactsResponse> => {
   try {
     console.log(`Fetching contacts for group ${groupId} in workspace ${workspaceId}`);
-    const response = await api.get(`/workspaces/${workspaceId}/groups/${groupId}/contacts/`, {
+    const response = await api.get(`/workspaces/${workspaceId}/groups/${groupId}/contacts`, {
       params: { page, per_page: perPage },
     });
     console.log(`Raw getGroupContacts response for group ${groupId}:`, response.data);
@@ -441,7 +441,7 @@ export const getContactMetrics = async (): Promise<any> => {
 export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> => {
   console.log("getWorkspaceGroups API call initiated for workspace:", workspaceId);
   try {
-    const response = await api.get(`/workspaces/${workspaceId}/contact-groups/`);
+    const response = await api.get(`/workspaces/${workspaceId}/contact-groups`);
     console.log("getWorkspaceGroups API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -452,7 +452,7 @@ export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> 
 export const getCampaignGroups = async (campaignId: string): Promise<Group[]> => {
   console.log("getCampaignGroups API call initiated for campaign:", campaignId);
   try {
-    const response = await api.get(`/campaigns/${campaignId}/contact-groups/`);
+    const response = await api.get(`/campaigns/${campaignId}/contact-groups`);
     console.log("getCampaignGroups API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -473,7 +473,7 @@ export const createGroup = async (data: { name: string; workspace_id: string }):
 
 export const getContactGroups = async (workspaceId: string, contactId: string): Promise<Group[]> => {
   try {
-    const response = await api.get(`/workspaces/${workspaceId}/contacts/${contactId}/groups/`);
+    const response = await api.get(`/workspaces/${workspaceId}/contacts/${contactId}/groups`);
     console.log("Raw getContactGroups response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -526,7 +526,7 @@ export const requestSenderId = async (workspaceId: string, data: { sender_id: st
 export const getUserSenderRequests = async (workspaceId: string): Promise<SenderId[]> => {
   console.log("getUserSenderRequests API call initiated for workspace:", workspaceId);
   try {
-    const response = await api.get(`/sender-ids/requests?workspace_id=${workspaceId}/`);
+    const response = await api.get(`/sender-ids/requests?workspace_id=${workspaceId}`);
     console.log("getUserSenderRequests API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -537,7 +537,7 @@ export const getUserSenderRequests = async (workspaceId: string): Promise<Sender
 export const getAdminSenderRequests = async (workspaceId: string): Promise<SenderId[]> => {
   console.log("getAdminSenderRequests API call initiated for workspace:", workspaceId);
   try {
-    const response = await api.get(`/admin/sender-ids/requests?workspace_id=${workspaceId}/`);
+    const response = await api.get(`/admin/sender-ids/requests?workspace_id=${workspaceId}`);
     console.log("getAdminSenderRequests API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -565,7 +565,7 @@ export const reviewSenderIdRequest = async (
 
 export const getApprovedSenderIds = async (workspaceId: string): Promise<SenderId[]> => {
   try {
-    const response = await api.get(`/sender-ids/approved?workspace_id=${workspaceId}/`);
+    const response = await api.get(`/sender-ids/approved?workspace_id=${workspaceId}`);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch approved sender IDs");
@@ -576,7 +576,7 @@ export const getApprovedSenderIds = async (workspaceId: string): Promise<SenderI
 export const getProfile = async (): Promise<User> => {
   console.log("getProfile API call initiated");
   try {
-    const response = await api.get("/users/me/");
+    const response = await api.get("/users/me");
     console.log("getProfile API response:", response.data);
     return {
       email: response.data.email,
@@ -621,7 +621,7 @@ export const changePassword = async (data: {
 // Fetch all available plans
 export const getPlans = async (): Promise<Plan[]> => {
   try {
-    const response = await api.get('/plans/');
+    const response = await api.get('/plans');
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, 'Failed to fetch plans');
@@ -631,7 +631,7 @@ export const getPlans = async (): Promise<Plan[]> => {
 // Fetch a specific plan by ID
 export const getPlanById = async (planId: string): Promise<Plan> => {
   try {
-    const response = await api.get(`/plans/${planId}/`);
+    const response = await api.get(`/plans/${planId}`);
     return response.data;
   } catch (error: any) {
     handleApiError(error, `Failed to fetch plan with ID ${planId}`);
@@ -641,7 +641,7 @@ export const getPlanById = async (planId: string): Promise<Plan> => {
 // Fetch user credit balance
 export const getSubscriptionUsage = async (): Promise<SubscriptionUsage> => {
   try {
-    const response = await api.get('/user-credit-balance/');
+    const response = await api.get('/user-credit-balance');
     return response.data;
   } catch (error: any) {
     handleApiError(error, 'Failed to fetch credit balance');
@@ -683,7 +683,7 @@ export const sendInstantMessage = async (
 
 export const getMessageLogs = async (): Promise<Message[]> => {
   try {
-    const response = await api.get("/messages/logs/");
+    const response = await api.get("/messages/logs");
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch message logs");
@@ -692,7 +692,7 @@ export const getMessageLogs = async (): Promise<Message[]> => {
 
 export const getUserMessages = async (): Promise<Message[]> => {
   try {
-    const response = await api.get("/messages/me/");
+    const response = await api.get("/messages/me");
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch user messages");
@@ -701,7 +701,7 @@ export const getUserMessages = async (): Promise<Message[]> => {
 
 export const getMessagesByRecipient = async (recipient: string): Promise<Message[]> => {
   try {
-    const response = await api.get(`/messages/recipient/${recipient}/`);
+    const response = await api.get(`/messages/recipient/${recipient}`);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch messages by recipient");
@@ -710,7 +710,7 @@ export const getMessagesByRecipient = async (recipient: string): Promise<Message
 
 export const getMessageDetail = async (messageId: string): Promise<Message> => {
   try {
-    const response = await api.get(`/messages/${messageId}/`);
+    const response = await api.get(`/messages/${messageId}`);
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to fetch message detail");
