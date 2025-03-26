@@ -26,13 +26,13 @@ interface SenderId {
 const SenderID: React.FC = () => {
   const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId, isAdmin } = useWorkspace();
   const workspace = getCurrentWorkspace();
-  // Initialize senderIds with workspace?.senderIds if available
   const [senderIds, setSenderIds] = useState<SenderId[]>(workspace?.senderIds || []);
   const [newSenderId, setNewSenderId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [reviewRequest, setReviewRequest] = useState<{ request_id: string; status: 'approved' | 'rejected' } | null>(null);
+  const [pendingRequest, setPendingRequest] = useState<SenderId | null>(null);
 
   // Fetch sender IDs (approved and pending)
   useEffect(() => {
@@ -72,6 +72,12 @@ const SenderID: React.FC = () => {
             }))
           : [];
 
+        // Check for a pending request for the current user
+        const userPendingRequest = formattedRequests.find(
+          (req) => req.status === 'pending' && req.user_id === (workspace?.user_id || '')
+        );
+        setPendingRequest(userPendingRequest || null);
+
         // Combine approved sender IDs and pending requests, filter based on view
         let allSenderIds = [...formattedApproved, ...formattedRequests];
         if (isAdmin && isAdminView) {
@@ -94,11 +100,15 @@ const SenderID: React.FC = () => {
       }
     };
     fetchSenderIds();
-  }, [currentWorkspaceId, isAdmin, isAdminView, workspace?.user_id]);
+  }, [currentWorkspaceId, isAdmin, isAdminView, workspace?.user_id, updateWorkspace]);
 
   const handleRequestSenderId = async () => {
     if (!newSenderId.trim()) {
       setError('Sender ID name cannot be empty.');
+      return;
+    }
+    if (pendingRequest) {
+      setError(`You already have a pending sender ID request: "${pendingRequest.name || pendingRequest.sender_id}". Please wait for it to be reviewed.`);
       return;
     }
     setIsLoading(true);
@@ -117,6 +127,7 @@ const SenderID: React.FC = () => {
       };
       const updatedSenderIds = [...senderIds, newRequest];
       setSenderIds(updatedSenderIds);
+      setPendingRequest(newRequest);
       setNewSenderId('');
       setError(null);
       updateWorkspace(currentWorkspaceId, { senderIds: updatedSenderIds });
@@ -145,6 +156,10 @@ const SenderID: React.FC = () => {
           : req
       );
       setSenderIds(updatedSenderIds);
+      // If the reviewed request was the pending one for the current user, clear it
+      if (pendingRequest && pendingRequest.request_id === requestId) {
+        setPendingRequest(null);
+      }
       setReviewRequest(null);
       setError(null);
       updateWorkspace(currentWorkspaceId, { senderIds: updatedSenderIds });
@@ -183,22 +198,36 @@ const SenderID: React.FC = () => {
       {!isLoading && (
         <div className="card p-6">
           <h2 className="text-lg font-semibold mb-4">Request New Sender ID</h2>
-          <div className="flex gap-4">
-            <input
-              type="text"
-              className="input flex-1"
-              placeholder="Enter sender ID name (e.g., CompanyName)"
-              value={newSenderId}
-              onChange={(e) => setNewSenderId(e.target.value)}
-            />
-            <button
-              onClick={handleRequestSenderId}
-              className="btn btn-primary flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Request
-            </button>
-          </div>
+          {pendingRequest ? (
+            <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 rounded-lg">
+              <p className="text-yellow-800">
+                You have a pending sender ID request: <strong>{pendingRequest.name || pendingRequest.sender_id}</strong>
+              </p>
+              {pendingRequest.requested_at && (
+                <p className="text-yellow-800">
+                  Requested on: {new Date(pendingRequest.requested_at).toLocaleDateString()}
+                </p>
+              )}
+              <p className="text-yellow-800">Please wait for an admin to review your request before submitting a new one.</p>
+            </div>
+          ) : (
+            <div className="flex gap-4">
+              <input
+                type="text"
+                className="input flex-1"
+                placeholder="Enter sender ID name (e.g., CompanyName)"
+                value={newSenderId}
+                onChange={(e) => setNewSenderId(e.target.value)}
+              />
+              <button
+                onClick={handleRequestSenderId}
+                className="btn btn-primary flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Request
+              </button>
+            </div>
+          )}
         </div>
       )}
 
