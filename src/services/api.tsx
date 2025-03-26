@@ -381,7 +381,7 @@ export const createContact = async (data: {
 }): Promise<Contact> => {
   console.log("createContact API call initiated with data:", data);
   try {
-    const response = await api.post("/contacts", data);
+    const response = await api.post("/contacts/", data);
     console.log("createContact API response:", response.data);
     return response.data;
   } catch (error: any) {

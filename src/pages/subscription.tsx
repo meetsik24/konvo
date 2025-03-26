@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CreditCard, Check, X, MessageSquare } from 'lucide-react';
 import {
   getPlans,
-  //getPlanById,
+ 
   getSubscriptionUsage,
   purchaseSmsCredits,
   Plan,
@@ -51,44 +51,42 @@ const Subscription: React.FC = () => {
     const fetchPlansAndCreditBalance = async () => {
       setIsLoading(true);
       setError(null);
-
+  
       try {
         // Fetch all plans
         const plansData = await getPlans();
-        console.log('Fetched plans:', plansData);
         setPlans(plansData);
-
+  
         // Fetch user credit balance
         try {
           const creditBalanceData = await getSubscriptionUsage();
           setSubscriptionDetails(creditBalanceData);
-
-            // Fetch the current plan if the user has a plan_id (for button logic)
-            // if (creditBalanceData.plan_id) {
-            //   try {
-            //     const currentPlanData = await getPlanById(creditBalanceData.plan_id);
-            //     setCurrentPlan(currentPlanData);
-            //   } catch (planErr: any) {
-            //     console.error('Error fetching current plan:', planErr.message);
-            //     setError(planErr.message || 'Failed to fetch current plan details.');
-            //   }
-            // }
+  
+          // Fetch the current plan if the user has a plan_id (for button logic)
+          if (creditBalanceData.plan_id) {
+            try {
+              const currentPlanData = await getPlanById(creditBalanceData.plan_id);
+              setCurrentPlan(currentPlanData);
+            } catch (planErr: any) {
+              console.error('Error fetching current plan:', planErr); // Log the actual error
+              
+            }
+          }
         } catch (subErr: any) {
-          console.error('Error fetching credit balance:', subErr.message);
-          setError(subErr.message || 'Failed to fetch credit balance.');
+          console.error('Error fetching credit balance:', subErr); // Log the actual error
+          setError('Failed to fetch credit balance. Please try again later.');
         }
       } catch (err: any) {
-        console.error('Error fetching plans:', err.message);
-        setError(err.message || 'Failed to load plans. Please check your connection and try again.');
+        console.error('Error fetching plans:', err); // Log the actual error
+        setError('Failed to load plans. Please check your connection and try again.');
       } finally {
         setIsLoading(false);
       }
     };
-
+  
     if (token) {
       fetchPlansAndCreditBalance();
     } else {
-      console.error('No authentication token available');
       setError('You must be logged in to view subscription plans.');
     }
   }, [token]);
