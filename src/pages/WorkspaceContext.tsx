@@ -30,11 +30,11 @@ interface SenderId {
 
 interface Workspace {
   workspace_id: string;
-  user_id: string;
+  user_id: string; // Added user_id property
   name: string;
   description: string;
   created_at: string;
-  campaigns?: Campaign[];
+  campaigns?: Campaign[]; // Ensure campaigns is optional
   senderIds?: SenderId[];
 }
 
@@ -131,8 +131,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (!name.trim()) throw new Error('Workspace name cannot be empty');
     try {
       const newWorkspace = await createWorkspace(name);
-      const formattedNewWorkspace = {
-        ...newWorkspace,
+      const formattedNewWorkspace: Workspace = {
+        workspace_id: newWorkspace.workspace_id || '',
+        user_id: newWorkspace.user_id || '',
+        name: newWorkspace.name || 'Unnamed Workspace',
+        description: newWorkspace.description || '',
+        created_at: newWorkspace.created_at || '',
         campaigns: [],
         senderIds: [],
       };
