@@ -255,7 +255,7 @@ export const createWorkspace = async (name: string): Promise<Workspace> => {
 export const getWorkspaces = async (): Promise<Workspace[]> => {
   console.log("getWorkspaces API call initiated");
   try {
-    const response = await api.get("/workspaces/");
+    const response = await api.get("/workspaces");
     console.log("getWorkspaces API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
@@ -266,7 +266,7 @@ export const getWorkspaces = async (): Promise<Workspace[]> => {
 
 export const updateWorkspace = async (id: string, data: Partial<Workspace>): Promise<Workspace> => {
   try {
-    const response = await api.patch(`/workspaces/${id}`, data);
+    const response = await api.patch(`/workspaces${id}`, data);
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to update workspace");
@@ -276,7 +276,7 @@ export const updateWorkspace = async (id: string, data: Partial<Workspace>): Pro
 export const deleteWorkspace = async (id: string): Promise<void> => {
   console.log("deleteWorkspace API call initiated for ID:", id);
   try {
-    await api.delete(`/workspaces/${id}`);
+    await api.delete(`/workspaces${id}`);
     console.log("Workspace deleted successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to delete workspace");
