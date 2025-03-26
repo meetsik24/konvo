@@ -93,7 +93,7 @@ const SenderID: React.FC = () => {
         setError(null);
       } catch (error: any) {
         console.error('Failed to fetch sender IDs:', error);
-        setError(error?.response?.data?.message || 'Unable to fetch sender ID requests from the server.');
+        setError(error?.response?.data?.message || 'Your sender id Request is being processed.');
         setSenderIds([]);
       } finally {
         setIsLoading(false);
