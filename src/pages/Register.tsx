@@ -23,12 +23,11 @@ const Register: React.FC = () => {
   const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
 
   useEffect(() => {
-    // Navigate to dashboard after successful registration (indicated by token presence)
     if (status === 'succeeded' && successMessage && token) {
       const timer = setTimeout(() => {
         dispatch(clearSuccessMessage());
-        navigate('/dashboard'); // Changed from '/' to '/dashboard'
-      }, 3000); // Display success message for 3 seconds
+        navigate('/dashboard');
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, [status, successMessage, token, navigate, dispatch]);
@@ -69,25 +68,25 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full space-y-8"
+        className="max-w-md w-full space-y-6 sm:space-y-8"
       >
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-[#00333e]">
+          <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-[#00333e]">
             Create your account
           </h2>
-          <p className="mt-2 text-center text-sm text-[#6f888c]">
+          <p className="mt-2 text-center text-xs sm:text-sm text-[#6f888c]">
             Already have an account?{' '}
             <Link to="/login" className="font-medium text-[#fddf0d] hover:text-[#00333e]">
               Sign in
             </Link>
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm space-y-4">
+        <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm space-y-3 sm:space-y-4">
             <div>
               <label htmlFor="username" className="sr-only">
                 Username
@@ -97,7 +96,7 @@ const Register: React.FC = () => {
                 name="username"
                 type="text"
                 required
-                className="input"
+                className="input text-sm sm:text-base"
                 placeholder="Username"
                 value={formData.username}
                 onChange={handleChange}
@@ -113,7 +112,7 @@ const Register: React.FC = () => {
                 name="fullName"
                 type="text"
                 required
-                className="input"
+                className="input text-sm sm:text-base"
                 placeholder="Full name"
                 value={formData.fullName}
                 onChange={handleChange}
@@ -129,7 +128,7 @@ const Register: React.FC = () => {
                 name="email"
                 type="email"
                 required
-                className="input"
+                className="input text-sm sm:text-base"
                 placeholder="Email address"
                 value={formData.email}
                 onChange={handleChange}
@@ -145,7 +144,7 @@ const Register: React.FC = () => {
                 name="mobileNumber"
                 type="tel"
                 required
-                className="input"
+                className="input text-sm sm:text-base"
                 placeholder="Mobile number (e.g., +1234567890)"
                 value={formData.mobileNumber}
                 onChange={handleChange}
@@ -161,7 +160,7 @@ const Register: React.FC = () => {
                 name="password"
                 type="password"
                 required
-                className="input"
+                className="input text-sm sm:text-base"
                 placeholder="Password"
                 value={formData.password}
                 onChange={handleChange}
@@ -177,7 +176,7 @@ const Register: React.FC = () => {
                 name="confirmPassword"
                 type="password"
                 required
-                className="input"
+                className="input text-sm sm:text-base"
                 placeholder="Confirm password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
@@ -187,7 +186,7 @@ const Register: React.FC = () => {
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm">
+            <div className="text-red-500 text-xs sm:text-sm">
               {Array.isArray(error) ? error.map((msg, index) => <p key={index}>{msg}</p>) : error}
             </div>
           )}
@@ -199,10 +198,10 @@ const Register: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.5, ease: "easeInOut" }}
-                className="flex items-center justify-center gap-2 bg-green-100 text-green-700 p-3 rounded-lg shadow-lg"
+                className="flex items-center justify-center gap-1 sm:gap-2 bg-green-100 text-green-700 p-2 sm:p-3 rounded-lg shadow-lg"
               >
-                <CheckCircle className="w-6 h-6 animate-bounce" />
-                <p className="text-sm font-semibold">{successMessage}</p>
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 animate-bounce" />
+                <p className="text-xs sm:text-sm font-semibold">{successMessage}</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -210,12 +209,12 @@ const Register: React.FC = () => {
           <div>
             <button
               type="submit"
-              className="btn bg-[#00333e] text-white w-full flex justify-center items-center"
+              className="btn bg-[#00333e] text-white w-full flex justify-center items-center text-sm sm:text-base"
               disabled={status === 'loading'}
             >
               {status === 'loading' ? 'Registering...' : (
                 <>
-                  <UserPlus className="w-5 h-5 mr-2" />
+                  <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                   Create account
                 </>
               )}
