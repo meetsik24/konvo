@@ -526,11 +526,12 @@ export const requestSenderId = async (workspaceId: string, data: { sender_id: st
 export const getUserSenderRequests = async (workspaceId: string): Promise<SenderId[]> => {
   console.log("getUserSenderRequests API call initiated for workspace:", workspaceId);
   try {
-    const response = await api.get(`/sender-ids/requests?workspace_id=${workspaceId}`);
+    const response = await api.get("/sender-ids/requests");
     console.log("getUserSenderRequests API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch user sender requests");
+    return []; // Ensure a return value in case of an error
   }
 };
 

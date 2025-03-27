@@ -32,32 +32,42 @@ const SenderID: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [reviewRequest, setReviewRequest] = useState<{ request_id: string; status: 'approved' | 'rejected' } | null>(null);
-  const [pendingRequest, setPendingRequest] = useState<SenderId | null>(null);
 
-  // Fetch sender IDs (approved and pending)
   useEffect(() => {
     const fetchSenderIds = async () => {
       if (!currentWorkspaceId) {
         setError('No workspace selected.');
         return;
       }
+
       setIsLoading(true);
+      let formattedApproved: SenderId[] = [];
+      let formattedRequests: SenderId[] = [];
+      let hasError = false;
+      let errorMessage = '';
+
+      // Fetch approved sender IDs
       try {
-        // Fetch approved sender IDs
         const approvedResponse = await getApprovedSenderIds(currentWorkspaceId);
-        const formattedApproved: SenderId[] = Array.isArray(approvedResponse)
+        formattedApproved = Array.isArray(approvedResponse)
           ? approvedResponse.map((item: SenderId) => ({
               ...item,
               is_approved: true,
               status: 'approved',
             }))
           : [];
+      } catch (error: any) {
+        console.error('Failed to fetch approved sender IDs:', error);
+        hasError = true;
+        errorMessage += 'Chill !! You dont have any approved sender Id. ';
+      }
 
-        // Fetch pending requests based on user role and view
+      // Fetch pending requests (this will run even if the above fails)
+      try {
         const requestsResponse = isAdmin && isAdminView
           ? await getAdminSenderRequests(currentWorkspaceId)
           : await getUserSenderRequests(currentWorkspaceId);
-        const formattedRequests: SenderId[] = Array.isArray(requestsResponse)
+        formattedRequests = Array.isArray(requestsResponse)
           ? requestsResponse.map((req: SenderId) => ({
               request_id: req.request_id || '',
               user_id: req.user_id || '',
@@ -71,48 +81,56 @@ const SenderID: React.FC = () => {
               created_at: req.created_at || req.requested_at,
             }))
           : [];
+      } catch (error: any) {
+        console.error('Failed to fetch sender ID requests:', error);
+        hasError = true;
+        errorMessage += 'Failed to fetch sender ID requests. ';
+      }
 
-        // Check for a pending request for the current user
-        const userPendingRequest = formattedRequests.find(
-          (req) => req.status === 'pending' && req.user_id === (workspace?.user_id || '')
-        );
-        setPendingRequest(userPendingRequest || null);
-
+      try {
         // Combine approved sender IDs and pending requests, filter based on view
         let allSenderIds = [...formattedApproved, ...formattedRequests];
         if (isAdmin && isAdminView) {
           allSenderIds = allSenderIds.filter((id) => id.status === 'pending');
         } else {
-          allSenderIds = allSenderIds.filter((id) => id.user_id === (workspace?.user_id || '') || id.status === 'approved');
+          allSenderIds = allSenderIds.filter(
+            (id) => id.user_id === (workspace?.user_id || '') || id.status === 'approved'
+          );
         }
 
         // Update state with fetched sender IDs
         setSenderIds(allSenderIds);
-        // Update workspace with the new sender IDs
         updateWorkspace(currentWorkspaceId, { senderIds: allSenderIds });
-        setError(null);
+
+        // Set error if any API call failed
+        if (hasError) {
+          setError(errorMessage || 'Some data could not be fetched.');
+        } else {
+          setError(null);
+        }
       } catch (error: any) {
-        console.error('Failed to fetch sender IDs:', error);
-        setError(error?.response?.data?.message || 'Your sender id Request is being processed.');
+        console.error('Error processing sender IDs:', error);
+        setError('Error processing sender IDs.');
         setSenderIds([]);
       } finally {
         setIsLoading(false);
       }
     };
     fetchSenderIds();
-  }, [currentWorkspaceId, isAdmin, isAdminView, workspace?.user_id, updateWorkspace]);
+  }, [currentWorkspaceId, isAdmin, isAdminView, workspace?.user_id]);
 
   const handleRequestSenderId = async () => {
     if (!newSenderId.trim()) {
       setError('Sender ID name cannot be empty.');
       return;
     }
-    if (pendingRequest) {
-      setError(`You already have a pending sender ID request: "${pendingRequest.name || pendingRequest.sender_id}". Please wait for it to be reviewed.`);
-      return;
-    }
     setIsLoading(true);
     try {
+      if (!currentWorkspaceId) {
+        setError('Workspace ID is missing.');
+        setIsLoading(false);
+        return;
+      }
       const response = await requestSenderId(currentWorkspaceId, { sender_id: newSenderId.trim() });
       const newRequest: SenderId = {
         request_id: response.request_id || Date.now().toString(),
@@ -127,10 +145,11 @@ const SenderID: React.FC = () => {
       };
       const updatedSenderIds = [...senderIds, newRequest];
       setSenderIds(updatedSenderIds);
-      setPendingRequest(newRequest);
       setNewSenderId('');
       setError(null);
-      updateWorkspace(currentWorkspaceId, { senderIds: updatedSenderIds });
+      if (currentWorkspaceId) {
+        updateWorkspace(currentWorkspaceId, { senderIds: updatedSenderIds });
+      }
     } catch (error: any) {
       console.error('Error requesting sender ID:', error);
       setError(error?.response?.data?.message || 'Failed to request sender ID. Please try again.');
@@ -156,10 +175,6 @@ const SenderID: React.FC = () => {
           : req
       );
       setSenderIds(updatedSenderIds);
-      // If the reviewed request was the pending one for the current user, clear it
-      if (pendingRequest && pendingRequest.request_id === requestId) {
-        setPendingRequest(null);
-      }
       setReviewRequest(null);
       setError(null);
       updateWorkspace(currentWorkspaceId, { senderIds: updatedSenderIds });
@@ -198,36 +213,22 @@ const SenderID: React.FC = () => {
       {!isLoading && (
         <div className="card p-6">
           <h2 className="text-lg font-semibold mb-4">Request New Sender ID</h2>
-          {pendingRequest ? (
-            <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 rounded-lg">
-              <p className="text-yellow-800">
-                You have a pending sender ID request: <strong>{pendingRequest.name || pendingRequest.sender_id}</strong>
-              </p>
-              {pendingRequest.requested_at && (
-                <p className="text-yellow-800">
-                  Requested on: {new Date(pendingRequest.requested_at).toLocaleDateString()}
-                </p>
-              )}
-              <p className="text-yellow-800">Please wait for an admin to review your request before submitting a new one.</p>
-            </div>
-          ) : (
-            <div className="flex gap-4">
-              <input
-                type="text"
-                className="input flex-1"
-                placeholder="Enter sender ID name (e.g., CompanyName)"
-                value={newSenderId}
-                onChange={(e) => setNewSenderId(e.target.value)}
-              />
-              <button
-                onClick={handleRequestSenderId}
-                className="btn btn-primary flex items-center gap-2"
-              >
-                <Plus className="w-5 h-5" />
-                Request
-              </button>
-            </div>
-          )}
+          <div className="flex gap-4">
+            <input
+              type="text"
+              className="input flex-1"
+              placeholder="Enter sender ID name (e.g., CompanyName)"
+              value={newSenderId}
+              onChange={(e) => setNewSenderId(e.target.value)}
+            />
+            <button
+              onClick={handleRequestSenderId}
+              className="btn btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Request
+            </button>
+          </div>
         </div>
       )}
 
