@@ -37,12 +37,14 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-4 text-red-500 bg-red-50 rounded">
-          <h2>Something went wrong.</h2>
-          <p>{this.state.error?.message || 'An unexpected error occurred.'}</p>
+        <div className="p-3 sm:p-4 text-red-500 bg-red-50 rounded">
+          <h2 className="text-base sm:text-lg font-semibold">Something went wrong.</h2>
+          <p className="text-sm sm:text-base">
+            {this.state.error?.message || 'An unexpected error occurred.'}
+          </p>
           <button
             onClick={() => this.setState({ hasError: false })}
-            className="mt-2 btn btn-primary"
+            className="mt-1 sm:mt-2 btn btn-primary text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
           >
             Try Again
           </button>
@@ -96,48 +98,48 @@ const ContactModal: React.FC<ContactModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">{title}</h2>
+      <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-md">
+        <div className="flex justify-between items-center mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl font-semibold">{title}</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
+            <label className="block text-xs sm:text-sm font-medium mb-1">Name</label>
             <input
               type="text"
-              className="input w-full"
+              className="input w-full text-xs sm:text-sm py-2 sm:py-3"
               value={contact.name || ''}
               onChange={(e) => setContact({ ...contact, name: e.target.value })}
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Phone Number</label>
+            <label className="block text-xs sm:text-sm font-medium mb-1">Phone Number</label>
             <input
               type="tel"
-              className="input w-full"
+              className="input w-full text-xs sm:text-sm py-2 sm:py-3"
               value={contact.phone_number || ''}
               onChange={(e) => setContact({ ...contact, phone_number: e.target.value })}
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Email (Optional)</label>
+            <label className="block text-xs sm:text-sm font-medium mb-1">Email (Optional)</label>
             <input
               type="email"
-              className="input w-full"
+              className="input w-full text-xs sm:text-sm py-2 sm:py-3"
               value={contact.email || ''}
               onChange={(e) => setContact({ ...contact, email: e.target.value })}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Assign to Groups</label>
+            <label className="block text-xs sm:text-sm font-medium mb-1">Assign to Groups</label>
             <select
               multiple
-              className="input w-full min-h-[100px]"
+              className="input w-full min-h-[80px] sm:min-h-[100px] text-xs sm:text-sm"
               value={contact.group_ids || []}
               onChange={(e) => {
                 const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
@@ -153,9 +155,16 @@ const ContactModal: React.FC<ContactModalProps> = ({
                 ))}
             </select>
           </div>
-          <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="btn btn-secondary">Cancel</button>
-            <button onClick={() => onSubmit(contact)} className="btn btn-primary">{title}</button>
+          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+            <button onClick={onClose} className="btn btn-secondary text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3">
+              Cancel
+            </button>
+            <button
+              onClick={() => onSubmit(contact)}
+              className="btn btn-primary text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
+            >
+              {title}
+            </button>
           </div>
         </div>
       </div>
@@ -188,18 +197,18 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Import CSV</h2>
+      <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-md">
+        <div className="flex justify-between items-center mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl font-semibold">Import CSV</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Select Group</label>
+            <label className="block text-xs sm:text-sm font-medium mb-1">Select Group</label>
             <select
-              className="input w-full"
+              className="input w-full text-xs sm:text-sm py-2 sm:py-3"
               value={selectedGroup}
               onChange={(e) => setSelectedGroup(e.target.value)}
             >
@@ -214,19 +223,26 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Upload CSV File</label>
+            <label className="block text-xs sm:text-sm font-medium mb-1">Upload CSV File</label>
             <input
               type="file"
               ref={fileInputRef}
-              className="input w-full"
+              className="input w-full text-xs sm:text-sm"
               accept=".csv"
               onChange={() => setError(null)}
             />
           </div>
-          {error && <div className="text-red-500 text-sm">{error}</div>}
-          <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="btn btn-secondary">Cancel</button>
-            <button onClick={handleSubmit} className="btn btn-primary">Import</button>
+          {error && <div className="text-red-500 text-xs sm:text-sm">{error}</div>}
+          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+            <button onClick={onClose} className="btn btn-secondary text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3">
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="btn btn-primary text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
+            >
+              Import
+            </button>
           </div>
         </div>
       </div>
@@ -653,6 +669,7 @@ const Contacts: React.FC = () => {
       name: 'Email',
       selector: (row: Contact) => row.email || 'N/A',
       sortable: true,
+      omit: window.innerWidth < 640, // Hide on mobile
     },
     {
       name: 'Groups',
@@ -664,11 +681,12 @@ const Contacts: React.FC = () => {
         return groupNames || 'None';
       },
       sortable: false,
+      omit: window.innerWidth < 640, // Hide on mobile
     },
     {
       name: 'Actions',
       cell: (row: Contact) => (
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-1 sm:gap-2">
           <button
             onClick={() => {
               console.log('Editing contact:', row);
@@ -684,7 +702,7 @@ const Contacts: React.FC = () => {
             }}
             className="btn btn-icon btn-ghost text-gray-600 hover:text-primary-500"
           >
-            <Edit2 className="w-5 h-5" />
+            <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
           <button
             onClick={() => {
@@ -693,7 +711,7 @@ const Contacts: React.FC = () => {
             }}
             className="btn btn-icon btn-ghost text-gray-600 hover:text-red-500"
           >
-            <Trash2 className="w-5 h-5" />
+            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       ),
@@ -717,51 +735,53 @@ const Contacts: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-6xl mx-auto space-y-6 p-6"
+        className="max-w-6xl mx-auto space-y-4 sm:space-y-6 p-4 sm:p-6"
       >
-        <div className="flex items-center gap-3 mb-8">
-          <Users className="w-8 h-8 text-primary-500" />
-          <h1 className="text-3xl font-bold text-gray-800">Contacts</h1>
+        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-8">
+          <Users className="w-6 h-6 sm:w-8 sm:h-8 text-primary-500" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Contacts</h1>
         </div>
 
         {error && (
-          <div className="text-red-500 mb-4 p-3 rounded bg-red-50">
+          <div className="text-red-500 mb-3 sm:mb-4 p-2 sm:p-3 rounded bg-red-50 text-xs sm:text-sm">
             {typeof error === 'string' ? error : 'An unexpected error occurred.'}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
           <div className="lg:col-span-1">
-            <div className="card p-6 bg-white rounded-lg shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Groups</h2>
+            <div className="card p-4 sm:p-6 bg-white rounded-lg shadow-sm">
+              <div className="flex justify-between items-center mb-3 sm:mb-4">
+                <h2 className="text-base sm:text-lg font-semibold">Groups</h2>
                 <button
                   onClick={() => setShowAddGroup(true)}
-                  className="btn btn-icon btn-ghost hover:bg-gray-100 rounded-full p-2"
+                  className="btn btn-icon btn-ghost hover:bg-gray-100 rounded-full p-1 sm:p-2"
                 >
-                  <FolderPlus className="w-5 h-5 text-primary-500" />
+                  <FolderPlus className="w-4 h-4 sm:w-5 sm:h-5 text-primary-500" />
                 </button>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1 sm:space-y-2">
                 {groups.map((group) => (
                   <div key={group.group_id} className="flex justify-between items-center group">
                     <button
                       onClick={() => setSelectedGroup(group.group_id)}
-                      className={`w-full text-left px-4 py-2 rounded-lg flex justify-between items-center transition-colors ${
+                      className={`w-full text-left px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex justify-between items-center transition-colors text-xs sm:text-sm ${
                         selectedGroup === group.group_id
                           ? 'bg-primary-50 text-primary-600'
                           : 'hover:bg-gray-50'
                       }`}
                     >
                       <span className="truncate">{group.name}</span>
-                      <span className="text-sm text-gray-500 ml-2">{group.count}</span>
+                      <span className="text-xs sm:text-sm text-gray-500 ml-1 sm:ml-2">
+                        {group.count}
+                      </span>
                     </button>
                     {group.group_id !== 'all' && (
                       <button
                         onClick={() => handleDeleteGroup(group.group_id)}
-                        className="btn btn-icon btn-ghost text-red-500 hover:text-red-700 ml-2"
+                        className="btn btn-icon btn-ghost text-red-500 hover:text-red-700 ml-1 sm:ml-2"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                     )}
                   </div>
@@ -771,9 +791,9 @@ const Contacts: React.FC = () => {
           </div>
 
           <div className="lg:col-span-3">
-            <div className="card p-6 bg-white rounded-lg shadow-sm">
-              <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
-                <div className="flex gap-2 flex-wrap">
+            <div className="card p-4 sm:p-6 bg-white rounded-lg shadow-sm">
+              <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       setNewContact({
@@ -785,32 +805,32 @@ const Contacts: React.FC = () => {
                       });
                       setShowAddContact(true);
                     }}
-                    className="btn btn-primary flex items-center gap-2"
+                    className="btn btn-primary flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
                   >
-                    <UserPlus className="w-5 h-5" />
+                    <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
                     Add Contact
                   </button>
                   <button
                     onClick={() => setShowImportModal(true)}
-                    className="btn btn-secondary flex items-center gap-2"
+                    className="btn btn-secondary flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
                   >
-                    <Upload className="w-5 h-5" />
+                    <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
                     Import CSV
                   </button>
                   <button
                     onClick={downloadTemplate}
-                    className="btn btn-ghost flex items-center gap-2 text-gray-600"
+                    className="btn btn-ghost flex items-center gap-1 sm:gap-2 text-gray-600 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
                   >
-                    <Download className="w-5 h-5" />
+                    <Download className="w-4 h-4 sm:w-5 sm:h-5" />
                     Template
                   </button>
                 </div>
                 <div className="relative flex-1 max-w-xs">
-                  <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Search className="w-4 h-4 sm:w-5 sm:h-5 absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Search contacts..."
-                    className="input pl-10 w-full"
+                    className="input pl-8 sm:pl-10 w-full text-xs sm:text-sm py-2 sm:py-3"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
@@ -828,37 +848,49 @@ const Contacts: React.FC = () => {
                   rangeSeparatorText: 'of',
                 }}
                 progressPending={isLoading}
-                progressComponent={<div className="p-4 text-center text-gray-500">Loading contacts...</div>}
-                noDataComponent={<div className="p-4 text-center text-gray-500">No contacts found.</div>}
+                progressComponent={
+                  <div className="p-3 sm:p-4 text-center text-gray-500 text-xs sm:text-sm">
+                    Loading contacts...
+                  </div>
+                }
+                noDataComponent={
+                  <div className="p-3 sm:p-4 text-center text-gray-500 text-xs sm:text-sm">
+                    No contacts found.
+                  </div>
+                }
                 customStyles={{
                   headCells: {
                     style: {
                       backgroundColor: '#f9fafb',
                       fontWeight: '600',
-                      padding: '12px',
+                      padding: '8px 12px',
+                      fontSize: window.innerWidth < 640 ? '12px' : '14px',
                     },
                   },
                   cells: {
                     style: {
-                      padding: '12px',
+                      padding: '8px 12px',
+                      fontSize: window.innerWidth < 640 ? '12px' : '14px',
                     },
                   },
                   table: {
                     style: {
                       border: '1px solid #e5e7eb',
                       borderRadius: '8px',
-                      overflow: 'hidden',
+                      overflow: 'auto',
                     },
                   },
                   pagination: {
                     style: {
                       borderTop: '1px solid #e5e7eb',
-                      padding: '10px',
+                      padding: '8px 10px',
+                      fontSize: window.innerWidth < 640 ? '12px' : '14px',
                     },
                   },
                 }}
                 highlightOnHover
                 striped
+                responsive
               />
             </div>
           </div>
@@ -896,9 +928,9 @@ const Contacts: React.FC = () => {
 
         {showAddGroup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Add Group</h2>
+            <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-md">
+              <div className="flex justify-between items-center mb-3 sm:mb-4">
+                <h2 className="text-lg sm:text-xl font-semibold">Add Group</h2>
                 <button
                   onClick={() => {
                     setShowAddGroup(false);
@@ -907,31 +939,34 @@ const Contacts: React.FC = () => {
                   }}
                   className="text-gray-500 hover:text-gray-700"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Group Name</label>
+                  <label className="block text-xs sm:text-sm font-medium mb-1">Group Name</label>
                   <input
                     type="text"
-                    className="input w-full"
+                    className="input w-full text-xs sm:text-sm py-2 sm:py-3"
                     value={newGroupName}
                     onChange={(e) => setNewGroupName(e.target.value)}
                   />
                 </div>
-                <div className="flex justify-end gap-2">
+                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       setShowAddGroup(false);
                       setNewGroupName('');
                       setError(null);
                     }}
-                    className="btn btn-secondary"
+                    className="btn btn-secondary text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
                   >
                     Cancel
                   </button>
-                  <button onClick={handleAddGroup} className="btn btn-primary">
+                  <button
+                    onClick={handleAddGroup}
+                    className="btn btn-primary text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
+                  >
                     Add Group
                   </button>
                 </div>

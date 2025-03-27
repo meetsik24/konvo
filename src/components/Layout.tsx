@@ -56,7 +56,7 @@ const Layout: React.FC = () => {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 p-4 sm:p-8">
+        <main className="flex-1 p-4 sm:p-8 pt-20 sm:pt-24">
           <Outlet />
         </main>
       </div>
