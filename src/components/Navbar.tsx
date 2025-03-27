@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Settings, LogOut, Plus, X, Coffee, ChevronDown, Trash2, Check } from 'lucide-react';
+import { Bell, Settings, LogOut, Plus, X, Coffee, ChevronDown, Trash2, Check, Menu } from 'lucide-react';
 import { logout, fetchUserProfile } from '../store/slices/authSlice';
 import { store } from '../store/store';
 import { fetchNotifications, deleteNotification, markNotificationAsRead } from '../services/api';
@@ -17,7 +17,13 @@ interface Notification {
   is_read: boolean;
 }
 
-const Navbar: React.FC = () => {
+interface NavbarProps {
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+  closeSidebar: () => void;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSidebar }) => {
   const dispatch = useDispatch<typeof store.dispatch>();
   const navigate = useNavigate();
   const { user, token, status } = useSelector((state: RootState) => state.auth);
@@ -85,163 +91,304 @@ const Navbar: React.FC = () => {
     navigate('/login');
   }, [dispatch, user?.email, navigate]);
 
-  const handleCreateWorkspace = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newWorkspaceName.trim()) {
-      setError('Workspace name cannot be empty');
-      return;
-    }
+  const handleCreateWorkspace = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!newWorkspaceName.trim()) {
+        setError('Workspace name cannot be empty');
+        return;
+      }
 
-    setIsLoading(true);
-    setError(null);
-    try {
-      await addWorkspace(newWorkspaceName);
-      setNewWorkspaceName('');
-      setIsCreateModalOpen(false);
-      await refreshWorkspaces();
-    } catch (err: any) {
-      setError(err.message || 'Failed to create workspace');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [newWorkspaceName, addWorkspace, refreshWorkspaces]);
-
-  const handleDeleteWorkspace = useCallback(async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this workspace?')) {
       setIsLoading(true);
       setError(null);
       try {
-        await deleteWorkspace(id);
-        setIsWorkspaceListOpen(false);
+        await addWorkspace(newWorkspaceName);
+        setNewWorkspaceName('');
+        setIsCreateModalOpen(false);
         await refreshWorkspaces();
       } catch (err: any) {
-        setError(err.message || 'Failed to delete workspace');
+        setError(err.message || 'Failed to create workspace');
       } finally {
         setIsLoading(false);
       }
-    }
-  }, [deleteWorkspace, refreshWorkspaces]);
+    },
+    [newWorkspaceName, addWorkspace, refreshWorkspaces]
+  );
 
-  const handleDismissNotification = useCallback(async (id: string) => {
-    try {
-      console.log(`Attempting to dismiss notification with ID: ${id}`);
-      await deleteNotification(id);
-      setNotifications((prev) => prev.filter((notif) => notif.notification_id !== id));
-      setError(null); // Clear any previous errors
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to dismiss notification';
-      console.error(`Failed to dismiss notification ${id}:`, errorMessage);
-      setError(errorMessage);
-    }
-  }, []);
+  const handleDeleteWorkspace = useCallback(
+    async (id: string) => {
+      if (window.confirm('Are you sure you want to delete this workspace?')) {
+        setIsLoading(true);
+        setError(null);
+        try {
+          await deleteWorkspace(id);
+          setIsWorkspaceListOpen(false);
+          await refreshWorkspaces();
+        } catch (err: any) {
+          setError(err.message || 'Failed to delete workspace');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    },
+    [deleteWorkspace, refreshWorkspaces]
+  );
 
-  const handleMarkAsRead = useCallback(async (id: string) => {
-    try {
-      await markNotificationAsRead(id);
-      setNotifications((prev) =>
-        prev.map((notif) =>
-          notif.notification_id === id ? { ...notif, is_read: true } : notif
-        )
-      );
-    } catch (err: any) {
-      setError(err.message || 'Failed to mark notification as read');
-    }
-  }, []);
+  const handleDismissNotification = useCallback(
+    async (id: string) => {
+      try {
+        console.log(`Attempting to dismiss notification with ID: ${id}`);
+        await deleteNotification(id);
+        setNotifications((prev) => prev.filter((notif) => notif.notification_id !== id));
+        setError(null);
+      } catch (err: any) {
+        const errorMessage = err.message || 'Failed to dismiss notification';
+        console.error(`Failed to dismiss notification ${id}:`, errorMessage);
+        setError(errorMessage);
+      }
+    },
+    []
+  );
 
-  const notificationPanel = useMemo(() => (
-    <div className="absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow-lg z-10 max-h-96 overflow-y-auto">
-      <div className="p-4 border-b">
-        <h3 className="text-lg font-semibold text-gray-800">Notifications</h3>
-      </div>
-      {error ? (
-        <p className="p-4 text-red-500 text-center">{error}</p>
-      ) : notifications.length === 0 ? (
-        <p className="p-4 text-gray-500 text-center">No notifications</p>
-      ) : (
-        notifications.map((notif) => (
-          <div
-            key={notif.notification_id}
-            className={`flex items-start gap-3 p-4 border-b last:border-b-0 hover:bg-gray-50 ${
-              notif.is_read ? 'bg-gray-100' : 'bg-white'
-            }`}
-          >
-            <div className="flex-shrink-0">
-              <span className="text-blue-500">i</span> {/* Generic icon since type is not available */}
+  const handleMarkAsRead = useCallback(
+    async (id: string) => {
+      try {
+        await markNotificationAsRead(id);
+        setNotifications((prev) =>
+          prev.map((notif) =>
+            notif.notification_id === id ? { ...notif, is_read: true } : notif
+          )
+        );
+      } catch (err: any) {
+        setError(err.message || 'Failed to mark notification as read');
+      }
+    },
+    []
+  );
+
+  const notificationPanel = useMemo(
+    () => (
+      <>
+        {/* Mobile: Centered Pop-Up */}
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:hidden">
+          <div className="bg-white border rounded-xl shadow-lg w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="p-3 border-b flex justify-between items-center">
+              <h3 className="text-base font-semibold text-gray-800">Notifications</h3>
+              <button
+                onClick={() => setIsNotificationOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <div className="flex-1">
-              <p className={`text-sm ${notif.is_read ? 'text-gray-500' : 'text-gray-700 font-medium'}`}>
-                {notif.message}
-              </p>
-              <p className="text-xs text-gray-500">
-                {new Date(notif.created_at).toLocaleString()}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {!notif.is_read && (
-                <button
-                  onClick={() => handleMarkAsRead(notif.notification_id)}
-                  className="text-gray-400 hover:text-green-500"
-                  title="Mark as read"
+            {error ? (
+              <p className="p-3 text-red-500 text-center text-sm">{error}</p>
+            ) : notifications.length === 0 ? (
+              <p className="p-3 text-gray-500 text-center text-sm">No notifications</p>
+            ) : (
+              notifications.map((notif) => (
+                <div
+                  key={notif.notification_id}
+                  className={`flex items-start gap-2 p-3 border-b last:border-b-0 hover:bg-gray-50 ${
+                    notif.is_read ? 'bg-gray-100' : 'bg-white'
+                  }`}
                 >
-                  <Check className="w-4 h-4" />
-                </button>
-              )}
-              <button
-                onClick={() => handleDismissNotification(notif.notification_id)}
-                className="text-gray-400 hover:text-red-500"
-                title="Dismiss"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  ), [notifications, handleDismissNotification, handleMarkAsRead, error]);
-
-  const workspaceList = useMemo(() => (
-    <div className="absolute right-0 mt-2 w-72 bg-white border rounded-xl shadow-lg z-10 max-h-64 overflow-y-auto">
-      <div className="p-3 border-b bg-gray-50">
-        <h4 className="text-sm font-semibold text-gray-700">Your Workspaces</h4>
-      </div>
-      {workspaces.length === 0 ? (
-        <p className="p-4 text-gray-500 text-center text-sm">No workspaces available</p>
-      ) : (
-        workspaces.map((workspace) => (
-          <div
-            key={workspace.workspace_id}
-            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-          >
-            <button
-              onClick={() => {
-                setCurrentWorkspaceId(workspace.workspace_id);
-                setIsWorkspaceListOpen(false);
-              }}
-              className={`flex-1 text-left text-sm ${
-                workspace.workspace_id === currentWorkspaceId
-                  ? 'text-primary-600 font-semibold'
-                  : 'text-gray-700 hover:text-primary-500'
-              }`}
-              disabled={isLoading || workspaceLoading}
-            >
-              {workspace.name}
-            </button>
-            {workspaces.length > 1 && (
-              <button
-                onClick={() => handleDeleteWorkspace(workspace.workspace_id)}
-                className="text-red-400 hover:text-red-600 p-1"
-                disabled={isLoading || workspaceLoading}
-                title="Delete workspace"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                  <div className="flex-shrink-0">
+                    <span className="text-blue-500">i</span>
+                  </div>
+                  <div className="flex-1">
+                    <p
+                      className={`text-xs ${
+                        notif.is_read ? 'text-gray-500' : 'text-gray-700 font-medium'
+                      }`}
+                    >
+                      {notif.message}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(notif.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    {!notif.is_read && (
+                      <button
+                        onClick={() => handleMarkAsRead(notif.notification_id)}
+                        className="text-gray-400 hover:text-green-500"
+                        title="Mark as read"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDismissNotification(notif.notification_id)}
+                      className="text-gray-400 hover:text-red-500"
+                      title="Dismiss"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
             )}
           </div>
-        ))
-      )}
-    </div>
-  ), [workspaces, currentWorkspaceId, handleDeleteWorkspace, isLoading, workspaceLoading, setCurrentWorkspaceId]);
+        </div>
+
+        {/* Desktop: Dropdown */}
+        <div className="hidden sm:block absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow-lg z-10 max-h-96 overflow-y-auto">
+          <div className="p-4 border-b">
+            <h3 className="text-lg font-semibold text-gray-800">Notifications</h3>
+          </div>
+          {error ? (
+            <p className="p-4 text-red-500 text-center text-sm">{error}</p>
+          ) : notifications.length === 0 ? (
+            <p className="p-4 text-gray-500 text-center text-sm">No notifications</p>
+          ) : (
+            notifications.map((notif) => (
+              <div
+                key={notif.notification_id}
+                className={`flex items-start gap-3 p-4 border-b last:border-b-0 hover:bg-gray-50 ${
+                  notif.is_read ? 'bg-gray-100' : 'bg-white'
+                }`}
+              >
+                <div className="flex-shrink-0">
+                  <span className="text-blue-500">i</span>
+                </div>
+                <div className="flex-1">
+                  <p
+                    className={`text-sm ${
+                      notif.is_read ? 'text-gray-500' : 'text-gray-700 font-medium'
+                    }`}
+                  >
+                    {notif.message}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(notif.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {!notif.is_read && (
+                    <button
+                      onClick={() => handleMarkAsRead(notif.notification_id)}
+                      className="text-gray-400 hover:text-green-500"
+                      title="Mark as read"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDismissNotification(notif.notification_id)}
+                    className="text-gray-400 hover:text-red-500"
+                    title="Dismiss"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </>
+    ),
+    [notifications, handleDismissNotification, handleMarkAsRead, error]
+  );
+
+  const workspaceList = useMemo(
+    () => (
+      <>
+        {/* Mobile: Centered Pop-Up */}
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:hidden">
+          <div className="bg-white border rounded-xl shadow-lg w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="p-2 border-b flex justify-between items-center">
+              <h4 className="text-sm font-semibold text-gray-700">Your Workspaces</h4>
+              <button
+                onClick={() => setIsWorkspaceListOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {workspaces.length === 0 ? (
+              <p className="p-3 text-gray-500 text-center text-sm">No workspaces available</p>
+            ) : (
+              workspaces.map((workspace) => (
+                <div
+                  key={workspace.workspace_id}
+                  className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors"
+                >
+                  <button
+                    onClick={() => {
+                      setCurrentWorkspaceId(workspace.workspace_id);
+                      setIsWorkspaceListOpen(false);
+                    }}
+                    className={`flex-1 text-left text-sm ${
+                      workspace.workspace_id === currentWorkspaceId
+                        ? 'text-primary-600 font-semibold'
+                        : 'text-gray-700 hover:text-primary-500'
+                    }`}
+                    disabled={isLoading || workspaceLoading}
+                  >
+                    {workspace.name}
+                  </button>
+                  {workspaces.length > 1 && (
+                    <button
+                      onClick={() => handleDeleteWorkspace(workspace.workspace_id)}
+                      className="text-red-400 hover:text-red-600 p-1"
+                      disabled={isLoading || workspaceLoading}
+                      title="Delete workspace"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Desktop: Dropdown */}
+        <div className="hidden sm:block absolute right-0 mt-2 w-72 bg-white border rounded-xl shadow-lg z-10 max-h-64 overflow-y-auto">
+          <div className="p-3 border-b bg-gray-50">
+            <h4 className="text-sm font-semibold text-gray-700">Your Workspaces</h4>
+          </div>
+          {workspaces.length === 0 ? (
+            <p className="p-4 text-gray-500 text-center text-sm">No workspaces available</p>
+          ) : (
+            workspaces.map((workspace) => (
+              <div
+                key={workspace.workspace_id}
+                className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <button
+                  onClick={() => {
+                    setCurrentWorkspaceId(workspace.workspace_id);
+                    setIsWorkspaceListOpen(false);
+                  }}
+                  className={`flex-1 text-left text-sm ${
+                    workspace.workspace_id === currentWorkspaceId
+                      ? 'text-primary-600 font-semibold'
+                      : 'text-gray-700 hover:text-primary-500'
+                  }`}
+                  disabled={isLoading || workspaceLoading}
+                >
+                  {workspace.name}
+                </button>
+                {workspaces.length > 1 && (
+                  <button
+                    onClick={() => handleDeleteWorkspace(workspace.workspace_id)}
+                    className="text-red-400 hover:text-red-600 p-1"
+                    disabled={isLoading || workspaceLoading}
+                    title="Delete workspace"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </>
+    ),
+    [workspaces, currentWorkspaceId, handleDeleteWorkspace, isLoading, workspaceLoading, setCurrentWorkspaceId]
+  );
 
   useEffect(() => {
     if (workspaces.length > 0 && !currentWorkspaceId && !workspaceLoading) {
@@ -251,30 +398,43 @@ const Navbar: React.FC = () => {
     }
   }, [workspaces, currentWorkspaceId, setCurrentWorkspaceId, workspaceLoading]);
 
-  const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || 'User')}&background=006400&color=fff`;
+  const avatarUrl =
+    user?.avatar ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || 'User')}&background=006400&color=fff`;
   console.log('User data in Navbar:', user);
 
   const unreadCount = notifications.filter((notif) => !notif.is_read).length;
 
   return (
-    <nav className="bg-white border-b-2 border-primary-100">
-      <div className="px-6 mx-auto max-w-7xl">
-        <div className="flex justify-between h-20">
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center gap-2">
+    <nav className="bg-white border-b-2 border-primary-100 fixed top-0 left-0 right-0 z-50">
+      <div className="px-4 sm:px-6 mx-auto max-w-7xl">
+        <div className="flex justify-between items-center h-16 sm:h-20">
+          <div className="flex items-center gap-3">
+            {/* Hamburger Menu Button for Mobile */}
+            <button
+              onClick={toggleSidebar}
+              className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors sm:hidden"
+              aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isSidebarOpen}
+            >
+              {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+
+            {/* Logo - Hidden on Mobile */}
+            <Link to="/" className="hidden sm:flex items-center gap-2">
               <img src="/assets/briq2.png" alt="Briq Logo" className="w-17 h-20" />
             </Link>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 sm:gap-4 md:gap-6">
             <div className="relative">
               <button
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
                 className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors relative"
               >
-                <Bell className="w-6 h-6" />
+                <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  <span className="absolute top-0 right-0 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                     {unreadCount}
                   </span>
                 )}
@@ -285,10 +445,10 @@ const Navbar: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setIsWorkspaceListOpen(!isWorkspaceListOpen)}
-                className="flex items-center gap-2 p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
+                className="flex items-center gap-1 sm:gap-2 p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
                 disabled={isLoading || workspaceLoading}
               >
-                <Coffee className="w-6 h-6" />
+                <Coffee className="w-5 h-5 sm:w-6 sm:h-6" />
                 <ChevronDown className="w-4 h-4" />
               </button>
               {isWorkspaceListOpen && workspaceList}
@@ -296,23 +456,24 @@ const Navbar: React.FC = () => {
 
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
+              className="flex items-center gap-1 sm:gap-2 p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
               disabled={isLoading || workspaceLoading}
             >
-              <Plus className="w-6 h-6" />
-              <span className="hidden md:inline text-sm">Workspace</span>
+              <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="hidden sm:inline text-xs sm:text-sm">Workspace</span>
             </button>
 
             <Link
               to="/account"
               className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
             >
-              <Settings className="w-6 h-6" />
+              <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
             </Link>
 
-            <div className="flex items-center gap-3 bg-[#fddf0d] px-4 py-2 rounded-full">
+            {/* Avatar - Hidden on Mobile */}
+            <div className="hidden sm:flex items-center gap-2 sm:g ap-3 bg-[#fddf0d] px-3 sm:px-4 py-1 sm:py-2 rounded-full">
               <img
-                className="w-10 h-10 rounded-full border-2 border-green-500"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-green-500"
                 src={avatarUrl}
                 alt={user?.username || 'User'}
                 onError={(e) => {
@@ -321,7 +482,7 @@ const Navbar: React.FC = () => {
                 }}
               />
               <div className="hidden md:block">
-                <div className="text-sm font-bold text-gray-700">{user?.username || 'Loading...'}</div>
+                <div className="text-xs sm:text-sm font-bold text-gray-700">{user?.username || 'Loading...'}</div>
                 <div className="text-xs text-gray-500">{user?.email || 'Loading...'}</div>
               </div>
             </div>
@@ -330,19 +491,19 @@ const Navbar: React.FC = () => {
               onClick={handleLogout}
               className="p-2 text-[#00333e] rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"
             >
-              <LogOut className="w-6 h-6" />
+              <LogOut className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
         </div>
       </div>
 
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold text-[#00333e] mb-6">Create New Workspace</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-md">
+            <h2 className="text-base sm:text-lg font-semibold text-[#00333e] mb-4 sm:mb-6">Create New Workspace</h2>
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
             <form onSubmit={handleCreateWorkspace}>
-              <div className="mb-6">
+              <div className="mb-4 sm:mb-6">
                 <label className="block text-sm font-medium text-[#00333e] mb-2">Workspace Name</label>
                 <input
                   type="text"
@@ -354,18 +515,18 @@ const Navbar: React.FC = () => {
                   disabled={isLoading || workspaceLoading}
                 />
               </div>
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="btn px-4 py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-xl hover:bg-gray-200"
+                  className="btn px-3 sm:px-4 py-1 sm:py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-xl hover:bg-gray-200"
                   disabled={isLoading || workspaceLoading}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn bg-[#00333e] text-white px-4 py-2 text-sm font-medium rounded-xl"
+                  className="btn bg-[#00333e] text-white px-3 sm:px-4 py-1 sm:py-2 text-sm font-medium rounded-xl"
                   disabled={isLoading || workspaceLoading}
                 >
                   {isLoading || workspaceLoading ? 'Creating...' : 'Create'}

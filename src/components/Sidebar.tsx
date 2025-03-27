@@ -13,12 +13,15 @@ const navItems = [
   { to: '/subscription', icon: DollarSign, label: 'Subscription' },
 ];
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  closeSidebar: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
   const { workspaces, currentWorkspaceId } = useWorkspace();
-  const activeWorkspace = workspaces.find((ws) => ws.workspace_id === currentWorkspaceId); // Changed from ws.id to ws.workspace_id
+  const activeWorkspace = workspaces.find((ws) => ws.workspace_id === currentWorkspaceId);
   const isWorkspaceSelected = !!currentWorkspaceId;
 
-  // Log changes for debugging
   useEffect(() => {
     console.log('Sidebar: Workspaces:', workspaces);
     console.log('Sidebar: Current Workspace ID:', currentWorkspaceId);
@@ -34,7 +37,7 @@ const Sidebar: React.FC = () => {
           <h2 className="text-lg font-semibold text-[#00333e] mb-3">Workspace</h2>
           <div
             className={`px-4 py-3 text-base font-medium rounded-xl transition-all duration-200 ${
-              isWorkspaceSelected // Changed from activeWorkspace to isWorkspaceSelected
+              isWorkspaceSelected
                 ? 'text-[#00333e] bg-[#fddf0d] border border-[#6f888c]'
                 : 'text-gray-400 bg-gray-100 italic'
             }`}
@@ -67,6 +70,7 @@ const Sidebar: React.FC = () => {
                   e.preventDefault();
                 } else {
                   console.log(`Navigating to ${item.label} in workspace:`, activeWorkspace?.name);
+                  closeSidebar();
                 }
               }}
               title={!isWorkspaceSelected ? 'Select a workspace to enable navigation' : undefined}

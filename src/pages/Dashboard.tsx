@@ -40,7 +40,6 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all message logs (non-paginated)
   const fetchAllMessageLogs = useCallback(async () => {
     try {
       const response = await fetchLogs();
@@ -52,7 +51,6 @@ const Dashboard: React.FC = () => {
     }
   }, []);
 
-  // Sync with workspace data only when currentWorkspaceId changes
   useEffect(() => {
     const storedDashboardData = workspace?.dashboardData;
     if (storedDashboardData?.stats?.length || storedDashboardData?.data?.length) {
@@ -66,7 +64,6 @@ const Dashboard: React.FC = () => {
     }
   }, [currentWorkspaceId, workspace?.dashboardData]);
 
-  // Fetch dashboard data when component mounts or workspace changes
   const loadDashboardData = useCallback(async () => {
     if (!currentWorkspaceId) {
       setError('No workspace selected.');
@@ -106,7 +103,7 @@ const Dashboard: React.FC = () => {
       }, {});
       const dataPoints = Object.entries(messageVolume)
         .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => new Date(b.name).getTime() - new Date(a.name).getTime()); // Oldest to newest
+        .sort((a, b) => new Date(b.name).getTime() - new Date(a.name).getTime());
 
       const newDashboardData: DashboardData = {
         stats: [
@@ -137,23 +134,22 @@ const Dashboard: React.FC = () => {
   }, [loadDashboardData]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {isLoading && (
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto" />
-          <p className="text-gray-600 mt-2">Loading dashboard data...</p>
+          <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-primary-500 mx-auto" />
+          <p className="text-gray-600 mt-2 text-sm sm:text-base">Loading dashboard data...</p>
         </div>
       )}
 
       {error && !isLoading && (
-        <div className="text-red-500 text-center mb-4">
+        <div className="text-red-500 text-center mb-4 text-sm sm:text-base">
           {error}
-          {/* Removed retry button */}
         </div>
       )}
 
       {!isLoading && (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-5">
           {dashboardData.stats.map((stat, index) => (
             <motion.div
               key={stat.title}
@@ -163,13 +159,13 @@ const Dashboard: React.FC = () => {
               whileHover={{ scale: 1.05 }}
               className="card transform transition-transform duration-300 rounded-md shadow-sm hover:shadow-md"
             >
-              <div className="flex items-center p-4">
-                <div className={`p-3 rounded-full ${stat.color}`}>
-                  <stat.icon className="w-6 h-6 text-white" />
+              <div className="flex items-center p-3 sm:p-4">
+                <div className={`p-2 sm:p-3 rounded-full ${stat.color}`}>
+                  <stat.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">{stat.title}</p>
-                  <p className="text-2xl font-semibold">{stat.value}</p>
+                <div className="ml-3 sm:ml-4 flex-1 overflow-hidden">
+                  <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">{stat.title}</p>
+                  <p className="text-lg sm:text-2xl font-semibold">{stat.value}</p>
                 </div>
               </div>
             </motion.div>
@@ -182,15 +178,18 @@ const Dashboard: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          className="card rounded-md shadow-sm p-6"
+          className="card rounded-md shadow-sm p-4 sm:p-6"
         >
           <div className="mb-4">
-            <h2 className="text-lg font-semibold">Message Volume</h2>
+            <h2 className="text-base sm:text-lg font-semibold">Message Volume</h2>
           </div>
-          <div className="h-80">
+          <div className="h-64 sm:h-80">
             {dashboardData.data.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={dashboardData.data}>
+                <LineChart
+                  data={dashboardData.data}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
                   <defs>
                     <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.8} />
@@ -198,22 +197,29 @@ const Dashboard: React.FC = () => {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 12 }}
+                    interval="preserveStartEnd"
+                    angle={0}
+                    textAnchor="end"
+                    height={40}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} width={40} />
                   <Tooltip />
                   <Line
                     type="monotone"
                     dataKey="value"
                     stroke="#0ea5e9"
                     strokeWidth={2}
-                    dot={{ fill: '#0ea5e9' }}
+                    dot={{ fill: '#0ea5e9', r: 4 }}
                     fillOpacity={1}
                     fill="url(#colorUv)"
                   />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="flex items-center justify-center h-full text-gray-500 text-sm sm:text-base">
                 No message volume data available.
               </div>
             )}

@@ -56,12 +56,12 @@ interface SenderId {
 
 // Fallback sender IDs in case API fails
 const FALLBACK_SENDER_IDS: SenderId[] = [
-  { 
-    sender_id: 'default_sender', 
+  {
+    sender_id: 'default_sender',
     name: 'Default Sender',
     user_id: 'default_user',
     is_approved: true,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
   },
 ];
 
@@ -110,7 +110,7 @@ const SendSMS: React.FC = () => {
           // Handle array response
           if (Array.isArray(response)) {
             approvedSenderIds = response
-              .filter(sender => sender.is_approved === true)
+              .filter((sender) => sender.is_approved === true)
               .map((sender) => ({
                 sender_id: sender.sender_id,
                 user_id: sender.user_id,
@@ -123,7 +123,7 @@ const SendSMS: React.FC = () => {
           // Handle nested data array response
           else if (response?.data && Array.isArray(response.data)) {
             approvedSenderIds = response.data
-              .filter(sender => sender.is_approved === true)
+              .filter((sender) => sender.is_approved === true)
               .map((sender: any) => ({
                 sender_id: sender.sender_id,
                 user_id: sender.user_id,
@@ -134,15 +134,22 @@ const SendSMS: React.FC = () => {
               }));
           }
           // Handle single object response
-          else if (response && typeof response === 'object' && response.sender_id && response.is_approved === true) {
-            approvedSenderIds = [{
-              sender_id: response.sender_id,
-              user_id: response.user_id,
-              is_approved: response.is_approved,
-              approved_at: response.approved_at,
-              name: response.name || response.sender_id,
-              created_at: response.created_at,
-            }];
+          else if (
+            response &&
+            typeof response === 'object' &&
+            response.sender_id &&
+            response.is_approved === true
+          ) {
+            approvedSenderIds = [
+              {
+                sender_id: response.sender_id,
+                user_id: response.user_id,
+                is_approved: response.is_approved,
+                approved_at: response.approved_at,
+                name: response.name || response.sender_id,
+                created_at: response.created_at,
+              },
+            ];
           } else {
             console.error('Unexpected sender IDs response format:', response);
             throw new Error('Invalid sender IDs response format');
@@ -170,7 +177,9 @@ const SendSMS: React.FC = () => {
         const campaignsData = await getCampaigns();
         console.log('Campaigns Data:', campaignsData);
         const formattedCampaigns = Array.isArray(campaignsData) ? campaignsData : campaignsData?.data || [];
-        setCampaigns(formattedCampaigns.filter((campaign: Campaign) => campaign.workspace_id === currentWorkspaceId));
+        setCampaigns(
+          formattedCampaigns.filter((campaign: Campaign) => campaign.workspace_id === currentWorkspaceId)
+        );
 
         // Fetch contacts
         const contactsData = await getContacts(currentWorkspaceId);
@@ -386,7 +395,7 @@ const SendSMS: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-6 p-6 relative"
+      className="max-w-4xl mx-auto space-y-4 sm:space-y-6 p-4 sm:p-6 relative"
     >
       {showSuccessNotification && (
         <motion.div
@@ -394,60 +403,66 @@ const SendSMS: React.FC = () => {
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
           transition={{ duration: 0.5, type: 'spring', stiffness: 120 }}
-          className="fixed inset-0 flex items-center justify-center z-50"
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
         >
-          <div className="bg-green-500 text-white p-8 rounded-xl shadow-2xl flex flex-col items-center gap-4 w-96">
+          <div className="bg-green-500 text-white p-4 sm:p-8 rounded-xl shadow-2xl flex flex-col items-center gap-2 sm:gap-4 w-full max-w-xs sm:max-w-sm">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, duration: 0.3 }}
             >
-              <CheckCircle className="w-16 h-16" />
+              <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16" />
             </motion.div>
-            <span className="text-2xl font-semibold">SMS Sent Successfully!</span>
-            <p className="text-sm text-green-100">Your message has been sent to all recipients.</p>
+            <span className="text-lg sm:text-2xl font-semibold text-center">SMS Sent Successfully!</span>
+            <p className="text-xs sm:text-sm text-green-100 text-center">
+              Your message has been sent to all recipients.
+            </p>
           </div>
         </motion.div>
       )}
 
-      <div className="flex items-center gap-3 mb-8">
-        <MessageSquare className="w-8 h-8 text-primary-500" />
-        <h1 className="text-3xl font-bold text-gray-800">Send SMS</h1>
+      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-8">
+        <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-primary-500" />
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Send SMS</h1>
       </div>
 
       {useFallbackSenderIds && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
-          <p className="font-bold">Warning</p>
-          <p>Using fallback sender IDs due to API error. Some features may be limited.</p>
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 sm:p-4 mb-3 sm:mb-4">
+          <p className="font-bold text-sm sm:text-base">Warning</p>
+          <p className="text-xs sm:text-sm">Using fallback sender IDs due to API error. Some features may be limited.</p>
         </div>
       )}
 
-      {error && <div className="text-red-500 mb-4">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-sm sm:text-base mb-3 sm:mb-4">{error}</div>
+      )}
 
       {isLoading && (
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto" />
-          <p className="text-gray-600 mt-2">Loading data...</p>
+          <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-primary-500 mx-auto" />
+          <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">Loading data...</p>
         </div>
       )}
 
       {!isLoading && (
         <>
-          <div className="card p-8">
-            <h2 className="text-lg font-semibold mb-4">Send SMS</h2>
-            <form onSubmit={handleSendSMS} className="space-y-6">
+          <div className="card p-4 sm:p-8">
+            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Send SMS</h2>
+            <form onSubmit={handleSendSMS} className="space-y-4 sm:space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Send Mode</label>
-                <div className="flex gap-4">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                  Send Mode
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
                   <label className="flex items-center">
                     <input
                       type="radio"
                       value="campaign"
                       checked={sendMode === 'campaign'}
                       onChange={() => setSendMode('campaign')}
-                      className="mr-2"
+                      className="mr-1 sm:mr-2 w-4 h-4 sm:w-5 sm:h-5"
                     />
-                    Send via Campaign
+                    <span className="text-xs sm:text-sm">Send via Campaign</span>
                   </label>
                   <label className="flex items-center">
                     <input
@@ -455,22 +470,26 @@ const SendSMS: React.FC = () => {
                       value="contacts"
                       checked={sendMode === 'contacts'}
                       onChange={() => setSendMode('contacts')}
-                      className="mr-2"
+                      className="mr-1 sm:mr-2 w-4 h-4 sm:w-5 sm:h-5"
                     />
-                    Send to Contacts
+                    <span className="text-xs sm:text-sm">Send to Contacts</span>
                   </label>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Sender ID</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                  Select Sender ID
+                </label>
                 <select
-                  className="input w-full"
+                  className="input w-full text-xs sm:text-sm py-2 sm:py-3"
                   value={selectedSenderId}
                   onChange={(e) => setSelectedSenderId(e.target.value)}
                   required
                 >
-                  <option value="" disabled>Select a sender ID</option>
+                  <option value="" disabled>
+                    Select a sender ID
+                  </option>
                   {senderIds.length > 0 ? (
                     senderIds.map((sender) => (
                       <option key={sender.sender_id} value={sender.sender_id}>
@@ -478,11 +497,13 @@ const SendSMS: React.FC = () => {
                       </option>
                     ))
                   ) : (
-                    <option value="" disabled>No approved sender IDs available</option>
+                    <option value="" disabled>
+                      No approved sender IDs available
+                    </option>
                   )}
                 </select>
                 {senderIds.length === 0 && !useFallbackSenderIds && (
-                  <p className="text-sm text-amber-600 mt-1">
+                  <p className="text-xs sm:text-sm text-amber-600 mt-1">
                     You need to request and get approval for a Sender ID before sending messages.
                   </p>
                 )}
@@ -491,14 +512,18 @@ const SendSMS: React.FC = () => {
               {sendMode === 'campaign' ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Campaign</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                      Select Campaign
+                    </label>
                     <select
-                      className="input w-full"
+                      className="input w-full text-xs sm:text-sm py-2 sm:py-3"
                       value={selectedCampaignId}
                       onChange={(e) => setSelectedCampaignId(e.target.value)}
                       required={sendMode === 'campaign'}
                     >
-                      <option value="" disabled>Select a campaign</option>
+                      <option value="" disabled>
+                        Select a campaign
+                      </option>
                       {campaigns.map((campaign) => (
                         <option key={campaign.campaign_id} value={campaign.campaign_id}>
                           {campaign.name}
@@ -507,13 +532,15 @@ const SendSMS: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Recipient Groups</label>
-                    <div className="text-sm text-gray-600">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                      Recipient Groups
+                    </label>
+                    <div className="text-xs sm:text-sm text-gray-600">
                       {campaignGroups[selectedCampaignId]?.length > 0 ? (
                         campaignGroups[selectedCampaignId].map((group) => (
                           <span
                             key={group.group_id}
-                            className="inline-block bg-gray-200 text-gray-700 px-2 py-1 rounded mr-2 mb-2"
+                            className="inline-block bg-gray-200 text-gray-700 px-1 sm:px-2 py-0.5 sm:py-1 rounded mr-1 sm:mr-2 mb-1 sm:mb-2 text-xs sm:text-sm"
                           >
                             {group.name}
                           </span>
@@ -526,27 +553,31 @@ const SendSMS: React.FC = () => {
                 </>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Enter Contacts</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                    Enter Contacts
+                  </label>
                   <textarea
-                    className="input min-h-[120px] w-full"
+                    className="input min-h-[100px] sm:min-h-[120px] w-full text-xs sm:text-sm"
                     placeholder="Enter phone numbers (comma-separated or one per line, e.g., 255788344348,2557884657)"
                     value={manualContacts}
                     onChange={(e) => setManualContacts(e.target.value)}
                     required={sendMode === 'contacts'}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
                     Input the number with this format, 255788344348
                   </p>
                 </div>
               )}
 
               <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-gray-700">Message</label>
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-1 sm:mb-2 gap-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700">
+                    Message
+                  </label>
+                  <div className="flex items-center gap-1 sm:gap-2">
                     <input
                       type="text"
-                      className="input max-w-[200px]"
+                      className="input w-full sm:max-w-[200px] text-xs sm:text-sm py-1 sm:py-2"
                       placeholder="Enter keywords"
                       value={keywords}
                       onChange={(e) => setKeywords(e.target.value)}
@@ -555,21 +586,21 @@ const SendSMS: React.FC = () => {
                       type="button"
                       onClick={generateAIMessage}
                       disabled={isGenerating}
-                      className="btn btn-sm btn-secondary flex items-center gap-2"
+                      className="btn btn-sm btn-secondary flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
                     >
-                      <Bot className="w-4 h-4" />
+                      <Bot className="w-3 h-3 sm:w-4 sm:h-4" />
                       {isGenerating ? 'Generating...' : 'Generate AI Message'}
                     </button>
                   </div>
                 </div>
                 <textarea
-                  className="input min-h-[120px] w-full"
+                  className="input min-h-[100px] sm:min-h-[120px] w-full text-xs sm:text-sm"
                   placeholder="Type your SMS message here..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   required
                 />
-                <div className="mt-2 flex justify-between text-sm text-gray-500">
+                <div className="mt-1 sm:mt-2 flex justify-between text-xs sm:text-sm text-gray-500">
                   <span>{message.length} characters</span>
                   <span>{Math.ceil(message.length / 160)} message(s)</span>
                 </div>
@@ -577,40 +608,46 @@ const SendSMS: React.FC = () => {
 
               {sendMode === 'campaign' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Schedule (Optional)</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                    Schedule (Optional)
+                  </label>
                   <input
                     type="datetime-local"
-                    className="input w-full"
+                    className="input w-full text-xs sm:text-sm py-2 sm:py-3"
                     value={schedule}
                     onChange={(e) => setSchedule(e.target.value)}
                   />
                 </div>
               )}
 
-              <div className="flex justify-end gap-4">
+              <div className="flex justify-end gap-2 sm:gap-4">
                 <button
                   type="submit"
                   disabled={isSending || senderIds.length === 0}
-                  className="btn btn-primary flex items-center gap-2"
+                  className="btn btn-primary flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4"
                 >
-                  <Send className="w-5 h-5" />
+                  <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                   {isSending ? 'Sending...' : 'Send SMS'}
                 </button>
               </div>
             </form>
           </div>
 
-          <div className="card p-8">
-            <h2 className="text-lg font-semibold mb-4">Sent SMS Logs</h2>
+          <div className="card p-4 sm:p-8">
+            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Sent SMS Logs</h2>
             {messageLogs.length === 0 ? (
-              <p className="text-gray-500">No SMS logs available.</p>
+              <p className="text-gray-500 text-xs sm:text-sm">No SMS logs available.</p>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {messageLogs.map((log) => (
-                  <div key={log.id || log.timestamp} className="p-4 border rounded-lg">
-                    <p className="text-sm text-gray-600">Message: {log.message || 'N/A'}</p>
-                    <p className="text-sm text-gray-500">Status: {log.status || 'N/A'}</p>
-                    <p className="text-sm text-gray-500">
+                  <div key={log.id || log.timestamp} className="p-3 sm:p-4 border rounded-lg">
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Message: {log.message || 'N/A'}
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-500">
+                      Status: {log.status || 'N/A'}
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-500">
                       Timestamp: {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}
                     </p>
                   </div>
@@ -619,26 +656,26 @@ const SendSMS: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="card p-6">
-              <Users className="w-6 h-6 text-primary-500 mb-3" />
-              <h3 className="text-lg font-semibold mb-2">Total Recipients</h3>
-              <p className="text-gray-600">{contacts.length} contacts</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+            <div className="card p-4 sm:p-6">
+              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-primary-500 mb-2 sm:mb-3" />
+              <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Total Recipients</h3>
+              <p className="text-gray-600 text-xs sm:text-sm">{contacts.length} contacts</p>
             </div>
-            <div className="card p-6">
-              <Clock className="w-6 h-6 text-primary-500 mb-3" />
-              <h3 className="text-lg font-semibold mb-2">Campaigns Available</h3>
-              <p className="text-gray-600">{campaigns.length} campaigns</p>
+            <div className="card p-4 sm:p-6">
+              <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-primary-500 mb-2 sm:mb-3" />
+              <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Campaigns Available</h3>
+              <p className="text-gray-600 text-xs sm:text-sm">{campaigns.length} campaigns</p>
             </div>
-            <div className="card p-6">
-              <BarChart2 className="w-6 h-6 text-primary-500 mb-3" />
-              <h3 className="text-lg font-semibold mb-2">Sender IDs</h3>
-              <p className="text-gray-600">{senderIds.length} approved available</p>
+            <div className="card p-4 sm:p-6">
+              <BarChart2 className="w-5 h-5 sm:w-6 sm:h-6 text-primary-500 mb-2 sm:mb-3" />
+              <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Sender IDs</h3>
+              <p className="text-gray-600 text-xs sm:text-sm">{senderIds.length} approved available</p>
               {senderIds.length > 0 && (
-                <div className="mt-2 space-y-2">
+                <div className="mt-1 sm:mt-2 space-y-1 sm:space-y-2">
                   {senderIds.map((sender) => (
-                    <div key={sender.sender_id} className="text-sm">
-                      <span className="inline-block bg-gray-200 text-gray-700 px-2 py-1 rounded mr-2 mb-1">
+                    <div key={sender.sender_id} className="text-xs sm:text-sm">
+                      <span className="inline-block bg-gray-200 text-gray-700 px-1 sm:px-2 py-0.5 sm:py-1 rounded mr-1 sm:mr-2 mb-0.5 sm:mb-1">
                         {sender.name}
                       </span>
                     </div>
