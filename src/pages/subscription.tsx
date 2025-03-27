@@ -27,8 +27,8 @@ interface PaymentDetails {
 const salesContacts: Contact[] = [
   {
     name: "Innocent Singo",
-    phone_number: "+255-123-456-789",
-    email: "sales@briq.tz",
+    phone_number: "+255 679 396 566",
+    email: "sms@briq.tz",
   },
 ];
 
