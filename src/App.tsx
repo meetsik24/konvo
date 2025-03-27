@@ -7,16 +7,15 @@ import { fetchUserProfile, logout } from './store/slices/authSlice';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Landing Page Components
-
 import Home from './landing/pages/Home';
-
-
 
 // Dashboard Components
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ResetPassword from './pages/ResetPassword';
+import EnterOTP from './pages/EnterOTP';
 import Account from './pages/Account';
 import NotFound from './pages/NotFound';
 import SendSMS from './pages/SendSMS';
@@ -29,7 +28,7 @@ import Subscription from './pages/subscription';
 import SenderID from './pages/SenderID';
 import Contacts from './pages/Contacts';
 
-import { ContactsProvider } from './components/ContactsContext'
+import { ContactsProvider } from './components/ContactsContext';
 import { WorkspaceProvider } from './pages/WorkspaceContext';
 
 // Protected Route for Dashboard Pages
@@ -59,8 +58,6 @@ function App() {
     }
   }, [token, dispatch, status, user]);
 
-  // Initial redirect path (removed unused variable)
-
   return (
     <Provider store={store}>
       <WorkspaceProvider>
@@ -71,11 +68,12 @@ function App() {
                 <Routes>
                   {/* Landing Page Routes */}
                   <Route path="/" element={<Home />} />
-                  
 
                   {/* Authentication Routes */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
+                  <Route path="/enter-otp" element={<EnterOTP />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
 
                   {/* Dashboard Protected Routes */}
                   <Route

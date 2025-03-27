@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogIn } from 'lucide-react';
+import { LogIn, UserPlus } from 'lucide-react';
 import { setCredentials, setError } from '../store/slices/authSlice';
 import { loginUser } from '../services/api';
 
@@ -11,11 +11,12 @@ const Login: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    identifier: location.state?.email || location.state?.phoneNumber || '',
+    username: location.state?.username || '',
     password: '',
   });
   const [error, setLocalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false); // State to control modal visibility
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +24,7 @@ const Login: React.FC = () => {
     setLocalError(null);
 
     try {
-      const { token, user } = await loginUser(formData.identifier, formData.password);
+      const { token, user } = await loginUser(formData.username, formData.password);
       dispatch(setCredentials({ user, token }));
       navigate('/dashboard');
     } catch (err: any) {
@@ -33,6 +34,16 @@ const Login: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = () => {
+    setShowModal(true); // Show the modal when "Forgot Password" is clicked
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    // Navigate to the EnterOTP page with a mock phone number
+    navigate('/enter-otp', { state: { phoneNumber: '+1234567890' } });
   };
 
   return (
@@ -46,28 +57,22 @@ const Login: React.FC = () => {
           <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-[#00333e]">
             Welcome back
           </h2>
-          <p className="mt-2 text-center text-xs sm:text-sm text-[#6f888c]">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-[#fddf0d] hover:text-[#00333e]">
-              Sign up
-            </Link>
-          </p>
         </div>
         <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-3 sm:space-y-4">
             <div>
-              <label htmlFor="identifier" className="sr-only">
-                Email or Phone number
+              <label htmlFor="username" className="sr-only">
+                Username
               </label>
               <input
-                id="identifier"
-                name="identifier"
+                id="username"
+                name="username"
                 type="text"
                 required
-                className="input text-sm sm:text-base"
-                placeholder="Email or Phone number"
-                value={formData.identifier}
-                onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
+                className="input text-sm sm:text-base w-full"
+                placeholder="Username"
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 disabled={loading}
               />
             </div>
@@ -80,7 +85,7 @@ const Login: React.FC = () => {
                 name="password"
                 type="password"
                 required
-                className="input text-sm sm:text-base"
+                className="input text-sm sm:text-base w-full"
                 placeholder="Password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -89,9 +94,9 @@ const Login: React.FC = () => {
             </div>
           </div>
 
-          {error && <div className="text-red-500 text-xs sm:text-sm">{error}</div>}
+          {error && <div className="text-red-500 text-xs sm:text-sm text-center">{error}</div>}
 
-          <div>
+          <div className="space-y-3 sm:space-y-4">
             <button
               type="submit"
               className="btn bg-[#00333e] text-white w-full flex justify-center items-center text-sm sm:text-base"
@@ -104,9 +109,51 @@ const Login: React.FC = () => {
                 </>
               )}
             </button>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                className="btn bg-gray-200 text-gray-700 w-full flex justify-center items-center text-sm sm:text-base"
+                disabled={loading}
+              >
+                Forgot Password
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/register')}
+                className="btn bg-gray-200 text-gray-700 w-full flex justify-center items-center text-sm sm:text-base"
+                disabled={loading}
+              >
+                <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                Sign up
+              </button>
+            </div>
           </div>
         </form>
       </motion.div>
+
+      {/* Modal for OTP Sent Confirmation */}
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-white rounded-lg p-6 max-w-sm w-full mx-4"
+          >
+            <h3 className="text-lg font-bold text-[#00333e] mb-4">OTP Sent</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              An OTP has been sent to your mobile number (+1234567890). Please enter the OTP to proceed.
+            </p>
+            <button
+              onClick={handleModalClose}
+              className="btn bg-[#00333e] text-white w-full flex justify-center items-center text-sm"
+            >
+              Proceed to Enter OTP
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
