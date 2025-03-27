@@ -83,13 +83,13 @@ const Logs: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-6xl mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6"
+      className="max-w-6xl mx-auto px-4 sm:px-6 space-y-4 sm:space-y-6"
     >
       <div className="flex items-center gap-2 sm:gap-3">
         <History className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">SMS Logs & History</h1>
       </div>
-      <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+      <div className="bg-white p-4 sm:p-6 rounded-lg shadow max-w-4xl mx-auto w-full">
         <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className="flex gap-2 sm:gap-4">
             <button className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-1 sm:py-2 rounded-lg bg-blue-50 text-blue-600 text-xs sm:text-sm">
@@ -120,23 +120,23 @@ const Logs: React.FC = () => {
         )}
 
         {!loading && !error && (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto w-full">
+            <table className="min-w-full table-auto">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-600 text-xs sm:text-sm">
+                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-600 text-xs sm:text-sm w-1/4 sm:w-1/5">
                     Recipient
                   </th>
-                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-600 text-xs sm:text-sm hidden sm:table-cell">
+                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-600 text-xs sm:text-sm hidden sm:table-cell w-2/5">
                     Content
                   </th>
-                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-600 text-xs sm:text-sm">
+                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-600 text-xs sm:text-sm w-1/4 sm:w-1/5">
                     Status
                   </th>
-                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-600 text-xs sm:text-sm hidden sm:table-cell">
+                  <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-600 text-xs sm:text-sm hidden sm:table-cell w-1/5">
                     Time
                   </th>
-                  <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-600 text-xs sm:text-sm">
+                  <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-600 text-xs sm:text-sm w-1/4 sm:w-1/10">
                     Actions
                   </th>
                 </tr>
@@ -144,9 +144,9 @@ const Logs: React.FC = () => {
               <tbody>
                 {filteredLogs.map((log) => (
                   <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm">{log.recipient}</td>
+                    <td className="py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm truncate">{log.recipient}</td>
                     <td className="py-2 sm:py-3 px-3 sm:px-4 hidden sm:table-cell">
-                      <p className="truncate max-w-xs sm:max-w-md text-xs sm:text-sm">{log.content}</p>
+                      <p className="text-xs sm:text-sm break-words">{log.content}</p>
                     </td>
                     <td className="py-2 sm:py-3 px-3 sm:px-4 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                       {getStatusIcon(log.status)}

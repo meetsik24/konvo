@@ -25,7 +25,7 @@ const Login: React.FC = () => {
     try {
       const { token, user } = await loginUser(formData.identifier, formData.password);
       dispatch(setCredentials({ user, token }));
-      navigate('/dashboard'); // Changed from '/' to '/dashboard'
+      navigate('/dashboard');
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || 'Invalid credentials or server error';
       setLocalError(errorMsg);
@@ -36,25 +36,25 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full space-y-8"
+        className="max-w-md w-full space-y-6 sm:space-y-8"
       >
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-[#00333e]">
+          <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-[#00333e]">
             Welcome back
           </h2>
-          <p className="mt-2 text-center text-sm text-[#6f888c]">
+          <p className="mt-2 text-center text-xs sm:text-sm text-[#6f888c]">
             Don't have an account?{' '}
             <Link to="/register" className="font-medium text-[#fddf0d] hover:text-[#00333e]">
               Sign up
             </Link>
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm space-y-4">
+        <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm space-y-3 sm:space-y-4">
             <div>
               <label htmlFor="identifier" className="sr-only">
                 Email or Phone number
@@ -64,7 +64,7 @@ const Login: React.FC = () => {
                 name="identifier"
                 type="text"
                 required
-                className="input"
+                className="input text-sm sm:text-base"
                 placeholder="Email or Phone number"
                 value={formData.identifier}
                 onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
@@ -80,7 +80,7 @@ const Login: React.FC = () => {
                 name="password"
                 type="password"
                 required
-                className="input"
+                className="input text-sm sm:text-base"
                 placeholder="Password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -89,17 +89,17 @@ const Login: React.FC = () => {
             </div>
           </div>
 
-          {error && <div className="text-red-500 text-sm">{error}</div>}
+          {error && <div className="text-red-500 text-xs sm:text-sm">{error}</div>}
 
           <div>
             <button
               type="submit"
-              className="btn bg-[#00333e] text-white w-full flex justify-center items-center"
+              className="btn bg-[#00333e] text-white w-full flex justify-center items-center text-sm sm:text-base"
               disabled={loading}
             >
               {loading ? 'Signing in...' : (
                 <>
-                  <LogIn className="w-5 h-5 mr-2" />
+                  <LogIn className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                   Sign in
                 </>
               )}

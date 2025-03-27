@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CreditCard, Check, X, MessageSquare } from 'lucide-react';
 import {
   getPlans,
- 
   getSubscriptionUsage,
   purchaseSmsCredits,
   Plan,
@@ -53,31 +52,27 @@ const Subscription: React.FC = () => {
       setError(null);
   
       try {
-        // Fetch all plans
         const plansData = await getPlans();
         setPlans(plansData);
   
-        // Fetch user credit balance
         try {
           const creditBalanceData = await getSubscriptionUsage();
           setSubscriptionDetails(creditBalanceData);
   
-          // Fetch the current plan if the user has a plan_id (for button logic)
           if (creditBalanceData.plan_id) {
             try {
               const currentPlanData = await getPlanById(creditBalanceData.plan_id);
               setCurrentPlan(currentPlanData);
             } catch (planErr: any) {
-              console.error('Error fetching current plan:', planErr); // Log the actual error
-              
+              console.error('Error fetching current plan:', planErr);
             }
           }
         } catch (subErr: any) {
-          console.error('Error fetching credit balance:', subErr); // Log the actual error
+          console.error('Error fetching credit balance:', subErr);
           setError('Failed to fetch credit balance. Please try again later.');
         }
       } catch (err: any) {
-        console.error('Error fetching plans:', err); // Log the actual error
+        console.error('Error fetching plans:', err);
         setError('Failed to load plans. Please check your connection and try again.');
       } finally {
         setIsLoading(false);
@@ -173,7 +168,6 @@ const Subscription: React.FC = () => {
         const creditBalanceData = await getSubscriptionUsage();
         setSubscriptionDetails(creditBalanceData);
 
-        // Fetch the new current plan if the plan_id has changed
         if (creditBalanceData.plan_id !== currentPlan?.plan_id) {
           const newPlanData = await getPlanById(creditBalanceData.plan_id);
           setCurrentPlan(newPlanData);
@@ -194,11 +188,11 @@ const Subscription: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-7xl mx-auto space-y-8 px-4 sm:px-6 lg:px-8 py-12"
+      className="max-w-7xl mx-auto space-y-6 p-4 sm:p-6 lg:p-8"
     >
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-[#00333e]">SMS Credit Packages</h1>
-        <p className="mt-4 text-xl text-[#6f888c]">Purchase SMS credits to reach your audience</p>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#00333e]">SMS Credit Packages</h1>
+        <p className="mt-2 sm:mt-4 text-base sm:text-lg lg:text-xl text-[#6f888c]">Purchase SMS credits to reach your audience</p>
       </div>
 
       {/* Error Popup */}
@@ -209,12 +203,12 @@ const Subscription: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-500 text-white rounded-lg p-4 shadow-lg max-w-md w-full"
+            className="fixed top-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 z-50 bg-red-500 text-white rounded-lg p-3 sm:p-4 shadow-lg max-w-md w-full"
           >
             <div className="flex justify-between items-center">
-              <p>{error}</p>
+              <p className="text-sm sm:text-base">{error}</p>
               <button onClick={() => setError(null)} className="text-white hover:text-gray-200">
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </motion.div>
@@ -229,12 +223,12 @@ const Subscription: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-500 text-white rounded-lg p-4 shadow-lg max-w-md w-full"
+            className="fixed top-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 z-50 bg-green-500 text-white rounded-lg p-3 sm:p-4 shadow-lg max-w-md w-full"
           >
             <div className="flex justify-between items-center">
-              <p>{success}</p>
+              <p className="text-sm sm:text-base">{success}</p>
               <button onClick={() => setSuccess(null)} className="text-white hover:text-gray-200">
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </motion.div>
@@ -242,8 +236,8 @@ const Subscription: React.FC = () => {
       </AnimatePresence>
 
       {isLoading && !plans.length && (
-        <div className="text-center py-12">
-          <p className="text-lg text-[#6f888c]">Loading plans...</p>
+        <div className="text-center py-8 sm:py-12">
+          <p className="text-base sm:text-lg text-[#6f888c]">Loading plans...</p>
         </div>
       )}
 
@@ -252,23 +246,23 @@ const Subscription: React.FC = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
-          className="bg-gradient-to-r from-blue-50 to-blue-100 shadow-lg rounded-xl p-6 mb-8 max-w-md mx-auto"
+          className="bg-gradient-to-r from-blue-50 to-blue-100 shadow-lg rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 max-w-md mx-auto w-full"
         >
-          <div className="flex items-center justify-center space-x-4">
-            <MessageSquare className="w-10 h-10 text-blue-500" />
+          <div className="flex items-center justify-center space-x-3 sm:space-x-4">
+            <MessageSquare className="w-8 h-8 sm:w-10 sm:h-10 text-blue-500" />
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-[#00333e]">Your SMS Credits</h3>
-              <p className="mt-2 text-4xl font-bold text-[#00333e]">
+              <h3 className="text-base sm:text-lg font-semibold text-[#00333e]">Your SMS Credits</h3>
+              <p className="mt-1 sm:mt-2 text-2xl sm:text-4xl font-bold text-[#00333e]">
                 {subscriptionDetails.sms_credits.toLocaleString()}
               </p>
-              <p className="mt-1 text-sm text-[#6f888c]">Available Credits</p>
+              <p className="mt-1 text-xs sm:text-sm text-[#6f888c]">Available Credits</p>
             </div>
           </div>
         </motion.div>
       )}
 
       {plans.length > 0 ? (
-        <div className="grid gap-8 lg:grid-cols-3 lg:gap-x-6 mt-16">
+        <div className="grid gap-6 sm:gap-8 lg:grid-cols-3 lg:gap-x-6 mt-8 sm:mt-12 lg:mt-16">
           {plans.map((plan) => (
             <motion.div
               key={plan.plan_id}
@@ -279,45 +273,45 @@ const Subscription: React.FC = () => {
               } shadow-sm flex flex-col`}
             >
               {plan.name.toLowerCase().includes('paradiso') && (
-                <div className="absolute top-0 right-0 -mr-1 -mt-1 px-3 py-1 bg-[#fddf0d] text-white text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
+                <div className="absolute top-0 right-0 -mr-1 -mt-1 px-2 sm:px-3 py-1 bg-[#fddf0d] text-white text-xs sm:text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
                   Popular
                 </div>
               )}
 
-              <div className="p-8">
-                <h3 className="text-2xl font-semibold text-gray-900">{plan.name}</h3>
+              <div className="p-6 sm:p-8">
+                <h3 className="text-xl sm:text-2xl font-semibold text-gray-900">{plan.name}</h3>
 
-                <div className="mt-4">
-                  <span className="text-3xl font-extrabold text-[#00333e]">{plan.sms_unit_price}</span>
-                  <span className="ml-2 text-[#6f888c]">TZS per SMS</span>
+                <div className="mt-3 sm:mt-4">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-[#00333e]">{plan.sms_unit_price}</span>
+                  <span className="ml-1 sm:ml-2 text-sm sm:text-base text-[#6f888c]">TZS per SMS</span>
                 </div>
 
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-4">Features</h4>
-                  <ul className="space-y-4">
+                <div className="mt-4 sm:mt-6">
+                  <h4 className="text-xs sm:text-sm font-medium text-gray-900 mb-3 sm:mb-4">Features</h4>
+                  <ul className="space-y-3 sm:space-y-4">
                     {plan.description.split(', ').map((feature, index) => (
                       <li key={index} className="flex items-start">
-                        <Check className="w-5 h-5 text-green-500 shrink-0" />
-                        <span className="ml-3 text-gray-700">{feature}</span>
+                        <Check className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 shrink-0" />
+                        <span className="ml-2 sm:ml-3 text-sm sm:text-base text-gray-700">{feature}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                <div className="mt-6">
-                  <p className="text-sm text-[#6f888c]">
+                <div className="mt-4 sm:mt-6">
+                  <p className="text-xs sm:text-sm text-[#6f888c]">
                     Minimum SMS Purchase: {plan.minimum_sms_purchase.toLocaleString()}
                   </p>
                 </div>
               </div>
 
-              <div className="p-8 mt-auto">
+              <div className="p-6 sm:p-8 mt-auto">
                 <button
                   onClick={() => handleInitiatePurchase(plan.plan_id)}
-                  className="w-full btn flex items-center justify-center space-x-2 bg-[#00333e] text-white"
+                  className="w-full btn flex items-center justify-center space-x-1 sm:space-x-2 bg-[#00333e] text-white text-sm sm:text-base"
                   disabled={isLoading}
                 >
-                  <CreditCard className="w-5 h-5" />
+                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span>
                     {subscriptionDetails?.plan_id === plan.plan_id ? 'Purchase More Credits' : 'Switch to This Plan'}
                   </span>
@@ -327,18 +321,18 @@ const Subscription: React.FC = () => {
           ))}
         </div>
       ) : !isLoading && (
-        <div className="text-center py-12">
-          <p className="text-lg text-[#6f888c]">No plans available at this time. Please check back later or contact support.</p>
+        <div className="text-center py-8 sm:py-12">
+          <p className="text-base sm:text-lg text-[#6f888c]">No plans available at this time. Please check back later or contact support.</p>
         </div>
       )}
 
-      <div className="mt-12 text-center">
-        <h2 className="text-2xl font-semibold text-gray-900">Need a custom solution?</h2>
-        <p className="mt-4 text-gray-600">
+      <div className="mt-8 sm:mt-12 text-center">
+        <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">Need a custom solution?</h2>
+        <p className="mt-2 sm:mt-4 text-sm sm:text-base text-gray-600">
           Contact our sales team for tailored options beyond Paradiso.
         </p>
         <button
-          className="mt-6 btn bg-[#00333e] text-white"
+          className="mt-4 sm:mt-6 btn bg-[#00333e] text-white text-sm sm:text-base"
           onClick={() => setShowContactModal(true)}
         >
           Contact Sales
@@ -346,16 +340,16 @@ const Subscription: React.FC = () => {
       </div>
 
       {showSmsInputModal && paymentDetails && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-          <div className="bg-white p-8 rounded-lg shadow-lg">
-            <h2 className="text-xl font-semibold mb-4">Enter Number of SMS Credits</h2>
-            <p className="text-sm text-gray-600 mb-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
+          <div className="bg-white p-6 sm:p-8 rounded-lg shadow-lg w-full max-w-sm sm:max-w-md">
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Enter Number of SMS Credits</h2>
+            <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
               For the <strong>{plans.find(plan => plan.plan_id === paymentDetails.planId)?.name}</strong> plan, you must purchase at least{' '}
               <strong>{plans.find(plan => plan.plan_id === paymentDetails.planId)?.minimum_sms_purchase.toLocaleString()}</strong> SMS credits.
             </p>
             <input
               type="number"
-              className="input mb-4 w-full"
+              className="input mb-3 sm:mb-4 w-full text-sm sm:text-base"
               value={smsCountInput}
               onChange={(e) => setSmsCountInput(e.target.value)}
               placeholder="Enter number of SMS credits"
@@ -363,14 +357,14 @@ const Subscription: React.FC = () => {
               aria-label="Number of SMS credits"
             />
             <button
-              className="btn bg-[#00333e] text-white w-full"
+              className="btn bg-[#00333e] text-white w-full text-sm sm:text-base"
               onClick={handleSmsCountSubmit}
               disabled={isLoading}
             >
               {isLoading ? 'Processing...' : 'Continue'}
             </button>
             <button
-              className="btn bg-[#6f888c] text-white w-full mt-2"
+              className="btn bg-[#6f888c] text-white w-full mt-1 sm:mt-2 text-sm sm:text-base"
               onClick={() => setShowSmsInputModal(false)}
               disabled={isLoading}
             >
@@ -381,35 +375,35 @@ const Subscription: React.FC = () => {
       )}
 
       {showPaymentModal && paymentDetails && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-          <div className="bg-white p-8 rounded-lg shadow-lg">
-            <h2 className="text-xl font-semibold mb-4">Payment Details</h2>
-            <p className="mb-2">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
+          <div className="bg-white p-6 sm:p-8 rounded-lg shadow-lg w-full max-w-sm sm:max-w-md">
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Payment Details</h2>
+            <p className="mb-1 sm:mb-2 text-sm sm:text-base">
               <strong>Plan:</strong> {plans.find(plan => plan.plan_id === paymentDetails.planId)?.name}
             </p>
-            <p className="mb-2">
+            <p className="mb-1 sm:mb-2 text-sm sm:text-base">
               <strong>Number of SMS Credits:</strong> {paymentDetails.smsCount.toLocaleString()}
             </p>
-            <p className="mb-4">
+            <p className="mb-3 sm:mb-4 text-sm sm:text-base">
               <strong>Total Amount:</strong> {paymentDetails.totalAmount.toLocaleString()} TZS
             </p>
-            <h3 className="text-lg font-semibold mb-2">Enter Mobile Money Number</h3>
+            <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Enter Mobile Money Number</h3>
             <input
               type="text"
-              className="input mb-4 w-full"
+              className="input mb-3 sm:mb-4 w-full text-sm sm:text-base"
               value={mobileMoneyNumber}
               onChange={(e) => setMobileMoneyNumber(e.target.value)}
               placeholder="+255XXXXXXXXX"
             />
             <button
-              className="btn bg-[#00333e] text-white w-full"
+              className="btn bg-[#00333e] text-white w-full text-sm sm:text-base"
               onClick={handlePurchase}
               disabled={isLoading}
             >
               {isLoading ? 'Processing...' : 'Pay Now'}
             </button>
             <button
-              className="btn bg-[#6f888c] text-white w-full mt-2"
+              className="btn bg-[#6f888c] text-white w-full mt-1 sm:mt-2 text-sm sm:text-base"
               onClick={() => setShowPaymentModal(false)}
               disabled={isLoading}
             >
@@ -420,29 +414,29 @@ const Subscription: React.FC = () => {
       )}
 
       {showContactModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-          <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 ease-in-out">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-[#00333e]">Contact Our Sales Team</h2>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
+          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-sm sm:max-w-md">
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-2xl font-bold text-[#00333e]">Contact Our Sales Team</h2>
               <button
                 onClick={() => setShowContactModal(false)}
                 className="text-gray-500 hover:text-gray-700 transition-colors"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
-            <p className="text-[#6f888c] mb-6">Reach out to our sales representatives for assistance.</p>
-            <div className="space-y-4">
+            <p className="text-xs sm:text-sm text-[#6f888c] mb-4 sm:mb-6">Reach out to our sales representatives for assistance.</p>
+            <div className="space-y-3 sm:space-y-4">
               {salesContacts.map((contact, index) => (
-                <div key={index} className="border-b border-gray-200 pb-4 last:border-b-0">
-                  <h3 className="text-lg font-semibold text-gray-900">{contact.name}</h3>
-                  <p className="text-[#6f888c] mt-1">
+                <div key={index} className="border-b border-gray-200 pb-3 sm:pb-4 last:border-b-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">{contact.name}</h3>
+                  <p className="text-xs sm:text-sm text-[#6f888c] mt-1">
                     <span className="font-medium">Phone:</span>{' '}
                     <a href={`tel:${contact.phone_number}`} className="hover:text-[#00333e] transition-colors">
                       {contact.phone_number}
                     </a>
                   </p>
-                  <p className="text-[#6f888c] mt-1">
+                  <p className="text-xs sm:text-sm text-[#6f888c] mt-1">
                     <span className="font-medium">Email:</span>{' '}
                     <a href={`mailto:${contact.email}`} className="hover:text-[#00333e] transition-colors">
                       {contact.email}
@@ -451,10 +445,10 @@ const Subscription: React.FC = () => {
                 </div>
               ))}
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-4 sm:mt-6 flex justify-end">
               <button
                 onClick={() => setShowContactModal(false)}
-                className="btn bg-[#00333e] text-white hover:bg-[#5a6f73] transition-colors px-6 py-2 rounded-lg"
+                className="btn bg-[#00333e] text-white hover:bg-[#5a6f73] transition-colors px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base"
               >
                 Close
               </button>
