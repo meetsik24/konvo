@@ -304,11 +304,12 @@ export const createCampaign = async (data: {
 }): Promise<Campaign> => {
   console.log("createCampaign API call initiated with data:", data);
   try {
-    const response = await api.post("/campaigns", data);
+    const response = await api.post("/campaigns/", data);
     console.log("createCampaign API response:", response.data);
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to create campaign");
+    throw new Error("Failed to create campaign"); // Ensure a return or throw in all cases
   }
 };
 
@@ -318,7 +319,7 @@ export const updateCampaign = async (
 ): Promise<Campaign> => {
   console.log("updateCampaign API call initiated for campaign:", campaignId, "with data:", data);
   try {
-    const response = await api.patch(`/campaigns/${campaignId}`, data);
+    const response = await api.patch(`/campaigns${campaignId}`, data);
     console.log("updateCampaign API response:", response.data);
     return response.data;
   } catch (error: any) {
