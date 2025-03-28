@@ -145,7 +145,7 @@ const Register: React.FC = () => {
                 type="tel"
                 required
                 className="input text-sm sm:text-base"
-                placeholder="Mobile number (e.g., +1234567890)"
+                placeholder="Mobile number (e.g., 0xxxxxxxxxx)"
                 value={formData.mobileNumber}
                 onChange={handleChange}
                 disabled={status === 'loading'}
