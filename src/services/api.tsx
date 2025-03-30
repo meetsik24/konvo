@@ -1,4 +1,5 @@
 import axios from "axios";
+import ResetPassword from "../pages/ResetPassword";
 
 const API_BASE_URL =  "https://heading-to-paris-op.briq.tz";
 
@@ -227,10 +228,37 @@ export const loginUser = async (identifier: string, password: string): Promise<{
   }
 };
 
+export const requestOtp = async (phoneNumber: string, otpLength: number = 6): Promise<void> => {
+  try {
+    await api.post("/otp/request", {
+      phone_number: phoneNumber,
+      otp_length: otpLength,
+    });
+    console.log("OTP requested successfully");
+  } catch (error: any) {
+    handleApiError(error, "Failed to request OTP");
+  }
+};
+
+export const resetPasswordWithOtp = async (phoneNumber: string, otpCode: string, newPassword: string): Promise<void> => {
+  try {
+    await api.post("/auth/reset-password-otp", {
+      phone_number: phoneNumber,
+      otp_code: otpCode,
+      new_password: newPassword,
+    });
+    console.log("Password reset successfully");
+  } catch (error: any) {
+    handleApiError(error, "Failed to reset password with OTP");
+  }
+};
+
 export const logoutUser = (): void => {
   localStorage.removeItem("token");
   console.log("Logged out successfully!");
 };
+
+
 
 // LOGS
 export const fetchLogs = async (): Promise<LogResponse> => {
@@ -319,7 +347,7 @@ export const updateCampaign = async (
 ): Promise<Campaign> => {
   console.log("updateCampaign API call initiated for campaign:", campaignId, "with data:", data);
   try {
-    const response = await api.patch(`/campaigns${campaignId}`, data);
+    const response = await api.patch(`/campaigns/${campaignId}`, data);
     console.log("updateCampaign API response:", response.data);
     return response.data;
   } catch (error: any) {

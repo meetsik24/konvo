@@ -2,21 +2,25 @@ import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogIn, UserPlus } from 'lucide-react';
+import { LogIn, UserPlus, Phone } from 'lucide-react';
 import { setCredentials, setError } from '../store/slices/authSlice';
-import { loginUser } from '../services/api';
+import { loginUser, requestOtp } from '../services/api';
 
 const Login: React.FC = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  
   const [formData, setFormData] = useState({
     username: location.state?.username || '',
     password: '',
   });
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [error, setLocalError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false); // State to control modal visibility
+  const [modalLoading, setModalLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,13 +41,31 @@ const Login: React.FC = () => {
   };
 
   const handleForgotPassword = () => {
-    setShowModal(true); // Show the modal when "Forgot Password" is clicked
+    setShowModal(true);
   };
 
-  const handleModalClose = () => {
-    setShowModal(false);
-    // Navigate to the EnterOTP page with a mock phone number
-    navigate('/enter-otp', { state: { phoneNumber: '+1234567890' } });
+  const handleSendOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalLoading(true);
+    setModalError(null);
+
+    if (!phoneNumber) {
+      setModalError('Please enter a phone number.');
+      setModalLoading(false);
+      return;
+    }
+
+    try {
+      await requestOtp(phoneNumber);
+      setShowModal(false);
+      navigate('/ResetPassword', { state: { phoneNumber } });
+    } catch (err: any) {
+      const errorMsg = err.message || 'Failed to send OTP. Please try again.';
+      setModalError(errorMsg);
+      dispatch(setError(errorMsg));
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   return (
@@ -132,7 +154,7 @@ const Login: React.FC = () => {
         </form>
       </motion.div>
 
-      {/* Modal for OTP Sent Confirmation */}
+      {/* Modal for Phone Number Input and OTP Sending */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <motion.div
@@ -141,16 +163,56 @@ const Login: React.FC = () => {
             exit={{ opacity: 0, scale: 0.9 }}
             className="bg-white rounded-lg p-6 max-w-sm w-full mx-4"
           >
-            <h3 className="text-lg font-bold text-[#00333e] mb-4">OTP Sent</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              An OTP has been sent to your mobile number (+1234567890). Please enter the OTP to proceed.
+            <h3 className="text-lg font-bold text-[#00333e] mb-4">Reset Password</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Enter your phone number to receive an OTP
             </p>
-            <button
-              onClick={handleModalClose}
-              className="btn bg-[#00333e] text-white w-full flex justify-center items-center text-sm"
-            >
-              Proceed to Enter OTP
-            </button>
+            
+            <form onSubmit={handleSendOTP}>
+              <div className="mb-4">
+                <label htmlFor="phoneNumber" className="sr-only">
+                  Phone Number
+                </label>
+                <input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  type="tel"
+                  required
+                  className="input text-sm w-full"
+                  placeholder="Phone Number (e.g., +1234567890)"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  disabled={modalLoading}
+                />
+              </div>
+
+              {modalError && (
+                <div className="text-red-500 text-xs mb-4">{modalError}</div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="btn bg-gray-200 text-gray-700 w-full flex justify-center items-center text-sm"
+                  disabled={modalLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn bg-[#00333e] text-white w-full flex justify-center items-center text-sm"
+                  disabled={modalLoading}
+                >
+                  {modalLoading ? 'Sending...' : (
+                    <>
+                      <Phone className="w-4 h-4 mr-1" />
+                      Send OTP
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </motion.div>
         </div>
       )}

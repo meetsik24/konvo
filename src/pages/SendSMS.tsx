@@ -117,7 +117,7 @@ const SendSMS: React.FC = () => {
                 is_approved: sender.is_approved,
                 approved_at: sender.approved_at,
                 name: sender.name || sender.sender_id,
-                created_at: sender.created_at,
+                created_at: sender.created_at || new Date().toISOString(),
               }));
           }
           // Handle nested data array response
@@ -367,7 +367,7 @@ const SendSMS: React.FC = () => {
       }
       try {
         const groupContacts = await getGroupContacts(currentWorkspaceId, group.group_id);
-        const contacts = Array.isArray(groupContacts) ? groupContacts : groupContacts?.data || [];
+        const contacts = Array.isArray(groupContacts) ? groupContacts : [];
         const phoneNumbers = contacts.map((contact: Contact) => contact.phone_number).filter(Boolean);
         recipientPhones.push(...phoneNumbers);
         console.log(`Found ${phoneNumbers.length} contacts in group ${group.group_id}`);

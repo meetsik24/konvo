@@ -4,7 +4,7 @@ import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store } from './store/store';
 import { AppDispatch, RootState } from './store/store';
 import { fetchUserProfile, logout } from './store/slices/authSlice';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 
 // Landing Page Components
 import Home from './landing/pages/Home';
@@ -15,7 +15,7 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
-import EnterOTP from './pages/EnterOTP';
+
 import Account from './pages/Account';
 import NotFound from './pages/NotFound';
 import SendSMS from './pages/SendSMS';
@@ -72,8 +72,8 @@ function App() {
                   {/* Authentication Routes */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
-                  <Route path="/enter-otp" element={<EnterOTP />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
+                  
+                  <Route path="/ResetPassword" element={<ResetPassword />} />
 
                   {/* Dashboard Protected Routes */}
                   <Route
