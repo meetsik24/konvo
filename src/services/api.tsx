@@ -1,7 +1,7 @@
 import axios from "axios";
-import ResetPassword from "../pages/ResetPassword";
 
-const API_BASE_URL =  "https://heading-to-paris-op.briq.tz";
+
+const API_BASE_URL = "https://heading-to-paris-op.briq.tz";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -123,13 +123,35 @@ export interface Plan {
   created_at: string;
 }
 
-// Define the SubscriptionUsage type based on the GET /user-credit-balance response
 export interface SubscriptionUsage {
   user_id: string;
   plan_id: string;
   sms_credits: number;
   call_minutes: number;
   last_updated: string;
+}
+
+interface PurchaseSmsCreditsRequest {
+  sms_quantity: number;
+  mobile_money_number: string;
+}
+
+interface PurchaseSmsCreditsResponse {
+  success: boolean;
+  message: string;
+  payment_reference: string;
+  requested_sms: number;
+  total_amount: number;
+}
+
+interface PaymentStatusResponse {
+  success: boolean;
+  message: string;
+  payment_reference: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  credits_updated: boolean;
+  credits_added?: number;
+  updated_sms_balance?: number;
 }
 
 interface SenderId {
@@ -258,8 +280,6 @@ export const logoutUser = (): void => {
   console.log("Logged out successfully!");
 };
 
-
-
 // LOGS
 export const fetchLogs = async (): Promise<LogResponse> => {
   try {
@@ -288,7 +308,7 @@ export const getWorkspaces = async (): Promise<Workspace[]> => {
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch workspaces");
-    return []; // Ensure a return value in case of an error
+    return [];
   }
 };
 
@@ -320,7 +340,7 @@ export const getCampaigns = async (): Promise<Campaign[]> => {
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch campaigns");
-    return []; // Ensure a return value in case of an error
+    return [];
   }
 };
 
@@ -337,7 +357,6 @@ export const createCampaign = async (data: {
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to create campaign");
-    throw new Error("Failed to create campaign"); // Ensure a return or throw in all cases
   }
 };
 
@@ -379,7 +398,7 @@ export const getContacts = async (
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to fetch contacts");
-    return { contacts: [], total_count: 0, total_pages: 0, current_page: 0 }; // Fallback return value
+    return { contacts: [], total_count: 0, total_pages: 0, current_page: 0 };
   }
 };
 
@@ -560,7 +579,7 @@ export const getUserSenderRequests = async (workspaceId: string): Promise<Sender
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch user sender requests");
-    return []; // Ensure a return value in case of an error
+    return [];
   }
 };
 
@@ -648,46 +667,56 @@ export const changePassword = async (data: {
   }
 };
 
-// Fetch all available plans
+// PLANS AND SUBSCRIPTIONS
 export const getPlans = async (): Promise<Plan[]> => {
   try {
     const response = await api.get('/plans');
+    console.log("getPlans API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, 'Failed to fetch plans');
   }
 };
 
-// // Fetch a specific plan by ID
-// export const getPlanById = async (planId: string): Promise<Plan> => {
-//   try {
-//     const response = await api.get(`/plans/${planId}`);
-//     return response.data;
-//   } catch (error: any) {
-//     handleApiError(error, `Failed to fetch plan with ID ${planId}`);
-//   }
-// };
-
 // Fetch user credit balance
 export const getSubscriptionUsage = async (): Promise<SubscriptionUsage> => {
   try {
     const response = await api.get('/user-credit-balance');
+    console.log("getSubscriptionUsage API response:", response.data);
     return response.data;
   } catch (error: any) {
     handleApiError(error, 'Failed to fetch credit balance');
   }
 };
 
-// Purchase SMS credits
-export const purchaseSmsCredits = async (planId: string, smsQuantity: number, mobileMoneyNumber: string): Promise<void> => {
+// PAYMENTS
+export const purchaseSmsCredits = async (
+  smsQuantity: number,
+  mobileMoneyNumber: string
+): Promise<PurchaseSmsCreditsResponse> => {
   try {
-    await api.post('/purchase-sms-credits', {
-      plan_id: planId,
+    const response = await api.post<PurchaseSmsCreditsResponse>("/purchase-sms-credits", {
       sms_quantity: smsQuantity,
       mobile_money_number: mobileMoneyNumber,
     });
+    console.log("SMS credits purchase initiated successfully:", response.data);
+    return response.data;
   } catch (error: any) {
-    handleApiError(error, 'Failed to purchase SMS credits');
+    handleApiError(error, "Failed to initiate SMS credits purchase");
+  }
+};
+
+export const checkPaymentStatus = async (
+  paymentReference: string
+): Promise<PaymentStatusResponse> => {
+  try {
+    const response = await api.post<PaymentStatusResponse>("/payment-status", {
+      payment_reference: paymentReference,
+    });
+    console.log("Payment status checked:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to check payment status");
   }
 };
 
@@ -750,7 +779,6 @@ export const getMessageDetail = async (messageId: string): Promise<Message> => {
 // NOTIFICATIONS
 export const fetchNotifications = async (): Promise<Notification[]> => {
   try {
-    // Ensure the baseURL is using HTTPS
     if (!api.defaults.baseURL?.startsWith("https://")) {
       throw new Error("API baseURL must use HTTPS.");
     }

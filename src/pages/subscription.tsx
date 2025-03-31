@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard, Check, X, MessageSquare } from 'lucide-react';
+import { CreditCard, Check, X, MessageSquare, Loader2 } from 'lucide-react';
 import {
   getPlans,
   getSubscriptionUsage,
   purchaseSmsCredits,
+  checkPaymentStatus,
+  getUserPlan,
   Plan,
   SubscriptionUsage,
 } from '../services/api';
@@ -18,7 +20,6 @@ interface Contact {
 }
 
 interface PaymentDetails {
-  planId: string;
   smsCount: number;
   totalAmount: number;
 }
@@ -34,42 +35,41 @@ const salesContacts: Contact[] = [
 const Subscription: React.FC = () => {
   const { token } = useSelector((state: RootState) => state.auth);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [currentPlan, setCurrentPlan] = useState<Plan | null>(null);
   const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionUsage | null>(null);
+  const [userPlan, setUserPlan] = useState<Plan | null>(null);
   const [showSmsInputModal, setShowSmsInputModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [smsCountInput, setSmsCountInput] = useState('');
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
+  const [paymentReference, setPaymentReference] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
 
   useEffect(() => {
     const fetchPlansAndCreditBalance = async () => {
       setIsLoading(true);
       setError(null);
-  
+
       try {
+        // Fetch plans
         const plansData = await getPlans();
         setPlans(plansData);
-  
+
+        // Fetch user's current plan
         try {
-          const creditBalanceData = await getSubscriptionUsage();
+          const userPlanData = await getUserPlan();
+          setUserPlan(userPlanData);
+
+          // Fetch credit balance with plan_id
+          const creditBalanceData = await getSubscriptionUsage(userPlanData.plan_id);
           setSubscriptionDetails(creditBalanceData);
-  
-          if (creditBalanceData.plan_id) {
-            try {
-              const currentPlanData = await getPlanById(creditBalanceData.plan_id);
-              setCurrentPlan(currentPlanData);
-            } catch (planErr: any) {
-              console.error('Error fetching current plan:', planErr);
-            }
-          }
         } catch (subErr: any) {
-          console.error('Error fetching credit balance:', subErr);
-          setError('Failed to fetch credit balance. Please try again later.');
+          console.error('Error fetching user plan or credit balance:', subErr);
+          setError('Failed to fetch user plan or credit balance. Please try again later.');
         }
       } catch (err: any) {
         console.error('Error fetching plans:', err);
@@ -78,7 +78,7 @@ const Subscription: React.FC = () => {
         setIsLoading(false);
       }
     };
-  
+
     if (token) {
       fetchPlansAndCreditBalance();
     } else {
@@ -86,27 +86,26 @@ const Subscription: React.FC = () => {
     }
   }, [token]);
 
-  const calculateTotalAmount = (plan: Plan, smsCount: number): number => {
+  const calculateTotalAmount = (smsUnitPrice: string, smsCount: number): number => {
     if (smsCount <= 0) return 0;
-
-    const pricePerSms = parseFloat(plan.sms_unit_price) || 0;
-    const totalAmount = smsCount * pricePerSms;
-    return Math.round(totalAmount);
+    const pricePerSms = parseFloat(smsUnitPrice) || 0;
+    return Math.round(smsCount * pricePerSms);
   };
 
-  const handleInitiatePurchase = (planId: string) => {
+  const handleInitiatePurchase = (smsUnitPrice: string) => {
     setError(null);
     setSuccess(null);
     setPaymentDetails(null);
     setSmsCountInput('');
+    setPaymentReference(null);
 
-    const selectedPlan = plans.find(plan => plan.plan_id === planId);
+    const selectedPlan = plans.find(plan => plan.sms_unit_price === smsUnitPrice);
     if (selectedPlan) {
       setSmsCountInput(selectedPlan.minimum_sms_purchase.toString());
     }
 
     setShowSmsInputModal(true);
-    setPaymentDetails({ planId, smsCount: 0, totalAmount: 0 });
+    setPaymentDetails({ smsCount: 0, totalAmount: 0 });
   };
 
   const handleSmsCountSubmit = () => {
@@ -121,18 +120,18 @@ const Subscription: React.FC = () => {
       return;
     }
 
-    const selectedPlan = plans.find(plan => plan.plan_id === paymentDetails.planId);
+    const selectedPlan = plans.find(plan => plan.minimum_sms_purchase.toString() === smsCountInput);
     if (!selectedPlan) {
       setError('Could not find the selected plan. Please try again.');
       return;
     }
 
     if (smsCount < selectedPlan.minimum_sms_purchase) {
-      setError(`The number of SMS must be at least ${selectedPlan.minimum_sms_purchase.toLocaleString()} for the ${selectedPlan.name} plan.`);
+      setError(`The number of SMS must be at least ${selectedPlan.minimum_sms_purchase.toLocaleString()} for this plan.`);
       return;
     }
 
-    const totalAmount = calculateTotalAmount(selectedPlan, smsCount);
+    const totalAmount = calculateTotalAmount(selectedPlan.sms_unit_price, smsCount);
     setPaymentDetails({ ...paymentDetails, smsCount, totalAmount });
     setShowSmsInputModal(false);
     setShowPaymentModal(true);
@@ -149,38 +148,77 @@ const Subscription: React.FC = () => {
       return;
     }
 
+    if (!userPlan) {
+      setError('User plan not found. Please try again.');
+      return;
+    }
+
     setError(null);
     setSuccess(null);
-    setIsLoading(true);
+    setIsPaymentProcessing(true);
+    setShowPaymentModal(false);
+
     try {
-      await purchaseSmsCredits(paymentDetails.planId, paymentDetails.smsCount, mobileMoneyNumber);
-      setSuccess(
-        paymentDetails.planId === subscriptionDetails?.plan_id
-          ? 'Successfully purchased SMS credits!'
-          : 'Successfully updated plan and purchased SMS credits!'
+      // Initiate payment
+      const purchaseResponse = await purchaseSmsCredits(
+        paymentDetails.smsCount,
+        mobileMoneyNumber
       );
-      setShowPaymentModal(false);
+      setPaymentReference(purchaseResponse.payment_reference);
+
+      // Poll for payment completion
+      let paymentCompleted = false;
+      let attempts = 0;
+      const maxAttempts = 15;
+
+      while (!paymentCompleted && attempts < maxAttempts) {
+        const paymentStatus = await checkPaymentStatus(purchaseResponse.payment_reference);
+        
+        if (paymentStatus.success && paymentStatus.status === "completed") {
+          paymentCompleted = true;
+        } else if (paymentStatus.status === "failed") {
+          throw new Error("Payment failed. Please try again.");
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          attempts++;
+        }
+      }
+
+      if (!paymentCompleted) {
+        throw new Error('Payment processing timed out. Please check your payment status.');
+      }
+
+      // Poll for credit update
+      let creditsUpdated = false;
+      attempts = 0;
+
+      while (!creditsUpdated && attempts < maxAttempts) {
+        const creditCheck = await checkPaymentStatus(purchaseResponse.payment_reference);
+        
+        if (creditCheck.success && creditCheck.credits_updated) {
+          creditsUpdated = true;
+          // Update subscription details with plan_id
+          const creditBalanceData = await getSubscriptionUsage(userPlan.plan_id);
+          setSubscriptionDetails(creditBalanceData);
+          setSuccess(`Payment Successful! ${paymentDetails.smsCount.toLocaleString()} credits added. New balance: ${creditBalanceData.sms_credits.toLocaleString()}`);
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          attempts++;
+        }
+      }
+
+      if (!creditsUpdated) {
+        throw new Error('Credit update failed. Please contact support.');
+      }
+    } catch (err: any) {
+      console.error('Error during purchase:', err);
+      setError(err.message || 'Payment failed. Please try again or contact support.');
+    } finally {
+      setIsPaymentProcessing(false);
       setMobileMoneyNumber('');
       setPaymentDetails(null);
       setSmsCountInput('');
-
-      try {
-        const creditBalanceData = await getSubscriptionUsage();
-        setSubscriptionDetails(creditBalanceData);
-
-        if (creditBalanceData.plan_id !== currentPlan?.plan_id) {
-          const newPlanData = await getPlanById(creditBalanceData.plan_id);
-          setCurrentPlan(newPlanData);
-        }
-      } catch (subErr: any) {
-        console.error('Error refreshing credit balance after purchase:', subErr.message);
-        setError(subErr.message || 'SMS credits were purchased but failed to refresh balance. Please reload the page.');
-      }
-    } catch (err: any) {
-      console.error('Error purchasing SMS credits:', err.message);
-      setError(err.message || 'Failed to purchase SMS credits. Please try again.');
-    } finally {
-      setIsLoading(false);
+      setPaymentReference(null);
     }
   };
 
@@ -190,62 +228,115 @@ const Subscription: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-7xl mx-auto space-y-6 p-4 sm:p-6 lg:p-8"
     >
+      {/* Initial Loading */}
+      <AnimatePresence>
+        {isLoading && !plans.length && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
+          >
+            <div className="bg-white rounded-lg p-6 shadow-lg max-w-sm w-full text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#00333e]" />
+              <p className="text-[#6f888c]">Loading plans...</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Payment Processing */}
+      <AnimatePresence>
+        {isPaymentProcessing && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
+          >
+            <div className="bg-white rounded-lg p-6 shadow-lg max-w-sm w-full text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#00333e]" />
+              <h2 className="text-lg font-semibold text-[#00333e]">Processing Payment</h2>
+              <p className="text-sm mt-2 text-[#6f888c]">
+                Please complete the USSD payment on your phone...
+              </p>
+              {paymentReference && (
+                <p className="text-xs mt-2 text-[#6f888c]">Reference: {paymentReference}</p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Success Modal */}
+      <AnimatePresence>
+        {success && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
+          >
+            <div className="bg-green-500 text-white rounded-lg p-6 shadow-lg max-w-sm w-full text-center">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
+              >
+                <Check className="w-12 h-12 mx-auto mb-4" />
+              </motion.div>
+              <h2 className="text-lg font-semibold">Payment Successful!</h2>
+              <p className="text-sm mt-2">{success}</p>
+              <button
+                onClick={() => setSuccess(null)}
+                className="mt-4 btn bg-white text-green-500 hover:bg-gray-100 text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Error Modal */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
+          >
+            <div className="bg-red-500 text-white rounded-lg p-6 shadow-lg max-w-sm w-full text-center">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
+              >
+                <X className="w-12 h-12 mx-auto mb-4" />
+              </motion.div>
+              <h2 className="text-lg font-semibold">Payment Failed</h2>
+              <p className="text-sm mt-2">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="mt-4 btn bg-white text-red-500 hover:bg-gray-100 text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="text-center">
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#00333e]">SMS Credit Packages</h1>
         <p className="mt-2 sm:mt-4 text-base sm:text-lg lg:text-xl text-[#6f888c]">Purchase SMS credits to reach your audience</p>
       </div>
 
-      {/* Error Popup */}
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="fixed top-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 z-50 bg-red-500 text-white rounded-lg p-3 sm:p-4 shadow-lg max-w-md w-full"
-          >
-            <div className="flex justify-between items-center">
-              <p className="text-sm sm:text-base">{error}</p>
-              <button onClick={() => setError(null)} className="text-white hover:text-gray-200">
-                <X className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Success Popup */}
-      <AnimatePresence>
-        {success && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="fixed top-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 z-50 bg-green-500 text-white rounded-lg p-3 sm:p-4 shadow-lg max-w-md w-full"
-          >
-            <div className="flex justify-between items-center">
-              <p className="text-sm sm:text-base">{success}</p>
-              <button onClick={() => setSuccess(null)} className="text-white hover:text-gray-200">
-                <X className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {isLoading && !plans.length && (
-        <div className="text-center py-8 sm:py-12">
-          <p className="text-base sm:text-lg text-[#6f888c]">Loading plans...</p>
-        </div>
-      )}
-
       {subscriptionDetails && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
           className="bg-gradient-to-r from-blue-50 to-blue-100 shadow-lg rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 max-w-md mx-auto w-full"
         >
           <div className="flex items-center justify-center space-x-3 sm:space-x-4">
@@ -280,12 +371,10 @@ const Subscription: React.FC = () => {
 
               <div className="p-6 sm:p-8">
                 <h3 className="text-xl sm:text-2xl font-semibold text-gray-900">{plan.name}</h3>
-
                 <div className="mt-3 sm:mt-4">
                   <span className="text-2xl sm:text-3xl font-extrabold text-[#00333e]">{plan.sms_unit_price}</span>
                   <span className="ml-1 sm:ml-2 text-sm sm:text-base text-[#6f888c]">TZS per SMS</span>
                 </div>
-
                 <div className="mt-4 sm:mt-6">
                   <h4 className="text-xs sm:text-sm font-medium text-gray-900 mb-3 sm:mb-4">Features</h4>
                   <ul className="space-y-3 sm:space-y-4">
@@ -297,7 +386,6 @@ const Subscription: React.FC = () => {
                     ))}
                   </ul>
                 </div>
-
                 <div className="mt-4 sm:mt-6">
                   <p className="text-xs sm:text-sm text-[#6f888c]">
                     Minimum SMS Purchase: {plan.minimum_sms_purchase.toLocaleString()}
@@ -307,14 +395,12 @@ const Subscription: React.FC = () => {
 
               <div className="p-6 sm:p-8 mt-auto">
                 <button
-                  onClick={() => handleInitiatePurchase(plan.plan_id)}
+                  onClick={() => handleInitiatePurchase(plan.sms_unit_price)}
                   className="w-full btn flex items-center justify-center space-x-1 sm:space-x-2 bg-[#00333e] text-white text-sm sm:text-base"
-                  disabled={isLoading}
+                  disabled={isLoading || isPaymentProcessing}
                 >
                   <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>
-                    {subscriptionDetails?.plan_id === plan.plan_id ? 'Purchase More Credits' : 'Switch to This Plan'}
-                  </span>
+                  <span>Purchase Credits</span>
                 </button>
               </div>
             </motion.div>
@@ -334,6 +420,7 @@ const Subscription: React.FC = () => {
         <button
           className="mt-4 sm:mt-6 btn bg-[#00333e] text-white text-sm sm:text-base"
           onClick={() => setShowContactModal(true)}
+          disabled={isLoading || isPaymentProcessing}
         >
           Contact Sales
         </button>
@@ -344,8 +431,8 @@ const Subscription: React.FC = () => {
           <div className="bg-white p-6 sm:p-8 rounded-lg shadow-lg w-full max-w-sm sm:max-w-md">
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Enter Number of SMS Credits</h2>
             <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
-              For the <strong>{plans.find(plan => plan.plan_id === paymentDetails.planId)?.name}</strong> plan, you must purchase at least{' '}
-              <strong>{plans.find(plan => plan.plan_id === paymentDetails.planId)?.minimum_sms_purchase.toLocaleString()}</strong> SMS credits.
+              You must purchase at least{' '}
+              <strong>{plans.find(plan => plan.minimum_sms_purchase.toString() === smsCountInput)?.minimum_sms_purchase.toLocaleString()}</strong> SMS credits.
             </p>
             <input
               type="number"
@@ -354,19 +441,19 @@ const Subscription: React.FC = () => {
               onChange={(e) => setSmsCountInput(e.target.value)}
               placeholder="Enter number of SMS credits"
               step="1"
-              aria-label="Number of SMS credits"
+              disabled={isPaymentProcessing}
             />
             <button
               className="btn bg-[#00333e] text-white w-full text-sm sm:text-base"
               onClick={handleSmsCountSubmit}
-              disabled={isLoading}
+              disabled={isPaymentProcessing}
             >
-              {isLoading ? 'Processing...' : 'Continue'}
+              Continue
             </button>
             <button
               className="btn bg-[#6f888c] text-white w-full mt-1 sm:mt-2 text-sm sm:text-base"
               onClick={() => setShowSmsInputModal(false)}
-              disabled={isLoading}
+              disabled={isPaymentProcessing}
             >
               Cancel
             </button>
@@ -378,9 +465,6 @@ const Subscription: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
           <div className="bg-white p-6 sm:p-8 rounded-lg shadow-lg w-full max-w-sm sm:max-w-md">
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Payment Details</h2>
-            <p className="mb-1 sm:mb-2 text-sm sm:text-base">
-              <strong>Plan:</strong> {plans.find(plan => plan.plan_id === paymentDetails.planId)?.name}
-            </p>
             <p className="mb-1 sm:mb-2 text-sm sm:text-base">
               <strong>Number of SMS Credits:</strong> {paymentDetails.smsCount.toLocaleString()}
             </p>
@@ -394,18 +478,19 @@ const Subscription: React.FC = () => {
               value={mobileMoneyNumber}
               onChange={(e) => setMobileMoneyNumber(e.target.value)}
               placeholder="+255XXXXXXXXX"
+              disabled={isPaymentProcessing}
             />
             <button
               className="btn bg-[#00333e] text-white w-full text-sm sm:text-base"
               onClick={handlePurchase}
-              disabled={isLoading}
+              disabled={isPaymentProcessing}
             >
-              {isLoading ? 'Processing...' : 'Pay Now'}
+              Pay Now
             </button>
             <button
               className="btn bg-[#6f888c] text-white w-full mt-1 sm:mt-2 text-sm sm:text-base"
               onClick={() => setShowPaymentModal(false)}
-              disabled={isLoading}
+              disabled={isPaymentProcessing}
             >
               Cancel
             </button>
@@ -421,6 +506,7 @@ const Subscription: React.FC = () => {
               <button
                 onClick={() => setShowContactModal(false)}
                 className="text-gray-500 hover:text-gray-700 transition-colors"
+                disabled={isPaymentProcessing}
               >
                 <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
@@ -449,6 +535,7 @@ const Subscription: React.FC = () => {
               <button
                 onClick={() => setShowContactModal(false)}
                 className="btn bg-[#00333e] text-white hover:bg-[#5a6f73] transition-colors px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base"
+                disabled={isPaymentProcessing}
               >
                 Close
               </button>
