@@ -84,7 +84,7 @@ const Login: React.FC = () => {
           <div className="rounded-md shadow-sm space-y-3 sm:space-y-4">
             <div>
               <label htmlFor="username" className="sr-only">
-                Username
+                Username | Phone-number
               </label>
               <input
                 id="username"

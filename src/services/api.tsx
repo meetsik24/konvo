@@ -492,7 +492,7 @@ export const getCampaignGroups = async (campaignId: string): Promise<Group[]> =>
 export const createGroup = async (data: { name: string; workspace_id: string }): Promise<Group> => {
   console.log("createGroup API call initiated with data:", data);
   try {
-    const response = await api.post("/contact-groups", data);
+    const response = await api.post("/contact-groups/", data);
     console.log("createGroup API response:", response.data);
     return response.data;
   } catch (error: any) {
