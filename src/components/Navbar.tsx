@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Settings, LogOut, Plus, X, Coffee, ChevronDown, Trash2, Check, Menu } from 'lucide-react';
+import { Bell, Settings, LogOut, Check, Menu, X, Trash2 } from 'lucide-react';
 import { logout, fetchUserProfile } from '../store/slices/authSlice';
 import { store } from '../store/store';
 import { fetchNotifications, deleteNotification, markNotificationAsRead } from '../services/api';
@@ -37,10 +37,9 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
     isLoading: workspaceLoading,
   } = useWorkspace();
 
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [isWorkspaceListOpen, setIsWorkspaceListOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -58,6 +57,13 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
 
     loadNotifications();
   }, []);
+
+  // Automatically open workspace modal if no workspaces exist
+  useEffect(() => {
+    if (workspaces.length === 0 && !workspaceLoading && !isWorkspaceModalOpen) {
+      setIsWorkspaceModalOpen(true);
+    }
+  }, [workspaces, workspaceLoading, isWorkspaceModalOpen]);
 
   useEffect(() => {
     if (!token || status === 'loading' || user) {
@@ -104,15 +110,18 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
       try {
         await addWorkspace(newWorkspaceName);
         setNewWorkspaceName('');
-        setIsCreateModalOpen(false);
         await refreshWorkspaces();
+        // Only close the modal if there are workspaces after creation
+        if (workspaces.length > 0) {
+          setIsWorkspaceModalOpen(false);
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to create workspace');
       } finally {
         setIsLoading(false);
       }
     },
-    [newWorkspaceName, addWorkspace, refreshWorkspaces]
+    [newWorkspaceName, addWorkspace, refreshWorkspaces, workspaces]
   );
 
   const handleDeleteWorkspace = useCallback(
@@ -122,8 +131,11 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
         setError(null);
         try {
           await deleteWorkspace(id);
-          setIsWorkspaceListOpen(false);
           await refreshWorkspaces();
+          // If no workspaces remain after deletion, keep the modal open
+          if (workspaces.length <= 1) {
+            setIsWorkspaceModalOpen(true);
+          }
         } catch (err: any) {
           setError(err.message || 'Failed to delete workspace');
         } finally {
@@ -131,7 +143,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
         }
       }
     },
-    [deleteWorkspace, refreshWorkspaces]
+    [deleteWorkspace, refreshWorkspaces, workspaces]
   );
 
   const handleDismissNotification = useCallback(
@@ -278,51 +290,106 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
                     onClick={() => handleDismissNotification(notif.notification_id)}
                     className="text-gray-400 hover:text-red-500"
                     title="Dismiss"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          )
         </div>
       </>
     ),
     [notifications, handleDismissNotification, handleMarkAsRead, error]
   );
 
-  const workspaceList = useMemo(
+  const workspaceModal = useMemo(
     () => (
-      <>
-        {/* Mobile: Centered Pop-Up */}
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:hidden">
-          <div className="bg-white border rounded-xl shadow-lg w-full max-w-md max-h-[80vh] overflow-y-auto">
-            <div className="p-2 border-b flex justify-between items-center">
-              <h4 className="text-sm font-semibold text-gray-700">Your Workspaces</h4>
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4"
+        onClick={() => {
+          if (workspaces.length > 0) setIsWorkspaceModalOpen(false);
+        }}
+      >
+        <div
+          className="bg-white border border-primary-100 rounded-2xl shadow-xl w-full max-w-[90vw] sm:max-w-md max-h-[90vh] sm:max-h-[80vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="p-4 sm:p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+            <h4 className="text-lg sm:text-xl font-bold text-[#00333e]">Manage Workspaces</h4>
+            {workspaces.length > 0 && (
               <button
-                onClick={() => setIsWorkspaceListOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
+                onClick={() => setIsWorkspaceModalOpen(false)}
+                className="text-gray-500 hover:text-[#00333e] transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
-            </div>
-            {workspaces.length === 0 ? (
-              <p className="p-3 text-gray-500 text-center text-sm">No workspaces available</p>
+            )}
+          </div>
+
+          {/* Create Workspace Form */}
+          <div className="p-4 sm:p-6 bg-white">
+            <form onSubmit={handleCreateWorkspace}>
+              <div className="mb-4 sm:mb-6">
+                <label className="block text-sm sm:text-base font-medium text-[#00333e] mb-2">
+                  Create New Workspace
+                </label>
+                <input
+                  type="text"
+                  value={newWorkspaceName}
+                  onChange={(e) => setNewWorkspaceName(e.target.value)}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-[#00333e] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                  placeholder="Enter workspace name"
+                  required
+                  disabled={isLoading || workspaceLoading}
+                />
+              </div>
+              {error && (
+                <p className="text-red-500 text-xs sm:text-sm mb-4 bg-red-50 p-2 rounded-lg">
+                  {error}
+                </p>
+              )}
+              <button
+                type="submit"
+                className="w-full bg-[#00333e] text-white px-4 py-2 sm:py-3 text-sm sm:text-base font-medium rounded-lg hover:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50"
+                disabled={isLoading || workspaceLoading}
+              >
+                {isLoading || workspaceLoading ? 'Creating...' : 'Create Workspace'}
+              </button>
+            </form>
+          </div>
+
+          {/* Workspace List */}
+          <div className="p-4 sm:p-6 pt-0 sm:pt-0">
+            <h5 className="text-sm sm:text-base font-semibold text-[#00333e] mb-3 sm:mb-4">
+              Your Workspaces
+            </h5>
+            {workspaceLoading ? (
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#00333e] mx-auto" />
+                <p className="text-gray-500 text-xs sm:text-sm mt-2">Loading workspaces...</p>
+              </div>
+            ) : workspaces.length === 0 ? (
+              <p className="text-gray-500 text-xs sm:text-sm text-center">
+                No workspaces available. Please create one to proceed.
+              </p>
             ) : (
               workspaces.map((workspace) => (
                 <div
                   key={workspace.workspace_id}
-                  className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between py-2 sm:py-3 px-3 sm:px-4 mb-2 rounded-lg hover:bg-[#fddf0d] transition-colors border border-gray-200"
                 >
                   <button
                     onClick={() => {
                       setCurrentWorkspaceId(workspace.workspace_id);
-                      setIsWorkspaceListOpen(false);
+                      setIsWorkspaceModalOpen(false);
                     }}
-                    className={`flex-1 text-left text-sm ${
+                    className={`flex-1 text-left text-sm sm:text-base ${
                       workspace.workspace_id === currentWorkspaceId
-                        ? 'text-primary-600 font-semibold'
-                        : 'text-gray-700 hover:text-primary-500'
+                        ? 'text-[#00333e] font-semibold'
+                        : 'text-gray-700 hover:text-[#00333e]'
                     }`}
                     disabled={isLoading || workspaceLoading}
                   >
@@ -331,11 +398,11 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
                   {workspaces.length > 1 && (
                     <button
                       onClick={() => handleDeleteWorkspace(workspace.workspace_id)}
-                      className="text-red-400 hover:text-red-600 p-1"
+                      className="text-red-500 hover:text-red-600 p-1 sm:p-2 transition-colors"
                       disabled={isLoading || workspaceLoading}
                       title="Delete workspace"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   )}
                 </div>
@@ -343,51 +410,19 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
             )}
           </div>
         </div>
-
-        {/* Desktop: Dropdown */}
-        <div className="hidden sm:block absolute right-0 mt-2 w-72 bg-white border rounded-xl shadow-lg z-10 max-h-64 overflow-y-auto">
-          <div className="p-3 border-b bg-gray-50">
-            <h4 className="text-sm font-semibold text-gray-700">Your Workspaces</h4>
-          </div>
-          {workspaces.length === 0 ? (
-            <p className="p-4 text-gray-500 text-center text-sm">No workspaces available</p>
-          ) : (
-            workspaces.map((workspace) => (
-              <div
-                key={workspace.workspace_id}
-                className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-              >
-                <button
-                  onClick={() => {
-                    setCurrentWorkspaceId(workspace.workspace_id);
-                    setIsWorkspaceListOpen(false);
-                  }}
-                  className={`flex-1 text-left text-sm ${
-                    workspace.workspace_id === currentWorkspaceId
-                      ? 'text-primary-600 font-semibold'
-                      : 'text-gray-700 hover:text-primary-500'
-                  }`}
-                  disabled={isLoading || workspaceLoading}
-                >
-                  {workspace.name}
-                </button>
-                {workspaces.length > 1 && (
-                  <button
-                    onClick={() => handleDeleteWorkspace(workspace.workspace_id)}
-                    className="text-red-400 hover:text-red-600 p-1"
-                    disabled={isLoading || workspaceLoading}
-                    title="Delete workspace"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </>
+      </div>
     ),
-    [workspaces, currentWorkspaceId, handleDeleteWorkspace, isLoading, workspaceLoading, setCurrentWorkspaceId]
+    [
+      workspaces,
+      currentWorkspaceId,
+      handleDeleteWorkspace,
+      isLoading,
+      workspaceLoading,
+      setCurrentWorkspaceId,
+      newWorkspaceName,
+      handleCreateWorkspace,
+      error,
+    ]
   );
 
   useEffect(() => {
@@ -444,24 +479,14 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
 
             <div className="relative">
               <button
-                onClick={() => setIsWorkspaceListOpen(!isWorkspaceListOpen)}
-                className="flex items-center gap-1 sm:gap-2 p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
+                onClick={() => setIsWorkspaceModalOpen(true)}
+                className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-1 sm:py-2 text-[#00333e] rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors text-sm sm:text-base font-medium"
                 disabled={isLoading || workspaceLoading}
               >
-                <Coffee className="w-5 h-5 sm:w-6 sm:h-6" />
-                <ChevronDown className="w-4 h-4" />
+                Workspace
               </button>
-              {isWorkspaceListOpen && workspaceList}
+              {isWorkspaceModalOpen && workspaceModal}
             </div>
-
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-2 p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors"
-              disabled={isLoading || workspaceLoading}
-            >
-              <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
-              <span className="hidden sm:inline text-xs sm:text-sm">Workspace</span>
-            </button>
 
             <Link
               to="/account"
@@ -471,7 +496,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
             </Link>
 
             {/* Avatar - Hidden on Mobile */}
-            <div className="hidden sm:flex items-center gap-2 sm:g ap-3 bg-[#fddf0d] px-3 sm:px-4 py-1 sm:py-2 rounded-full">
+            <div className="hidden sm:flex items-center gap-2 sm:gap-3 bg-[#fddf0d] px-3 sm:px-4 py-1 sm:py-2 rounded-full">
               <img
                 className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-green-500"
                 src={avatarUrl}
@@ -496,46 +521,6 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
           </div>
         </div>
       </div>
-
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-md">
-            <h2 className="text-base sm:text-lg font-semibold text-[#00333e] mb-4 sm:mb-6">Create New Workspace</h2>
-            {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-            <form onSubmit={handleCreateWorkspace}>
-              <div className="mb-4 sm:mb-6">
-                <label className="block text-sm font-medium text-[#00333e] mb-2">Workspace Name</label>
-                <input
-                  type="text"
-                  value={newWorkspaceName}
-                  onChange={(e) => setNewWorkspaceName(e.target.value)}
-                  className="input w-full text-[#00333e] border-[#6f888c] focus:border-[#00333e] focus:ring-[#00333e] rounded-xl"
-                  placeholder="Enter workspace name"
-                  required
-                  disabled={isLoading || workspaceLoading}
-                />
-              </div>
-              <div className="flex justify-end gap-2 sm:gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  className="btn px-3 sm:px-4 py-1 sm:py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-xl hover:bg-gray-200"
-                  disabled={isLoading || workspaceLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn bg-[#00333e] text-white px-3 sm:px-4 py-1 sm:py-2 text-sm font-medium rounded-xl"
-                  disabled={isLoading || workspaceLoading}
-                >
-                  {isLoading || workspaceLoading ? 'Creating...' : 'Create'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </nav>
   );
 };
