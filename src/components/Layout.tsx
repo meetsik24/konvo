@@ -15,19 +15,9 @@ const Layout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fffbf3] relative">
+    <div className="min-h-screen bg-[#fff] relative">
       {/* Decorative doodles */}
-      <div
-        className="doodle doodle-coffee w-24 h-24 sm:w-32 sm:h-32 top-20 left-10 sm:left-20 animate-float"
-      />
-      <div
-        className="doodle doodle-heart w-16 h-16 sm:w-24 sm:h-24 top-40 right-10 sm:right-40 animate-float"
-        style={{ animationDelay: '1s' }}
-      />
-      <div
-        className="doodle doodle-star w-12 h-12 sm:w-20 sm:h-20 bottom-20 left-1/4 sm:left-1/3 animate-float"
-        style={{ animationDelay: '2s' }}
-      />
+     
 
       {/* Navbar */}
       <Navbar

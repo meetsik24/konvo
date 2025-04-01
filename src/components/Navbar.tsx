@@ -422,7 +422,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
 
             {/* Logo - Hidden on Mobile */}
             <Link to="/" className="hidden sm:flex items-center gap-2">
-              <img src="/assets/briq2.png" alt="Briq Logo" className="w-10 h-15" />
+              <img src="/assets/briq2.png" alt="Briq Logo" className="w-12 h-15" />
             </Link>
           </div>
 
