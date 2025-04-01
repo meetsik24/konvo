@@ -30,7 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
   }, [workspaces, currentWorkspaceId, activeWorkspace, isWorkspaceSelected]);
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r-2 border-[#6f888c] flex flex-col">
+    <aside className="w-64 bg-white border-r-2 border-[#6f888c] flex flex-col sm:sticky sm:top-16 h-screen overflow-y-auto shadow-lg">
       <div className="flex flex-col h-full py-6">
         {/* Workspace Header */}
         <div className="px-4 mb-6">

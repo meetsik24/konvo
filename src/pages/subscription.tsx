@@ -4,12 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CreditCard, Check, X, MessageSquare, Loader2 } from 'lucide-react';
 import {
   getPlans,
+  getUserPlan,
+  getProfile,
   getSubscriptionUsage,
   purchaseSmsCredits,
   checkPaymentStatus,
-  getUserPlan,
-  Plan,
-  SubscriptionUsage,
 } from '../services/api';
 import type { RootState } from '..';
 
@@ -22,6 +21,7 @@ interface Contact {
 interface PaymentDetails {
   smsCount: number;
   totalAmount: number;
+  planId: string;
 }
 
 const salesContacts: Contact[] = [
@@ -59,17 +59,67 @@ const Subscription: React.FC = () => {
         const plansData = await getPlans();
         setPlans(plansData);
 
-        // Fetch user's current plan
+        // Try to fetch the user's plan to get the plan_id
+        let planId: string | null = null;
         try {
           const userPlanData = await getUserPlan();
           setUserPlan(userPlanData);
+          planId = userPlanData.plan_id;
+        } catch (planErr: any) {
+          console.error('Error fetching user plan:', planErr);
+          // Fallback: If /users/me/plan fails, try to get plan_id from user profile
+          try {
+            const userProfile = await getProfile();
+            if (userProfile.plan_id) {
+              planId = userProfile.plan_id;
+              const matchingPlan = plansData.find(plan => plan.plan_id === planId);
+              if (matchingPlan) {
+                setUserPlan(matchingPlan);
+              } else {
+                console.warn('User plan_id found in profile but not in available plans:', userProfile.plan_id);
+                // Fallback to the first plan if the plan_id doesn't match any available plans
+                if (plansData.length > 0) {
+                  planId = plansData[0].plan_id;
+                  setUserPlan(plansData[0]);
+                  console.warn('Using default plan:', plansData[0].name);
+                } else {
+                  throw new Error('No plans available to use as a default.');
+                }
+              }
+            } else {
+              // If no plan_id is found in the profile, use the first plan as a default
+              if (plansData.length > 0) {
+                planId = plansData[0].plan_id;
+                setUserPlan(plansData[0]);
+                console.warn('User plan not found in profile. Using default plan:', plansData[0].name);
+              } else {
+                throw new Error('No plans available to use as a default.');
+              }
+            }
+          } catch (profileErr: any) {
+            console.error('Error fetching user profile:', profileErr);
+            // If profile fetch fails, fall back to the first plan
+            if (plansData.length > 0) {
+              planId = plansData[0].plan_id;
+              setUserPlan(plansData[0]);
+              console.warn('User profile fetch failed. Using default plan:', plansData[0].name);
+            } else {
+              throw new Error('No plans available and user profile fetch failed.');
+            }
+          }
+        }
 
-          // Fetch credit balance with plan_id
-          const creditBalanceData = await getSubscriptionUsage(userPlanData.plan_id);
-          setSubscriptionDetails(creditBalanceData);
-        } catch (subErr: any) {
-          console.error('Error fetching user plan or credit balance:', subErr);
-          setError('Failed to fetch user plan or credit balance. Please try again later.');
+        // Fetch credit balance with plan_id
+        if (planId) {
+          try {
+            const creditBalanceData = await getSubscriptionUsage(planId);
+            setSubscriptionDetails(creditBalanceData);
+          } catch (subErr: any) {
+            console.error('Error fetching credit balance:', subErr);
+            setError('Failed to fetch credit balance. Please try again later.');
+          }
+        } else {
+          setError('Unable to determine your plan. Please contact support.');
         }
       } catch (err: any) {
         console.error('Error fetching plans:', err);
@@ -102,10 +152,10 @@ const Subscription: React.FC = () => {
     const selectedPlan = plans.find(plan => plan.sms_unit_price === smsUnitPrice);
     if (selectedPlan) {
       setSmsCountInput(selectedPlan.minimum_sms_purchase.toString());
+      setPaymentDetails({ smsCount: 0, totalAmount: 0, planId: selectedPlan.plan_id });
     }
 
     setShowSmsInputModal(true);
-    setPaymentDetails({ smsCount: 0, totalAmount: 0 });
   };
 
   const handleSmsCountSubmit = () => {
@@ -120,7 +170,7 @@ const Subscription: React.FC = () => {
       return;
     }
 
-    const selectedPlan = plans.find(plan => plan.minimum_sms_purchase.toString() === smsCountInput);
+    const selectedPlan = plans.find(plan => plan.plan_id === paymentDetails.planId);
     if (!selectedPlan) {
       setError('Could not find the selected plan. Please try again.');
       return;
@@ -148,38 +198,35 @@ const Subscription: React.FC = () => {
       return;
     }
 
-    if (!userPlan) {
-      setError('User plan not found. Please try again.');
-      return;
-    }
-
     setError(null);
     setSuccess(null);
     setIsPaymentProcessing(true);
     setShowPaymentModal(false);
 
     try {
-      // Initiate payment
+      // Step 1: Initiate the payment
       const purchaseResponse = await purchaseSmsCredits(
+        paymentDetails.planId,
         paymentDetails.smsCount,
         mobileMoneyNumber
       );
       setPaymentReference(purchaseResponse.payment_reference);
 
-      // Poll for payment completion
+      // Step 2: Poll payment status
       let paymentCompleted = false;
       let attempts = 0;
-      const maxAttempts = 15;
+      const maxAttempts = 15; // Poll for up to 30 seconds (15 attempts x 2 seconds)
 
       while (!paymentCompleted && attempts < maxAttempts) {
         const paymentStatus = await checkPaymentStatus(purchaseResponse.payment_reference);
-        
-        if (paymentStatus.success && paymentStatus.status === "completed") {
+
+        if (paymentStatus.success && paymentStatus.status === 'true') {
           paymentCompleted = true;
-        } else if (paymentStatus.status === "failed") {
-          throw new Error("Payment failed. Please try again.");
+        } else if (paymentStatus.status === 'failed') {
+          throw new Error('Payment failed. Please try again.');
         } else {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait 2 Minutes before the next poll
+          await new Promise(resolve => setTimeout(resolve, 120000));
           attempts++;
         }
       }
@@ -188,20 +235,23 @@ const Subscription: React.FC = () => {
         throw new Error('Payment processing timed out. Please check your payment status.');
       }
 
-      // Poll for credit update
+      // Step 3: Poll credit balance to confirm update
       let creditsUpdated = false;
       attempts = 0;
 
       while (!creditsUpdated && attempts < maxAttempts) {
-        const creditCheck = await checkPaymentStatus(purchaseResponse.payment_reference);
-        
-        if (creditCheck.success && creditCheck.credits_updated) {
+        const creditBalanceData = await getSubscriptionUsage(paymentDetails.planId);
+
+        // Check if the SMS credits have increased by the purchased amount
+        const expectedCredits = (subscriptionDetails?.sms_credits || 0) + paymentDetails.smsCount;
+        if (creditBalanceData.sms_credits >= expectedCredits) {
           creditsUpdated = true;
-          // Update subscription details with plan_id
-          const creditBalanceData = await getSubscriptionUsage(userPlan.plan_id);
           setSubscriptionDetails(creditBalanceData);
-          setSuccess(`Payment Successful! ${paymentDetails.smsCount.toLocaleString()} credits added. New balance: ${creditBalanceData.sms_credits.toLocaleString()}`);
+          setSuccess(
+            `Payment Successful! ${paymentDetails.smsCount.toLocaleString()} credits added. New balance: ${creditBalanceData.sms_credits.toLocaleString()}`
+          );
         } else {
+          // Wait 2 seconds before the next poll
           await new Promise(resolve => setTimeout(resolve, 2000));
           attempts++;
         }
@@ -228,7 +278,6 @@ const Subscription: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-7xl mx-auto space-y-6 p-4 sm:p-6 lg:p-8"
     >
-      {/* Initial Loading */}
       <AnimatePresence>
         {isLoading && !plans.length && (
           <motion.div
@@ -245,7 +294,6 @@ const Subscription: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Payment Processing */}
       <AnimatePresence>
         {isPaymentProcessing && (
           <motion.div
@@ -268,7 +316,6 @@ const Subscription: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Success Modal */}
       <AnimatePresence>
         {success && (
           <motion.div
@@ -298,7 +345,6 @@ const Subscription: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Error Modal */}
       <AnimatePresence>
         {error && (
           <motion.div
@@ -315,7 +361,7 @@ const Subscription: React.FC = () => {
               >
                 <X className="w-12 h-12 mx-auto mb-4" />
               </motion.div>
-              <h2 className="text-lg font-semibold">Payment Failed</h2>
+              <h2 className="text-lg font-semibold">Error</h2>
               <p className="text-sm mt-2">{error}</p>
               <button
                 onClick={() => setError(null)}
@@ -432,7 +478,7 @@ const Subscription: React.FC = () => {
             <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Enter Number of SMS Credits</h2>
             <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
               You must purchase at least{' '}
-              <strong>{plans.find(plan => plan.minimum_sms_purchase.toString() === smsCountInput)?.minimum_sms_purchase.toLocaleString()}</strong> SMS credits.
+              <strong>{plans.find(plan => plan.plan_id === paymentDetails.planId)?.minimum_sms_purchase.toLocaleString()}</strong> SMS credits.
             </p>
             <input
               type="number"

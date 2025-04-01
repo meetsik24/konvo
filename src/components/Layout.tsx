@@ -15,7 +15,7 @@ const Layout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fffbf3] relative overflow-hidden">
+    <div className="min-h-screen bg-[#fffbf3] relative">
       {/* Decorative doodles */}
       <div
         className="doodle doodle-coffee w-24 h-24 sm:w-32 sm:h-32 top-20 left-10 sm:left-20 animate-float"
@@ -37,10 +37,10 @@ const Layout: React.FC = () => {
       />
 
       {/* Main Layout */}
-      <div className="flex min-h-[calc(100vh-64px)]">
+      <div className="flex min-h-[calc(100vh-64px)] pt-16">
         {/* Sidebar */}
         <div
-          className={`fixed inset-y-0 left-0 top-16 z-50 w-64 transform transition-transform duration-300 ease-in-out sm:static sm:top-0 sm:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 top-16 z-50 w-64 transform transition-transform duration-300 ease-in-out sm:w-64 sm:static sm:top-0 sm:translate-x-0 ${
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
@@ -56,7 +56,7 @@ const Layout: React.FC = () => {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 p-4 sm:p-8 pt-20 sm:pt-24">
+        <main className="flex-1 p-4 sm:pl-72 sm:p-8">
           <Outlet />
         </main>
       </div>

@@ -1,6 +1,5 @@
 import axios from "axios";
 
-
 const API_BASE_URL = "https://heading-to-paris-op.briq.tz";
 
 const api = axios.create({
@@ -113,7 +112,7 @@ interface LogResponse {
   }[];
 }
 
-export interface Plan {
+interface Plan {
   name: string;
   description: string;
   sms_unit_price: string;
@@ -123,7 +122,16 @@ export interface Plan {
   created_at: string;
 }
 
-export interface SubscriptionUsage {
+interface User {
+  email: string;
+  username: string;
+  full_name?: string;
+  mobile_number?: string;
+  avatar?: string;
+  plan_id?: string;
+}
+
+interface SubscriptionUsage {
   user_id: string;
   plan_id: string;
   sms_credits: number;
@@ -132,26 +140,31 @@ export interface SubscriptionUsage {
 }
 
 interface PurchaseSmsCreditsRequest {
+  plan_id: string;
   sms_quantity: number;
   mobile_money_number: string;
 }
 
 interface PurchaseSmsCreditsResponse {
-  success: boolean;
+  status: boolean;
   message: string;
+  total_paid: number;
   payment_reference: string;
   requested_sms: number;
-  total_amount: number;
+}
+
+interface PaymentStatusRequest {
+  payment_reference: string;
 }
 
 interface PaymentStatusResponse {
   success: boolean;
   message: string;
   payment_reference: string;
-  status: "pending" | "processing" | "completed" | "failed";
-  credits_updated: boolean;
-  credits_added?: number;
-  updated_sms_balance?: number;
+  status: string;
+  credits_added: number;
+  total_paid: number;
+  updated_sms_balance: number;
 }
 
 interface SenderId {
@@ -667,56 +680,81 @@ export const changePassword = async (data: {
   }
 };
 
-// PLANS AND SUBSCRIPTIONS
+// Fetch all plans
 export const getPlans = async (): Promise<Plan[]> => {
   try {
     const response = await api.get('/plans');
-    console.log("getPlans API response:", response.data);
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (error: any) {
-    handleApiError(error, 'Failed to fetch plans');
-  }
-};
-
-// Fetch user credit balance
-export const getSubscriptionUsage = async (): Promise<SubscriptionUsage> => {
-  try {
-    const response = await api.get('/user-credit-balance');
-    console.log("getSubscriptionUsage API response:", response.data);
+    console.log('getPlans API response:', response.data);
     return response.data;
   } catch (error: any) {
-    handleApiError(error, 'Failed to fetch credit balance');
+    return handleApiError(error, 'Failed to fetch plans');
   }
 };
 
-// PAYMENTS
+// Fetch the user's plan
+export const getUserPlan = async (): Promise<Plan> => {
+  try {
+    const response = await api.get('/users/me/plan');
+    console.log('getUserPlan API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Failed to fetch user plan:', error);
+    throw error; // Let the caller handle the error
+  }
+};
+
+
+
+// Fetch the user's credit balance
+export const getSubscriptionUsage = async (planId: string): Promise<SubscriptionUsage> => {
+  try {
+    const response = await api.get('/user-credit-balance', {
+      params: { plan_id: planId },
+    });
+    console.log('getSubscriptionUsage API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, 'Failed to fetch subscription usage');
+  }
+};
+
+
+
+//PLANS AND SUBSCRIPTIONS
+
+// Purchase SMS credits
 export const purchaseSmsCredits = async (
+  planId: string,
   smsQuantity: number,
   mobileMoneyNumber: string
 ): Promise<PurchaseSmsCreditsResponse> => {
+  const payload: PurchaseSmsCreditsRequest = {
+    plan_id: planId,
+    sms_quantity: smsQuantity,
+    mobile_money_number: mobileMoneyNumber,
+  };
   try {
-    const response = await api.post<PurchaseSmsCreditsResponse>("/purchase-sms-credits", {
-      sms_quantity: smsQuantity,
-      mobile_money_number: mobileMoneyNumber,
-    });
-    console.log("SMS credits purchase initiated successfully:", response.data);
+    const response = await api.post('/purchase-sms-credits', payload);
+    console.log('purchaseSmsCredits API response:', response.data);
     return response.data;
   } catch (error: any) {
-    handleApiError(error, "Failed to initiate SMS credits purchase");
+    return handleApiError(error, 'Failed to purchase SMS credits');
   }
 };
 
+// Check payment status
 export const checkPaymentStatus = async (
   paymentReference: string
 ): Promise<PaymentStatusResponse> => {
+  const payload: PaymentStatusRequest = {
+    payment_reference: paymentReference,
+  };
   try {
-    const response = await api.post<PaymentStatusResponse>("/payment-status", {
-      payment_reference: paymentReference,
-    });
-    console.log("Payment status checked:", response.data);
+    const response = await api.post('/payment-status', payload);
+    console.log('checkPaymentStatus API response:', response.data);
     return response.data;
   } catch (error: any) {
-    handleApiError(error, "Failed to check payment status");
+    return handleApiError(error, 'Failed to check payment status');
   }
 };
 
