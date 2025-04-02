@@ -45,10 +45,6 @@ const initialDashboardData: DashboardData = {
 };
 
 const Dashboard: React.FC = () => {
-  interface Workspace {
-    dashboardData?: DashboardData;
-  }
-  
   const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId } = useWorkspace();
   const workspace = getCurrentWorkspace();
   const [dashboardData, setDashboardData] = useState<DashboardData>(initialDashboardData);
@@ -58,8 +54,13 @@ const Dashboard: React.FC = () => {
   const fetchAllMessageLogs = useCallback(async () => {
     try {
       const response = await fetchLogs();
-      const logs = response.logs || [];
-      console.log('Fetched logs:', logs);
+      const logs = response?.logs || [];
+      console.log('fetchLogs response:', response);
+      console.log(`Total message logs: ${logs.length}`);
+      if (!Array.isArray(logs)) {
+        console.error('Logs is not an array:', logs);
+        throw new Error('Invalid logs data: expected an array');
+      }
       return logs;
     } catch (error: any) {
       console.error('Error fetching logs:', error.message);
@@ -79,7 +80,7 @@ const Dashboard: React.FC = () => {
     } else {
       setDashboardData(initialDashboardData);
     }
-  }, [currentWorkspaceId, workspace?.dashbgitoardData]);
+  }, [currentWorkspaceId, workspace?.dashboardData]);
 
   const loadDashboardData = useCallback(async () => {
     if (!currentWorkspaceId) {
@@ -88,7 +89,7 @@ const Dashboard: React.FC = () => {
     }
 
     const hasValidData =
-      workspace?.dashboardData?.stats?.some((stat: Stat) => stat.value !== '0') ||
+      workspace?.dashboardData?.stats?.some((stat) => stat.value !== '0') ||
       workspace?.dashboardData?.data?.length > 0 ||
       workspace?.dashboardData?.campaigns?.length > 0;
     if (hasValidData) {
@@ -98,39 +99,68 @@ const Dashboard: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [campaigns, contactsMetrics, logs] = await Promise.all([
-        getCampaigns(),
-        getContactMetrics(),
-        fetchAllMessageLogs(),
-      ]);
+      // Safely handle potential undefined or failed API responses
+      let campaigns = [], contactsMetrics = { total_contacts: 0, total_contact_groups: 0 }, logs = [];
+      
+      try {
+        campaigns = await getCampaigns() || [];
+      } catch (err) {
+        console.error('Error fetching campaigns:', err);
+        campaigns = [];
+      }
+      
+      try {
+        contactsMetrics = await getContactMetrics() || { total_contacts: 0, total_contact_groups: 0 };
+      } catch (err) {
+        console.error('Error fetching contact metrics:', err);
+        contactsMetrics = { total_contacts: 0, total_contact_groups: 0 };
+      }
+      
+      try {
+        logs = await fetchAllMessageLogs() || [];
+      } catch (err) {
+        console.error('Error fetching logs:', err);
+        logs = [];
+      }
 
+      // Use the correct filtering criteria from the old code
       const messagesSent = logs.filter(
-        (log: any) => log.status === 'delivered' && log.response_group_name !== 'REJECTED'
+        (log: any) => log?.status === 'sent' && log?.response_group_name === 'PENDING'
       ).length;
       const numberOfCampaigns = Array.isArray(campaigns) ? campaigns.length : 0;
       const totalFails = logs.filter(
-        (log: any) => log.status === 'failed'
+        (log: any) => log?.response_group_name === 'REJECTED'
       ).length;
-      const totalContacts = contactsMetrics.total_contacts || 0;
-      const totalContactGroups = contactsMetrics.total_contact_groups || 0;
+      const totalContacts = contactsMetrics?.total_contacts || 0;
+      const totalContactGroups = contactsMetrics?.total_contact_groups || 0;
 
-      const messageVolume: { [key: string]: number } = {};
-      logs.forEach((log: any) => {
-        const timestamp = log.timestamp;
-        if (!timestamp || isNaN(new Date(timestamp).getTime())) {
-          console.warn('Invalid timestamp in log:', log);
-          return;
+      // Use the more efficient message volume calculation from the old code
+      const messageVolume = logs.reduce((acc: { [key: string]: number }, log: any) => {
+        const timestamp = log?.timestamp;
+        if (!timestamp) {
+          console.warn('Missing timestamp in log:', log);
+          return acc;
         }
-        const date = new Date(timestamp).toLocaleDateString('en-US', {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) {
+          console.warn('Invalid timestamp in log:', log);
+          return acc;
+        }
+        const dateString = date.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
         });
-        messageVolume[date] = (messageVolume[date] || 0) + 1;
-      });
+        acc[dateString] = (acc[dateString] || 0) + 1;
+        return acc;
+      }, {});
 
       const dataPoints = Object.entries(messageVolume)
         .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
+        .sort((a, b) => {
+          const dateA = new Date(a.name);
+          const dateB = new Date(b.name);
+          return dateA.getTime() - dateB.getTime();
+        });
 
       console.log('Processed data points for chart:', dataPoints);
 
@@ -164,10 +194,10 @@ const Dashboard: React.FC = () => {
   }, [loadDashboardData]);
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] flex flex-col p-4 sm:p-6 max-w-6xl mx-auto w-full">
+    <div className="space-y-6 p-4 sm:p-6 max-w-6xl mx-auto">
       {/* Loading State */}
       {isLoading && (
-        <div className="flex justify-center items-center flex-1">
+        <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#00333e]"></div>
           <p className="ml-4 text-[#00333e] text-lg">Loading dashboard...</p>
         </div>
@@ -175,14 +205,14 @@ const Dashboard: React.FC = () => {
 
       {/* Error State */}
       {error && !isLoading && (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg text-center flex-1 flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg text-center">
           {error}
         </div>
       )}
 
       {/* Main Content */}
       {!isLoading && !error && (
-        <div className="flex-1 flex flex-col space-y-6">
+        <div className="space-y-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {dashboardData.stats.map((stat, index) => (
@@ -212,7 +242,7 @@ const Dashboard: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100 flex-1"
+            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-[#00333e] flex items-center">
@@ -220,11 +250,11 @@ const Dashboard: React.FC = () => {
                 Message Volume
               </h2>
               <div className="text-sm text-[#00333e]">
-                Last {dashboardData.data.length} days
+                Last {dashboardData.data?.length || 0} days
               </div>
             </div>
-            <div className="flex-1 min-h-[400px]">
-              {dashboardData.data.length > 0 ? (
+            <div className="h-80">
+              {dashboardData.data && dashboardData.data.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={dashboardData.data}
@@ -297,7 +327,7 @@ const Dashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {dashboardData.campaigns.length > 0 ? (
+                  {dashboardData.campaigns && dashboardData.campaigns.length > 0 ? (
                     dashboardData.campaigns.slice(0, 5).map((campaign) => (
                       <tr key={campaign.campaign_id} className="border-b last:border-b-0 hover:bg-gray-50">
                         <td className="py-3 text-[#00333e]">{campaign.name}</td>
