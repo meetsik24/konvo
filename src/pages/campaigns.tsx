@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Send, Clock, Trash2, Edit, Users } from 'lucide-react';
+import { MessageSquare, Send, Clock, Trash2, Edit, Users, X } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import {
   getCampaigns,
@@ -35,13 +35,13 @@ const SMSCampaigns: React.FC = () => {
   const [newCampaign, setNewCampaign] = useState({
     name: '',
     description: '',
-    launch_date: '',
   });
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [campaignGroups, setCampaignGroups] = useState<{ [key: string]: Group[] }>({});
 
   useEffect(() => {
@@ -101,7 +101,6 @@ const SMSCampaigns: React.FC = () => {
       const campaignPayload = {
         name: campaignData.name,
         description: campaignData.description,
-        launch_date: campaignData.launch_date || '',
         workspace_id: currentWorkspaceId,
       };
 
@@ -109,7 +108,6 @@ const SMSCampaigns: React.FC = () => {
         const updatePayload = {
           name: campaignData.name,
           description: campaignData.description,
-          launch_date: campaignData.launch_date || '',
         };
         const updatedCampaign = await updateCampaign(editingCampaign.campaign_id, updatePayload);
         setCampaigns(
@@ -124,7 +122,7 @@ const SMSCampaigns: React.FC = () => {
           const updatedGroups = await getCampaignGroups(createdCampaign.campaign_id);
           setCampaignGroups({ ...campaignGroups, [createdCampaign.campaign_id]: updatedGroups });
         }
-        setNewCampaign({ name: '', description: '', launch_date: '' });
+        setNewCampaign({ name: '', description: '' });
         setSelectedGroupId('');
       }
       setError(null);
@@ -163,7 +161,6 @@ const SMSCampaigns: React.FC = () => {
     setNewCampaign({
       name: campaign.name,
       description: campaign.description,
-      launch_date: campaign.launch_date,
     });
   };
 
@@ -173,6 +170,7 @@ const SMSCampaigns: React.FC = () => {
       const updatedGroups = await getCampaignGroups(campaignId);
       setCampaignGroups({ ...campaignGroups, [campaignId]: updatedGroups });
       setError(null);
+      setIsGroupModalOpen(false);
     } catch (error) {
       console.error('Error assigning group to campaign:', error);
       setError('Failed to assign group.');
@@ -183,27 +181,32 @@ const SMSCampaigns: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-4 sm:space-y-6 p-4 sm:p-6"
+      className="max-w-3xl mx-auto space-y-3 sm:space-y-4 p-2 sm:p-4"
     >
-      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-8">
-        <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-[#00333e]" />
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#00333e]">SMS Campaigns</h1>
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3 sm:mb-4">
+        <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-[#00333e]" />
+        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">SMS Campaigns</h1>
       </div>
+
+      {/* Error Message */}
       {error && (
-        <div className="text-red-500 text-sm sm:text-base mb-3 sm:mb-4">{error}</div>
+        <div className="text-red-500 text-xs sm:text-sm mb-2 sm:mb-3 bg-red-50 p-2 rounded-lg">{error}</div>
       )}
-      <div className="card p-4 sm:p-8">
-        <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">
-          {editingCampaign ? 'Edit Campaign' : 'Create New Campaign'}
+
+      {/* Create/Edit Campaign Form */}
+      <div className="card p-3 sm:p-4">
+        <h2 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 text-[#00333e]">
+          {editingCampaign ? 'Edit Campaign' : 'Create Campaign'}
         </h2>
-        <form onSubmit={handleCreateOrUpdateCampaign} className="space-y-4 sm:space-y-6">
+        <form onSubmit={handleCreateOrUpdateCampaign} className="space-y-3 sm:space-y-4">
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
               Campaign Name
             </label>
             <input
               type="text"
-              className="input w-full text-xs sm:text-sm py-2 sm:py-3"
+              className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
               placeholder="e.g., Spring Promotion"
               value={editingCampaign?.name || newCampaign.name}
               onChange={(e) =>
@@ -215,12 +218,12 @@ const SMSCampaigns: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
               Description
             </label>
             <textarea
-              className="input min-h-[100px] sm:min-h-[120px] w-full text-xs sm:text-sm"
-              placeholder="Type your campaign description here..."
+              className="w-full min-h-[60px] sm:min-h-[80px] text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+              placeholder="Campaign description..."
               value={editingCampaign?.description || newCampaign.description}
               onChange={(e) =>
                 editingCampaign
@@ -229,7 +232,7 @@ const SMSCampaigns: React.FC = () => {
               }
               required
             />
-            <div className="mt-1 sm:mt-2 flex justify-between text-xs sm:text-sm text-gray-500">
+            <div className="mt-1 flex justify-between text-xs text-gray-500">
               <span>
                 {(editingCampaign?.description || newCampaign.description).length} characters
               </span>
@@ -241,92 +244,139 @@ const SMSCampaigns: React.FC = () => {
               </span>
             </div>
           </div>
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-              Launch Date (Optional)
-            </label>
-            <input
-              type="datetime-local"
-              className="input w-full text-xs sm:text-sm py-2 sm:py-3"
-              value={editingCampaign?.launch_date || newCampaign.launch_date}
-              onChange={(e) =>
-                editingCampaign
-                  ? setEditingCampaign({ ...editingCampaign, launch_date: e.target.value })
-                  : setNewCampaign({ ...newCampaign, launch_date: e.target.value })
-              }
-            />
-          </div>
           {!editingCampaign && (
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                Assign Group (Optional)
-              </label>
-              <select
-                className="input w-full text-xs sm:text-sm py-2 sm:py-3"
-                value={selectedGroupId}
-                onChange={(e) => setSelectedGroupId(e.target.value)}
+              <button
+                type="button"
+                onClick={() => setIsGroupModalOpen(true)}
+                className="text-xs sm:text-sm text-[#00333e] hover:bg-[#fddf0d] px-2 sm:px-3 py-1 rounded-lg transition-colors"
               >
-                <option value="">Select a group</option>
-                {groups.map((group) => (
-                  <option key={group.group_id} value={group.group_id}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
+                Assign Group (Optional)
+              </button>
+              {selectedGroupId && (
+                <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                  Selected Group: {groups.find((g) => g.group_id === selectedGroupId)?.name}
+                </p>
+              )}
             </div>
           )}
-          <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-4">
+          <div className="flex justify-end gap-1 sm:gap-2">
             {editingCampaign && (
               <button
                 type="button"
                 onClick={() => {
                   setEditingCampaign(null);
-                  setNewCampaign({ name: '', description: '', launch_date: '' });
+                  setNewCampaign({ name: '', description: '' });
                 }}
-                className="btn btn-secondary text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4"
+                className="text-xs sm:text-sm text-[#00333e] hover:bg-[#fddf0d] px-2 sm:px-3 py-1 rounded-lg transition-colors"
               >
-                Cancel Edit
+                Cancel
               </button>
             )}
             <button
               type="submit"
               disabled={isCreating}
-              className="btn bg-[#00333e] text-white flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4"
+              className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50"
             >
               <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-              {isCreating ? 'Processing...' : editingCampaign ? 'Update Campaign' : 'Create Campaign'}
+              {isCreating ? 'Processing...' : editingCampaign ? 'Update' : 'Create'}
             </button>
           </div>
         </form>
       </div>
-      <div className="card p-4 sm:p-8">
-        <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Active Campaigns</h2>
+
+      {/* Group Selection Modal */}
+      {isGroupModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-[90vw] sm:max-w-sm p-3 sm:p-4">
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <h3 className="text-base sm:text-lg font-bold text-[#00333e]">
+                {editingCampaign ? 'Assign Group to Campaign' : 'Select Group for New Campaign'}
+              </h3>
+              <button
+                onClick={() => setIsGroupModalOpen(false)}
+                className="text-gray-500 hover:text-[#00333e] transition-colors"
+              >
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
+            <div className="mb-3 sm:mb-4 max-h-40 sm:max-h-48 overflow-y-auto">
+              {groups.length > 0 ? (
+                groups.map((group) => (
+                  <div
+                    key={group.group_id}
+                    className="flex items-center gap-1 sm:gap-2 mb-2 cursor-pointer"
+                    onClick={() => {
+                      if (editingCampaign) {
+                        handleAssignGroup(editingCampaign.campaign_id, group.group_id);
+                      } else {
+                        setSelectedGroupId(group.group_id);
+                        setIsGroupModalOpen(false);
+                      }
+                    }}
+                  >
+                    <span className="text-xs sm:text-sm text-gray-700">{group.name}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs sm:text-sm text-gray-500">No groups available.</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-1 sm:gap-2">
+              <button
+                onClick={() => setIsGroupModalOpen(false)}
+                className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active Campaigns */}
+      <div className="card p-3 sm:p-4">
+        <h2 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 text-[#00333e]">
+          Active Campaigns
+        </h2>
         {campaigns.length === 0 ? (
           <p className="text-gray-500 text-xs sm:text-sm">No campaigns created yet.</p>
         ) : (
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-2 sm:space-y-3">
             {campaigns.map((campaign) => (
-              <div key={campaign.campaign_id} className="flex flex-col p-3 sm:p-4 border rounded-lg">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+              <div key={campaign.campaign_id} className="p-2 sm:p-3 border rounded-lg">
+                <div className="flex items-center justify-between gap-2">
                   <div>
-                    <h3 className="font-medium text-sm sm:text-base">{campaign.name}</h3>
+                    <h3 className="font-medium text-xs sm:text-sm text-[#00333e]">
+                      {campaign.name}
+                    </h3>
                     <p className="text-xs sm:text-sm text-gray-600">
-                      {campaign.description.length > 50
-                        ? `${campaign.description.substring(0, 50)}...`
+                      {campaign.description.length > 30
+                        ? `${campaign.description.substring(0, 30)}...`
                         : campaign.description}
                     </p>
-                    <div className="mt-1 flex flex-col sm:flex-row sm:gap-4 text-xs sm:text-sm text-gray-500">
-                      {campaign.launch_date && (
-                        <span>Launch: {new Date(campaign.launch_date).toLocaleString()}</span>
-                      )}
-                      <span>Created: {new Date(campaign.created_at).toLocaleString()}</span>
-                      <span>By: {campaign.created_by}</span>
+                    <div className="flex flex-wrap gap-1 sm:gap-2 mt-1">
+                      {campaignGroups[campaign.campaign_id]?.map((group) => (
+                        <span
+                          key={group.group_id}
+                          className="bg-[#fddf0d] text-[#00333e] px-1 sm:px-2 py-0.5 rounded text-xs"
+                        >
+                          {group.name}
+                        </span>
+                      ))}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 sm:gap-4">
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <button
+                      onClick={() => setIsGroupModalOpen(true)}
+                      className="text-[#00333e] hover:text-[#fddf0d]"
+                      onMouseDown={() => setEditingCampaign(campaign)} // Set campaign for group assignment
+                    >
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
                     <button
                       onClick={() => handleEditCampaign(campaign)}
-                      className="text-[#00333e] hover:text-[#6f888c]"
+                      className="text-[#00333e] hover:text-[#fddf0d]"
                     >
                       <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
@@ -338,57 +388,29 @@ const SMSCampaigns: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                <div className="mt-2 sm:mt-3">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Assigned Groups
-                  </label>
-                  <div className="flex flex-wrap gap-1 sm:gap-2 mb-1 sm:mb-2">
-                    {campaignGroups[campaign.campaign_id]?.map((group) => (
-                      <span
-                        key={group.group_id}
-                        className="bg-[#fddf0d] text-[#00333e] px-1 sm:px-2 py-0.5 sm:py-1 rounded text-xs sm:text-sm"
-                      >
-                        {group.name}
-                      </span>
-                    ))}
-                  </div>
-                  <select
-                    className="input w-full sm:max-w-xs text-xs sm:text-sm py-2 sm:py-3"
-                    onChange={(e) => handleAssignGroup(campaign.campaign_id, e.target.value)}
-                    value=""
-                  >
-                    <option value="">Assign a group</option>
-                    {groups
-                      .filter(
-                        (g) =>
-                          !campaignGroups[campaign.campaign_id]?.some(
-                            (cg) => cg.group_id === g.group_id
-                          )
-                      )
-                      .map((group) => (
-                        <option key={group.group_id} value={group.group_id}>
-                          {group.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
               </div>
             ))}
           </div>
         )}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-        <div className="card p-4 sm:p-6">
-          <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-[#00333e] mb-2 sm:mb-3" />
-          <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Scheduled Campaigns</h3>
-          <p className="text-[#6f888c] text-xs sm:text-sm">
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="card p-3 sm:p-4">
+          <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] mb-1 sm:mb-2" />
+          <h3 className="text-sm sm:text-base font-semibold mb-1 text-[#00333e]">
+            Scheduled Campaigns
+          </h3>
+          <p className="text-gray-600 text-xs sm:text-sm">
             {campaigns.filter((c) => c.launch_date).length} pending
           </p>
         </div>
-        <div className="card p-4 sm:p-6">
-          <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-[#00333e] mb-2 sm:mb-3" />
-          <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Total Campaigns</h3>
-          <p className="text-[#6f888c] text-xs sm:text-sm">{campaigns.length} campaigns</p>
+        <div className="card p-3 sm:p-4">
+          <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] mb-1 sm:mb-2" />
+          <h3 className="text-sm sm:text-base font-semibold mb-1 text-[#00333e]">
+            Total Campaigns
+          </h3>
+          <p className="text-gray-600 text-xs sm:text-sm">{campaigns.length} campaigns</p>
         </div>
       </div>
     </motion.div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Send, Clock, Users, BarChart2, Bot, CheckCircle } from 'lucide-react';
+import { MessageSquare, Send, Clock, Users, BarChart2, Bot, CheckCircle, Upload, X } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import {
   getCampaigns,
@@ -76,13 +76,20 @@ const SendSMS: React.FC = () => {
   const [selectedSenderId, setSelectedSenderId] = useState<string>('');
   const [message, setMessage] = useState('');
   const [schedule, setSchedule] = useState('');
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isSchedulingEnabled, setIsSchedulingEnabled] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [keywords, setKeywords] = useState('');
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [messageLogs, setMessageLogs] = useState<MessageLog[]>([]);
-  const [sendMode, setSendMode] = useState<'campaign' | 'contacts'>('campaign');
+  const [sendMode, setSendMode] = useState<'contacts' | 'campaign'>('contacts');
   const [manualContacts, setManualContacts] = useState('');
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [uploadedContacts, setUploadedContacts] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [useFallbackSenderIds, setUseFallbackSenderIds] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
@@ -97,17 +104,11 @@ const SendSMS: React.FC = () => {
           return;
         }
 
-        console.log(`Fetching data for workspace ID: ${currentWorkspaceId}`);
-
         // Fetch approved sender IDs
         try {
-          console.log(`Fetching sender IDs for workspace: ${currentWorkspaceId}`);
           const response = await getApprovedSenderIds(currentWorkspaceId);
-          console.log('Sender IDs API response:', response);
-
           let approvedSenderIds: SenderId[] = [];
 
-          // Handle array response
           if (Array.isArray(response)) {
             approvedSenderIds = response
               .filter((sender) => sender.is_approved === true)
@@ -119,9 +120,7 @@ const SendSMS: React.FC = () => {
                 name: sender.name || sender.sender_id,
                 created_at: sender.created_at || new Date().toISOString(),
               }));
-          }
-          // Handle nested data array response
-          else if (response?.data && Array.isArray(response.data)) {
+          } else if (response?.data && Array.isArray(response.data)) {
             approvedSenderIds = response.data
               .filter((sender) => sender.is_approved === true)
               .map((sender: any) => ({
@@ -132,9 +131,7 @@ const SendSMS: React.FC = () => {
                 name: sender.name || sender.sender_id,
                 created_at: sender.created_at,
               }));
-          }
-          // Handle single object response
-          else if (
+          } else if (
             response &&
             typeof response === 'object' &&
             response.sender_id &&
@@ -151,11 +148,9 @@ const SendSMS: React.FC = () => {
               },
             ];
           } else {
-            console.error('Unexpected sender IDs response format:', response);
             throw new Error('Invalid sender IDs response format');
           }
 
-          console.log('Processed Approved Sender IDs:', approvedSenderIds);
           setSenderIds(approvedSenderIds);
           setUseFallbackSenderIds(false);
 
@@ -166,7 +161,6 @@ const SendSMS: React.FC = () => {
             setError('No approved sender IDs available');
           }
         } catch (senderIdError) {
-          console.error('Failed to fetch sender IDs, using fallback data:', senderIdError);
           setSenderIds(FALLBACK_SENDER_IDS);
           setUseFallbackSenderIds(true);
           setSelectedSenderId(FALLBACK_SENDER_IDS[0].sender_id);
@@ -175,7 +169,6 @@ const SendSMS: React.FC = () => {
 
         // Fetch campaigns
         const campaignsData = await getCampaigns();
-        console.log('Campaigns Data:', campaignsData);
         const formattedCampaigns = Array.isArray(campaignsData) ? campaignsData : campaignsData?.data || [];
         setCampaigns(
           formattedCampaigns.filter((campaign: Campaign) => campaign.workspace_id === currentWorkspaceId)
@@ -183,13 +176,11 @@ const SendSMS: React.FC = () => {
 
         // Fetch contacts
         const contactsData = await getContacts(currentWorkspaceId);
-        console.log('Contacts Data:', contactsData);
         const formattedContacts = Array.isArray(contactsData) ? contactsData : contactsData?.data || [];
         setContacts(formattedContacts);
 
-        // Fetch workspace groups to validate campaign groups
+        // Fetch workspace groups
         const workspaceGroups = await getWorkspaceGroups(currentWorkspaceId);
-        console.log('Workspace Groups:', workspaceGroups);
         setValidGroups(Array.isArray(workspaceGroups) ? workspaceGroups : workspaceGroups?.data || []);
 
         // Fetch campaign groups
@@ -203,16 +194,13 @@ const SendSMS: React.FC = () => {
             );
             campaignGroupsData[campaign.campaign_id] = validCampaignGroups;
           } catch (groupError) {
-            console.error(`Failed to fetch groups for campaign ${campaign.campaign_id}:`, groupError);
             campaignGroupsData[campaign.campaign_id] = [];
           }
         }
         setCampaignGroups(campaignGroupsData);
-        console.log('Campaign Groups Data:', campaignGroupsData);
 
         // Fetch message logs
         const logsData = await getMessageLogs();
-        console.log('Message Logs Data:', logsData);
         setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
 
         if (!useFallbackSenderIds) {
@@ -220,8 +208,6 @@ const SendSMS: React.FC = () => {
         }
       } catch (err: any) {
         const message = err.response?.data?.message || err.message || 'Failed to fetch data.';
-        console.error('Fetch error:', message);
-        console.error('Error details:', err);
         setError(message);
       } finally {
         setIsLoading(false);
@@ -241,13 +227,11 @@ const SendSMS: React.FC = () => {
         const validCampaignGroups = formattedGroups.filter((group: Group) =>
           validGroups.some((validGroup: Group) => validGroup.group_id === group.group_id)
         );
-        console.log(`Refreshed groups for campaign ${selectedCampaignId}:`, validCampaignGroups);
         setCampaignGroups((prev) => ({
           ...prev,
           [selectedCampaignId]: validCampaignGroups,
         }));
       } catch (error) {
-        console.error(`Failed to refresh groups for campaign ${selectedCampaignId}:`, error);
         setCampaignGroups((prev) => ({
           ...prev,
           [selectedCampaignId]: [],
@@ -271,11 +255,31 @@ const SendSMS: React.FC = () => {
       const aiMessage = `Hello! This is regarding ${keywordsArray.join(' and ')}. How can we assist you today?`;
       setMessage(aiMessage);
       setError(null);
+      setIsAIModalOpen(false);
     } catch (err) {
       setError('Failed to generate AI message.');
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Handle file upload for contacts
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const phoneNumbers = text
+        .split(/[\n,]+/)
+        .map((phone) => phone.trim())
+        .filter(Boolean);
+      setUploadedContacts(phoneNumbers);
+      setManualContacts((prev) => (prev ? `${prev}\n${phoneNumbers.join('\n')}` : phoneNumbers.join('\n')));
+      setIsImportModalOpen(false);
+    };
+    reader.readAsText(file);
   };
 
   // Handle sending SMS
@@ -293,8 +297,8 @@ const SendSMS: React.FC = () => {
       setError('Please select a campaign.');
       return;
     }
-    if (sendMode === 'contacts' && !manualContacts.trim()) {
-      setError('Please enter at least one contact phone number.');
+    if (sendMode === 'contacts' && !manualContacts.trim() && selectedGroups.length === 0) {
+      setError('Please enter at least one contact phone number or select a group.');
       return;
     }
     if (!message.trim()) {
@@ -304,17 +308,10 @@ const SendSMS: React.FC = () => {
 
     setIsSending(true);
     try {
-      const recipientPhones = sendMode === 'campaign' ? await getCampaignRecipients() : getManualRecipients();
+      const recipientPhones = sendMode === 'campaign' ? await getCampaignRecipients() : await getContactRecipients();
 
       if (recipientPhones.length === 0) {
-        throw new Error('No valid recipients found. Please ensure the campaign has associated groups with contacts.');
-      }
-
-      console.log('Sending message to:', recipientPhones);
-      console.log('Using sender ID:', selectedSenderId);
-      console.log('Message:', message);
-      if (sendMode === 'campaign') {
-        console.log('Schedule:', schedule || 'Immediate');
+        throw new Error('No valid recipients found. Please ensure there are contacts available.');
       }
 
       await sendInstantMessage(currentWorkspaceId, {
@@ -325,8 +322,11 @@ const SendSMS: React.FC = () => {
 
       setMessage('');
       setSchedule('');
+      setIsSchedulingEnabled(false);
       setSelectedCampaignId('');
       setManualContacts('');
+      setSelectedGroups([]);
+      setUploadedContacts([]);
       setKeywords('');
       setError(null);
 
@@ -336,8 +336,7 @@ const SendSMS: React.FC = () => {
       const logsData = await getMessageLogs();
       setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
     } catch (err: any) {
-      console.error('Send SMS error:', err);
-      setError(err.message || 'Failed to send SMS. Please check the campaign groups and try again.');
+      setError(err.message || 'Failed to send SMS. Please check the recipients and try again.');
     } finally {
       setIsSending(false);
     }
@@ -354,49 +353,57 @@ const SendSMS: React.FC = () => {
       throw new Error('No groups assigned to this campaign.');
     }
 
-    console.log(`Processing groups for campaign ${selectedCampaignId}:`, groups);
-
     const recipientPhones: string[] = [];
     for (const group of groups) {
-      if (!group.group_id) {
-        console.warn(`Skipping group with missing group_id:`, group);
-        continue;
-      }
-      if (!currentWorkspaceId) {
-        throw new Error('Workspace ID is null.');
-      }
+      if (!group.group_id) continue;
+      if (!currentWorkspaceId) throw new Error('Workspace ID is null.');
       try {
         const groupContacts = await getGroupContacts(currentWorkspaceId, group.group_id);
         const contacts = Array.isArray(groupContacts) ? groupContacts : [];
         const phoneNumbers = contacts.map((contact: Contact) => contact.phone_number).filter(Boolean);
         recipientPhones.push(...phoneNumbers);
-        console.log(`Found ${phoneNumbers.length} contacts in group ${group.group_id}`);
       } catch (error) {
         console.error(`Failed to fetch contacts for group ${group.group_id}:`, error);
       }
     }
 
-    const uniquePhones = [...new Set(recipientPhones)];
-    console.log(`Found ${uniquePhones.length} unique recipients for campaign ${selectedCampaignId}`);
-    return uniquePhones;
+    return [...new Set(recipientPhones)];
   };
 
-  // Get recipients for manual contacts mode
-  const getManualRecipients = (): string[] => {
-    const phones = manualContacts
-      .split(/[\n,]+/)
-      .map((phone) => phone.trim())
-      .filter(Boolean);
-    console.log(`Manual recipients:`, phones);
-    return phones;
+  // Get recipients for contacts mode
+  const getContactRecipients = async (): Promise<string[]> => {
+    let recipientPhones: string[] = [];
+
+    if (manualContacts.trim()) {
+      const manualPhones = manualContacts
+        .split(/[\n,]+/)
+        .map((phone) => phone.trim())
+        .filter(Boolean);
+      recipientPhones.push(...manualPhones);
+    }
+
+    for (const groupId of selectedGroups) {
+      if (!currentWorkspaceId) throw new Error('Workspace ID is null.');
+      try {
+        const groupContacts = await getGroupContacts(currentWorkspaceId, groupId);
+        const contacts = Array.isArray(groupContacts) ? groupContacts : [];
+        const phoneNumbers = contacts.map((contact: Contact) => contact.phone_number).filter(Boolean);
+        recipientPhones.push(...phoneNumbers);
+      } catch (error) {
+        console.error(`Failed to fetch contacts for group ${groupId}:`, error);
+      }
+    }
+
+    return [...new Set(recipientPhones)];
   };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-4 sm:space-y-6 p-4 sm:p-6 relative"
+      className="max-w-3xl mx-auto space-y-3 sm:space-y-4 p-2 sm:p-4 relative"
     >
+      {/* Success Notification */}
       {showSuccessNotification && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
@@ -405,15 +412,15 @@ const SendSMS: React.FC = () => {
           transition={{ duration: 0.5, type: 'spring', stiffness: 120 }}
           className="fixed inset-0 flex items-center justify-center z-50 p-4"
         >
-          <div className="bg-green-500 text-white p-4 sm:p-8 rounded-xl shadow-2xl flex flex-col items-center gap-2 sm:gap-4 w-full max-w-xs sm:max-w-sm">
+          <div className="bg-green-500 text-white p-3 sm:p-4 rounded-xl shadow-2xl flex flex-col items-center gap-2 w-full max-w-xs">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, duration: 0.3 }}
             >
-              <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16" />
+              <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10" />
             </motion.div>
-            <span className="text-lg sm:text-2xl font-semibold text-center">SMS Sent Successfully!</span>
+            <span className="text-base sm:text-lg font-semibold text-center">SMS Sent Successfully!</span>
             <p className="text-xs sm:text-sm text-green-100 text-center">
               Your message has been sent to all recipients.
             </p>
@@ -421,74 +428,74 @@ const SendSMS: React.FC = () => {
         </motion.div>
       )}
 
-      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-8">
-        <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-primary-500" />
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Send SMS</h1>
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3 sm:mb-4">
+        <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-[#00333e]" />
+        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">Send SMS</h1>
       </div>
 
+      {/* Warning and Error Messages */}
       {useFallbackSenderIds && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 sm:p-4 mb-3 sm:mb-4">
-          <p className="font-bold text-sm sm:text-base">Warning</p>
-          <p className="text-xs sm:text-sm">Using fallback sender IDs due to API error. Some features may be limited.</p>
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-2 sm:p-3 mb-2 sm:mb-3 rounded-lg">
+          <p className="font-bold text-xs sm:text-sm">Warning</p>
+          <p className="text-xs sm:text-sm">Using fallback sender IDs due to API error.</p>
         </div>
       )}
-
       {error && (
-        <div className="text-red-500 text-sm sm:text-base mb-3 sm:mb-4">{error}</div>
+        <div className="text-red-500 text-xs sm:text-sm mb-2 sm:mb-3 bg-red-50 p-2 rounded-lg">{error}</div>
       )}
 
+      {/* Loading State */}
       {isLoading && (
         <div className="text-center">
-          <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-primary-500 mx-auto" />
-          <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">Loading data...</p>
+          <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-[#00333e] mx-auto" />
+          <p className="text-gray-600 mt-1 text-xs sm:text-sm">Loading data...</p>
         </div>
       )}
 
+      {/* Main Content */}
       {!isLoading && (
         <>
-          <div className="card p-4 sm:p-8">
-            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Send SMS</h2>
-            <form onSubmit={handleSendSMS} className="space-y-4 sm:space-y-6">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                  Send Mode
-                </label>
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      value="campaign"
-                      checked={sendMode === 'campaign'}
-                      onChange={() => setSendMode('campaign')}
-                      className="mr-1 sm:mr-2 w-4 h-4 sm:w-5 sm:h-5"
-                    />
-                    <span className="text-xs sm:text-sm">Send via Campaign</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      value="contacts"
-                      checked={sendMode === 'contacts'}
-                      onChange={() => setSendMode('contacts')}
-                      className="mr-1 sm:mr-2 w-4 h-4 sm:w-5 sm:h-5"
-                    />
-                    <span className="text-xs sm:text-sm">Send to Contacts</span>
-                  </label>
-                </div>
-              </div>
+          <div className="card p-3 sm:p-4">
+            {/* Tabs for Send Mode */}
+            <div className="flex border-b border-gray-200 mb-3 sm:mb-4">
+              <button
+                onClick={() => setSendMode('contacts')}
+                className={`flex-1 py-1 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium text-center transition-colors ${
+                  sendMode === 'contacts'
+                    ? 'border-b-2 border-[#00333e] text-[#00333e]'
+                    : 'text-gray-500 hover:text-[#00333e]'
+                }`}
+              >
+                Instant SMS
+              </button>
+              <button
+                onClick={() => setSendMode('campaign')}
+                className={`flex-1 py-1 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium text-center transition-colors ${
+                  sendMode === 'campaign'
+                    ? 'border-b-2 border-[#00333e] text-[#00333e]'
+                    : 'text-gray-500 hover:text-[#00333e]'
+                }`}
+              >
+                Campaign SMS
+              </button>
+            </div>
 
+            {/* Form */}
+            <form onSubmit={handleSendSMS} className="space-y-3 sm:space-y-4">
+              {/* Sender ID */}
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                  Select Sender ID
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                  Sender ID
                 </label>
                 <select
-                  className="input w-full text-xs sm:text-sm py-2 sm:py-3"
+                  className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
                   value={selectedSenderId}
                   onChange={(e) => setSelectedSenderId(e.target.value)}
                   required
                 >
                   <option value="" disabled>
-                    Select a sender ID
+                    Select Sender ID
                   </option>
                   {senderIds.length > 0 ? (
                     senderIds.map((sender) => (
@@ -498,28 +505,24 @@ const SendSMS: React.FC = () => {
                     ))
                   ) : (
                     <option value="" disabled>
-                      No approved sender IDs available
+                      No approved sender IDs
                     </option>
                   )}
                 </select>
-                {senderIds.length === 0 && !useFallbackSenderIds && (
-                  <p className="text-xs sm:text-sm text-amber-600 mt-1">
-                    You need to request and get approval for a Sender ID before sending messages.
-                  </p>
-                )}
               </div>
 
-              {sendMode === 'campaign' ? (
+              {/* Campaign Mode */}
+              {sendMode === 'campaign' && (
                 <>
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                      Select Campaign
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Campaign
                     </label>
                     <select
-                      className="input w-full text-xs sm:text-sm py-2 sm:py-3"
+                      className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
                       value={selectedCampaignId}
                       onChange={(e) => setSelectedCampaignId(e.target.value)}
-                      required={sendMode === 'campaign'}
+                      required
                     >
                       <option value="" disabled>
                         Select a campaign
@@ -532,7 +535,7 @@ const SendSMS: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       Recipient Groups
                     </label>
                     <div className="text-xs sm:text-sm text-gray-600">
@@ -540,91 +543,109 @@ const SendSMS: React.FC = () => {
                         campaignGroups[selectedCampaignId].map((group) => (
                           <span
                             key={group.group_id}
-                            className="inline-block bg-gray-200 text-gray-700 px-1 sm:px-2 py-0.5 sm:py-1 rounded mr-1 sm:mr-2 mb-1 sm:mb-2 text-xs sm:text-sm"
+                            className="inline-block bg-gray-200 text-gray-700 px-1 sm:px-2 py-0.5 rounded mr-1 sm:mr-2 mb-1"
                           >
                             {group.name}
                           </span>
                         ))
                       ) : (
-                        <span>No groups assigned to this campaign.</span>
+                        <span>No groups assigned.</span>
                       )}
                     </div>
                   </div>
+                  <div>
+                    <label className="flex items-center gap-1 sm:gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isSchedulingEnabled}
+                        onChange={(e) => {
+                          setIsSchedulingEnabled(e.target.checked);
+                          if (e.target.checked) {
+                            setIsScheduleModalOpen(true);
+                          } else {
+                            setSchedule('');
+                          }
+                        }}
+                        className="w-4 h-4 sm:w-5 sm:h-5"
+                      />
+                      <span className="text-xs sm:text-sm font-medium text-gray-700">
+                        Schedule Message
+                      </span>
+                    </label>
+                    {isSchedulingEnabled && schedule && (
+                      <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                        Scheduled for: {new Date(schedule).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
                 </>
-              ) : (
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                    Enter Contacts
-                  </label>
-                  <textarea
-                    className="input min-h-[100px] sm:min-h-[120px] w-full text-xs sm:text-sm"
-                    placeholder="Enter phone numbers (comma-separated or one per line, e.g., 255788344348,2557884657)"
-                    value={manualContacts}
-                    onChange={(e) => setManualContacts(e.target.value)}
-                    required={sendMode === 'contacts'}
-                  />
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                    Input the number with this format, 255788344348
-                  </p>
-                </div>
               )}
 
-              <div>
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-1 sm:mb-2 gap-2">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700">
-                    Message
+              {/* Contacts Mode */}
+              {sendMode === 'contacts' && (
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Contacts
                   </label>
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    <input
-                      type="text"
-                      className="input w-full sm:max-w-[200px] text-xs sm:text-sm py-1 sm:py-2"
-                      placeholder="Enter keywords"
-                      value={keywords}
-                      onChange={(e) => setKeywords(e.target.value)}
-                    />
+                  <textarea
+                    className="w-full min-h-[50px] sm:min-h-[60px] text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    placeholder="Enter phone numbers (e.g., 255788344348)"
+                    value={manualContacts}
+                    onChange={(e) => setManualContacts(e.target.value)}
+                  />
+                  <div className="flex flex-wrap gap-1 sm:gap-2 mt-1 sm:mt-2">
                     <button
                       type="button"
-                      onClick={generateAIMessage}
-                      disabled={isGenerating}
-                      className="btn btn-sm btn-secondary flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
+                      onClick={() => setIsGroupModalOpen(true)}
+                      className="text-xs sm:text-sm text-[#00333e] hover:bg-[#fddf0d] px-2 sm:px-3 py-1 rounded-lg transition-colors"
                     >
-                      <Bot className="w-3 h-3 sm:w-4 sm:h-4" />
-                      {isGenerating ? 'Generating...' : 'Generate AI Message'}
+                      Select Groups
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsImportModalOpen(true)}
+                      className="text-xs sm:text-sm text-[#00333e] hover:bg-[#fddf0d] px-2 sm:px-3 py-1 rounded-lg transition-colors"
+                    >
+                      Import Contacts
                     </button>
                   </div>
                 </div>
+              )}
+
+              {/* Message Input */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700">
+                    Message
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAIModalOpen(true)}
+                    className="text-xs sm:text-sm text-[#00333e] hover:bg-[#fddf0d] px-2 sm:px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <Bot className="w-3 h-3 sm:w-4 sm:h-4" />
+                    Generate with AI
+                  </button>
+                </div>
                 <textarea
-                  className="input min-h-[100px] sm:min-h-[120px] w-full text-xs sm:text-sm"
-                  placeholder="Type your SMS message here..."
+                  className="w-full min-h-[60px] sm:min-h-[80px] text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                  placeholder="Type your message..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   required
                 />
-                <div className="mt-1 sm:mt-2 flex justify-between text-xs sm:text-sm text-gray-500">
+                <div className="mt-1 flex justify-between text-xs text-gray-500">
                   <span>{message.length} characters</span>
                   <span>{Math.ceil(message.length / 160)} message(s)</span>
                 </div>
               </div>
 
-              {sendMode === 'campaign' && (
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                    Schedule (Optional)
-                  </label>
-                  <input
-                    type="datetime-local"
-                    className="input w-full text-xs sm:text-sm py-2 sm:py-3"
-                    value={schedule}
-                    onChange={(e) => setSchedule(e.target.value)}
-                  />
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 sm:gap-4">
+              {/* Submit Button */}
+              <div className="flex justify-end">
                 <button
                   type="submit"
                   disabled={isSending || senderIds.length === 0}
-                  className="btn btn-primary flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4"
+                  className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50"
                 >
                   <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                   {isSending ? 'Sending...' : 'Send SMS'}
@@ -633,14 +654,196 @@ const SendSMS: React.FC = () => {
             </form>
           </div>
 
-          <div className="card p-4 sm:p-8">
-            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Sent SMS Logs</h2>
+          {/* AI Modal */}
+          {isAIModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+              <div className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-[90vw] sm:max-w-sm p-3 sm:p-4">
+                <div className="flex justify-between items-center mb-3 sm:mb-4">
+                  <h3 className="text-base sm:text-lg font-bold text-[#00333e]">Generate AI Message</h3>
+                  <button
+                    onClick={() => setIsAIModalOpen(false)}
+                    className="text-gray-500 hover:text-[#00333e] transition-colors"
+                  >
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+                <div className="mb-3 sm:mb-4">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Keywords
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    placeholder="Enter keywords (e.g., sale, discount)"
+                    value={keywords}
+                    onChange={(e) => setKeywords(e.target.value)}
+                  />
+                </div>
+                <div className="flex justify-end gap-1 sm:gap-2">
+                  <button
+                    onClick={() => setIsAIModalOpen(false)}
+                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={generateAIMessage}
+                    disabled={isGenerating}
+                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] disabled:bg-[#00333e]/50"
+                  >
+                    {isGenerating ? 'Generating...' : 'Generate'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Import Contacts Modal */}
+          {isImportModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+              <div className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-[90vw] sm:max-w-sm p-3 sm:p-4">
+                <div className="flex justify-between items-center mb-3 sm:mb-4">
+                  <h3 className="text-base sm:text-lg font-bold text-[#00333e]">Import Contacts</h3>
+                  <button
+                    onClick={() => setIsImportModalOpen(false)}
+                    className="text-gray-500 hover:text-[#00333e] transition-colors"
+                  >
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+                <div className="mb-3 sm:mb-4">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Upload File
+                  </label>
+                  <input
+                    type="file"
+                    accept=".csv,.txt"
+                    onChange={handleFileUpload}
+                    className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload a CSV or TXT file with phone numbers (one per line or comma-separated).
+                  </p>
+                </div>
+                <div className="flex justify-end gap-1 sm:gap-2">
+                  <button
+                    onClick={() => setIsImportModalOpen(false)}
+                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Select Groups Modal */}
+          {isGroupModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+              <div className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-[90vw] sm:max-w-sm p-3 sm:p-4">
+                <div className="flex justify-between items-center mb-3 sm:mb-4">
+                  <h3 className="text-base sm:text-lg font-bold text-[#00333e]">Select Contact Groups</h3>
+                  <button
+                    onClick={() => setIsGroupModalOpen(false)}
+                    className="text-gray-500 hover:text-[#00333e] transition-colors"
+                  >
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+                <div className="mb-3 sm:mb-4 max-h-40 sm:max-h-48 overflow-y-auto">
+                  {validGroups.length > 0 ? (
+                    validGroups.map((group) => (
+                      <label key={group.group_id} className="flex items-center gap-1 sm:gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          value={group.group_id}
+                          checked={selectedGroups.includes(group.group_id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedGroups([...selectedGroups, group.group_id]);
+                            } else {
+                              setSelectedGroups(selectedGroups.filter((id) => id !== group.group_id));
+                            }
+                          }}
+                          className="w-4 h-4 sm:w-5 sm:h-5"
+                        />
+                        <span className="text-xs sm:text-sm text-gray-700">{group.name}</span>
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-xs sm:text-sm text-gray-500">No groups available.</p>
+                  )}
+                </div>
+                <div className="flex justify-end gap-1 sm:gap-2">
+                  <button
+                    onClick={() => setIsGroupModalOpen(false)}
+                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Schedule Modal (Campaign Mode Only) */}
+          {isScheduleModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+              <div className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-[90vw] sm:max-w-sm p-3 sm:p-4">
+                <div className="flex justify-between items-center mb-3 sm:mb-4">
+                  <h3 className="text-base sm:text-lg font-bold text-[#00333e]">Schedule Message</h3>
+                  <button
+                    onClick={() => setIsScheduleModalOpen(false)}
+                    className="text-gray-500 hover:text-[#00333e] transition-colors"
+                  >
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+                <div className="mb-3 sm:mb-4">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Select Date and Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    value={schedule}
+                    onChange={(e) => setSchedule(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="flex justify-end gap-1 sm:gap-2">
+                  <button
+                    onClick={() => {
+                      setIsScheduleModalOpen(false);
+                      setIsSchedulingEnabled(false);
+                      setSchedule('');
+                    }}
+                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => setIsScheduleModalOpen(false)}
+                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36]"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SMS Logs */}
+          <div className="card p-3 sm:p-4">
+            <h2 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 text-[#00333e]">
+              Sent SMS Logs
+            </h2>
             {messageLogs.length === 0 ? (
               <p className="text-gray-500 text-xs sm:text-sm">No SMS logs available.</p>
             ) : (
-              <div className="space-y-3 sm:space-y-4">
+              <div className="space-y-2 sm:space-y-3">
                 {messageLogs.map((log) => (
-                  <div key={log.id || log.timestamp} className="p-3 sm:p-4 border rounded-lg">
+                  <div key={log.id || log.timestamp} className="p-2 sm:p-3 border border-gray-200 rounded-lg">
                     <p className="text-xs sm:text-sm text-gray-600">
                       Message: {log.message || 'N/A'}
                     </p>
@@ -656,32 +859,28 @@ const SendSMS: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-            <div className="card p-4 sm:p-6">
-              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-primary-500 mb-2 sm:mb-3" />
-              <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Total Recipients</h3>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+            <div className="card p-3 sm:p-4">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] mb-1 sm:mb-2" />
+              <h3 className="text-sm sm:text-base font-semibold mb-1 text-[#00333e]">
+                Total Recipients
+              </h3>
               <p className="text-gray-600 text-xs sm:text-sm">{contacts.length} contacts</p>
             </div>
-            <div className="card p-4 sm:p-6">
-              <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-primary-500 mb-2 sm:mb-3" />
-              <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Campaigns Available</h3>
+            <div className="card p-3 sm:p-4">
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] mb-1 sm:mb-2" />
+              <h3 className="text-sm sm:text-base font-semibold mb-1 text-[#00333e]">
+                Campaigns
+              </h3>
               <p className="text-gray-600 text-xs sm:text-sm">{campaigns.length} campaigns</p>
             </div>
-            <div className="card p-4 sm:p-6">
-              <BarChart2 className="w-5 h-5 sm:w-6 sm:h-6 text-primary-500 mb-2 sm:mb-3" />
-              <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Sender IDs</h3>
-              <p className="text-gray-600 text-xs sm:text-sm">{senderIds.length} approved available</p>
-              {senderIds.length > 0 && (
-                <div className="mt-1 sm:mt-2 space-y-1 sm:space-y-2">
-                  {senderIds.map((sender) => (
-                    <div key={sender.sender_id} className="text-xs sm:text-sm">
-                      <span className="inline-block bg-gray-200 text-gray-700 px-1 sm:px-2 py-0.5 sm:py-1 rounded mr-1 sm:mr-2 mb-0.5 sm:mb-1">
-                        {sender.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="card p-3 sm:p-4">
+              <BarChart2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] mb-1 sm:mb-2" />
+              <h3 className="text-sm sm:text-base font-semibold mb-1 text-[#00333e]">
+                Sender IDs
+              </h3>
+              <p className="text-gray-600 text-xs sm:text-sm">{senderIds.length} approved</p>
             </div>
           </div>
         </>
