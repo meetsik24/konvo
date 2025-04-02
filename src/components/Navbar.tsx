@@ -5,6 +5,7 @@ import { Bell, Settings, LogOut, Check, Menu, X, Trash2, Building } from 'lucide
 import { logout, fetchUserProfile } from '../store/slices/authSlice';
 import { store } from '../store/store';
 import { fetchNotifications, deleteNotification, markNotificationAsRead, getSubscriptionUsage } from '../services/api';
+import { motion } from 'framer-motion';
 
 import type { RootState } from '../store/store';
 import { useWorkspace } from '../pages/WorkspaceContext';
@@ -279,13 +280,14 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                     onClick={() => handleDismissNotification(notif.notification_id)}
                     className="text-gray-400 hover:text-red-500"
                     title="Dismiss"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          )
         </div>
       </>
     ),
@@ -428,103 +430,171 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
   const unreadCount = notifications.filter((notif) => !notif.is_read).length;
 
   return (
-    <nav className="bg-white shadow-md fixed top-0 left-64 w-[calc(100%-256px)] z-50 sm:left-0 sm:w-full">
-      <div className="px-4 sm:px-3">
-        <div className="flex justify-between items-center h-16">
-          {/* Left Side: Hamburger and Logo */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={toggleSidebar}
-              className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 block sm:hidden"
-              aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={isSidebarOpen}
-            >
-              {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+    <>
+      {/* Mobile Navbar (hidden on desktop) */}
+      <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50 sm:hidden">
+        <div className="px-3 sm:px-5 mx-auto max-w-7xl">
+          <div className="flex justify-between items-center h-14 sm:h-16">
+            {/* Left Side: Hamburger Menu and Logo */}
             <div className="flex items-center gap-2">
-              <img
-                src="/assets/briq2.png"
-                alt="Briq Logo"
-                className="w-8 h-8"
-                onError={(e) => {
-                  console.error('Failed to load logo');
-                  e.currentTarget.src = '/assets/fallback-logo.png';
-                }}
-              />
-              <h1 className="text-lg font-bold text-[#00333e] hidden sm:block">Briq Solutions</h1>
-            </div>
-          </div>
-
-          {/* Right Side: Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Balance (Desktop Only) */}
-            <div className="text-sm font-medium text-[#00333e] hidden md:block">
-              SMS Credits:{' '}
-              <span className="text-[#fddf0d]">
-                {balance !== null ? balance : 'Loading...'}
-              </span>
-            </div>
-
-            {/* Notifications */}
-            <div className="relative">
               <button
-                onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 relative"
+                onClick={toggleSidebar}
+                className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300"
+                aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={isSidebarOpen}
               >
-                <Bell className="w-6 h-6" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
+                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
-              {isNotificationOpen && notificationPanel}
+              <Link to="/" className="flex items-center">
+                <motion.img
+                  src="/assets/briq2.png"
+                  alt="Briq Logo"
+                  className="w-10 h-10"
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                />
+              </Link>
             </div>
 
-            {/* Workspace Button (Desktop Only) */}
-            <button
-              onClick={() => setIsWorkspaceModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 text-[#00333e] rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 text-sm font-medium border border-transparent hover:border-[#fddf0d] hidden md:flex"
-              disabled={isLoading || workspaceLoading}
-            >
-              <Building className="w-5 h-5" />
-              <span>Workspace</span>
-            </button>
-            {isWorkspaceModalOpen && workspaceModal}
-
-            {/* Settings (Icon Only on Mobile) */}
-            <Link
-              to="/account"
-              className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300"
-            >
-              <Settings className="w-6 h-6" />
-            </Link>
-
-            {/* Avatar (Icon Only on Mobile) */}
-            <div className="flex items-center gap-2 bg-[#fddf0d] px-3 py-2 rounded-full">
-              <img
-                className="w-8 h-8 rounded-full border-2 border-green-500 hover:border-[#00333e] transition-all duration-300"
-                src={avatarUrl}
-                alt={user?.username || 'User'}
-                onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
-              />
-              <div className="hidden lg:block">
-                <div className="text-xs font-bold text-[#00333e]">{user?.username || 'Loading...'}</div>
-                <div className="text-xs text-gray-700">{user?.email || 'Loading...'}</div>
+            {/* Right Side: Actions */}
+            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+              {/* Notifications */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                  className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 relative"
+                >
+                  <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-0 right-0 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+                {isNotificationOpen && notificationPanel}
               </div>
-            </div>
 
-            {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="p-2 text-[#00333e] rounded-full hover:bg-red-500 hover:text-white transition-all duration-300"
-            >
-              <LogOut className="w-6 h-6" />
-            </button>
+              {/* Workspace Button with Icon */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsWorkspaceModalOpen(true)}
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 text-[#00333e] rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 text-xs sm:text-sm font-medium border border-transparent hover:border-[#fddf0d]"
+                  disabled={isLoading || workspaceLoading}
+                >
+                  <Building className="w-4 h-4 sm:w-5 sm:h-5" />
+                  Workspace
+                </button>
+                {isWorkspaceModalOpen && workspaceModal}
+              </div>
+
+              {/* Settings */}
+              <Link
+                to="/account"
+                className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300"
+              >
+                <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
+              </Link>
+
+              {/* Avatar */}
+              <div className="flex items-center gap-1 sm:gap-2 bg-[#fddf0d] px-2 sm:px-3 py-1 sm:py-2 rounded-full">
+                <img
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-green-500 hover:border-[#00333e] transition-all duration-300"
+                  src={avatarUrl}
+                  alt={user?.username || 'User'}
+                  onError={(e) => {
+                    console.error('Avatar load error, falling back to default image');
+                    e.currentTarget.src = '/assets/default-avatar.png';
+                  }}
+                />
+              </div>
+
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                className="p-2 text-[#00333e] rounded-full hover:bg-red-500 hover:text-white transition-all duration-300"
+              >
+                <LogOut className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+
+      {/* Desktop Navbar (hidden on mobile) */}
+      <nav className="bg-white shadow-md fixed top-0 left-64 w-[calc(100%-256px)] z-50 hidden sm:block">
+        <div className="px-4 sm:px-3">
+          <div className="flex justify-end items-center h-16">
+            {/* Right Side: Actions */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Balance */}
+              <div className="text-sm font-medium text-[#00333e] hidden md:block">
+                SMS Credits:{' '}
+                <span className="text-[#fddf0d]">
+                  {balance !== null ? balance : 'Loading...'}
+                </span>
+              </div>
+
+              {/* Notifications */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                  className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 relative"
+                >
+                  <Bell className="w-6 h-6" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+                {isNotificationOpen && notificationPanel}
+              </div>
+
+              {/* Workspace Button */}
+              <button
+                onClick={() => setIsWorkspaceModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-2 text-[#00333e] rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 text-sm font-medium border border-transparent hover:border-[#fddf0d] hidden md:flex"
+                disabled={isLoading || workspaceLoading}
+              >
+                <Building className="w-5 h-5" />
+                <span>Workspace</span>
+              </button>
+              {isWorkspaceModalOpen && workspaceModal}
+
+              {/* Settings */}
+              <Link
+                to="/account"
+                className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300"
+              >
+                <Settings className="w-6 h-6" />
+              </Link>
+
+              {/* Avatar */}
+              <div className="flex items-center gap-2 bg-[#fddf0d] px-3 py-2 rounded-full">
+                <img
+                  className="w-8 h-8 rounded-full border-2 border-green-500 hover:border-[#00333e] transition-all duration-300"
+                  src={avatarUrl}
+                  alt={user?.username || 'User'}
+                  onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
+                />
+                <div className="hidden lg:block">
+                  <div className="text-xs font-bold text-[#00333e]">{user?.username || 'Loading...'}</div>
+                  <div className="text-xs text-gray-700">{user?.email || 'Loading...'}</div>
+                </div>
+              </div>
+
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                className="p-2 text-[#00333e] rounded-full hover:bg-red-500 hover:text-white transition-all duration-300"
+              >
+                <LogOut className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </>
   );
 };
 

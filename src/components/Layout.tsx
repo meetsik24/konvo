@@ -7,7 +7,7 @@ const Layout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
+    setIsSidebarOpen((prev) => !prev);
   };
 
   const closeSidebar = () => {
@@ -17,24 +17,27 @@ const Layout: React.FC = () => {
   return (
     <div className="flex flex-col h-screen">
       {/* Navbar */}
-      <Navbar toggleSidebar={toggleSidebar} />
+      <Navbar toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
       
       {/* Main Layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <Sidebar isOpen={isSidebarOpen} closeSidebar={closeSidebar} />
+        <Sidebar isSidebarOpen={isSidebarOpen} closeSidebar={closeSidebar} />
         
         {/* Overlay for mobile */}
         {isSidebarOpen && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-10 lg:hidden"
-
+            className="fixed inset-0 bg-black bg-opacity-50 z-30 sm:hidden"
             onClick={closeSidebar}
           />
         )}
         
         {/* Main Content */}
-        <div className="flex-1 overflow-auto w-full pt-10">
+        <div
+          className={`flex-1 overflow-auto w-full transition-all duration-300 pt-16 ${
+            isSidebarOpen ? 'sm:pl-64' : 'sm:pl-64'
+          }`}
+        >
           <div className="container mx-auto px-4 py-6 max-w-6xl">
             <Outlet />
           </div>
