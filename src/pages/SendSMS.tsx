@@ -398,11 +398,7 @@ const SendSMS: React.FC = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-3xl mx-auto space-y-3 sm:space-y-4 p-2 sm:p-4 relative"
-    >
+    <div className="space-y-6 p-4 sm:p-6 max-w-6xl mx-auto">
       {/* Success Notification */}
       {showSuccessNotification && (
         <motion.div
@@ -412,16 +408,16 @@ const SendSMS: React.FC = () => {
           transition={{ duration: 0.5, type: 'spring', stiffness: 120 }}
           className="fixed inset-0 flex items-center justify-center z-50 p-4"
         >
-          <div className="bg-green-500 text-white p-3 sm:p-4 rounded-xl shadow-2xl flex flex-col items-center gap-2 w-full max-w-xs">
+          <div className="bg-green-500 text-white p-4 rounded-xl shadow-2xl flex flex-col items-center gap-2 w-full max-w-xs">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, duration: 0.3 }}
             >
-              <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10" />
+              <CheckCircle className="w-10 h-10" />
             </motion.div>
-            <span className="text-base sm:text-lg font-semibold text-center">SMS Sent Successfully!</span>
-            <p className="text-xs sm:text-sm text-green-100 text-center">
+            <span className="text-lg font-semibold text-center">SMS Sent Successfully!</span>
+            <p className="text-sm text-green-100 text-center">
               Your message has been sent to all recipients.
             </p>
           </div>
@@ -429,39 +425,63 @@ const SendSMS: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3 sm:mb-4">
-        <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-[#00333e]" />
-        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">Send SMS</h1>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center gap-2 mb-4"
+      >
+        <MessageSquare className="w-6 h-6 text-[#00333e]" />
+        <h1 className="text-xl sm:text-2xl font-bold text-[#00333e]">Send SMS</h1>
+      </motion.div>
 
       {/* Warning and Error Messages */}
       {useFallbackSenderIds && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-2 sm:p-3 mb-2 sm:mb-3 rounded-lg">
-          <p className="font-bold text-xs sm:text-sm">Warning</p>
-          <p className="text-xs sm:text-sm">Using fallback sender IDs due to API error.</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-yellow-50 border border-yellow-200 text-yellow-600 p-4 rounded-lg"
+        >
+          <p className="font-semibold text-sm">Warning</p>
+          <p className="text-sm">Using fallback sender IDs due to API error.</p>
+        </motion.div>
       )}
       {error && (
-        <div className="text-red-500 text-xs sm:text-sm mb-2 sm:mb-3 bg-red-50 p-2 rounded-lg">{error}</div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg"
+        >
+          {error}
+        </motion.div>
       )}
 
       {/* Loading State */}
       {isLoading && (
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-[#00333e] mx-auto" />
-          <p className="text-gray-600 mt-1 text-xs sm:text-sm">Loading data...</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex justify-center items-center h-64"
+        >
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#00333e]"></div>
+          <p className="ml-4 text-[#00333e] text-lg">Loading...</p>
+        </motion.div>
       )}
 
       {/* Main Content */}
       {!isLoading && (
-        <>
-          <div className="card p-3 sm:p-4">
+        <div className="space-y-6">
+          {/* Form Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
+          >
             {/* Tabs for Send Mode */}
-            <div className="flex border-b border-gray-200 mb-3 sm:mb-4">
+            <div className="flex border-b border-gray-200 mb-4">
               <button
                 onClick={() => setSendMode('contacts')}
-                className={`flex-1 py-1 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium text-center transition-colors ${
+                className={`flex-1 py-2 px-3 text-sm font-medium text-center transition-colors ${
                   sendMode === 'contacts'
                     ? 'border-b-2 border-[#00333e] text-[#00333e]'
                     : 'text-gray-500 hover:text-[#00333e]'
@@ -471,7 +491,7 @@ const SendSMS: React.FC = () => {
               </button>
               <button
                 onClick={() => setSendMode('campaign')}
-                className={`flex-1 py-1 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium text-center transition-colors ${
+                className={`flex-1 py-2 px-3 text-sm font-medium text-center transition-colors ${
                   sendMode === 'campaign'
                     ? 'border-b-2 border-[#00333e] text-[#00333e]'
                     : 'text-gray-500 hover:text-[#00333e]'
@@ -482,14 +502,14 @@ const SendSMS: React.FC = () => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSendSMS} className="space-y-3 sm:space-y-4">
+            <form onSubmit={handleSendSMS} className="space-y-4">
               {/* Sender ID */}
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-[#00333e] mb-1">
                   Sender ID
                 </label>
                 <select
-                  className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                  className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
                   value={selectedSenderId}
                   onChange={(e) => setSelectedSenderId(e.target.value)}
                   required
@@ -515,11 +535,11 @@ const SendSMS: React.FC = () => {
               {sendMode === 'campaign' && (
                 <>
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[#00333e] mb-1">
                       Campaign
                     </label>
                     <select
-                      className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                      className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
                       value={selectedCampaignId}
                       onChange={(e) => setSelectedCampaignId(e.target.value)}
                       required
@@ -535,15 +555,15 @@ const SendSMS: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[#00333e] mb-1">
                       Recipient Groups
                     </label>
-                    <div className="text-xs sm:text-sm text-gray-600">
+                    <div className="text-sm text-gray-600">
                       {campaignGroups[selectedCampaignId]?.length > 0 ? (
                         campaignGroups[selectedCampaignId].map((group) => (
                           <span
                             key={group.group_id}
-                            className="inline-block bg-gray-200 text-gray-700 px-1 sm:px-2 py-0.5 rounded mr-1 sm:mr-2 mb-1"
+                            className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded mr-2 mb-2"
                           >
                             {group.name}
                           </span>
@@ -554,7 +574,7 @@ const SendSMS: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="flex items-center gap-1 sm:gap-2">
+                    <label className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         checked={isSchedulingEnabled}
@@ -566,14 +586,14 @@ const SendSMS: React.FC = () => {
                             setSchedule('');
                           }
                         }}
-                        className="w-4 h-4 sm:w-5 sm:h-5"
+                        className="w-4 h-4"
                       />
-                      <span className="text-xs sm:text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium text-[#00333e]">
                         Schedule Message
                       </span>
                     </label>
                     {isSchedulingEnabled && schedule && (
-                      <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                      <p className="text-sm text-gray-600 mt-1">
                         Scheduled for: {new Date(schedule).toLocaleString()}
                       </p>
                     )}
@@ -584,30 +604,34 @@ const SendSMS: React.FC = () => {
               {/* Contacts Mode */}
               {sendMode === 'contacts' && (
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[#00333e] mb-1">
                     Contacts
                   </label>
                   <textarea
-                    className="w-full min-h-[50px] sm:min-h-[60px] text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    className="w-full min-h-[80px] text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
                     placeholder="Enter phone numbers (e.g., 255788344348)"
                     value={manualContacts}
                     onChange={(e) => setManualContacts(e.target.value)}
                   />
-                  <div className="flex flex-wrap gap-1 sm:gap-2 mt-1 sm:mt-2">
-                    <button
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       type="button"
                       onClick={() => setIsGroupModalOpen(true)}
-                      className="text-xs sm:text-sm text-[#00333e] hover:bg-[#fddf0d] px-2 sm:px-3 py-1 rounded-lg transition-colors"
+                      className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors"
                     >
                       Select Groups
-                    </button>
-                    <button
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       type="button"
                       onClick={() => setIsImportModalOpen(true)}
-                      className="text-xs sm:text-sm text-[#00333e] hover:bg-[#fddf0d] px-2 sm:px-3 py-1 rounded-lg transition-colors"
+                      className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors"
                     >
                       Import Contacts
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
               )}
@@ -615,26 +639,28 @@ const SendSMS: React.FC = () => {
               {/* Message Input */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-[#00333e]">
                     Message
                   </label>
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     type="button"
                     onClick={() => setIsAIModalOpen(true)}
-                    className="text-xs sm:text-sm text-[#00333e] hover:bg-[#fddf0d] px-2 sm:px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+                    className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors flex items-center gap-1"
                   >
-                    <Bot className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <Bot className="w-4 h-4" />
                     Generate with AI
-                  </button>
+                  </motion.button>
                 </div>
                 <textarea
-                  className="w-full min-h-[60px] sm:min-h-[80px] text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                  className="w-full min-h-[100px] text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
                   placeholder="Type your message..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   required
                 />
-                <div className="mt-1 flex justify-between text-xs text-gray-500">
+                <div className="mt-1 flex justify-between text-sm text-gray-500">
                   <span>{message.length} characters</span>
                   <span>{Math.ceil(message.length / 160)} message(s)</span>
                 </div>
@@ -642,118 +668,156 @@ const SendSMS: React.FC = () => {
 
               {/* Submit Button */}
               <div className="flex justify-end">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   type="submit"
                   disabled={isSending || senderIds.length === 0}
-                  className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50"
+                  className="flex items-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50"
                 >
-                  <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Send className="w-5 h-5" />
                   {isSending ? 'Sending...' : 'Send SMS'}
-                </button>
+                </motion.button>
               </div>
             </form>
-          </div>
+          </motion.div>
 
           {/* AI Modal */}
           {isAIModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-              <div className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-[90vw] sm:max-w-sm p-3 sm:p-4">
-                <div className="flex justify-between items-center mb-3 sm:mb-4">
-                  <h3 className="text-base sm:text-lg font-bold text-[#00333e]">Generate AI Message</h3>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-sm p-4"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-[#00333e]">Generate AI Message</h3>
                   <button
                     onClick={() => setIsAIModalOpen(false)}
                     className="text-gray-500 hover:text-[#00333e] transition-colors"
                   >
-                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="mb-3 sm:mb-4">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-[#00333e] mb-1">
                     Keywords
                   </label>
                   <input
                     type="text"
-                    className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
                     placeholder="Enter keywords (e.g., sale, discount)"
                     value={keywords}
                     onChange={(e) => setKeywords(e.target.value)}
                   />
                 </div>
-                <div className="flex justify-end gap-1 sm:gap-2">
-                  <button
+                <div className="flex justify-end gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setIsAIModalOpen(false)}
-                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+                    className="px-3 py-1 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={generateAIMessage}
                     disabled={isGenerating}
-                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] disabled:bg-[#00333e]/50"
+                    className="px-3 py-1 text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] disabled:bg-[#00333e]/50"
                   >
                     {isGenerating ? 'Generating...' : 'Generate'}
-                  </button>
+                  </motion.button>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           )}
 
           {/* Import Contacts Modal */}
           {isImportModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-              <div className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-[90vw] sm:max-w-sm p-3 sm:p-4">
-                <div className="flex justify-between items-center mb-3 sm:mb-4">
-                  <h3 className="text-base sm:text-lg font-bold text-[#00333e]">Import Contacts</h3>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-sm p-4"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-[#00333e]">Import Contacts</h3>
                   <button
                     onClick={() => setIsImportModalOpen(false)}
                     className="text-gray-500 hover:text-[#00333e] transition-colors"
                   >
-                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="mb-3 sm:mb-4">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-[#00333e] mb-1">
                     Upload File
                   </label>
                   <input
                     type="file"
                     accept=".csv,.txt"
                     onChange={handleFileUpload}
-                    className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 mt-1">
                     Upload a CSV or TXT file with phone numbers (one per line or comma-separated).
                   </p>
                 </div>
-                <div className="flex justify-end gap-1 sm:gap-2">
-                  <button
+                <div className="flex justify-end gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setIsImportModalOpen(false)}
-                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+                    className="px-3 py-1 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
                   >
                     Cancel
-                  </button>
+                  </motion.button>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           )}
 
           {/* Select Groups Modal */}
           {isGroupModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-              <div className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-[90vw] sm:max-w-sm p-3 sm:p-4">
-                <div className="flex justify-between items-center mb-3 sm:mb-4">
-                  <h3 className="text-base sm:text-lg font-bold text-[#00333e]">Select Contact Groups</h3>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-sm p-4"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-[#00333e]">Select Contact Groups</h3>
                   <button
                     onClick={() => setIsGroupModalOpen(false)}
                     className="text-gray-500 hover:text-[#00333e] transition-colors"
                   >
-                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="mb-3 sm:mb-4 max-h-40 sm:max-h-48 overflow-y-auto">
+                <div className="mb-4 max-h-48 overflow-y-auto">
                   {validGroups.length > 0 ? (
                     validGroups.map((group) => (
-                      <label key={group.group_id} className="flex items-center gap-1 sm:gap-2 mb-2">
+                      <label key={group.group_id} className="flex items-center gap-2 mb-2">
                         <input
                           type="checkbox"
                           value={group.group_id}
@@ -765,127 +829,178 @@ const SendSMS: React.FC = () => {
                               setSelectedGroups(selectedGroups.filter((id) => id !== group.group_id));
                             }
                           }}
-                          className="w-4 h-4 sm:w-5 sm:h-5"
+                          className="w-4 h-4"
                         />
-                        <span className="text-xs sm:text-sm text-gray-700">{group.name}</span>
+                        <span className="text-sm text-[#00333e]">{group.name}</span>
                       </label>
                     ))
                   ) : (
-                    <p className="text-xs sm:text-sm text-gray-500">No groups available.</p>
+                    <p className="text-sm text-gray-500">No groups available.</p>
                   )}
                 </div>
-                <div className="flex justify-end gap-1 sm:gap-2">
-                  <button
+                <div className="flex justify-end gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setIsGroupModalOpen(false)}
-                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+                    className="px-3 py-1 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
                   >
                     Close
-                  </button>
+                  </motion.button>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           )}
 
           {/* Schedule Modal (Campaign Mode Only) */}
           {isScheduleModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-              <div className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-[90vw] sm:max-w-sm p-3 sm:p-4">
-                <div className="flex justify-between items-center mb-3 sm:mb-4">
-                  <h3 className="text-base sm:text-lg font-bold text-[#00333e]">Schedule Message</h3>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-sm p-4"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-[#00333e]">Schedule Message</h3>
                   <button
                     onClick={() => setIsScheduleModalOpen(false)}
                     className="text-gray-500 hover:text-[#00333e] transition-colors"
                   >
-                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="mb-3 sm:mb-4">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-[#00333e] mb-1">
                     Select Date and Time
                   </label>
                   <input
                     type="datetime-local"
-                    className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
                     value={schedule}
                     onChange={(e) => setSchedule(e.target.value)}
                     required
                   />
                 </div>
-                <div className="flex justify-end gap-1 sm:gap-2">
-                  <button
+                <div className="flex justify-end gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => {
                       setIsScheduleModalOpen(false);
                       setIsSchedulingEnabled(false);
                       setSchedule('');
                     }}
-                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+                    className="px-3 py-1 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setIsScheduleModalOpen(false)}
-                    className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36]"
+                    className="px-3 py-1 text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36]"
                   >
                     Confirm
-                  </button>
+                  </motion.button>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           )}
 
           {/* SMS Logs */}
-          <div className="card p-3 sm:p-4">
-            <h2 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 text-[#00333e]">
-              Sent SMS Logs
-            </h2>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
+          >
+            <h2 className="text-xl font-semibold text-[#00333e] mb-4">Sent SMS Logs</h2>
             {messageLogs.length === 0 ? (
-              <p className="text-gray-500 text-xs sm:text-sm">No SMS logs available.</p>
+              <p className="text-gray-500 text-sm">No SMS logs available.</p>
             ) : (
-              <div className="space-y-2 sm:space-y-3">
+              <div className="space-y-3">
                 {messageLogs.map((log) => (
-                  <div key={log.id || log.timestamp} className="p-2 sm:p-3 border border-gray-200 rounded-lg">
-                    <p className="text-xs sm:text-sm text-gray-600">
-                      Message: {log.message || 'N/A'}
+                  <motion.div
+                    key={log.id || log.timestamp}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <p className="text-sm text-[#00333e]">
+                      <span className="font-medium">Message:</span> {log.message || 'N/A'}
                     </p>
-                    <p className="text-xs sm:text-sm text-gray-500">
-                      Status: {log.status || 'N/A'}
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Status:</span> {log.status || 'N/A'}
                     </p>
-                    <p className="text-xs sm:text-sm text-gray-500">
-                      Timestamp: {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Timestamp:</span>{' '}
+                      {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}
                     </p>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-            <div className="card p-3 sm:p-4">
-              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] mb-1 sm:mb-2" />
-              <h3 className="text-sm sm:text-base font-semibold mb-1 text-[#00333e]">
-                Total Recipients
-              </h3>
-              <p className="text-gray-600 text-xs sm:text-sm">{contacts.length} contacts</p>
-            </div>
-            <div className="card p-3 sm:p-4">
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] mb-1 sm:mb-2" />
-              <h3 className="text-sm sm:text-base font-semibold mb-1 text-[#00333e]">
-                Campaigns
-              </h3>
-              <p className="text-gray-600 text-xs sm:text-sm">{campaigns.length} campaigns</p>
-            </div>
-            <div className="card p-3 sm:p-4">
-              <BarChart2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] mb-1 sm:mb-2" />
-              <h3 className="text-sm sm:text-base font-semibold mb-1 text-[#00333e]">
-                Sender IDs
-              </h3>
-              <p className="text-gray-600 text-xs sm:text-sm">{senderIds.length} approved</p>
-            </div>
-          </div>
-        </>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          >
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-6 h-6 text-[#00333e]" />
+                <div>
+                  <h3 className="text-lg font-semibold text-[#00333e]">
+                    Total Recipients
+                  </h3>
+                  <p className="text-gray-600 text-sm">{contacts.length} contacts</p>
+                </div>
+              </div>
+            </motion.div>
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
+            >
+              <div className="flex items-center gap-3">
+                <Clock className="w-6 h-6 text-[#00333e]" />
+                <div>
+                  <h3 className="text-lg font-semibold text-[#00333e]">
+                    Campaigns
+                  </h3>
+                  <p className="text-gray-600 text-sm">{campaigns.length} campaigns</p>
+                </div>
+              </div>
+            </motion.div>
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
+            >
+              <div className="flex items-center gap-3">
+                <BarChart2 className="w-6 h-6 text-[#00333e]" />
+                <div>
+                  <h3 className="text-lg font-semibold text-[#00333e]">
+                    Sender IDs
+                  </h3>
+                  <p className="text-gray-600 text-sm">{senderIds.length} approved</p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 };
 

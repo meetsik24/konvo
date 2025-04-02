@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { CheckCircle, AlertCircle, Clock, Search, Download } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, AlertCircle, Clock, Search, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import { fetchLogs } from '../services/api';
 
@@ -20,12 +20,13 @@ const Logs: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState<{ [key: string]: boolean }>({});
 
   // Map API response to LogEntry
   const mapApiLogToLogEntry = (apiLog: any): LogEntry => ({
     id: apiLog.log_id,
     recipient: apiLog.recipient || 'Unknown',
-    sender: apiLog.sender_id || 'Unknown', // Map sender_id to sender
+    sender: apiLog.sender_id || 'Unknown',
     content: apiLog.content || 'No content',
     status: apiLog.status as 'delivered' | 'failed' | 'pending',
     timestamp: apiLog.timestamp,
@@ -116,15 +117,23 @@ const Logs: React.FC = () => {
       };
     } else if (statuses.pending > 0) {
       return {
-        icon: <Clock className="w-5 h-5 text-yellow-500" />,
+        icon: <Clock className="w-5 h-5 text-[#fddf0d]" />,
         label: `Pending`,
       };
     } else {
       return {
-        icon: <CheckCircle className="w-5 h-5 text-green-500" />,
+        icon: <CheckCircle className="w-5 h-5 text-[#00333e]" />,
         label: `Delivered - No errors`,
       };
     }
+  };
+
+  // Toggle expand/collapse for a group
+  const toggleGroup = (content: string) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [content]: !prev[content],
+    }));
   };
 
   // Filter logs based on search query
@@ -138,14 +147,47 @@ const Logs: React.FC = () => {
   // Group filtered logs by content
   const groupedLogs = groupLogsByContent(filteredLogs);
 
+  // Export logs to CSV
+  const exportToCSV = () => {
+    const csvContent = [
+      ['Content', 'Sender', 'Recipient', 'Status', 'Timestamp'],
+      ...groupedLogs.flatMap(group =>
+        group.entries.map(entry => [
+          `"${entry.content}"`,
+          entry.sender,
+          entry.recipient,
+          entry.status,
+          new Date(entry.timestamp).toLocaleString('en-US', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true,
+          }),
+        ])
+      ),
+    ]
+      .map(row => row.join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'logs_export.csv');
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-6xl mx-auto px-4 sm:px-6 space-y-4 sm:space-y-6"
+      className="space-y-4 sm:space-y-6 p-4 sm:p-6"
     >
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Logs</h1>
-      <div className="bg-white p-4 sm:p-6 rounded-lg shadow w-full">
+      <h1 className="text-2xl sm:text-3xl font-bold text-[#00333e]">Logs</h1>
+      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md w-full">
         {/* Header with Search and Export */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className="relative w-full sm:w-1/2">
@@ -153,12 +195,18 @@ const Logs: React.FC = () => {
             <input
               type="text"
               placeholder="Search by message id, email subject, sender name, destination, or data payload..."
-              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent text-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          
+          <button
+            onClick={exportToCSV}
+            className="flex items-center gap-2 text-sm py-2 px-4 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
+          >
+            <Download className="w-5 h-5" />
+            Export to CSV
+          </button>
         </div>
 
         {/* Showing Count */}
@@ -168,13 +216,13 @@ const Logs: React.FC = () => {
 
         {loading && (
           <div className="flex justify-center items-center p-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e]" />
             <span className="ml-2 text-gray-600 text-sm">Loading logs...</span>
           </div>
         )}
 
         {error && !loading && (
-          <div className="text-red-500 text-center p-4 bg-red-50 rounded text-sm">{error}</div>
+          <div className="text-red-400 text-center p-4 bg-red-50 rounded text-sm">{error}</div>
         )}
 
         {!loading && !error && (
@@ -182,73 +230,131 @@ const Logs: React.FC = () => {
             <table className="min-w-full table-auto">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-600 text-sm w-full sm:w-2/5">
+                  <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm w-full sm:w-2/5">
                     Message
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600 text-sm hidden sm:table-cell sm:w-1/5">
+                  <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm hidden sm:table-cell sm:w-1/5">
                     From
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600 text-sm hidden sm:table-cell sm:w-1/5">
+                  <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm hidden sm:table-cell sm:w-1/5">
                     To
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600 text-sm hidden sm:table-cell sm:w-1/5">
+                  <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm hidden sm:table-cell sm:w-1/5">
                     Date
                   </th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-600 text-sm sm:w-1/10"></th>
+                  <th className="text-right py-3 px-4 font-medium text-[#00333e] text-sm sm:w-1/10"></th>
                 </tr>
               </thead>
               <tbody>
                 {groupedLogs.map((group, index) => {
                   const statusInfo = getGroupStatus(group.statuses);
+                  const isExpanded = expandedGroups[group.content] || false;
+
                   return (
-                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                            {group.entries.length}
+                    <React.Fragment key={index}>
+                      <tr
+                        className="border-b border-gray-100 hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors duration-200 cursor-pointer"
+                        onClick={() => toggleGroup(group.content)}
+                      >
+                        <td className="py-3 px-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 bg-[#00333e] text-white rounded-full flex items-center justify-center text-xs font-bold">
+                              {group.entries.length}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-gray-800">
+                                  Outbound calls - {statusInfo.label}
+                                </p>
+                                {isExpanded ? (
+                                  <ChevronUp className="w-5 h-5 text-[#00333e]" />
+                                ) : (
+                                  <ChevronDown className="w-5 h-5 text-[#00333e]" />
+                                )}
+                              </div>
+                              <p className="text-gray-600 text-sm break-words">
+                                {group.content.length > 50
+                                  ? `${group.content.substring(0, 50)}...`
+                                  : group.content}
+                                {/* Show From, To, and Date on mobile when collapsed */}
+                                {!isExpanded && (
+                                  <span className="block sm:hidden text-gray-500 text-xs mt-1">
+                                    From: {group.senders.join(', ')} | To: {group.recipients.join(', ')} |{' '}
+                                    {new Date(group.latestTimestamp).toLocaleString('en-US', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric',
+                                      hour: 'numeric',
+                                      minute: 'numeric',
+                                      hour12: true,
+                                    })}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-800">
-                              Outbound calls - {statusInfo.label}
-                            </p>
-                            <p className="text-gray-600 text-sm break-words">
-                              {group.content}
-                              {/* Show From, To, and Date on mobile */}
-                              <span className="block sm:hidden text-gray-500 text-xs mt-1">
-                                From: {group.senders.join(', ')} | To: {group.recipients.join(', ')} |{' '}
-                                {new Date(group.latestTimestamp).toLocaleString('en-US', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                  year: 'numeric',
-                                  hour: 'numeric',
-                                  minute: 'numeric',
-                                  hour12: true,
-                                })}
-                              </span>
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">
-                        {group.senders.join(', ')}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">
-                        {group.recipients.join(', ')}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">
-                        {new Date(group.latestTimestamp).toLocaleString('en-US', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: 'numeric',
-                          minute: 'numeric',
-                          hour12: true,
-                        })}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {statusInfo.icon}
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">
+                          {isExpanded ? group.senders.join(', ') : ''}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">
+                          {isExpanded ? group.recipients.join(', ') : ''}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">
+                          {isExpanded
+                            ? new Date(group.latestTimestamp).toLocaleString('en-US', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: 'numeric',
+                                minute: 'numeric',
+                                hour12: true,
+                              })
+                            : ''}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {statusInfo.icon}
+                        </td>
+                      </tr>
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.tr
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="border-b border-gray-100"
+                          >
+                            <td colSpan={5} className="py-3 px-4 text-sm text-gray-600">
+                              <div className="pl-9">
+                                <p className="text-gray-800 font-medium">Full Message:</p>
+                                <p className="text-gray-600 break-words">{group.content}</p>
+                                <p className="text-gray-800 font-medium mt-2">Details:</p>
+                                <ul className="list-disc pl-5">
+                                  <li>From: {group.senders.join(', ')}</li>
+                                  <li>To: {group.recipients.join(', ')}</li>
+                                  <li>
+                                    Date:{' '}
+                                    {new Date(group.latestTimestamp).toLocaleString('en-US', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric',
+                                      hour: 'numeric',
+                                      minute: 'numeric',
+                                      hour12: true,
+                                    })}
+                                  </li>
+                                  <li>
+                                    Status Breakdown: Delivered ({group.statuses.delivered}), Failed (
+                                    {group.statuses.failed}), Pending ({group.statuses.pending})
+                                  </li>
+                                </ul>
+                              </div>
+                            </td>
+                          </motion.tr>
+                        )}
+                      </AnimatePresence>
+                    </React.Fragment>
                   );
                 })}
                 {groupedLogs.length === 0 && (

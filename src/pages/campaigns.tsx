@@ -181,21 +181,21 @@ const SMSCampaigns: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-3xl mx-auto space-y-3 sm:space-y-4 p-2 sm:p-4"
+      className="space-y-3 sm:space-y-4 p-2 sm:p-4"
     >
       {/* Header */}
       <div className="flex items-center gap-2 mb-3 sm:mb-4">
         <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-[#00333e]" />
-        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">SMS Campaigns</h1>
+        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-[#00333e]">SMS Campaigns</h1>
       </div>
 
       {/* Error Message */}
       {error && (
-        <div className="text-red-500 text-xs sm:text-sm mb-2 sm:mb-3 bg-red-50 p-2 rounded-lg">{error}</div>
+        <div className="text-red-400 text-xs sm:text-sm mb-2 sm:mb-3 bg-red-50 p-2 rounded-lg">{error}</div>
       )}
 
       {/* Create/Edit Campaign Form */}
-      <div className="card p-3 sm:p-4">
+      <div className="bg-white p-3 sm:p-4 rounded-lg shadow-md w-full">
         <h2 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 text-[#00333e]">
           {editingCampaign ? 'Edit Campaign' : 'Create Campaign'}
         </h2>
@@ -276,7 +276,7 @@ const SMSCampaigns: React.FC = () => {
             <button
               type="submit"
               disabled={isCreating}
-              className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50"
+              className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors disabled:bg-[#00333e]/50"
             >
               <Send className="w-4 h-4 sm:w-5 sm:h-5" />
               {isCreating ? 'Processing...' : editingCampaign ? 'Update' : 'Create'}
@@ -335,7 +335,7 @@ const SMSCampaigns: React.FC = () => {
       )}
 
       {/* Active Campaigns */}
-      <div className="card p-3 sm:p-4">
+      <div className="bg-white p-3 sm:p-4 rounded-lg shadow-md w-full">
         <h2 className="text-sm sm:text-base font-semibold mb-2 sm:mb-3 text-[#00333e]">
           Active Campaigns
         </h2>
@@ -344,7 +344,7 @@ const SMSCampaigns: React.FC = () => {
         ) : (
           <div className="space-y-2 sm:space-y-3">
             {campaigns.map((campaign) => (
-              <div key={campaign.campaign_id} className="p-2 sm:p-3 border rounded-lg">
+              <div key={campaign.campaign_id} className="p-2 sm:p-3 border border-gray-200 rounded-lg bg-gray-50">
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <h3 className="font-medium text-xs sm:text-sm text-[#00333e]">
@@ -396,7 +396,7 @@ const SMSCampaigns: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div className="card p-3 sm:p-4">
+        <div className="bg-white p-3 sm:p-4 rounded-lg shadow-md">
           <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] mb-1 sm:mb-2" />
           <h3 className="text-sm sm:text-base font-semibold mb-1 text-[#00333e]">
             Scheduled Campaigns
@@ -405,7 +405,7 @@ const SMSCampaigns: React.FC = () => {
             {campaigns.filter((c) => c.launch_date).length} pending
           </p>
         </div>
-        <div className="card p-3 sm:p-4">
+        <div className="bg-white p-3 sm:p-4 rounded-lg shadow-md">
           <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] mb-1 sm:mb-2" />
           <h3 className="text-sm sm:text-base font-semibold mb-1 text-[#00333e]">
             Total Campaigns

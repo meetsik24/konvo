@@ -99,7 +99,6 @@ const Dashboard: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Safely handle potential undefined or failed API responses
       let campaigns = [], contactsMetrics = { total_contacts: 0, total_contact_groups: 0 }, logs = [];
       
       try {
@@ -123,7 +122,6 @@ const Dashboard: React.FC = () => {
         logs = [];
       }
 
-      // Use the correct filtering criteria from the old code
       const messagesSent = logs.filter(
         (log: any) => log?.status === 'sent' && log?.response_group_name === 'PENDING'
       ).length;
@@ -134,7 +132,6 @@ const Dashboard: React.FC = () => {
       const totalContacts = contactsMetrics?.total_contacts || 0;
       const totalContactGroups = contactsMetrics?.total_contact_groups || 0;
 
-      // Use the more efficient message volume calculation from the old code
       const messageVolume = logs.reduce((acc: { [key: string]: number }, log: any) => {
         const timestamp = log?.timestamp;
         if (!timestamp) {
@@ -194,7 +191,7 @@ const Dashboard: React.FC = () => {
   }, [loadDashboardData]);
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 max-w-6xl mx-auto">
+    <div className="space-y-6">
       {/* Loading State */}
       {isLoading && (
         <div className="flex justify-center items-center h-64">

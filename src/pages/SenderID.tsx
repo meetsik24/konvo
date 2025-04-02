@@ -159,44 +159,44 @@ const SenderID: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-6"
+      className="space-y-4 sm:space-y-6 px-4 sm:px-6"
     >
       <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-8">
-        <IdCard className="w-6 h-6 sm:w-8 sm:h-8 text-primary-500" />
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Sender IDs</h1>
+        <IdCard className="w-6 h-6 sm:w-8 sm:h-8 text-[#00333e]" />
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#00333e]">Sender IDs</h1>
         {isAdmin && (
           <button
             onClick={() => setIsAdminView(!isAdminView)}
-            className="btn btn-secondary ml-auto text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
+            className="ml-auto text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
           >
             {isAdminView ? 'User View' : 'Admin View'}
           </button>
         )}
       </div>
 
-      {error && <div className="text-red-500 mb-3 sm:mb-4 text-xs sm:text-sm">{error}</div>}
+      {error && <div className="text-red-400 mb-3 sm:mb-4 text-xs sm:text-sm">{error}</div>}
 
       {isLoading && (
         <div className="text-center">
-          <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-primary-500 mx-auto" />
+          <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-[#fddf0d] mx-auto" />
           <p className="text-gray-600 mt-1 sm:mt-2 text-xs sm:text-sm">Loading sender IDs...</p>
         </div>
       )}
 
       {!isLoading && (
-        <div className="card p-4 sm:p-6 max-w-3xl mx-auto w-full">
-          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Request New Sender ID</h2>
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md w-full">
+          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-[#00333e]">Request New Sender ID</h2>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <input
               type="text"
-              className="input flex-1 text-xs sm:text-sm py-2 sm:py-3"
+              className="flex-1 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
               placeholder="Enter sender ID name (e.g., CompanyName)"
               value={newSenderId}
               onChange={(e) => setNewSenderId(e.target.value)}
             />
             <button
               onClick={handleRequestSenderId}
-              className="btn btn-primary flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4"
+              className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
             >
               <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
               Request
@@ -206,8 +206,8 @@ const SenderID: React.FC = () => {
       )}
 
       {!isLoading && (
-        <div className="card p-4 sm:p-6 max-w-3xl mx-auto w-full">
-          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md w-full">
+          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-[#00333e]">
             {isAdminView ? 'Pending Sender ID Requests' : 'My Sender IDs'}
           </h2>
           {senderIds.length === 0 ? (
@@ -217,10 +217,10 @@ const SenderID: React.FC = () => {
               {senderIds.map((senderId) => (
                 <div
                   key={senderId.request_id || senderId.sender_id}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border rounded-lg"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border border-gray-200 rounded-lg bg-gray-50"
                 >
                   <div className="mb-2 sm:mb-0">
-                    <h3 className="font-medium text-sm sm:text-base">{senderId.name}</h3>
+                    <h3 className="font-medium text-sm sm:text-base text-[#00333e]">{senderId.name}</h3>
                     <p className="text-xs sm:text-sm text-gray-600">
                       Sender ID: {senderId.sender_id}
                     </p>
@@ -253,13 +253,13 @@ const SenderID: React.FC = () => {
                       <>
                         <button
                           onClick={() => setReviewRequest({ request_id: senderId.request_id!, status: 'approved' })}
-                          className="btn btn-icon btn-ghost text-green-500"
+                          className="p-2 rounded-full text-green-500 hover:bg-green-100 transition-colors duration-200"
                         >
                           <Check className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                         <button
                           onClick={() => setReviewRequest({ request_id: senderId.request_id!, status: 'rejected' })}
-                          className="btn btn-icon btn-ghost text-red-500"
+                          className="p-2 rounded-full text-red-500 hover:bg-red-100 transition-colors duration-200"
                         >
                           <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
@@ -277,22 +277,25 @@ const SenderID: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-md">
             <div className="flex justify-between items-center mb-3 sm:mb-4">
-              <h2 className="text-lg sm:text-xl font-semibold">Confirm Review</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-[#00333e]">Confirm Review</h2>
               <button onClick={() => setReviewRequest(null)} className="text-gray-500 hover:text-gray-700">
                 <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
-            <p className="text-xs sm:text-sm">
+            <p className="text-xs sm:text-sm text-gray-600">
               Are you sure you want to mark the sender ID "{senderIds.find((s) => s.request_id === reviewRequest.request_id)?.name}" as{' '}
               {reviewRequest.status}?
             </p>
             <div className="flex justify-end gap-2 sm:gap-3 mt-3 sm:mt-4">
-              <button onClick={() => setReviewRequest(null)} className="btn btn-secondary text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3">
+              <button
+                onClick={() => setReviewRequest(null)}
+                className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+              >
                 Cancel
               </button>
               <button
                 onClick={() => handleReviewSenderId(reviewRequest.request_id, reviewRequest.status)}
-                className="btn btn-primary text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
+                className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
               >
                 Confirm
               </button>

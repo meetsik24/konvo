@@ -32,31 +32,31 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
 
   return (
     <aside
-      className={`w-64 bg-white flex flex-col h-screen overflow-y-auto shadow-md sticky top-0 z-40 sm:z-0 ${
+      className={`w-64 bg-[#00333e] flex flex-col h-screen overflow-y-auto sticky top-0 z-40 sm:z-0 ${
         isSidebarOpen ? 'block' : 'hidden'
       } sm:block`}
     >
       <div className="flex flex-col h-full py-4">
         {/* Logo Section */}
-        <div className="px-4 mb-4 flex items-center gap-2">
-          <img src="/assets/briq2.png" alt="Briq Logo" className="w-8 h-8" />
-          <h1 className="text-lg font-bold text-[#00333e]">Briq Solutions</h1>
+        <div className="px-4 mb-6 flex items-center gap-2 border-b border-[#005a6e]">
+          <img src="/assets/briq.png" alt="Briq Logo" className="w-8 h-8" />
+          <h1 className="text-lg font-bold text-white py-2">Briq Solutions</h1>
         </div>
 
         {/* Workspace Section */}
         <div className="px-4 mb-4">
-          <h2 className="text-sm font-semibold text-[#00333e] mb-3">Workspace</h2>
+          <h2 className="text-sm font-semibold text-white mb-3">Workspace</h2>
           <div
             className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
               isWorkspaceSelected
-                ? 'text-[#00333e] bg-[#fddf0d]/20 border border-[#00333e]/20'
-                : 'text-gray-400 bg-gray-100 italic'
+                ? 'text-white bg-[#005a6e] border border-[#fddf0d]/20'
+                : 'text-gray-400 bg-[#002a36] italic'
             }`}
           >
             {activeWorkspace?.name || 'No Workspace Selected'}
           </div>
           {!isWorkspaceSelected && (
-            <p className="mt-2 text-xs text-red-500">Please select a workspace from the Navbar.</p>
+            <p className="mt-2 text-xs text-red-400">Please select a workspace from the Navbar.</p>
           )}
         </div>
 
@@ -69,10 +69,10 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
               className={({ isActive }) =>
                 `flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                   !isWorkspaceSelected
-                    ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+                    ? 'text-gray-400 cursor-not-allowed bg-[#002a36]'
                     : isActive
-                    ? 'bg-[#00333e] text-white shadow-md shadow-[#00333e]/20'
-                    : 'text-[#00333e] hover:bg-[#fddf0d] hover:text-[#00333e]'
+                    ? 'bg-[#fddf0d] text-[#00333e] shadow-md shadow-[#fddf0d]/20'
+                    : 'text-white hover:bg-[#005a6e]'
                 }`
               }
               onClick={(e) => {
