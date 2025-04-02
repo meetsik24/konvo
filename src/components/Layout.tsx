@@ -15,10 +15,7 @@ const Layout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fff] relative">
-      {/* Decorative doodles */}
-     
-
+    <div className="min-h-screen bg-[#f5f7fa] flex flex-col">
       {/* Navbar */}
       <Navbar
         isSidebarOpen={isSidebarOpen}
@@ -27,27 +24,27 @@ const Layout: React.FC = () => {
       />
 
       {/* Main Layout */}
-      <div className="flex min-h-[calc(100vh-64px)] pt-16">
+      <div className="flex flex-1">
         {/* Sidebar */}
-        <div
-          className={`fixed inset-y-0 left-0 top-16 z-50 w-64 transform transition-transform duration-300 ease-in-out sm:w-64 sm:static sm:top-0 sm:translate-x-0 ${
-            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
-        >
-          <Sidebar closeSidebar={closeSidebar} />
-        </div>
+        <Sidebar closeSidebar={closeSidebar} isSidebarOpen={isSidebarOpen} />
 
         {/* Overlay for mobile */}
         {isSidebarOpen && (
           <div
-            className="fixed inset-0 top-16 bg-black bg-opacity-50 z-40 sm:hidden"
+            className="fixed inset-0 bg-black bg-opacity-50 z-30 sm:hidden"
             onClick={closeSidebar}
           />
         )}
 
         {/* Main Content */}
-        <main className="flex-1 p-4 sm:pl-72 sm:p-8">
-          <Outlet />
+        <main
+          className={`flex-1 p-4 sm:p-6 transition-all duration-300 overflow-y-auto ${
+            isSidebarOpen ? 'sm:pl-64' : 'sm:pl-64'
+          }`}
+        >
+          <div className="max-w-6xl mx-auto pt-14">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

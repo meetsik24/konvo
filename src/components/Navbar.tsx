@@ -4,8 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, LogOut, Check, Menu, X, Trash2, Building } from 'lucide-react';
 import { logout, fetchUserProfile } from '../store/slices/authSlice';
 import { store } from '../store/store';
-import { fetchNotifications, deleteNotification, markNotificationAsRead } from '../services/api';
-import { motion } from 'framer-motion';
+import { fetchNotifications, deleteNotification, markNotificationAsRead, getSubscriptionUsage } from '../services/api';
 
 import type { RootState } from '../store/store';
 import { useWorkspace } from '../pages/WorkspaceContext';
@@ -44,6 +43,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [balance, setBalance] = useState<number | null>(null); // State for SMS credits balance
 
   // Fetch notifications on mount
   useEffect(() => {
@@ -55,9 +55,22 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
         setError(err.message || 'Failed to load notifications');
       }
     };
-
     loadNotifications();
   }, []);
+
+  // Fetch SMS credits balance on mount and when user or token changes
+  useEffect(() => {
+    const loadBalance = async () => {
+      if (!user?.plan_id || !token) return; // Ensure plan_id and token are available
+      try {
+        const subscriptionUsage = await getSubscriptionUsage(user.plan_id);
+        setBalance(subscriptionUsage.sms_credits); // Use sms_credits from response
+      } catch (err: any) {
+        setError(err.message || 'Failed to load balance');
+      }
+    };
+    loadBalance();
+  }, [token, user]);
 
   // Automatically open workspace modal if no workspaces exist
   useEffect(() => {
@@ -67,36 +80,22 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
   }, [workspaces, workspaceLoading, isWorkspaceModalOpen]);
 
   useEffect(() => {
-    if (!token || status === 'loading' || user) {
-      console.debug('Skipping profile fetch - token:', token, 'status:', status, 'user:', !!user);
-      return;
-    }
-
-    console.debug('Fetching user profile with token:', token);
+    if (!token || status === 'loading' || user) return;
     setIsLoading(true);
-
     dispatch(fetchUserProfile(token) as any)
       .unwrap()
-      .then((result) => {
-        console.debug('Profile fetch successful:', result);
-        setError(null);
-      })
+      .then(() => setError(null))
       .catch((err: unknown) => {
-        const errorMessage =
-          err instanceof Error ? err.message : 'Failed to load user profile.';
-        console.error('Error fetching profile:', errorMessage);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load user profile.';
         setError(errorMessage);
       })
-      .finally(() => {
-        setIsLoading(false);
-      });
+      .finally(() => setIsLoading(false));
   }, [token, dispatch, status, user]);
 
   const handleLogout = useCallback(() => {
-    console.log('Logging out user:', user?.email);
     dispatch(logout());
     navigate('/login');
-  }, [dispatch, user?.email, navigate]);
+  }, [dispatch, navigate]);
 
   const handleCreateWorkspace = useCallback(
     async (e: React.FormEvent) => {
@@ -105,16 +104,13 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
         setError('Workspace name cannot be empty');
         return;
       }
-
       setIsLoading(true);
       setError(null);
       try {
         await addWorkspace(newWorkspaceName);
         setNewWorkspaceName('');
         await refreshWorkspaces();
-        if (workspaces.length > 0) {
-          setIsWorkspaceModalOpen(false);
-        }
+        if (workspaces.length > 0) setIsWorkspaceModalOpen(false);
       } catch (err: any) {
         setError(err.message || 'Failed to create workspace');
       } finally {
@@ -132,9 +128,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
         try {
           await deleteWorkspace(id);
           await refreshWorkspaces();
-          if (workspaces.length <= 1) {
-            setIsWorkspaceModalOpen(true);
-          }
+          if (workspaces.length <= 1) setIsWorkspaceModalOpen(true);
         } catch (err: any) {
           setError(err.message || 'Failed to delete workspace');
         } finally {
@@ -148,14 +142,10 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
   const handleDismissNotification = useCallback(
     async (id: string) => {
       try {
-        console.log(`Attempting to dismiss notification with ID: ${id}`);
         await deleteNotification(id);
         setNotifications((prev) => prev.filter((notif) => notif.notification_id !== id));
-        setError(null);
       } catch (err: any) {
-        const errorMessage = err.message || 'Failed to dismiss notification';
-        console.error(`Failed to dismiss notification ${id}:`, errorMessage);
-        setError(errorMessage);
+        setError(err.message || 'Failed to dismiss notification');
       }
     },
     []
@@ -289,14 +279,13 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
                     onClick={() => handleDismissNotification(notif.notification_id)}
                     className="text-gray-400 hover:text-red-500"
                     title="Dismiss"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-              ))
-            )}
-          )
+              </div>
+            ))
+          )}
         </div>
       </>
     ),
@@ -435,37 +424,55 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
   const avatarUrl =
     user?.avatar ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || 'User')}&background=006400&color=fff`;
-  console.log('User data in Navbar:', user);
 
   const unreadCount = notifications.filter((notif) => !notif.is_read).length;
 
   return (
-    <nav className="bg-gradient-to-r from-[#00333e] to-[#005a6e] shadow-md fixed top-0 left-0 right-0 z-50">
-      <div className="px-3 sm:px-5 mx-auto max-w-7xl">
-        <div className="flex justify-between items-center h-14 sm:h-16">
-          {/* Left Side: Hamburger Menu (Mobile Only) */}
-          <div className="flex items-center">
+    <nav className="bg-white shadow-md fixed top-0 left-0 z-50 w-full">
+      <div className="px-4 sm:px-6">
+        <div className="flex justify-between items-center h-14">
+          {/* Left Side: Logo and Hamburger */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <img
+                src="/assets/briq2.png"
+                alt="Briq Logo"
+                className="w-8 h-8"
+                onError={(e) => {
+                  console.error('Failed to load logo');
+                  e.currentTarget.src = '/assets/fallback-logo.png'; // Fallback image
+                }}
+              />
+              <h1 className="text-lg font-bold text-[#00333e]">Briq Solutions</h1>
+            </div>
             <button
               onClick={toggleSidebar}
-              className="p-2 text-white rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 sm:hidden"
+              className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 sm:hidden"
               aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={isSidebarOpen}
             >
-              {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
 
-          {/* Right Side: Actions and Logo */}
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+          {/* Right Side: Actions */}
+          <div className="flex items-center gap-3 sm:gap-2">
+            {/* Balance */}
+            <div className="text-sm font-medium text-[#00333e]">
+              SMS Credits:{' '}
+              <span className="text-[#fddf0d]">
+                {balance !== null ? balance : 'Loading...'}
+              </span>
+            </div>
+
             {/* Notifications */}
             <div className="relative">
               <button
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                className="p-2 text-white rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 relative"
+                className="p-3 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 relative"
               >
-                <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+                <Bell className="w-6 h-6" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                     {unreadCount}
                   </span>
                 )}
@@ -473,37 +480,32 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
               {isNotificationOpen && notificationPanel}
             </div>
 
-            {/* Workspace Button with Icon */}
-            <div className="relative">
-              <button
-                onClick={() => setIsWorkspaceModalOpen(true)}
-                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 text-white rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 text-xs sm:text-sm font-medium border border-transparent hover:border-[#fddf0d]"
-                disabled={isLoading || workspaceLoading}
-              >
-                <Building className="w-4 h-4 sm:w-5 sm:h-5" />
-                Workspace
-              </button>
-              {isWorkspaceModalOpen && workspaceModal}
-            </div>
+            {/* Workspace Button */}
+            <button
+              onClick={() => setIsWorkspaceModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 text-[#00333e] rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 text-sm font-medium border border-transparent hover:border-[#fddf0d]"
+              disabled={isLoading || workspaceLoading}
+            >
+              <Building className="w-6 h-6" />
+              Workspace
+            </button>
+            {isWorkspaceModalOpen && workspaceModal}
 
             {/* Settings */}
             <Link
               to="/account"
-              className="p-2 text-white rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300"
+              className="p-3 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300"
             >
-              <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
+              <Settings className="w-6 h-6" />
             </Link>
 
-            {/* Avatar (Visible on All Screens) */}
-            <div className="flex items-center gap-1 sm:gap-2 bg-[#fddf0d] px-2 sm:px-3 py-1 sm:py-2 rounded-full">
+            {/* Avatar */}
+            <div className="flex items-center gap-2 bg-[#fddf0d] px-3 py-2 rounded-full">
               <img
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-green-500 hover:border-[#00333e] transition-all duration-300"
+                className="w-8 h-8 rounded-full border-2 border-green-500 hover:border-[#00333e] transition-all duration-300"
                 src={avatarUrl}
                 alt={user?.username || 'User'}
-                onError={(e) => {
-                  console.error('Avatar load error, falling back to default image');
-                  e.currentTarget.src = '/assets/default-avatar.png';
-                }}
+                onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
               />
               <div className="hidden md:block">
                 <div className="text-xs font-bold text-[#00333e]">{user?.username || 'Loading...'}</div>
@@ -514,21 +516,10 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="p-2 text-white rounded-full hover:bg-red-500 hover:text-white transition-all duration-300"
+              className="p-3 text-[#00333e] rounded-full hover:bg-red-500 hover:text-white transition-all duration-300"
             >
-              <LogOut className="w-5 h-5 sm:w-6 sm:h-6" />
+              <LogOut className="w-6 h-6" />
             </button>
-
-            {/* Logo (Moved to the End) */}
-            <Link to="/" className="flex items-center">
-              <motion.img
-                src="/assets/briq2.png"
-                alt="Briq Logo"
-                className="w-10 h-10 sm:w-12 sm:h-12"
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                transition={{ type: 'spring', stiffness: 300 }}
-              />
-            </Link>
           </div>
         </div>
       </div>
