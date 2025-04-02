@@ -1,9 +1,9 @@
-name: Paris Operand
+name: Agent 007
 
 on:
   push:
     branches:
-      - main
+      - develop
 
 jobs:
   deploy:
