@@ -15,37 +15,30 @@ const Layout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f7fa] flex flex-col">
+    <div className="flex flex-col h-screen">
       {/* Navbar */}
-      <Navbar
-        isSidebarOpen={isSidebarOpen}
-        toggleSidebar={toggleSidebar}
-        closeSidebar={closeSidebar}
-      />
-
+      <Navbar toggleSidebar={toggleSidebar} />
+      
       {/* Main Layout */}
-      <div className="flex flex-1">
+      <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <Sidebar closeSidebar={closeSidebar} isSidebarOpen={isSidebarOpen} />
-
+        <Sidebar isOpen={isSidebarOpen} closeSidebar={closeSidebar} />
+        
         {/* Overlay for mobile */}
         {isSidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-30 sm:hidden"
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-10 lg:hidden"
+
             onClick={closeSidebar}
           />
         )}
-
+        
         {/* Main Content */}
-        <main
-          className={`flex-1 p-4 sm:p-6 transition-all duration-300 overflow-y-auto ${
-            isSidebarOpen ? 'sm:pl-64' : 'sm:pl-64'
-          }`}
-        >
-          <div className="max-w-6xl mx-auto pt-14">
+        <div className="flex-1 overflow-auto w-full pt-10">
+          <div className="container mx-auto px-4 py-6 max-w-6xl">
             <Outlet />
           </div>
-        </main>
+        </div>
       </div>
     </div>
   );
