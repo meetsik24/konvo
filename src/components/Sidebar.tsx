@@ -37,14 +37,20 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
       } sm:block`}
     >
       <div className="flex flex-col h-full py-4">
+        {/* Logo Section */}
+        <div className="px-4 mb-4 flex items-center gap-2">
+          <img src="/assets/briq2.png" alt="Briq Logo" className="w-8 h-8" />
+          <h1 className="text-lg font-bold text-[#00333e]">Briq Solutions</h1>
+        </div>
+
         {/* Workspace Section */}
-        <div className="px-4 mb-4 pt-16">
+        <div className="px-4 mb-4">
           <h2 className="text-sm font-semibold text-[#00333e] mb-3">Workspace</h2>
           <div
             className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
               isWorkspaceSelected
-          ? 'text-[#00333e] bg-[#fddf0d]/20 border border-[#00333e]/20'
-          : 'text-gray-400 bg-gray-100 italic'
+                ? 'text-[#00333e] bg-[#fddf0d]/20 border border-[#00333e]/20'
+                : 'text-gray-400 bg-gray-100 italic'
             }`}
           >
             {activeWorkspace?.name || 'No Workspace Selected'}

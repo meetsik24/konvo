@@ -18,12 +18,12 @@ interface Notification {
 }
 
 interface NavbarProps {
-  isSidebarOpen: boolean;
+  isSidebarOpen?: boolean;
   toggleSidebar: () => void;
-  closeSidebar: () => void;
+  closeSidebar?: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSidebar }) => {
+const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
   const dispatch = useDispatch<typeof store.dispatch>();
   const navigate = useNavigate();
   const { user, token, status } = useSelector((state: RootState) => state.auth);
@@ -43,7 +43,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [balance, setBalance] = useState<number | null>(null); // State for SMS credits balance
+  const [balance, setBalance] = useState<number | null>(null);
 
   // Fetch notifications on mount
   useEffect(() => {
@@ -61,10 +61,10 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
   // Fetch SMS credits balance on mount and when user or token changes
   useEffect(() => {
     const loadBalance = async () => {
-      if (!user?.plan_id || !token) return; // Ensure plan_id and token are available
+      if (!user?.plan_id || !token) return;
       try {
         const subscriptionUsage = await getSubscriptionUsage(user.plan_id);
-        setBalance(subscriptionUsage.sms_credits); // Use sms_credits from response
+        setBalance(subscriptionUsage.sms_credits);
       } catch (err: any) {
         setError(err.message || 'Failed to load balance');
       }
@@ -428,11 +428,19 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
   const unreadCount = notifications.filter((notif) => !notif.is_read).length;
 
   return (
-    <nav className="bg-white shadow-md fixed top-0 left-0 z-50 w-full">
-      <div className="px-4 sm:px-6">
-        <div className="flex justify-between items-center h-14">
-          {/* Left Side: Logo and Hamburger */}
-          <div className="flex items-center gap-4">
+    <nav className="bg-white shadow-md fixed top-0 left-64 w-[calc(100%-256px)] z-50 sm:left-0 sm:w-full">
+      <div className="px-4 sm:px-3">
+        <div className="flex justify-between items-center h-16">
+          {/* Left Side: Hamburger and Logo */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleSidebar}
+              className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 block sm:hidden"
+              aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isSidebarOpen}
+            >
+              {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
             <div className="flex items-center gap-2">
               <img
                 src="/assets/briq2.png"
@@ -440,24 +448,17 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
                 className="w-8 h-8"
                 onError={(e) => {
                   console.error('Failed to load logo');
-                  e.currentTarget.src = '/assets/fallback-logo.png'; // Fallback image
+                  e.currentTarget.src = '/assets/fallback-logo.png';
                 }}
               />
-              <h1 className="text-lg font-bold text-[#00333e]">Briq Solutions</h1>
+              <h1 className="text-lg font-bold text-[#00333e] hidden sm:block">Briq Solutions</h1>
             </div>
-            <button
-              onClick={toggleSidebar}
-              className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 sm:hidden"
-              aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
-            >
-              {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
           </div>
 
           {/* Right Side: Actions */}
-          <div className="flex items-center gap-3 sm:gap-2">
-            {/* Balance */}
-            <div className="text-sm font-medium text-[#00333e]">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Balance (Desktop Only) */}
+            <div className="text-sm font-medium text-[#00333e] hidden md:block">
               SMS Credits:{' '}
               <span className="text-[#fddf0d]">
                 {balance !== null ? balance : 'Loading...'}
@@ -468,11 +469,11 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
             <div className="relative">
               <button
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                className="p-3 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 relative"
+                className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 relative"
               >
                 <Bell className="w-6 h-6" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                     {unreadCount}
                   </span>
                 )}
@@ -480,26 +481,26 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
               {isNotificationOpen && notificationPanel}
             </div>
 
-            {/* Workspace Button */}
+            {/* Workspace Button (Desktop Only) */}
             <button
               onClick={() => setIsWorkspaceModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 text-[#00333e] rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 text-sm font-medium border border-transparent hover:border-[#fddf0d]"
+              className="flex items-center gap-2 px-3 py-2 text-[#00333e] rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 text-sm font-medium border border-transparent hover:border-[#fddf0d] hidden md:flex"
               disabled={isLoading || workspaceLoading}
             >
-              <Building className="w-6 h-6" />
-              Workspace
+              <Building className="w-5 h-5" />
+              <span>Workspace</span>
             </button>
             {isWorkspaceModalOpen && workspaceModal}
 
-            {/* Settings */}
+            {/* Settings (Icon Only on Mobile) */}
             <Link
               to="/account"
-              className="p-3 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300"
+              className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300"
             >
               <Settings className="w-6 h-6" />
             </Link>
 
-            {/* Avatar */}
+            {/* Avatar (Icon Only on Mobile) */}
             <div className="flex items-center gap-2 bg-[#fddf0d] px-3 py-2 rounded-full">
               <img
                 className="w-8 h-8 rounded-full border-2 border-green-500 hover:border-[#00333e] transition-all duration-300"
@@ -507,7 +508,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
                 alt={user?.username || 'User'}
                 onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
               />
-              <div className="hidden md:block">
+              <div className="hidden lg:block">
                 <div className="text-xs font-bold text-[#00333e]">{user?.username || 'Loading...'}</div>
                 <div className="text-xs text-gray-700">{user?.email || 'Loading...'}</div>
               </div>
@@ -516,7 +517,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar, closeSide
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="p-3 text-[#00333e] rounded-full hover:bg-red-500 hover:text-white transition-all duration-300"
+              className="p-2 text-[#00333e] rounded-full hover:bg-red-500 hover:text-white transition-all duration-300"
             >
               <LogOut className="w-6 h-6" />
             </button>
