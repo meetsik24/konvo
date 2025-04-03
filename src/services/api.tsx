@@ -852,4 +852,21 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
   }
 };
 
+
+
+// New function to generate an SMS message using the /draft_generate_message endpoint
+export const generateMessage = async (prompt: string) => {
+  try {
+    console.log('Sending request to /draft_generate_message with prompt:', prompt);
+    const response = await api.post('/draft_generate_message', { prompt });
+    console.log('Response from /draft_generate_message:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in generateMessage:', error);
+    throw error; // Re-throw to handle in the component
+  }
+};
+
+
+
 export default api;

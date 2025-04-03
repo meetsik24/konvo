@@ -11,6 +11,7 @@ import {
   sendInstantMessage,
   getMessageLogs,
   getWorkspaceGroups,
+  generateMessage, // Import the new API function
 } from '../services/api';
 
 // Define interfaces for type safety
@@ -160,7 +161,7 @@ const SendSMS: React.FC = () => {
             setSelectedSenderId('');
             setError('No approved sender IDs available');
           }
-        } catch (senderIdError) {
+        } catch {
           setSenderIds(FALLBACK_SENDER_IDS);
           setUseFallbackSenderIds(true);
           setSelectedSenderId(FALLBACK_SENDER_IDS[0].sender_id);
@@ -242,7 +243,7 @@ const SendSMS: React.FC = () => {
     fetchCampaignGroups();
   }, [selectedCampaignId, validGroups]);
 
-  // Generate AI message
+  // Generate AI message using the new API endpoint
   const generateAIMessage = async () => {
     if (!keywords.trim()) {
       setError('Please enter keywords to generate a message.');
@@ -250,14 +251,23 @@ const SendSMS: React.FC = () => {
     }
     setIsGenerating(true);
     try {
-      const keywordsArray = keywords.split(',').map((k) => k.trim()).filter(Boolean);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const aiMessage = `Hello! This is regarding ${keywordsArray.join(' and ')}. How can we assist you today?`;
-      setMessage(aiMessage);
+      // Prepare the prompt from keywords
+      const prompt = `Generate an SMS message based on the following keywords: ${keywords}`;
+      const response = await generateMessage(prompt);
+
+      // Assuming the API returns a JSON object with a 'message' field containing the generated SMS
+      // Adjust this based on the actual API response format
+      const generatedMessage = response.message || response.text || response;
+      if (typeof generatedMessage !== 'string') {
+        throw new Error('Invalid response format from message generation API');
+      }
+
+      setMessage(generatedMessage);
       setError(null);
       setIsAIModalOpen(false);
-    } catch (err) {
-      setError('Failed to generate AI message.');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to generate AI message.';
+      setError(errorMessage);
     } finally {
       setIsGenerating(false);
     }
@@ -372,7 +382,7 @@ const SendSMS: React.FC = () => {
 
   // Get recipients for contacts mode
   const getContactRecipients = async (): Promise<string[]> => {
-    let recipientPhones: string[] = [];
+    const recipientPhones: string[] = [];
 
     if (manualContacts.trim()) {
       const manualPhones = manualContacts
@@ -442,7 +452,7 @@ const SendSMS: React.FC = () => {
           className="bg-yellow-50 border border-yellow-200 text-yellow-600 p-4 rounded-lg"
         >
           <p className="font-semibold text-sm">Warning</p>
-          <p className="text-sm">Using fallback sender IDs due to API error.</p>
+          <p className="text-sm">Ops!! Network issues! Please try again after some time!</p>
         </motion.div>
       )}
       {error && (
