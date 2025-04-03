@@ -7,6 +7,8 @@ import { store } from '../store/store';
 import { fetchNotifications, deleteNotification, markNotificationAsRead, getSubscriptionUsage } from '../services/api';
 import { motion } from 'framer-motion';
 
+
+
 import type { RootState } from '../store/store';
 import { useWorkspace } from '../pages/WorkspaceContext';
 
@@ -17,6 +19,20 @@ interface Notification {
   created_at: string;
   is_read: boolean;
 }
+
+interface getSubscriptionUsage {
+  sms_credits: number;
+}
+
+
+interface Plan {
+  plan_id: string;
+  name: string;
+  sms_unit_price: string;
+  description: string;
+  minimum_sms_purchase: number;
+}
+
 
 interface NavbarProps {
   isSidebarOpen?: boolean;
@@ -61,18 +77,24 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
   // Fetch SMS credits balance on mount and when user or token changes
   useEffect(() => {
-    const loadBalance = async () => {
-      if (!user?.plan_id || !token) return;
+    const fetchBalance = async () => {
+      const plan_id = user?.plan_id; // Assuming `plan_id` is part of the `user` object
+      if (!plan_id || !token) return;
       try {
-        const subscriptionUsage = await getSubscriptionUsage(user.plan_id);
-        setBalance(subscriptionUsage.sms_credits);
+        const creditBalanceData = await getSubscriptionUsage(plan_id);
+        setBalance(creditBalanceData.sms_credits);
       } catch (err: any) {
-        setError(err.message || 'Failed to load balance');
+        console.error('Error fetching credit balance:', err);
+        setError('Failed to fetch credit balance. Please try again later.');
       }
     };
-    loadBalance();
-  }, [token, user]);
 
+    fetchBalance();
+  }, [user?.plan_id, token]);
+
+ 
+   
+  
   // Automatically open workspace modal if no workspaces exist
   useEffect(() => {
     if (workspaces.length === 0 && !workspaceLoading && !isWorkspaceModalOpen) {
@@ -528,11 +550,11 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             <div className="flex items-center gap-2 sm:gap-3">
               {/* Balance */}
               <div className="text-sm font-medium text-[#00333e] hidden md:block">
-                SMS Credits:{' '}
-                <span className="text-[#fddf0d]">
-                  {balance !== null ? balance : 'Loading...'}
-                </span>
-              </div>
+              SMS Credits:{' '}
+              <span className="text-[#fddf0d]">
+                {balance !== null ? balance : 'Loading...'}
+              </span>
+            </div>
 
               {/* Notifications */}
               <div className="relative">
