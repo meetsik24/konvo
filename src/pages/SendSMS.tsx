@@ -243,11 +243,11 @@ const SendSMS: React.FC = () => {
     fetchCampaignGroups();
   }, [selectedCampaignId, validGroups]);
 
-  // Generate AI message using the API endpoint
+  
   // Generate AI message using the API endpoint
 const generateAIMessage = async () => {
   if (!keywords.trim()) {
-    setError('Please enter keywords to generate a message.');
+    setError('Please prompts to generate sms.');
     return;
   }
 
@@ -256,7 +256,7 @@ const generateAIMessage = async () => {
 
   try {
     // Construct the prompt
-    const prompt = `Generate an SMS message based on the following keywords: ${keywords}`;
+    const prompt = `Generate an SMS message based the prompts: ${keywords}`;
     console.log('Calling generateMessage with prompt:', prompt);
 
     // Call the API (provider is now predefined as "anthropic" in generateMessage)
@@ -720,12 +720,12 @@ const generateAIMessage = async () => {
                 </div>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-[#00333e] mb-1">
-                    Keywords
+                    
                   </label>
                   <input
                     type="text"
-                    className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-                    placeholder="Enter keywords (e.g., sale, discount)"
+                    className="w-full text-sm py-2 min-h-[100px] px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    placeholder="Write a prompt to generate sms with AI"
                     value={keywords}
                     onChange={(e) => setKeywords(e.target.value)}
                   />
@@ -735,7 +735,7 @@ const generateAIMessage = async () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setIsAIModalOpen(false)}
-                    className="px-3 py-1 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+                    className="px-3 py-2 text-sm font-medium  text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
                   >
                     Cancel
                   </motion.button>
