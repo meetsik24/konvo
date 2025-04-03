@@ -63,11 +63,10 @@ const SenderID: React.FC = () => {
               sender_id: req.sender_id || req.name || '',
               name: req.name || req.sender_id || '',
               status: req.status || 'pending',
-              requested_at: req.requested_at,
-              reviewed_at: req.reviewed_at,
+              
               is_approved: req.status === 'approved',
-              approved_at: req.reviewed_at && req.status === 'approved' ? req.reviewed_at : undefined,
-              created_at: req.created_at || req.requested_at,
+              
+              
             }))
           : [];
 
@@ -86,7 +85,7 @@ const SenderID: React.FC = () => {
         setError(null);
       } catch (error: any) {
         console.error('Failed to fetch sender IDs:', error);
-        setError(error?.response?.data?.message || 'Unable to fetch sender ID requests from the server.');
+        setError(error?.response?.data?.message || 'Opps!! You dont have any active sender id for now!');
         setSenderIds([]);
       } finally {
         setIsLoading(false);
@@ -102,6 +101,10 @@ const SenderID: React.FC = () => {
     }
     setIsLoading(true);
     try {
+      if (!currentWorkspaceId) {
+        setError('No workspace selected.');
+        return;
+      }
       const response = await requestSenderId(currentWorkspaceId, { sender_id: newSenderId.trim() });
       const newRequest: SenderId = {
         request_id: response.request_id || Date.now().toString(),

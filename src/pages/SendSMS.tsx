@@ -90,7 +90,7 @@ const SendSMS: React.FC = () => {
   const [sendMode, setSendMode] = useState<'contacts' | 'campaign'>('contacts');
   const [manualContacts, setManualContacts] = useState('');
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [uploadedContacts, setUploadedContacts] = useState<string[]>([]);
+  // Removed unused uploadedContacts state
   const [isLoading, setIsLoading] = useState(false);
   const [useFallbackSenderIds, setUseFallbackSenderIds] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
@@ -285,7 +285,7 @@ const SendSMS: React.FC = () => {
         .split(/[\n,]+/)
         .map((phone) => phone.trim())
         .filter(Boolean);
-      setUploadedContacts(phoneNumbers);
+      // Removed setUploadedContacts as it is unused
       setManualContacts((prev) => (prev ? `${prev}\n${phoneNumbers.join('\n')}` : phoneNumbers.join('\n')));
       setIsImportModalOpen(false);
     };
@@ -721,8 +721,8 @@ const SendSMS: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-                    placeholder="Enter keywords (e.g., sale, discount)"
+                    className="w-full min-h-[100px] text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    placeholder="Write your sms prompt here!!"
                     value={keywords}
                     onChange={(e) => setKeywords(e.target.value)}
                   />
