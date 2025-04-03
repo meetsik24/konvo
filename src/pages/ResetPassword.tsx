@@ -6,7 +6,7 @@ import { Lock, ArrowLeft, CheckCircle } from 'lucide-react';
 import { setError } from '../store/slices/authSlice';
 import { resetPasswordWithOtp } from '../services/api';
 
-// Placeholder for the logo (replace with your actual logo)
+// Placeholder for the logo 
 import Logo from '/assets/briq2.png'; // Adjust the path to your logo file
 
 const ResetPassword: React.FC = () => {
