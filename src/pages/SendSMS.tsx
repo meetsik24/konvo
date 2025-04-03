@@ -243,30 +243,32 @@ const SendSMS: React.FC = () => {
     fetchCampaignGroups();
   }, [selectedCampaignId, validGroups]);
 
-  // Generate AI message using the new API endpoint
+  // Generate AI message using the API endpoint
   const generateAIMessage = async () => {
     if (!keywords.trim()) {
       setError('Please enter keywords to generate a message.');
       return;
     }
+
     setIsGenerating(true);
+    setError(null); // Clear previous errors
+
     try {
-      // Prepare the prompt from keywords
+      // Construct the prompt
       const prompt = `Generate an SMS message based on the following keywords: ${keywords}`;
-      const response = await generateMessage(prompt);
+      console.log('Calling generateMessage with prompt:', prompt);
 
-      // Assuming the API returns a JSON object with a 'message' field containing the generated SMS
-      // Adjust this based on the actual API response format
-      const generatedMessage = response.message || response.text || response;
-      if (typeof generatedMessage !== 'string') {
-        throw new Error('Invalid response format from message generation API');
-      }
+      // Call the API
+      const generatedMessage = await generateMessage(prompt);
 
+      console.log('Generated message:', generatedMessage);
+
+      // Update the message state
       setMessage(generatedMessage);
-      setError(null);
-      setIsAIModalOpen(false);
+      setIsAIModalOpen(false); // Close the modal on success
     } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Failed to generate AI message.';
+      const errorMessage = err.message || 'Failed to generate AI message. Please try again.';
+      console.error('Error generating AI message:', err);
       setError(errorMessage);
     } finally {
       setIsGenerating(false);
