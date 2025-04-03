@@ -855,18 +855,37 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
 
 
 // New function to generate an SMS message using the /draft_generate_message endpoint
-export const generateMessage = async (prompt: string) => {
+export const generateMessage = async (prompt: string): Promise<string> => {
   try {
     console.log('Sending request to /draft_generate_message with prompt:', prompt);
     const response = await api.post('/draft_generate_message', { prompt });
-    console.log('Response from /draft_generate_message:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Error in generateMessage:', error);
-    throw error; // Re-throw to handle in the component
+    console.log('Raw response from /draft_generate_message:', response.data);
+
+    // Handle different possible response formats
+    let generatedMessage: string;
+    if (typeof response.data === 'string') {
+      generatedMessage = response.data; // Direct string response
+    } else if (response.data && typeof response.data === 'object') {
+      // Try common field names
+      generatedMessage = response.data.message || response.data.text || response.data.generated_message || response.data.content;
+      if (!generatedMessage) {
+        // If no known field, try to find any string value
+        const stringValue = Object.values(response.data).find((val) => typeof val === 'string');
+        generatedMessage = stringValue || '';
+      }
+    } else {
+      throw new Error('Unexpected response format from /draft_generate_message');
+    }
+
+    if (!generatedMessage) {
+      throw new Error('No message content found in /draft_generate_message response');
+    }
+
+    return generatedMessage;
+  } catch (error: any) {
+    handleApiError(error, 'Failed to generate SMS message');
   }
 };
-
 
 
 export default api;
