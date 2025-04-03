@@ -141,6 +141,7 @@ const Register: React.FC = () => {
                 id="username"
                 name="username"
                 type="text"
+                autoComplete="username" // Added to help Chrome identify the username field
                 required
                 className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
                 placeholder="Username"
@@ -173,6 +174,7 @@ const Register: React.FC = () => {
                 id="email"
                 name="email"
                 type="email"
+                autoComplete="email" // Added to help Chrome identify the email field
                 required
                 className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
                 placeholder="Email address"
@@ -189,6 +191,7 @@ const Register: React.FC = () => {
                 id="mobileNumber"
                 name="mobileNumber"
                 type="tel"
+                autoComplete="tel" // Added to help Chrome identify the phone number field
                 required
                 className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
                 placeholder="Mobile number (e.g., 0xxxxxxxxxx)"
@@ -205,6 +208,7 @@ const Register: React.FC = () => {
                 id="password"
                 name="password"
                 type="password"
+                autoComplete="new-password" // Added to enable Chrome password suggestion
                 required
                 className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
                 placeholder="Password"
@@ -221,6 +225,7 @@ const Register: React.FC = () => {
                 id="confirmPassword"
                 name="confirmPassword"
                 type="password"
+                autoComplete="new-password" // Added to ensure Chrome treats this as part of the new password flow
                 required
                 className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
                 placeholder="Confirm password"
