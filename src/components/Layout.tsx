@@ -15,7 +15,7 @@ const Layout: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-gray-100"> {/* Added background class */}
       {/* Sidebar */}
       <Sidebar isSidebarOpen={isSidebarOpen} closeSidebar={closeSidebar} />
 
