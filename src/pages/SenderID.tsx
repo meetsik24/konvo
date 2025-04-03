@@ -229,26 +229,7 @@ const SenderID: React.FC = () => {
                     <p className="text-xs sm:text-sm text-gray-600 capitalize">
                       Status: {senderId.status || 'approved'}
                     </p>
-                    {senderId.created_at && (
-                      <p className="text-xs sm:text-sm text-gray-500">
-                        Created: {new Date(senderId.created_at).toLocaleDateString()}
-                      </p>
-                    )}
-                    {senderId.requested_at && (
-                      <p className="text-xs sm:text-sm text-gray-500">
-                        Requested: {new Date(senderId.requested_at).toLocaleDateString()}
-                      </p>
-                    )}
-                    {senderId.approved_at && (
-                      <p className="text-xs sm:text-sm text-gray-500">
-                        Approved: {new Date(senderId.approved_at).toLocaleDateString()}
-                      </p>
-                    )}
-                    {senderId.reviewed_at && (
-                      <p className="text-xs sm:text-sm text-gray-500">
-                        Reviewed: {new Date(senderId.reviewed_at).toLocaleDateString()}
-                      </p>
-                    )}
+                    
                   </div>
                   <div className="flex gap-1 sm:gap-2">
                     {isAdminView && senderId.status === 'pending' && (
