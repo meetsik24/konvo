@@ -45,9 +45,9 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
 
         {/* Workspace Section */}
         <div className="px-4 mb-4">
-          <h2 className="text-sm font-semibold text-white mb-3">Workspace</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">Workspace</h2>
           <div
-            className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+            className={`px-3 py-2 text-lg font-medium rounded-lg transition-all duration-200 ${
               isWorkspaceSelected
                 ? 'text-white bg-[#005a6e] border border-[#fddf0d]/20'
                 : 'text-gray-400 bg-[#002a36] italic'
@@ -61,13 +61,13 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-4">
+        <nav className="flex-1 space-y-4 px-2">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                `flex items-center px-3 py-2 text-lg font-medium rounded-lg transition-all duration-200 ${
                   !isWorkspaceSelected
                     ? 'text-gray-400 cursor-not-allowed bg-[#002a36]'
                     : isActive
