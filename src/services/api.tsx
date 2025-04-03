@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = " http://143.198.159.135:8000";
+const API_BASE_URL = " https://heading-to-paris-op.briq.tz";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -857,31 +857,21 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
 // New function to generate an SMS message using the /draft_generate_message endpoint
 export const generateMessage = async (prompt: string): Promise<string> => {
   try {
-    console.log('Sending request to /draft_generate_message with prompt:', prompt);
-    const response = await api.post('/draft_generate_message', { prompt });
-    console.log('Raw response from /draft_generate_message:', response.data);
+    const provider = 'anthropic'; // Predefine the provider as "anthropic"
+    console.log('Sending request to /draft:', prompt, 'and provider:', provider);
+    const response = await api.post('/draft', { prompt, provider });
+    console.log('Raw response from /draft:', response.data);
 
-    // Handle different possible response formats
-    let generatedMessage: string;
-    if (typeof response.data === 'string') {
-      generatedMessage = response.data; // Direct string response
-    } else if (response.data && typeof response.data === 'object') {
-      // Try common field names
-      generatedMessage = response.data.message || response.data.text || response.data.generated_message || response.data.content;
-      if (!generatedMessage) {
-        // If no known field, try to find any string value
-        const stringValue = Object.values(response.data).find((val) => typeof val === 'string');
-        generatedMessage = stringValue || '';
+    // Handle the response format based on the API specification
+    if (response.data && typeof response.data === 'object' && 'draft' in response.data) {
+      const generatedMessage = response.data.draft;
+      if (typeof generatedMessage !== 'string') {
+        throw new Error('The "draft" field in the response is not a string');
       }
+      return generatedMessage;
     } else {
       throw new Error('Unexpected response format from /draft_generate_message');
     }
-
-    if (!generatedMessage) {
-      throw new Error('No message content found in /draft_generate_message response');
-    }
-
-    return generatedMessage;
   } catch (error: any) {
     handleApiError(error, 'Failed to generate SMS message');
   }

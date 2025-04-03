@@ -11,7 +11,7 @@ import {
   sendInstantMessage,
   getMessageLogs,
   getWorkspaceGroups,
-  generateMessage, // Import the new API function
+  generateMessage,
 } from '../services/api';
 
 // Define interfaces for type safety
@@ -90,7 +90,7 @@ const SendSMS: React.FC = () => {
   const [sendMode, setSendMode] = useState<'contacts' | 'campaign'>('contacts');
   const [manualContacts, setManualContacts] = useState('');
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  // Removed unused uploadedContacts state
+  const [uploadedContacts, setUploadedContacts] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [useFallbackSenderIds, setUseFallbackSenderIds] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
@@ -161,7 +161,7 @@ const SendSMS: React.FC = () => {
             setSelectedSenderId('');
             setError('No approved sender IDs available');
           }
-        } catch {
+        } catch (senderIdError) {
           setSenderIds(FALLBACK_SENDER_IDS);
           setUseFallbackSenderIds(true);
           setSelectedSenderId(FALLBACK_SENDER_IDS[0].sender_id);
@@ -208,7 +208,7 @@ const SendSMS: React.FC = () => {
           setError(null);
         }
       } catch (err: any) {
-        const message = err.response?.data?.message || err.message || 'Failed to fetch data.';
+        const message = err.message || 'Failed to fetch data.';
         setError(message);
       } finally {
         setIsLoading(false);
@@ -244,36 +244,37 @@ const SendSMS: React.FC = () => {
   }, [selectedCampaignId, validGroups]);
 
   // Generate AI message using the API endpoint
-  const generateAIMessage = async () => {
-    if (!keywords.trim()) {
-      setError('Please enter keywords to generate a message.');
-      return;
-    }
+  // Generate AI message using the API endpoint
+const generateAIMessage = async () => {
+  if (!keywords.trim()) {
+    setError('Please enter keywords to generate a message.');
+    return;
+  }
 
-    setIsGenerating(true);
-    setError(null); // Clear previous errors
+  setIsGenerating(true);
+  setError(null); // Clear previous errors
 
-    try {
-      // Construct the prompt
-      const prompt = `Generate an SMS message based on the following keywords: ${keywords}`;
-      console.log('Calling generateMessage with prompt:', prompt);
+  try {
+    // Construct the prompt
+    const prompt = `Generate an SMS message based on the following keywords: ${keywords}`;
+    console.log('Calling generateMessage with prompt:', prompt);
 
-      // Call the API
-      const generatedMessage = await generateMessage(prompt);
+    // Call the API (provider is now predefined as "anthropic" in generateMessage)
+    const generatedMessage = await generateMessage(prompt);
 
-      console.log('Generated message:', generatedMessage);
+    console.log('Generated message:', generatedMessage);
 
-      // Update the message state
-      setMessage(generatedMessage);
-      setIsAIModalOpen(false); // Close the modal on success
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to generate AI message. Please try again.';
-      console.error('Error generating AI message:', err);
-      setError(errorMessage);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+    // Update the message state
+    setMessage(generatedMessage);
+    setIsAIModalOpen(false); // Close the modal on success
+  } catch (err: any) {
+    const errorMessage = err.message || 'Failed to generate AI message. Please try again.';
+    console.error('Error generating AI message:', err);
+    setError(errorMessage);
+  } finally {
+    setIsGenerating(false);
+  }
+};
 
   // Handle file upload for contacts
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -287,7 +288,7 @@ const SendSMS: React.FC = () => {
         .split(/[\n,]+/)
         .map((phone) => phone.trim())
         .filter(Boolean);
-      // Removed setUploadedContacts as it is unused
+      setUploadedContacts(phoneNumbers);
       setManualContacts((prev) => (prev ? `${prev}\n${phoneNumbers.join('\n')}` : phoneNumbers.join('\n')));
       setIsImportModalOpen(false);
     };
@@ -384,7 +385,7 @@ const SendSMS: React.FC = () => {
 
   // Get recipients for contacts mode
   const getContactRecipients = async (): Promise<string[]> => {
-    const recipientPhones: string[] = [];
+    let recipientPhones: string[] = [];
 
     if (manualContacts.trim()) {
       const manualPhones = manualContacts
@@ -454,7 +455,7 @@ const SendSMS: React.FC = () => {
           className="bg-yellow-50 border border-yellow-200 text-yellow-600 p-4 rounded-lg"
         >
           <p className="font-semibold text-sm">Warning</p>
-          <p className="text-sm">Ops!! Network issues! Please try again after some time!</p>
+          <p className="text-sm">Using fallback sender IDs due to API error.</p>
         </motion.div>
       )}
       {error && (
@@ -723,8 +724,8 @@ const SendSMS: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    className="w-full min-h-[100px] text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-                    placeholder="Write your sms prompt here!!"
+                    className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    placeholder="Enter keywords (e.g., sale, discount)"
                     value={keywords}
                     onChange={(e) => setKeywords(e.target.value)}
                   />

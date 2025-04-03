@@ -10,11 +10,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@lottiefiles/react-lottie-player": "^3.5.3",
     "@reduxjs/toolkit": "^2.2.1",
     "@types/papaparse": "^5.3.15",
     "axios": "^1.8.1",
+    "clsx": "^2.1.0",
+    "dotenv": "^16.4.7",
     "framer-motion": "^11.0.8",
     "jwt-decode": "^4.0.0",
+    "lottie-react": "^2.4.0",
     "lucide-react": "^0.475.0",
     "papaparse": "^5.5.2",
     "react": "^18.3.1",
@@ -25,10 +29,7 @@
     "recharts": "^2.12.2",
     "redux-persist": "^6.0.0",
     "redux-thunk": "^3.1.0",
-    "styled-components": "^6.1.15",
-    "@lottiefiles/react-lottie-player": "^3.5.3",
-    "lottie-react": "^2.4.0",
-    "clsx": "^2.1.0"
+    "styled-components": "^6.1.15"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
