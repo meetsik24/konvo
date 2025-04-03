@@ -112,10 +112,9 @@ const SenderID: React.FC = () => {
         sender_id: newSenderId.trim(),
         name: newSenderId.trim(),
         status: 'pending',
-        requested_at: response.requested_at || new Date().toISOString(),
-        reviewed_at: response.reviewed_at,
+      
         is_approved: false,
-        created_at: response.created_at || new Date().toISOString(),
+        
       };
       const updatedSenderIds = [...senderIds, newRequest];
       setSenderIds(updatedSenderIds);
