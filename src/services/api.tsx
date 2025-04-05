@@ -626,11 +626,25 @@ export const reviewSenderIdRequest = async (
 };
 
 export const getApprovedSenderIds = async (workspaceId: string): Promise<SenderId[]> => {
+  console.log("getApprovedSenderIds API call initiated for workspace:", workspaceId); // Added console log for consistency
   try {
     const response = await api.get(`/sender-ids/approved?workspace_id=${workspaceId}`);
+    console.log("getApprovedSenderIds API response:", response.data); // Added console log for consistency
+    // Ensure it's an array before returning
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    handleApiError(error, "Failed to fetch approved sender IDs");
+    // Check if the error is specifically a 'Not Found' error (e.g., 404)
+    // The exact check depends on your 'api' instance (e.g., axios)
+    if (error.response && error.response.status === 404) {
+      console.warn("No approved sender IDs found (404), returning empty array.");
+      return []; // Return an empty array gracefully
+    } else {
+      // For any other type of error, let the handler manage it
+      console.error("Error fetching approved sender IDs:", error); // Log the unexpected error
+      handleApiError(error, "Failed to fetch approved sender IDs");
+      // It's safer to return [] here too, in case handleApiError doesn't throw
+      return [];
+    }
   }
 };
 
