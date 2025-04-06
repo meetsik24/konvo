@@ -1,12 +1,8 @@
 import axios from 'axios';
 
-let API_BASE_URL;
-
-if (process.env.NODE_ENV === 'development') {
-  API_BASE_URL = process.env.REACT_APP_DEVELOPMENT_API_URL;
-} else {
-  API_BASE_URL = process.env.REACT_APP_PRODUCTION_API_URL;
-}
+const API_BASE_URL = import.meta.env.MODE === 'development'
+  ? import.meta.env.VITE_DEVELOPMENT_API_URL
+  : import.meta.env.VITE_PRODUCTION_API_URL;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -16,16 +12,19 @@ const api = axios.create({
   maxRedirects: 5,
 });
 
-// Enforce HTTPS for all requests
+// Enforce HTTPS for all requests in production
 api.interceptors.request.use(
   (config) => {
-    if (config.url && config.url.startsWith("http://")) {
-      config.url = config.url.replace("http://", "https://");
+    if (import.meta.env.MODE === 'production') {
+      if (config.url && config.url.startsWith("http://")) {
+        config.url = config.url.replace("http://", "https://");
+      }
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
+
 
 // Attach Token Automatically Before Each Request
 api.interceptors.request.use(
