@@ -162,11 +162,13 @@ const SendSMS: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [useFallbackSenderIds, setUseFallbackSenderIds] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [useAllContacts, setUseAllContacts] = useState(false); // New state for toggling "All Contacts"
 
-  // Cache for group contacts to avoid redundant API calls
+  // Cache for contacts to avoid redundant API calls
   const contactCache = useRef<Map<string, Contact[]>>(new Map());
+  const allContactsCache = useRef<Contact[] | null>(null); // Cache specifically for all contacts
 
-  // Fetch all contacts with pagination support (similar to Contacts component)
+  // Fetch all contacts with pagination support
   const fetchAllContacts = useCallback(
     async (workspaceId: string, groupId?: string) => {
       const perPage = 50;
@@ -174,23 +176,63 @@ const SendSMS: React.FC = () => {
       let totalPages = 1;
 
       try {
+        console.log(
+          `Fetching contacts for workspace ${workspaceId}${groupId ? `, group ${groupId}` : ''}, page 1`
+        );
         const firstResponse = groupId
           ? await getGroupContacts(workspaceId, groupId, 1, perPage)
           : await getContacts(workspaceId, 1, perPage);
+
+        console.log('First response:', firstResponse);
+
+        if (!firstResponse || typeof firstResponse !== 'object') {
+          throw new Error('Invalid response from API: Response is not an object');
+        }
+
         allContacts = firstResponse.contacts || [];
         totalPages = firstResponse.total_pages || 1;
 
-        if (totalPages > 1) {
-          const pageRequests = Array.from({ length: totalPages - 1 }, (_, i) =>
-            groupId
-              ? getGroupContacts(workspaceId, groupId, i + 2, perPage)
-              : getContacts(workspaceId, i + 2, perPage)
-          );
-          const responses = await Promise.all(pageRequests);
-          allContacts = [...allContacts, ...responses.flatMap((res) => res.contacts || [])];
+        if (!Array.isArray(allContacts)) {
+          console.warn('Contacts field is not an array:', allContacts);
+          throw new Error('Invalid response from API: Contacts field is not an array');
         }
+
+        console.log(`Total pages: ${totalPages}, Contacts on page 1: ${allContacts.length}`);
+
+        if (totalPages > 1) {
+          const pageRequests = Array.from({ length: totalPages - 1 }, (_, i) => {
+            const page = i + 2;
+            console.log(
+              `Fetching contacts for workspace ${workspaceId}${groupId ? `, group ${groupId}` : ''}, page ${page}`
+            );
+            return groupId
+              ? getGroupContacts(workspaceId, groupId, page, perPage)
+              : getContacts(workspaceId, page, perPage);
+          });
+
+          const responses = await Promise.all(pageRequests);
+          console.log('Subsequent page responses:', responses);
+
+          const additionalContacts = responses.flatMap((res) => {
+            if (!res || typeof res !== 'object') {
+              console.warn('Invalid page response:', res);
+              return [];
+            }
+            const contacts = res.contacts || [];
+            if (!Array.isArray(contacts)) {
+              console.warn('Contacts field in page response is not an array:', contacts);
+              return [];
+            }
+            return contacts;
+          });
+
+          allContacts = [...allContacts, ...additionalContacts];
+        }
+
+        console.log(`Total contacts fetched: ${allContacts.length}`);
         return allContacts;
       } catch (error: any) {
+        console.error('Error in fetchAllContacts:', error);
         throw new Error(`Failed to fetch contacts: ${error.message}`);
       }
     },
@@ -333,16 +375,16 @@ const SendSMS: React.FC = () => {
       const failedGroups: string[] = [];
 
       for (const groupId of groupIds) {
-        // Check cache first
         if (contactCache.current.has(groupId)) {
           const cachedContacts = contactCache.current.get(groupId)!;
           const phoneNumbers = cachedContacts
             .map((contact: Contact) => contact.phone_number)
             .filter((phone): phone is string => {
               const trimmedPhone = phone?.trim();
-              return !!trimmedPhone && /^\+?\d{10,15}$/.test(trimmedPhone); // Basic phone number validation
+              return !!trimmedPhone && /^\+?\d{10,15}$/.test(trimmedPhone);
             });
           recipientPhones.push(...phoneNumbers);
+          console.log(`Used cached contacts for group ${groupId}: ${phoneNumbers.length} phone numbers`);
           continue;
         }
 
@@ -356,14 +398,13 @@ const SendSMS: React.FC = () => {
             continue;
           }
 
-          // Cache the contacts
           contactCache.current.set(groupId, groupContacts);
 
           const phoneNumbers = groupContacts
             .map((contact: Contact) => contact.phone_number)
             .filter((phone): phone is string => {
               const trimmedPhone = phone?.trim();
-              return !!trimmedPhone && /^\+?\d{10,15}$/.test(trimmedPhone); // Basic phone number validation
+              return !!trimmedPhone && /^\+?\d{10,15}$/.test(trimmedPhone);
             });
           recipientPhones.push(...phoneNumbers);
           console.log(`Found ${phoneNumbers.length} contacts in group ${groupId}`);
@@ -377,10 +418,51 @@ const SendSMS: React.FC = () => {
         throw new Error(`Failed to fetch contacts for groups: ${failedGroups.join(', ')}`);
       }
 
-      return [...new Set(recipientPhones)]; // Deduplicate phone numbers
+      return [...new Set(recipientPhones)];
     },
     [currentWorkspaceId, fetchAllContacts]
   );
+
+  // Fetch all contacts in the workspace with caching
+  const fetchAllWorkspaceContacts = useCallback(async (): Promise<string[]> => {
+    if (!currentWorkspaceId) throw new Error('Workspace ID is null.');
+
+    // Check cache first
+    if (allContactsCache.current) {
+      console.log('Using cached all contacts');
+      const phoneNumbers = allContactsCache.current
+        .map((contact: Contact) => contact.phone_number)
+        .filter((phone): phone is string => {
+          const trimmedPhone = phone?.trim();
+          return !!trimmedPhone && /^\+?\d{10,15}$/.test(trimmedPhone);
+        });
+      return [...new Set(phoneNumbers)];
+    }
+
+    try {
+      console.log('Fetching all contacts in workspace using fetchAllContacts');
+      const allContacts = await fetchAllContacts(currentWorkspaceId);
+      if (!Array.isArray(allContacts)) {
+        console.warn('fetchAllContacts did not return an array. Received:', allContacts);
+        throw new Error('Failed to fetch all contacts: Invalid response format');
+      }
+
+      // Cache the contacts
+      allContactsCache.current = allContacts;
+
+      const phoneNumbers = allContacts
+        .map((contact: Contact) => contact.phone_number)
+        .filter((phone): phone is string => {
+          const trimmedPhone = phone?.trim();
+          return !!trimmedPhone && /^\+?\d{10,15}$/.test(trimmedPhone);
+        });
+      console.log(`Found ${phoneNumbers.length} contacts in workspace`);
+      return [...new Set(phoneNumbers)];
+    } catch (error: any) {
+      console.error('Failed to fetch all contacts:', error.message || error);
+      throw new Error('Failed to fetch all contacts: ' + error.message);
+    }
+  }, [currentWorkspaceId, fetchAllContacts]);
 
   // Get recipients for campaign mode
   const getCampaignRecipients = useCallback(async (): Promise<string[]> => {
@@ -404,13 +486,20 @@ const SendSMS: React.FC = () => {
   const getContactRecipients = useCallback(async (): Promise<string[]> => {
     let recipientPhones: string[] = [];
 
+    // If "All Contacts" is selected, fetch all contacts in the workspace
+    if (useAllContacts) {
+      const allPhones = await fetchAllWorkspaceContacts();
+      recipientPhones.push(...allPhones);
+      return [...new Set(recipientPhones)];
+    }
+
     // Process manual contacts with validation
     if (manualContacts.trim()) {
       const manualPhones = manualContacts
         .split(/[\n,]+/)
         .map((phone) => phone.trim())
         .filter((phone): phone is string => {
-          return !!phone && /^\+?\d{10,15}$/.test(phone); // Basic phone number validation
+          return !!phone && /^\+?\d{10,15}$/.test(phone);
         });
       if (manualPhones.length === 0 && manualContacts.trim()) {
         throw new Error('No valid phone numbers provided in manual contacts.');
@@ -425,8 +514,8 @@ const SendSMS: React.FC = () => {
       recipientPhones.push(...groupPhones);
     }
 
-    return [...new Set(recipientPhones)]; // Deduplicate phone numbers
-  }, [manualContacts, selectedGroups, fetchRecipientsFromGroups]);
+    return [...new Set(recipientPhones)];
+  }, [manualContacts, selectedGroups, useAllContacts, fetchRecipientsFromGroups, fetchAllWorkspaceContacts]);
 
   // Generate AI message using the API endpoint
   const generateAIMessage = async () => {
@@ -468,7 +557,7 @@ const SendSMS: React.FC = () => {
         .split(/[\n,]+/)
         .map((phone) => phone.trim())
         .filter((phone): phone is string => {
-          return !!phone && /^\+?\d{10,15}$/.test(phone); // Basic phone number validation
+          return !!phone && /^\+?\d{10,15}$/.test(phone);
         });
       setUploadedContacts(phoneNumbers);
       setManualContacts((prev) => (prev ? `${prev}\n${phoneNumbers.join('\n')}` : phoneNumbers.join('\n')));
@@ -482,6 +571,17 @@ const SendSMS: React.FC = () => {
     setSelectedGroups((prev) =>
       prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
     );
+  };
+
+  // Handle "All Contacts" toggle
+  const toggleAllContacts = () => {
+    setUseAllContacts((prev) => !prev);
+    if (!useAllContacts) {
+      // Clear other selections when "All Contacts" is enabled
+      setManualContacts('');
+      setSelectedGroups([]);
+      setUploadedContacts([]);
+    }
   };
 
   // Handle sending SMS
@@ -499,8 +599,13 @@ const SendSMS: React.FC = () => {
       setError('Please select a campaign.');
       return;
     }
-    if (sendMode === 'contacts' && !manualContacts.trim() && selectedGroups.length === 0) {
-      setError('Please enter at least one contact phone number or select a group.');
+    if (
+      sendMode === 'contacts' &&
+      !useAllContacts &&
+      !manualContacts.trim() &&
+      selectedGroups.length === 0
+    ) {
+      setError('Please enter at least one contact phone number, select a group, or choose "All Contacts".');
       return;
     }
     if (!message.trim()) {
@@ -524,8 +629,9 @@ const SendSMS: React.FC = () => {
         sender_id: selectedSenderId,
       });
 
-      // Clear cache after sending SMS to ensure fresh data on next fetch
+      // Clear caches after sending SMS to ensure fresh data on next fetch
       contactCache.current.clear();
+      allContactsCache.current = null;
 
       setMessage('');
       setSchedule('');
@@ -535,6 +641,7 @@ const SendSMS: React.FC = () => {
       setSelectedGroups([]);
       setUploadedContacts([]);
       setKeywords('');
+      setUseAllContacts(false);
 
       setShowSuccessNotification(true);
       setTimeout(() => setShowSuccessNotification(false), 3000);
@@ -748,58 +855,84 @@ const SendSMS: React.FC = () => {
               {sendMode === 'contacts' && (
                 <div>
                   <label className="block text-sm font-medium text-[#00333e] mb-1">Contacts</label>
-                  <textarea
-                    className="w-full min-h-[80px] text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-                    placeholder="Enter phone numbers (e.g., +255788344348, one per line or comma-separated)"
-                    value={manualContacts}
-                    onChange={(e) => setManualContacts(e.target.value)}
-                  />
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      type="button"
-                      onClick={() => setModalState((prev) => ({ ...prev, isGroupModalOpen: true }))}
-                      className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors"
-                    >
-                      Select Groups
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      type="button"
-                      onClick={() => setModalState((prev) => ({ ...prev, isImportModalOpen: true }))}
-                      className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors"
-                    >
-                      Import Contacts
-                    </motion.button>
+                  {/* Toggle for All Contacts */}
+                  <div className="mb-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={useAllContacts}
+                        onChange={toggleAllContacts}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm font-medium text-[#00333e]">Send to All Contacts</span>
+                    </label>
+                    {useAllContacts && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        This will send the SMS to all contacts in the workspace.
+                      </p>
+                    )}
                   </div>
-                  {/* Display selected groups */}
-                  {selectedGroups.length > 0 && (
-                    <div className="mt-2">
-                      <label className="block text-sm font-medium text-[#00333e] mb-1">
-                        Selected Groups
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedGroups.map((groupId) => {
-                          const group = validGroups.find((g) => g.group_id === groupId);
-                          return group ? (
-                            <span
-                              key={groupId}
-                              className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 px-2 py-1 rounded-lg"
-                            >
-                              {group.name}
-                              <button
-                                onClick={() => toggleGroupSelection(groupId)}
-                                className="text-gray-500 hover:text-red-500"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </span>
-                          ) : null;
-                        })}
+
+                  {/* Manual Contacts and Group Selection (disabled if All Contacts is selected) */}
+                  {!useAllContacts && (
+                    <>
+                      <textarea
+                        className="w-full min-h-[80px] text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                        placeholder="Enter phone numbers (e.g., +255788344348, one per line or comma-separated)"
+                        value={manualContacts}
+                        onChange={(e) => setManualContacts(e.target.value)}
+                        disabled={useAllContacts}
+                      />
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={() => setModalState((prev) => ({ ...prev, isGroupModalOpen: true }))}
+                          className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors disabled:bg-gray-200 disabled:text-gray-500"
+                          disabled={useAllContacts}
+                        >
+                          Select Groups
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          type="button"
+                          onClick={() => setModalState((prev) => ({ ...prev, isImportModalOpen: true }))}
+                          className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors disabled:bg-gray-200 disabled:text-gray-500"
+                          disabled={useAllContacts}
+                        >
+                          Import Contacts
+                        </motion.button>
                       </div>
-                    </div>
+                      {/* Display selected groups */}
+                      {selectedGroups.length > 0 && (
+                        <div className="mt-2">
+                          <label className="block text-sm font-medium text-[#00333e] mb-1">
+                            Selected Groups
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedGroups.map((groupId) => {
+                              const group = validGroups.find((g) => g.group_id === groupId);
+                              return group ? (
+                                <span
+                                  key={groupId}
+                                  className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 px-2 py-1 rounded-lg"
+                                >
+                                  {group.name}
+                                  <button
+                                    onClick={() => toggleGroupSelection(groupId)}
+                                    className="text-gray-500 hover:text-red-500"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </span>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
