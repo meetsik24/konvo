@@ -73,26 +73,26 @@ interface Group {
   count?: number;
 }
 
-interface ContactModalProps {
+// Generic Modal Props for reusability
+interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (contact: Partial<Contact>) => void;
-  contact: Partial<Contact>;
-  setContact: (contact: Partial<Contact>) => void;
-  groups: Group[];
   title: string;
-  isEdit: boolean;
+  children: React.ReactNode;
+  onSubmit?: () => void;
+  submitText?: string;
+  cancelText?: string;
 }
 
-const ContactModal: React.FC<ContactModalProps> = ({
+// Generic Modal Component to reduce redundancy
+const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
-  onSubmit,
-  contact,
-  setContact,
-  groups,
   title,
-  isEdit,
+  children,
+  onSubmit,
+  submitText = 'Submit',
+  cancelText = 'Cancel',
 }) => {
   if (!isOpen) return null;
 
@@ -106,72 +106,102 @@ const ContactModal: React.FC<ContactModalProps> = ({
           </button>
         </div>
         <div className="space-y-3 sm:space-y-4">
-          <div>
-            <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Name</label>
-            <input
-              type="text"
-              className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-              value={contact.name || ''}
-              onChange={(e) => setContact({ ...contact, name: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Phone Number</label>
-            <input
-              type="tel"
-              className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-              value={contact.phone_number || ''}
-              onChange={(e) => setContact({ ...contact, phone_number: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Email (Optional)</label>
-            <input
-              type="email"
-              className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-              value={contact.email || ''}
-              onChange={(e) => setContact({ ...contact, email: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Assign to Groups</label>
-            <select
-              multiple
-              className="w-full min-h-[80px] sm:min-h-[100px] text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-              value={contact群_ids || []}
-              onChange={(e) => {
-                const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
-                setContact({ ...contact, group_ids: selectedOptions });
-              }}
-            >
-              {groups
-                .filter((group) => group.group_id && group.group_id !== 'all')
-                .map((group) => (
-                  <option key={group.group_id} value={group.group_id}>
-                    {group.name || `Group ${group.group_id}`}
-                  </option>
-                ))}
-            </select>
-          </div>
+          {children}
           <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
             <button
               onClick={onClose}
               className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
             >
-              Cancel
+              {cancelText}
             </button>
-            <button
-              onClick={() => onSubmit(contact)}
-              className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
-            >
-              {title}
-            </button>
+            {onSubmit && (
+              <button
+                onClick={onSubmit}
+                className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
+              >
+                {submitText}
+              </button>
+            )}
           </div>
         </div>
       </div>
     </div>
+  );
+};
+
+interface ContactModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (contact: Partial<Contact>) => void;
+  contact: Partial<Contact>;
+  setContact: (contact: Partial<Contact>) => void;
+  groups: Group[];
+  title: string;
+}
+
+const ContactModal: React.FC<ContactModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  contact,
+  setContact,
+  groups,
+  title,
+}) => {
+  const handleSubmit = () => onSubmit(contact);
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={title} onSubmit={handleSubmit} submitText={title}>
+      <div>
+        <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Name</label>
+        <input
+          type="text"
+          className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+          value={contact.name || ''}
+          onChange={(e) => setContact({ ...contact, name: e.target.value })}
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Phone Number</label>
+        <input
+          type="tel"
+          className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+          value={contact.phone_number || ''}
+          onChange={(e) => setContact({ ...contact, phone_number: e.target.value })}
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Email (Optional)</label>
+        <input
+          type="email"
+          className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+          value={contact.email || ''}
+          onChange={(e) => setContact({ ...contact, email: e.target.value })}
+        />
+      </div>
+      <div>
+        <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Assign to Groups</label>
+        <select
+          multiple
+          className="w-full min-h-[80px] sm:min-h-[100px] text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+          value={contact.group_ids || []}
+          onChange={(e) => {
+            const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
+            setContact({ ...contact, group_ids: selectedOptions });
+          }}
+        >
+          {groups
+            .filter((group) => group.group_id && group.group_id !== 'all')
+            .map((group) => (
+              <option key={group.group_id} value={group.group_id}>
+                {group.name || `Group ${group.group_id}`}
+              </option>
+            ))}
+        </select>
+      </div>
+    </Modal>
   );
 };
 
@@ -187,8 +217,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
-
   const handleSubmit = () => {
     if (fileInputRef.current?.files?.[0]) {
       onSubmit(selectedGroup, fileInputRef.current.files[0]);
@@ -199,60 +227,36 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-md">
-        <div className="flex justify-between items-center mb-3 sm:mb-4">
-          <h2 className="text-lg sm:text-xl font-semibold text-[#00333e]">Import CSV</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-        </div>
-        <div className="space-y-3 sm:space-y-4">
-          <div>
-            <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Select Group</label>
-            <select
-              className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-              value={selectedGroup}
-              onChange={(e) => setSelectedGroup(e.target.value)}
-            >
-              <option value="all">All Contacts</option>
-              {groups
-                .filter((group) => group.group_id && group.group_id !== 'all')
-                .map((group) => (
-                  <option key={group.group_id} value={group.group_id}>
-                    {group.name || `Group ${group.group_id}`}
-                  </option>
-                ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Upload CSV File</label>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-              accept=".csv"
-              onChange={() => setError(null)}
-            />
-          </div>
-          {error && <div className="text-red-400 text-xs sm:text-sm">{error}</div>}
-          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-            <button
-              onClick={onClose}
-              className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
-            >
-              Import
-            </button>
-          </div>
-        </div>
+    <Modal isOpen={isOpen} onClose={onClose} title="Import CSV" onSubmit={handleSubmit} submitText="Import">
+      <div>
+        <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Select Group</label>
+        <select
+          className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+          value={selectedGroup}
+          onChange={(e) => setSelectedGroup(e.target.value)}
+        >
+          <option value="all">All Contacts</option>
+          {groups
+            .filter((group) => group.group_id && group.group_id !== 'all')
+            .map((group) => (
+              <option key={group.group_id} value={group.group_id}>
+                {group.name || `Group ${group.group_id}`}
+              </option>
+            ))}
+        </select>
       </div>
-    </div>
+      <div>
+        <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Upload CSV File</label>
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+          accept=".csv"
+          onChange={() => setError(null)}
+        />
+      </div>
+      {error && <div className="text-red-400 text-xs sm:text-sm">{error}</div>}
+    </Modal>
   );
 };
 
@@ -261,10 +265,12 @@ const Contacts: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
-  const [showAddContact, setShowAddContact] = useState(false);
-  const [showEditContact, setShowEditContact] = useState(false);
-  const [showAddGroup, setShowAddGroup] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+  const [modalState, setModalState] = useState({
+    showAddContact: false,
+    showEditContact: false,
+    showAddGroup: false,
+    showImportModal: false,
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [newContact, setNewContact] = useState<Partial<Contact>>({
     name: '',
@@ -283,43 +289,32 @@ const Contacts: React.FC = () => {
   const [newGroupName, setNewGroupName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAllContacts = useCallback(
     async (workspaceId: string, groupId?: string) => {
-      const perPage = 50; // Default perPage from API
+      const perPage = 50;
       let allContacts: Contact[] = [];
       let totalPages = 1;
-      let totalCount = 0;
 
       try {
-        // Fetch the first page to get total_count and total_pages
         const firstResponse = groupId
           ? await getGroupContacts(workspaceId, groupId, 1, perPage)
           : await getContacts(workspaceId, 1, perPage);
         allContacts = firstResponse.contacts || [];
-        totalCount = firstResponse.total_count || 0;
         totalPages = firstResponse.total_pages || 1;
 
-        console.log(`Total contacts: ${totalCount}, Total pages: ${totalPages}`);
-
         if (totalPages > 1) {
-          // Fetch remaining pages concurrently
-          const pageRequests = Array.from({ length: totalPages - 1 }, (_, i) => {
-            const page = i + 2; // Start from page 2
-            return groupId
-              ? getGroupContacts(workspaceId, groupId, page, perPage)
-              : getContacts(workspaceId, page, perPage);
-          });
-
+          const pageRequests = Array.from({ length: totalPages - 1 }, (_, i) =>
+            groupId
+              ? getGroupContacts(workspaceId, groupId, i + 2, perPage)
+              : getContacts(workspaceId, i + 2, perPage)
+          );
           const responses = await Promise.all(pageRequests);
-          const additionalContacts = responses.flatMap((res) => res.contacts || []);
-          allContacts = [...allContacts, ...additionalContacts];
+          allContacts = [...allContacts, ...responses.flatMap((res) => res.contacts || [])];
         }
-
         return allContacts;
       } catch (error: any) {
-        throw new Error(`Failed to fetch all contacts: ${error.message}`);
+        throw new Error(`Failed to fetch contacts: ${error.message}`);
       }
     },
     []
@@ -327,51 +322,35 @@ const Contacts: React.FC = () => {
 
   const fetchContactsAndGroups = useCallback(async () => {
     if (!currentWorkspaceId) {
-      console.error('No workspace selected. currentWorkspaceId is:', currentWorkspaceId);
       setError('No workspace selected.');
       return;
     }
 
     setIsLoading(true);
     try {
-      console.log('Fetching contacts for workspace:', currentWorkspaceId, 'and group:', selectedGroup);
-
-      // Fetch all contacts
       const contactsData = selectedGroup === 'all'
         ? await fetchAllContacts(currentWorkspaceId)
         : await fetchAllContacts(currentWorkspaceId, selectedGroup);
-      console.log('Fetched contacts:', contactsData.length);
 
-      // Fetch all groups
       const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
       const groupsData = Array.isArray(groupsResponse) ? groupsResponse : groupsResponse?.data || [];
-      console.log('Fetched groups:', groupsData);
 
-      // Build a mapping of contacts to their groups
       const contactToGroupsMap: { [contactId: string]: string[] } = {};
       contactsData.forEach((contact) => {
         contactToGroupsMap[contact.contact_id] = [];
       });
 
-      // Fetch group contacts to map contacts to groups
       const groupContactsPromises = groupsData.map(async (group) => {
-        try {
-          const groupContacts = await fetchAllContacts(currentWorkspaceId, group.group_id);
-          groupContacts.forEach((contact) => {
-            if (contactToGroupsMap[contact.contact_id]) {
-              contactToGroupsMap[contact.contact_id].push(group.group_id);
-            }
-          });
-          return { ...group, count: groupContacts.length };
-        } catch (err) {
-          console.warn(`Failed to fetch contacts for group ${group.group_id}:`, err);
-          return { ...group, count: 0 };
-        }
+        const groupContacts = await fetchAllContacts(currentWorkspaceId, group.group_id);
+        groupContacts.forEach((contact) => {
+          if (contactToGroupsMap[contact.contact_id]) {
+            contactToGroupsMap[contact.contact_id].push(group.group_id);
+          }
+        });
+        return { ...group, count: groupContacts.length };
       });
 
       const updatedGroups = await Promise.all(groupContactsPromises);
-
-      // Update contacts with their group_ids
       const updatedContacts = contactsData.map((contact) => ({
         ...contact,
         group_ids: contactToGroupsMap[contact.contact_id] || [],
@@ -381,7 +360,6 @@ const Contacts: React.FC = () => {
         group_id: 'all',
         name: 'All Contacts',
         workspace_id: currentWorkspaceId,
-        created_at: '',
         count: contactsData.length,
       };
 
@@ -389,11 +367,6 @@ const Contacts: React.FC = () => {
       setGroups([allGroup, ...updatedGroups]);
       setError(null);
     } catch (error: any) {
-      console.error('Fetch error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
       setError(error.message || 'An unexpected error occurred.');
     } finally {
       setIsLoading(false);
@@ -404,6 +377,18 @@ const Contacts: React.FC = () => {
     fetchContactsAndGroups();
   }, [fetchContactsAndGroups]);
 
+  const validateContact = (contact: Partial<Contact>): string | null => {
+    const { name, phone_number, email } = contact;
+    const trimmedName = name?.trim() || '';
+    const trimmedPhone = phone_number?.trim() || '';
+    const trimmedEmail = email?.trim() || '';
+
+    if (!trimmedName || !trimmedPhone) return 'Name and phone number are required.';
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail))
+      return 'Please enter a valid email address.';
+    return null;
+  };
+
   const handleAddContact = useCallback(
     async (contact: Partial<Contact>) => {
       if (!currentWorkspaceId) {
@@ -411,45 +396,33 @@ const Contacts: React.FC = () => {
         return;
       }
 
-      const { name, phone_number, email, group_ids } = contact;
-      const trimmedName = name?.trim() || '';
-      const trimmedPhone = phone_number?.trim() || '';
-      const trimmedEmail = email?.trim() || '';
-
-      if (!trimmedName || !trimmedPhone) {
-        setError('Name and phone number are required.');
-        return;
-      }
-
-      if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-        setError('Please enter a valid email address.');
+      const validationError = validateContact(contact);
+      if (validationError) {
+        setError(validationError);
         return;
       }
 
       try {
         const contactPayload = {
-          name: trimmedName,
-          phone_number: trimmedPhone,
-          email: trimmedEmail || '',
+          name: contact.name!.trim(),
+          phone_number: contact.phone_number!.trim(),
+          email: contact.email?.trim() || '',
           workspace_id: currentWorkspaceId,
         };
         const createdContact = await createContact(contactPayload);
 
-        if (group_ids && group_ids.length > 0) {
-          const groupsToAdd = group_ids.filter((groupId) => groupId !== 'all');
+        if (contact.group_ids?.length) {
+          const groupsToAdd = contact.group_ids.filter((groupId) => groupId !== 'all');
           await Promise.all(
-            groupsToAdd.map(async (groupId) => {
-              await addContactsToGroup(groupId, [createdContact.contact_id]);
-            })
+            groupsToAdd.map((groupId) => addContactsToGroup(groupId, [createdContact.contact_id]))
           );
         }
 
         await fetchContactsAndGroups();
-        setShowAddContact(false);
+        setModalState((prev) => ({ ...prev, showAddContact: false }));
         setNewContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
         setError(null);
       } catch (error: any) {
-        console.error('Error adding contact:', error);
         setError(error.message || 'Failed to add contact.');
       }
     },
@@ -463,58 +436,46 @@ const Contacts: React.FC = () => {
         return;
       }
 
-      const { contact_id, name, phone_number, email, group_ids } = contact;
-      const trimmedName = name?.trim() || '';
-      const trimmedPhone = phone_number?.trim() || '';
-      const trimmedEmail = email?.trim() || '';
-
-      if (!trimmedName || !trimmedPhone) {
-        setError('Name and phone number are required.');
-        return;
-      }
-
-      if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-        setError('Please enter a valid email address.');
+      const validationError = validateContact(contact);
+      if (validationError) {
+        setError(validationError);
         return;
       }
 
       try {
-        await updateContact(contact_id, {
-          name: trimmedName,
-          phone_number: trimmedPhone,
-          email: trimmedEmail || '',
+        await updateContact(contact.contact_id, {
+          name: contact.name!.trim(),
+          phone_number: contact.phone_number!.trim(),
+          email: contact.email?.trim() || '',
           workspace_id: currentWorkspaceId,
         });
 
-        if (group_ids) {
-          const contactToGroupsMap: { [contactId: string]: string[] } = { [contact_id]: [] };
+        if (contact.group_ids) {
+          const contactToGroupsMap: { [contactId: string]: string[] } = { [contact.contact_id]: [] };
           const groupsData = groups.filter((g) => g.group_id !== 'all');
           await Promise.all(
             groupsData.map(async (group) => {
               const groupContacts = await fetchAllContacts(currentWorkspaceId, group.group_id);
-              if (groupContacts.some((c) => c.contact_id === contact_id)) {
-                contactToGroupsMap[contact_id].push(group.group_id);
+              if (groupContacts.some((c) => c.contact_id === contact.contact_id)) {
+                contactToGroupsMap[contact.contact_id].push(group.group_id);
               }
             })
           );
-          const currentGroupIds = contactToGroupsMap[contact_id];
-          const groupsToAdd = group_ids.filter(
+          const currentGroupIds = contactToGroupsMap[contact.contact_id];
+          const groupsToAdd = contact.group_ids.filter(
             (groupId) => !currentGroupIds.includes(groupId) && groupId !== 'all'
           );
 
           await Promise.all(
-            groupsToAdd.map(async (groupId) => {
-              await addContactsToGroup(groupId, [contact_id]);
-            })
+            groupsToAdd.map((groupId) => addContactsToGroup(groupId, [contact.contact_id]))
           );
         }
 
         await fetchContactsAndGroups();
-        setShowEditContact(false);
+        setModalState((prev) => ({ ...prev, showEditContact: false }));
         setEditContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
         setError(null);
       } catch (error: any) {
-        console.error('Error updating contact:', error);
         setError(error.message || 'Failed to update contact.');
       }
     },
@@ -523,14 +484,7 @@ const Contacts: React.FC = () => {
 
   const handleDeleteContact = useCallback(
     async (contactId: string) => {
-      if (!contactId) {
-        setError('Contact ID is undefined. Cannot delete.');
-        console.error('Attempted to delete contact with undefined ID');
-        return;
-      }
-
-      if (!window.confirm('Are you sure you want to delete this contact?')) return;
-
+      if (!contactId || !window.confirm('Are you sure you want to delete this contact?')) return;
       if (!currentWorkspaceId) {
         setError('No workspace selected.');
         return;
@@ -541,7 +495,6 @@ const Contacts: React.FC = () => {
         await fetchContactsAndGroups();
         setError(null);
       } catch (error: any) {
-        console.error('Error deleting contact:', error);
         setError(error.message || 'Failed to delete contact.');
       }
     },
@@ -560,17 +513,12 @@ const Contacts: React.FC = () => {
           name: newGroupName.trim(),
           workspace_id: currentWorkspaceId,
         };
-        const createdGroup = await createGroup(groupPayload);
-        setGroups((prev) => [
-          ...prev,
-          { ...createdGroup, count: 0, created_at: new Date().toISOString() },
-        ]);
-        setShowAddGroup(false);
-        setNewGroupName('');
+        await createGroup(groupPayload);
         await fetchContactsAndGroups();
+        setModalState((prev) => ({ ...prev, showAddGroup: false }));
+        setNewGroupName('');
         setError(null);
       } catch (error: any) {
-        console.error('Error adding group:', error);
         setError(error.message || 'Failed to add group.');
       }
     },
@@ -588,7 +536,6 @@ const Contacts: React.FC = () => {
         await fetchContactsAndGroups();
         setError(null);
       } catch (error: any) {
-        console.error('Error deleting group:', error);
         setError(error.message || 'Failed to delete group.');
       }
     },
@@ -625,23 +572,17 @@ const Contacts: React.FC = () => {
             );
 
             if (groupId !== 'all') {
-              console.log('Assigning contacts to group:', groupId, createdContacts.map((c) => c.contact_id));
-              await addContactsToGroup(
-                groupId,
-                createdContacts.map((c) => c.contact_id)
-              );
+              await addContactsToGroup(groupId, createdContacts.map((c) => c.contact_id));
             }
 
             await fetchContactsAndGroups();
             setError(null);
             setSelectedGroup(groupId);
           } catch (error: any) {
-            console.error('Error importing contacts:', error);
             setError(error.message || 'Failed to import some contacts.');
           }
         },
-        error: (error) => {
-          console.error('CSV parsing error:', error);
+        error: () => {
           setError('Failed to parse the CSV file.');
         },
       });
@@ -660,72 +601,61 @@ const Contacts: React.FC = () => {
     window.URL.revokeObjectURL(url);
   }, []);
 
-  const columns: TableColumn<Contact>[] = [
-    {
-      name: 'Name',
-      selector: (row: Contact) => row.name,
-      sortable: true,
-    },
-    {
-      name: 'Phone',
-      selector: (row: Contact) => row.phone_number,
-      sortable: true,
-    },
-    {
-      name: 'Email',
-      selector: (row: Contact) => row.email || 'N/A',
-      sortable: true,
-      omit: window.innerWidth < 640, // Hide on mobile
-    },
-    {
-      name: 'Groups',
-      selector: (row: Contact) => {
-        const groupNames = (row.group_ids || [])
-          .map((groupId) => groups.find((g) => g.group_id === groupId)?.name)
-          .filter(Boolean)
-          .join(', ');
-        return groupNames || 'None';
+  const columns: TableColumn<Contact>[] = useMemo(
+    () => [
+      { name: 'Name', selector: (row) => row.name, sortable: true },
+      { name: 'Phone', selector: (row) => row.phone_number, sortable: true },
+      {
+        name: 'Email',
+        selector: (row) => row.email || 'N/A',
+        sortable: true,
+        omit: window.innerWidth < 640,
       },
-      sortable: false,
-      omit: window.innerWidth < 640, // Hide on mobile
-    },
-    {
-      name: 'Actions',
-      cell: (row: Contact) => (
-        <div className="flex justify-end gap-1 sm:gap-2">
-          <button
-            onClick={() => {
-              console.log('Editing contact:', row);
-              setEditContact({
-                contact_id: row.contact_id,
-                name: row.name,
-                phone_number: row.phone_number,
-                email: row.email,
-                workspace_id: row.workspace_id,
-                group_ids: row.group_ids || [],
-              });
-              setShowEditContact(true);
-            }}
-            className="p-2 rounded-full text-[#00333e] hover:bg-[#fddf0d] transition-colors duration-200"
-          >
-            <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-          <button
-            onClick={() => {
-              console.log('Deleting contact:', row);
-              handleDeleteContact(row.contact_id);
-            }}
-            className="p-2 rounded-full text-red-500 hover:bg-red-100 transition-colors duration-200"
-          >
-            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-        </div>
-      ),
-      ignoreRowClick: true,
-      allowOverflow: true,
-      button: true,
-    },
-  ];
+      {
+        name: 'Groups',
+        selector: (row) =>
+          (row.group_ids || [])
+            .map((groupId) => groups.find((g) => g.group_id === groupId)?.name)
+            .filter(Boolean)
+            .join(', ') || 'None',
+        sortable: false,
+        omit: window.innerWidth < 640,
+      },
+      {
+        name: 'Actions',
+        cell: (row: Contact) => (
+          <div className="flex justify-end gap-1 sm:gap-2">
+            <button
+              onClick={() => {
+                setEditContact({
+                  contact_id: row.contact_id,
+                  name: row.name,
+                  phone_number: row.phone_number,
+                  email: row.email,
+                  workspace_id: row.workspace_id,
+                  group_ids: row.group_ids || [],
+                });
+                setModalState((prev) => ({ ...prev, showEditContact: true }));
+              }}
+              className="p-2 rounded-full text-[#00333e] hover:bg-[#fddf0d] transition-colors duration-200"
+            >
+              <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+            <button
+              onClick={() => handleDeleteContact(row.contact_id)}
+              className="p-2 rounded-full text-red-500 hover:bg-red-100 transition-colors duration-200"
+            >
+              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </div>
+        ),
+        ignoreRowClick: true,
+        allowOverflow: true,
+        button: true,
+      },
+    ],
+    [groups, handleDeleteContact]
+  );
 
   const filteredContacts = useMemo(() => {
     return contacts.filter(
@@ -735,6 +665,51 @@ const Contacts: React.FC = () => {
         (contact.email && contact.email.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   }, [contacts, searchQuery]);
+
+  const customStyles = {
+    headCells: {
+      style: {
+        backgroundColor: '#f9fafb',
+        fontWeight: '600',
+        padding: '8px 12px',
+        fontSize: window.innerWidth < 640 ? '12px' : '14px',
+        color: '#00333e',
+      },
+    },
+    cells: {
+      style: {
+        padding: '8px 12px',
+        fontSize: window.innerWidth < 640 ? '12px' : '14px',
+        color: '#374151',
+      },
+    },
+    table: {
+      style: {
+        border: '1px solid #e5e7eb',
+        borderRadius: '8px',
+        overflow: 'auto',
+      },
+    },
+    pagination: {
+      style: {
+        borderTop: '1px solid #e5e7eb',
+        padding: '8px 10px',
+        fontSize: window.innerWidth < 640 ? '12px' : '14px',
+        color: '#00333e',
+      },
+    },
+    rows: {
+      style: {
+        '&:hover': {
+          backgroundColor: '#fddf0d',
+          color: '#00333e',
+        },
+      },
+      stripedStyle: {
+        backgroundColor: '#f9fafb',
+      },
+    },
+  };
 
   return (
     <ErrorBoundary>
@@ -750,7 +725,7 @@ const Contacts: React.FC = () => {
 
         {error && (
           <div className="text-red-400 mb-3 sm:mb-4 p-2 sm:p-3 rounded bg-red-50 text-xs sm:text-sm">
-            {typeof error === 'string' ? error : 'An unexpected error occurred.'}
+            {error}
           </div>
         )}
 
@@ -760,7 +735,7 @@ const Contacts: React.FC = () => {
               <div className="flex justify-between items-center mb-3 sm:mb-4">
                 <h2 className="text-base sm:text-lg font-semibold text-[#00333e]">Groups</h2>
                 <button
-                  onClick={() => setShowAddGroup(true)}
+                  onClick={() => setModalState((prev) => ({ ...prev, showAddGroup: true }))}
                   className="p-1 sm:p-2 rounded-full text-[#00333e] hover:bg-[#fddf0d] transition-colors duration-200"
                 >
                   <FolderPlus className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -778,9 +753,7 @@ const Contacts: React.FC = () => {
                       }`}
                     >
                       <span className="truncate">{group.name}</span>
-                      <span className="text-xs sm:text-sm ml-1 sm:ml-2">
-                        {group.count}
-                      </span>
+                      <span className="text-xs sm:text-sm ml-1 sm:ml-2">{group.count}</span>
                     </button>
                     {group.group_id !== 'all' && (
                       <button
@@ -809,7 +782,7 @@ const Contacts: React.FC = () => {
                         workspace_id: currentWorkspaceId || '',
                         group_ids: [],
                       });
-                      setShowAddContact(true);
+                      setModalState((prev) => ({ ...prev, showAddContact: true }));
                     }}
                     className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
                   >
@@ -817,7 +790,7 @@ const Contacts: React.FC = () => {
                     Add Contact
                   </button>
                   <button
-                    onClick={() => setShowImportModal(true)}
+                    onClick={() => setModalState((prev) => ({ ...prev, showImportModal: true }))}
                     className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
                   >
                     <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -864,50 +837,7 @@ const Contacts: React.FC = () => {
                     No contacts found.
                   </div>
                 }
-                customStyles={{
-                  headCells: {
-                    style: {
-                      backgroundColor: '#f9fafb',
-                      fontWeight: '600',
-                      padding: '8px 12px',
-                      fontSize: window.innerWidth < 640 ? '12px' : '14px',
-                      color: '#00333e',
-                    },
-                  },
-                  cells: {
-                    style: {
-                      padding: '8px 12px',
-                      fontSize: window.innerWidth < 640 ? '12px' : '14px',
-                      color: '#374151',
-                    },
-                  },
-                  table: {
-                    style: {
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      overflow: 'auto',
-                    },
-                  },
-                  pagination: {
-                    style: {
-                      borderTop: '1px solid #e5e7eb',
-                      padding: '8px 10px',
-                      fontSize: window.innerWidth < 640 ? '12px' : '14px',
-                      color: '#00333e',
-                    },
-                  },
-                  rows: {
-                    style: {
-                      '&:hover': {
-                        backgroundColor: '#fddf0d',
-                        color: '#00333e',
-                      },
-                    },
-                    stripedStyle: {
-                      backgroundColor: '#f9fafb',
-                    },
-                  },
-                }}
+                customStyles={customStyles}
                 highlightOnHover
                 striped
                 responsive
@@ -917,9 +847,9 @@ const Contacts: React.FC = () => {
         </div>
 
         <ContactModal
-          isOpen={showAddContact}
+          isOpen={modalState.showAddContact}
           onClose={() => {
-            setShowAddContact(false);
+            setModalState((prev) => ({ ...prev, showAddContact: false }));
             setNewContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
             setError(null);
           }}
@@ -928,13 +858,12 @@ const Contacts: React.FC = () => {
           setContact={setNewContact}
           groups={groups}
           title="Add Contact"
-          isEdit={false}
         />
 
         <ContactModal
-          isOpen={showEditContact}
+          isOpen={modalState.showEditContact}
           onClose={() => {
-            setShowEditContact(false);
+            setModalState((prev) => ({ ...prev, showEditContact: false }));
             setEditContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
             setError(null);
           }}
@@ -943,63 +872,34 @@ const Contacts: React.FC = () => {
           setContact={setEditContact}
           groups={groups}
           title="Edit Contact"
-          isEdit={true}
         />
 
-        {showAddGroup && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-md">
-              <div className="flex justify-between items-center mb-3 sm:mb-4">
-                <h2 className="text-lg sm:text-xl font-semibold text-[#00333e]">Add Group</h2>
-                <button
-                  onClick={() => {
-                    setShowAddGroup(false);
-                    setNewGroupName('');
-                    setError(null);
-                  }}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
-              <div className="space-y-3 sm:space-y-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Group Name</label>
-                  <input
-                    type="text"
-                    className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-                    value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-                  <button
-                    onClick={() => {
-                      setShowAddGroup(false);
-                      setNewGroupName('');
-                      setError(null);
-                    }}
-                    className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAddGroup}
-                    className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
-                  >
-                    Add Group
-                  </button>
-                </div>
-              </div>
-            </div>
+        <Modal
+          isOpen={modalState.showAddGroup}
+          onClose={() => {
+            setModalState((prev) => ({ ...prev, showAddGroup: false }));
+            setNewGroupName('');
+            setError(null);
+          }}
+          title="Add Group"
+          onSubmit={handleAddGroup}
+          submitText="Add Group"
+        >
+          <div>
+            <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Group Name</label>
+            <input
+              type="text"
+              className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+            />
           </div>
-        )}
+        </Modal>
 
         <ImportModal
-          isOpen={showImportModal}
+          isOpen={modalState.showImportModal}
           onClose={() => {
-            setShowImportModal(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+            setModalState((prev) => ({ ...prev, showImportModal: false }));
             setError(null);
           }}
           onSubmit={handleImportSubmit}

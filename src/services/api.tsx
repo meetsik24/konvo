@@ -415,23 +415,7 @@ export const getContacts = async (
   }
 };
 
-export const getGroupContacts = async (
-  workspaceId: string,
-  groupId: string,
-  page: number = 1,
-  perPage: number = 50
-): Promise<ContactsResponse> => {
-  try {
-    console.log(`Fetching contacts for group ${groupId} in workspace ${workspaceId}`);
-    const response = await api.get(`/workspaces/${workspaceId}/groups/${groupId}/contacts`, {
-      params: { page, per_page: perPage },
-    });
-    console.log(`Raw getGroupContacts response for group ${groupId}:`, response.data);
-    return response.data;
-  } catch (error: any) {
-    handleApiError(error, `Failed to fetch contacts for group ${groupId}`);
-  }
-};
+
 
 export const createContact = async (data: {
   name: string;
@@ -571,6 +555,27 @@ export const deleteGroup = async (groupId: string): Promise<void> => {
     handleApiError(error, "Failed to delete group");
   }
 };
+
+export const getGroupContacts = async (
+  workspaceId: string,
+  groupId: string,
+  page: number = 1,
+  perPage: number = 50
+): Promise<ContactsResponse> => {
+  try {
+    console.log(`Fetching contacts for group ${groupId} in workspace ${workspaceId}`);
+    const response = await api.get(`/workspaces/${workspaceId}/groups/${groupId}/contacts`, {
+      params: { page, per_page: perPage },
+    });
+    console.log(`Raw getGroupContacts response for group ${groupId}:`, response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, `Failed to fetch contacts for group ${groupId}`);
+  }
+};
+
+
+
 
 // SENDER IDS
 export const requestSenderId = async (workspaceId: string, data: { sender_id: string }): Promise<SenderId> => {
