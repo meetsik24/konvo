@@ -1,6 +1,12 @@
-import axios from "axios";
+import axios from 'axios';
 
-const API_BASE_URL = " https://heading-to-paris-op.briq.tz";
+let API_BASE_URL;
+
+if (process.env.NODE_ENV === 'development') {
+  API_BASE_URL = process.env.REACT_APP_DEVELOPMENT_API_URL;
+} else {
+  API_BASE_URL = process.env.REACT_APP_PRODUCTION_API_URL;
+}
 
 const api = axios.create({
   baseURL: API_BASE_URL,
