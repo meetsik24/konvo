@@ -1,180 +1,167 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { MessageSquare, MessageCircle, PhoneCall, PhoneForwarded } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Button } from "../components/ui/button";
+import { Typewriter } from "react-simple-typewriter";
+import { MessageSquare, MessageCircle, PhoneCall, PhoneForwarded } from "lucide-react";
+import simuImage from "../../../assets/simu2.png";
+import dashboard from "../../../assets/SMS.png";
+import simuImage2 from "../../../assets/Simu.png";
 
 const features = [
-  {
-    title: 'Bulk SMS',
-    description: 'Send and receive SMS messages globally with our robust API.',
-    icon: MessageSquare,
-  },
-  {
-    title: 'WhatsApp Business',
-    description: 'Engage with customers on WhatsApp using our official API.',
-    icon: MessageCircle,
-  },
-  {
-    title: 'Voice Solutions',
-    description: 'Crystal-clear voice calling capabilities with global coverage.',
-    icon: PhoneCall,
-  },
-  {
-    title: 'IVR System',
-    description: 'Create interactive voice response systems for your business.',
-    icon: PhoneForwarded,
-  },
+  { title: "Bulk SMS", desc: "Global SMS via API", icon: MessageSquare },
+  { title: "WhatsApp", desc: "Official WhatsApp API", icon: MessageCircle },
+  { title: "Voice", desc: "Clear global calls", icon: PhoneCall },
+  { title: "IVR", desc: "Interactive voice systems", icon: PhoneForwarded },
 ];
 
 export default function Home() {
   const navigate = useNavigate();
 
-  const handleGetStarted = () => {
-    navigate('/register');
-  };
+  // Image slideshow logic for Hero
+  const images = [simuImage, simuImage2, dashboard];
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const handleLogin = () => {
-    navigate('/login');
-  };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 3000); // Change image every 3 seconds
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, [images.length]);
 
   return (
-    <div className="min-h-screen font-sans bg-gradient-to-b from-[#0d262f] to-[#1a3c47] text-white">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-[#0d262f] border-b border-gray-700">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-white text-2xl font-bold">BRIQ</div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleLogin}
-              className="text-black bg-[#f5c518] px-4 py-2 rounded-lg hover:bg-[#f5c518]/90 transition-colors"
-            >
-              Login Now
-            </button>
-          </div>
+    <div className="min-h-screen bg-[#1a3c47] text-white font-sans">
+      {/* Nav */}
+      <nav className="fixed top-0 w-full p-4 bg-[#1a3c47] z-50">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <div className="text-2xl font-bold">BRIQ</div>
+          <button
+            onClick={() => navigate("/login")}
+            className="px-4 py-2 bg-[#f5c518] text-black rounded-md hover:bg-[#f5c518]/80"
+          >
+            Login
+          </button>
         </div>
       </nav>
 
-      {/* Hero Section with Background Image */}
+      {/* Hero */}
       <section
-        className="pt-32 pb-20 bg-[#1a3c47] bg-opacity-80 relative"
-        style={{
-          backgroundImage: `url(/assets/hero.png)`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}
+        className="h-[80vh] bg-[#00333e] text-white flex items-center relative overflow-hidden font-exo"
       >
-        {/* Overlay for Readability */}
-        <div className="absolute inset-0 bg-[#1a3c47] bg-opacity-70 z-0"></div>
-        <div className="container mx-auto px-4 relative z-10">
+        {/* Animated Texture Background */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 tech-circuit-bg animate-circuit-move" />
+          <div className="absolute inset-0 particle-bg animate-particle-move" />
+        </div>
+
+        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-center relative z-10 gap-8">
+          {/* Left Side: Text Content */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="max-w-4xl mx-auto text-center"
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="md:w-1/2 flex flex-col justify-center text-center md:text-left"
           >
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-              Instant & Reliable
-              <br />
-              <span className="text-[#f5c518]">Customer Management <br />Solutions</span>
-            </h1>
-            <p className="text-xl text-gray-200 mb-8">
-              Reach your audience instantly with customized messages for
-              promotions, notifications, updates, and reminders in Tanzania.
-            </p>
-            <motion.button
-              onClick={handleGetStarted}
-              className="mt-6 inline-block bg-[#f5c518] text-black px-6 py-3 rounded-lg font-semibold hover:bg-[#f5c518]/90 transition-colors"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
+            <h1
+              className="text-5xl md:text-6xl font-bold mb-6 leading-tight"
+              style={{ fontFamily: "Exo, sans-serif" }}
             >
-              Get Started
-            </motion.button>
+              Connect with{" "}
+              <span className="text-[#fddf0d] [text-shadow:_0_0_10px_rgba(253,223,13,0.3)]">
+                Briq
+              </span>
+              <br />
+              <span className="text-white">
+                <Typewriter
+                  words={["Instant Messaging", "Seamless APIs", "Engage Customers"]}
+                  loop={Infinity}
+                  cursor
+                  cursorStyle="|"
+                  typeSpeed={70}
+                  deleteSpeed={50}
+                  delaySpeed={1000}
+                />
+              </span>
+            </h1>
+            <p
+              className="text-lg text-[#6f888c] mb-8 max-w-md mx-auto md:mx-0 leading-relaxed"
+              style={{ fontFamily: "Exo, sans-serif" }}
+            >
+              Reach your audience with tailored messages in Tanzania.
+            </p>
+            <div className="flex gap-4 justify-center md:justify-start">
+              <Button
+                onClick={() => navigate("/register")}
+                className="bg-[#fddf0d] hover:bg-[#e5c90c] text-[#00333e] px-6 py-2 rounded-lg transition-all duration-300 hover:scale-105 [box-shadow:_0_0_15px_rgba(253,223,13,0.5)]"
+                style={{ fontFamily: "Exo, sans-serif" }}
+              >
+                Sign Up
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/documentation")}
+                className="text-white border-[#6f888c] hover:bg-[#6f888c]/20 px-6 py-2 rounded-lg transition-all duration-300 hover:scale-105"
+                style={{ fontFamily: "Exo, sans-serif" }}
+              >
+                Access the Developer Documentation
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* Right Side: Alternating Images with Motion */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+            className="md:w-1/2 flex justify-center items-center"
+          >
+            <div className="relative w-full h-[700px]">
+              {images.map((image, index) => (
+                <img
+                  key={index}
+                  src={image}
+                  alt={`Hero Image ${index + 1}`}
+                  className={`w-full h-full object-contain rounded-lg absolute top-0 left-0 transition-opacity duration-1000 ${
+                    index === currentImageIndex ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              ))}
+            </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 bg-[#1a3c47] bg-opacity-80">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+      {/* Features */}
+      <section className="py-16">
+        <div className="max-w-6xl mx-auto px-4">
+          <motion.h2
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-3xl font-bold text-center mb-12"
           >
-            <h2 className="text-4xl font-bold text-white mb-4">
-              Grow Your Business With BRIQ
-            </h2>
-            <p className="text-lg text-gray-300">
-              Explore how our bulk SMS, SMS API, and OTP solutions can transform your business in Tanzania
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, index) => (
+            Grow with BRIQ
+          </motion.h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {features.map((feature, i) => (
               <motion.div
                 key={feature.title}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="p-6 bg-[#2a4b57] rounded-xl shadow-sm hover:shadow-md transition-all"
+                transition={{ delay: i * 0.1 }}
+                className="p-6 bg-[#2a4b57] rounded-md text-center"
               >
-                <feature.icon className="h-16 w-16 text-[#f5c518] mb-4 mx-auto" />
-                <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
-                <p className="text-gray-300">{feature.description}</p>
+                <feature.icon className="h-12 w-12 text-[#f5c518] mx-auto mb-4" />
+                <h3 className="font-semibold mb-2">{feature.title}</h3>
+                <p className="text-gray-300 text-sm">{feature.desc}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-[#0d262f] py-12 border-t border-gray-700">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Logo and Tagline */}
-            <div>
-              <h3 className="text-2xl font-bold text-white mb-4">BRIQ SOLUTIONS INC.</h3>
-              <p className="text-gray-300">
-                Instant & Reliable Customer Management Solutions in Tanzania
-              </p>
-            </div>
-
-            {/* Contact Information */}
-            <div>
-              <h4 className="text-lg font-semibold text-white mb-4">Contact Us</h4>
-              <p className="text-gray-300">
-                Phone: <a href="tel:+255788344348" className="text-[#f5c518] hover:underline">+255788344348</a>
-              </p>
-              <p className="text-gray-300">
-                Email: <a href="mailto:sms@briq.tz" className="text-[#f5c518] hover:underline">sms@briq.tz</a>
-              </p>
-            </div>
-
-            {/* Quick Links */}
-            <div>
-              <h4 className="text-lg font-semibold text-white mb-4">Quick Links</h4>
-              <ul>
-                <li>
-                  <a href="#" className="text-gray-300 hover:text-[#f5c518] transition-colors">Privacy Policy</a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-300 hover:text-[#f5c518] transition-colors">Terms of Service</a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-300 hover:text-[#f5c518] transition-colors">Support</a>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-8 pt-8 border-t border-gray-700 text-center">
-            <p className="text-gray-400">© BRIQ 2025. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+     
     </div>
   );
 }
