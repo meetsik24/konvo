@@ -1,14 +1,14 @@
+// Karibu/components/Navbar.jsx
 import React, { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
-import { Menu, X } from "lucide-react"; // Import hamburger and close icons
-import { useNavigate } from "react-router-dom"; // Import useNavigate for routing
+import { Menu, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import logo from "../../../assets/briq.png";
 
-// Navbar component
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const navigate = useNavigate(); // Hook for programmatic navigation
+  const navigate = useNavigate();
 
   // Handle scroll effect
   useEffect(() => {
@@ -38,19 +38,19 @@ function Navbar() {
         behavior: "smooth",
       });
     }
-    toggleMobileMenu(); // Close mobile menu after clicking
+    toggleMobileMenu();
   };
 
   // Handle navigation to documentation
   const handleDocumentationClick = () => {
-    window.location.href = "https://www.briq.tz/developer-docs";
-    toggleMobileMenu(); // Close mobile menu after clicking
+    navigate("/documentation");
+    toggleMobileMenu();
   };
 
   // Handle navigation to login
   const handleLoginClick = () => {
     navigate("/login");
-    toggleMobileMenu(); // Close mobile menu after clicking
+    toggleMobileMenu();
   };
 
   return (
@@ -105,7 +105,7 @@ function Navbar() {
             Pricing
           </a>
           <a
-            href="#documentation"
+            href="/documentation"
             onClick={(e) => {
               e.preventDefault();
               handleDocumentationClick();
@@ -167,7 +167,7 @@ function Navbar() {
             Pricing
           </a>
           <a
-            href="#documentation"
+            href="/documentation"
             onClick={(e) => {
               e.preventDefault();
               handleDocumentationClick();
