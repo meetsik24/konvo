@@ -92,15 +92,15 @@ const Landing = () => {
 
 // New Documentation Component for API Documentation Pages
 const Documentation = () => {
+  const location = useLocation();
+  const showSidebar = !location.pathname.endsWith('/home'); // Hide sidebar on /documentation/home
+
   return (
     <DocumentationLayout>
       <DocumentationNavbar />
-      <div className="flex">
-        <DocSidebar 
-          activeSection="home" 
-          onSectionChange={(section) => console.log('Section changed to:', section)} 
-        />
-        <div className="flex-1 p-6 bg-gray-50">
+      <div className="flex min-h-[calc(100vh-80px)] transition-all duration-300">
+        {showSidebar && <DocSidebar />}
+        <div className={`flex-1 ${showSidebar ? 'p-4 sm:p-6' : ''}`}>
           <Routes>
             <Route path="home" element={<DocumentationHome />} />
             <Route path="otherendpoints" element={<OtherEndpoints />} />

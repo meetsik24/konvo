@@ -1,47 +1,104 @@
-import React from 'react';
+// Karibu/components/Sidebar.jsx (from previous update)
+import React, { useState } from "react";
+import { NavLink } from "react-router-dom";
+import { X, Menu } from "lucide-react";
 
-interface SidebarProps {
-  activeSection: string;
-  onSectionChange: (section: string) => void;
+function DocumentationSidebar() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  return (
+    <div className="relative">
+      {/* Mobile Toggle Button */}
+      <div className="md:hidden p-4 bg-[#00333e] text-white">
+        <button onClick={toggleMobileMenu} className="flex items-center gap-2">
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          <span className="text-lg font-semibold">Menu</span>
+        </button>
+      </div>
+
+      {/* Sidebar */}
+      <aside
+        className={`${
+          isMobileMenuOpen ? "block" : "hidden"
+        } md:block fixed md:sticky top-0 md:top-[80px] left-0 w-64 h-screen md:h-[calc(100vh-80px)] bg-[#00333e] text-white p-6 shadow-lg rounded-r-lg font-exo transition-all duration-300 z-40 overflow-y-auto`}
+      >
+        {/* Sidebar Header */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-[#fddf0d] [text-shadow:_0_0_10px_rgba(253,223,13,0.3)]">
+            Briq API Docs
+          </h2>
+        </div>
+
+        {/* Navigation Links */}
+        <nav className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-300 mb-3">Documentation</h3>
+            <ul className="space-y-2">
+              <li>
+                <NavLink
+                  to="/documentation/home"
+                  className={({ isActive }) =>
+                    `block px-4 py-2 rounded-lg text-sm transition-colors duration-300 ${
+                      isActive
+                        ? "bg-[#fddf0d] text-[#00333e] font-semibold"
+                        : "text-gray-300 hover:bg-[#fddf0d]/20 hover:text-white"
+                    }`
+                  }
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Home
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="/documentation/sendsms"
+                  className={({ isActive }) =>
+                    `block px-4 py-2 rounded-lg text-sm transition-colors duration-300 ${
+                      isActive
+                        ? "bg-[#fddf0d] text-[#00333e] font-semibold"
+                        : "text-gray-300 hover:bg-[#fddf0d]/20 hover:text-white"
+                    }`
+                  }
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Send SMS
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="/documentation/otherendpoints"
+                  className={({ isActive }) =>
+                    `block px-4 py-2 rounded-lg text-sm transition-colors duration-300 ${
+                      isActive
+                        ? "bg-[#fddf0d] text-[#00333e] font-semibold"
+                        : "text-gray-300 hover:bg-[#fddf0d]/20 hover:text-white"
+                    }`
+                  }
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Other Endpoints
+                </NavLink>
+              </li>
+            </ul>
+          </div>
+
+          <div className="mt-6">
+            <NavLink
+              to="/"
+              className="block px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-[#fddf0d]/20 hover:text-white transition-colors duration-300"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Get Back to Briq
+            </NavLink>
+          </div>
+        </nav>
+      </aside>
+    </div>
+  );
 }
 
-const DocSidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange }) => {
-  return (
-    <aside className="w-64 h-screen sticky top-0 border-r border-gray-800 p-6 bg-[#00333e] text-white shadow-xl">
-      <nav className="space-y-3">
-        <button
-          className={`w-full text-left px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-            activeSection === 'home'
-              ? 'bg-gray-700 text-[#fddf0d] shadow-md'
-              : 'text-gray-300 hover:bg-gray-800 hover:text-[#fddf0d]'
-          }`}
-          onClick={() => onSectionChange('home')}
-        >
-          Home
-        </button>
-        <button
-          className={`w-full text-left px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-            activeSection === 'sms'
-              ? 'bg-gray-700 text-[#fddf0d] shadow-md'
-              : 'text-gray-300 hover:bg-gray-800 hover:text-[#fddf0d]'
-          }`}
-          onClick={() => onSectionChange('sms')}
-        >
-          Send SMS
-        </button>
-        <button
-          className={`w-full text-left px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-            activeSection === 'other'
-              ? 'bg-gray-700 text-[#fddf0d] shadow-md'
-              : 'text-gray-300 hover:bg-gray-800 hover:text-[#fddf0d]'
-          }`}
-          onClick={() => onSectionChange('other')}
-        >
-          Other Endpoints
-        </button>
-      </nav>
-    </aside>
-  );
-};
-
-export default DocSidebar;
+export default DocumentationSidebar;
