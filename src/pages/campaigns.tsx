@@ -35,6 +35,7 @@ const SMSCampaigns: React.FC = () => {
   const [newCampaign, setNewCampaign] = useState({
     name: '',
     description: '',
+    launch_date: '', // Added launch_date to state
   });
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -101,6 +102,7 @@ const SMSCampaigns: React.FC = () => {
       const campaignPayload = {
         name: campaignData.name,
         description: campaignData.description,
+        launch_date: campaignData.launch_date || undefined, // Include launch_date if provided
         workspace_id: currentWorkspaceId,
       };
 
@@ -108,6 +110,7 @@ const SMSCampaigns: React.FC = () => {
         const updatePayload = {
           name: campaignData.name,
           description: campaignData.description,
+          launch_date: campaignData.launch_date || undefined, // Include launch_date for update
         };
         const updatedCampaign = await updateCampaign(editingCampaign.campaign_id, updatePayload);
         setCampaigns(
@@ -122,7 +125,7 @@ const SMSCampaigns: React.FC = () => {
           const updatedGroups = await getCampaignGroups(createdCampaign.campaign_id);
           setCampaignGroups({ ...campaignGroups, [createdCampaign.campaign_id]: updatedGroups });
         }
-        setNewCampaign({ name: '', description: '' });
+        setNewCampaign({ name: '', description: '', launch_date: '' }); // Reset launch_date
         setSelectedGroupId('');
       }
       setError(null);
@@ -161,6 +164,7 @@ const SMSCampaigns: React.FC = () => {
     setNewCampaign({
       name: campaign.name,
       description: campaign.description,
+      launch_date: campaign.launch_date || '', // Set launch_date for editing
     });
   };
 
@@ -244,6 +248,29 @@ const SMSCampaigns: React.FC = () => {
               </span>
             </div>
           </div>
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Launch Date (Optional)
+            </label>
+            <input
+              type="datetime-local"
+              className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+              value={editingCampaign?.launch_date || newCampaign.launch_date}
+              onChange={(e) =>
+                editingCampaign
+                  ? setEditingCampaign({ ...editingCampaign, launch_date: e.target.value })
+                  : setNewCampaign({ ...newCampaign, launch_date: e.target.value })
+              }
+            />
+            {(editingCampaign?.launch_date || newCampaign.launch_date) && (
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                Scheduled for:{' '}
+                {new Date(
+                  editingCampaign?.launch_date || newCampaign.launch_date
+                ).toLocaleString()}
+              </p>
+            )}
+          </div>
           {!editingCampaign && (
             <div>
               <button
@@ -266,7 +293,7 @@ const SMSCampaigns: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setEditingCampaign(null);
-                  setNewCampaign({ name: '', description: '' });
+                  setNewCampaign({ name: '', description: '', launch_date: '' });
                 }}
                 className="text-xs sm:text-sm text-[#00333e] hover:bg-[#fddf0d] px-2 sm:px-3 py-1 rounded-lg transition-colors"
               >
@@ -355,6 +382,11 @@ const SMSCampaigns: React.FC = () => {
                         ? `${campaign.description.substring(0, 30)}...`
                         : campaign.description}
                     </p>
+                    {campaign.launch_date && (
+                      <p className="text-xs sm:text-sm text-gray-600">
+                        Launch Date: {new Date(campaign.launch_date).toLocaleString()}
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-1 sm:gap-2 mt-1">
                       {campaignGroups[campaign.campaign_id]?.map((group) => (
                         <span
@@ -370,7 +402,7 @@ const SMSCampaigns: React.FC = () => {
                     <button
                       onClick={() => setIsGroupModalOpen(true)}
                       className="text-[#00333e] hover:text-[#fddf0d]"
-                      onMouseDown={() => setEditingCampaign(campaign)} // Set campaign for group assignment
+                      onMouseDown={() => setEditingCampaign(campaign)}
                     >
                       <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
