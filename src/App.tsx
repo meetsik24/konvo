@@ -16,6 +16,13 @@ import Pricing from './landing/pages/Pricing';
 import Navbar from './landing/components/Navbar';
 import { Footer } from './landing/components/Footer';
 
+// Documentation Pages
+import DocumentationHome from './Karibu/pages/Home';
+import OtherEndpoints from './Karibu/pages/OtherEndpoints';
+import SendSMSAPI from './Karibu/pages/SendSMS';
+
+
+
 // Dashboard Components
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -24,7 +31,7 @@ import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
 import Account from './pages/Account';
 import NotFound from './pages/NotFound';
-import SendSMS from './pages/SendSMS';
+import SendSMS from './pages/SendSMS'; // Renamed to avoid conflict
 import SendEmail from './pages/SendEmail';
 import Voice from './pages/Voice';
 import Chatbot from './pages/Chatbot';
@@ -39,7 +46,7 @@ import { WorkspaceProvider } from './pages/WorkspaceContext';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// New Landing Component combining Hero, Features, Pricing, Navbar, and Footer
+// New Landing Component combining Home, Features, Pricing, Navbar, and Footer
 const Landing = () => {
   useGSAP(() => {
     gsap.fromTo(
@@ -73,6 +80,22 @@ const Landing = () => {
       <div id="footer">
         <Footer />
       </div>
+    </div>
+  );
+};
+
+// New Documentation Component for API Documentation Pages
+const Documentation = () => {
+  return (
+    <div className="bg-gray-50">
+      <Navbar />
+      <Routes>
+        <Route path="home" element={<DocumentationHome />} />
+        <Route path="otherendpoints" element={<OtherEndpoints />} />
+        <Route path="sendsms" element={<SendSMSAPI />} />
+        <Route path="/" element={<Navigate to="home" replace />} />
+      </Routes>
+      <Footer />
     </div>
   );
 };
@@ -114,6 +137,9 @@ function App() {
                 <Routes>
                   {/* Landing Page Route */}
                   <Route path="/" element={<Landing />} />
+
+                  {/* Documentation Routes */}
+                  <Route path="/documentation/*" element={<Documentation />} />
 
                   {/* Authentication Routes */}
                   <Route path="/login" element={<Login />} />

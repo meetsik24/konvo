@@ -1,7 +1,7 @@
 // Layout.tsx
 import React, { useState } from 'react';
-import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
+import Navbar from './Navbar';
+import Sidebar from './Sidebar';
 import Home from '../pages/Home';
 import SendSMS from '../pages/SendSMS';
 import OtherEndpoints from '../pages/OtherEndpoints';

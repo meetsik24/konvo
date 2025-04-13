@@ -4,7 +4,7 @@ import JsonView from '../components/JsonView';
 import EndpointCard from '../components/EndpointCard';
 import { endpoints } from '../data/endpoints';
 
-const SendSMS: React.FC = () => {
+const SendSMSAPI: React.FC = () => {
   const [expandedEndpoint, setExpandedEndpoint] = useState<string>('POST:/v1/sms/send'); // Single active endpoint
   const [selectedEndpoint, setSelectedEndpoint] = useState(endpoints[0]);
   const [code, setCode] = useState(selectedEndpoint.sampleCode);
@@ -84,4 +84,4 @@ const SendSMS: React.FC = () => {
   );
 };
 
-export default SendSMS;
+export default SendSMSAPI;

@@ -23,6 +23,12 @@ function Home() {
     return () => clearInterval(interval); // Cleanup on unmount
   }, [images.length]);
 
+  // Function to handle navigation and scroll to top
+  const handleNavigate = (path) => {
+    navigate(path);
+    window.scrollTo({ top: 0, behavior: "smooth" }); // Scroll to top on navigation
+  };
+
   return (
     <div className="bg-[#1a3c47] text-white font-sans">
       {/* Hero */}
@@ -72,7 +78,7 @@ function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
               <Button
-                onClick={() => navigate("/register")}
+                onClick={() => handleNavigate("/register")}
                 className="bg-[#fddf0d] hover:bg-[#e5c90c] text-[#00333e] px-6 py-2 rounded-lg text-base sm:text-lg transition-all duration-300 hover:scale-105 [box-shadow:_0_0_15px_rgba(253,223,13,0.5)]"
                 style={{ fontFamily: "Exo, sans-serif" }}
               >
@@ -80,7 +86,7 @@ function Home() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => navigate("/documentation")}
+                onClick={() => handleNavigate("/documentation")}
                 className="text-white border-[#6f888c] hover:bg-[#6f888c]/20 px-6 py-2 rounded-lg text-base sm:text-lg transition-all duration-300 hover:scale-105"
                 style={{ fontFamily: "Exo, sans-serif" }}
               >
