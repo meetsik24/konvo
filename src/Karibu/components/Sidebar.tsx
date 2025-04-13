@@ -86,15 +86,7 @@ function DocumentationSidebar() {
             </ul>
           </div>
 
-          <div className="mt-6">
-            <NavLink
-              to="/"
-              className="block px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-[#fddf0d]/20 hover:text-white transition-colors duration-300"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Get Back to Briq
-            </NavLink>
-          </div>
+         
         </nav>
       </aside>
     </div>
