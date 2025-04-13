@@ -16,6 +16,19 @@ import Pricing from './landing/pages/Pricing';
 import Navbar from './landing/components/Navbar';
 import { Footer } from './landing/components/Footer';
 
+// Documentation Pages
+import DocumentationHome from './Karibu/pages/Home';
+import OtherEndpoints from './Karibu/pages/OtherEndpoints';
+import SendSMSAPI from './Karibu/pages/SendSMS';
+
+// Documentation Components
+import CodeEditor from './Karibu/components/CodeEditor';
+import JsonView from './Karibu/components/JsonView';
+import EndpointCard from './Karibu/components/EndpointCard';
+import DocumentationLayout from './Karibu/components/Layout';
+import DocumentationNavbar from './Karibu/components/Navbar';
+import DocSidebar from './Karibu/components/Sidebar';
+
 // Dashboard Components
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -24,7 +37,7 @@ import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
 import Account from './pages/Account';
 import NotFound from './pages/NotFound';
-import SendSMS from './pages/SendSMS';
+import SendSMS from './pages/SendSMS'; // Renamed to avoid conflict
 import SendEmail from './pages/SendEmail';
 import Voice from './pages/Voice';
 import Chatbot from './pages/Chatbot';
@@ -39,7 +52,7 @@ import { WorkspaceProvider } from './pages/WorkspaceContext';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// New Landing Component combining Hero, Features, Pricing, Navbar, and Footer
+// New Landing Component combining Home, Features, Pricing, Navbar, and Footer
 const Landing = () => {
   useGSAP(() => {
     gsap.fromTo(
@@ -74,6 +87,29 @@ const Landing = () => {
         <Footer />
       </div>
     </div>
+  );
+};
+
+// New Documentation Component for API Documentation Pages
+const Documentation = () => {
+  const location = useLocation();
+  const showSidebar = !location.pathname.endsWith('/home'); // Hide sidebar on /documentation/home
+
+  return (
+    <DocumentationLayout>
+      <DocumentationNavbar />
+      <div className="flex min-h-[calc(100vh-80px)] transition-all duration-300">
+        {showSidebar && <DocSidebar />}
+        <div className={`flex-1 ${showSidebar ? 'p-4 sm:p-6' : ''}`}>
+          <Routes>
+            <Route path="home" element={<DocumentationHome />} />
+            <Route path="otherendpoints" element={<OtherEndpoints />} />
+            <Route path="sendsms" element={<SendSMSAPI />} />
+            <Route path="/" element={<Navigate to="home" replace />} />
+          </Routes>
+        </div>
+      </div>
+    </DocumentationLayout>
   );
 };
 
@@ -114,6 +150,9 @@ function App() {
                 <Routes>
                   {/* Landing Page Route */}
                   <Route path="/" element={<Landing />} />
+
+                  {/* Documentation Routes */}
+                  <Route path="/documentation/*" element={<Documentation />} />
 
                   {/* Authentication Routes */}
                   <Route path="/login" element={<Login />} />
