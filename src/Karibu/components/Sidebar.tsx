@@ -1,4 +1,4 @@
-// Karibu/components/Sidebar.jsx (from previous update)
+// Karibu/components/Sidebar.jsx
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { X, Menu } from "lucide-react";
@@ -24,7 +24,7 @@ function DocumentationSidebar() {
       <aside
         className={`${
           isMobileMenuOpen ? "block" : "hidden"
-        } md:block fixed md:sticky top-0 md:top-[80px] left-0 w-64 h-screen md:h-[calc(100vh-80px)] bg-[#00333e] text-white p-6 shadow-lg rounded-r-lg font-exo transition-all duration-300 z-40 overflow-y-auto`}
+        } md:block fixed md:sticky top-0 md:top-[64px] left-0 w-64 h-screen md:h-[calc(100vh-64px)] bg-[#00333e] text-white p-6 shadow-lg rounded-r-lg font-exo transition-all duration-300 z-40 overflow-y-auto`}
       >
         {/* Sidebar Header */}
         <div className="mb-8">
