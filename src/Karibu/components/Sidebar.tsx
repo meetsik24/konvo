@@ -24,12 +24,12 @@ function DocumentationSidebar() {
       <aside
         className={`${
           isMobileMenuOpen ? "block" : "hidden"
-        } md:block fixed md:sticky top-0 md:top-[64px] left-0 w-64 h-screen md:h-[calc(100vh-64px)] bg-[#00333e] text-white p-6 shadow-lg rounded-r-lg font-exo transition-all duration-300 z-40 overflow-y-auto`}
+        } md:block fixed top-0 left-0 w-64 h-screen bg-[#00333e] text-white p-6 pt-[80px] shadow-lg rounded-r-lg font-exo transition-all duration-300 z-40 overflow-y-auto`}
       >
         {/* Sidebar Header */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-[#fddf0d] [text-shadow:_0_0_10px_rgba(253,223,13,0.3)]">
-            Briq API Docs
+           Briq Karibu API
           </h2>
         </div>
 
