@@ -130,7 +130,7 @@ function Pricing() {
               per SMS
             </h2>
            
-            <a href="/signup">
+            <a href="/register">
               <motion.button
                 whileHover={{
                   scale: 1.05,
