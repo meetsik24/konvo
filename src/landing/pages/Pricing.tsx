@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import anime from "animejs";
+import * as anime from "animejs";
 
 // Typing animation keyframes for the SMS pricing statement
 const typingAnimation = `
@@ -13,7 +13,8 @@ const typingAnimation = `
   }
 `;
 
-export function Pricing() {
+// Pricing component
+function Pricing() {
   // Refs for elements to animate with Anime.js
   const headerRef = useRef(null);
   const pricingContentRef = useRef(null);
@@ -146,3 +147,5 @@ export function Pricing() {
     </section>
   );
 }
+
+export default Pricing;

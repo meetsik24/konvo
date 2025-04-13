@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Button } from "../ui/button";
-import logo from "../../assets/briq.png"; // Adjust the path based on your folder structure
+import { Button } from "../components/ui/button"; // Adjusted the path to match a common folder structure
+import logo from "../../../assets/briq.png"; // Adjust the path based on your folder structure
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);

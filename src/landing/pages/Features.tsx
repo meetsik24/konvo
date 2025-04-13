@@ -1,11 +1,12 @@
 import { MessageSquare, Lock, Phone, Volume2, Code, Bell } from "lucide-react";
 
-import linesImage from "../../assets/lines.png";
-import smsImage from "../../assets/SMS.png";
-import phoneOne from "../../assets/Simu.png";
-import bg from "../../assets/bg.png";
+import linesImage from "../../../assets/lines.png";
+import smsImage from "../../../assets/SMS.png";
+import phoneOne from "../../../assets/Simu.png";
+import bg from "../../../assets/bg.png";
 
-export function Features() {
+// Features component
+function Features() {
   return (
     <section
       className="py-16 bg-white text-[#00333e] relative overflow-hidden font-exo"
@@ -225,3 +226,5 @@ export function Features() {
     </section>
   );
 }
+
+export default Features;

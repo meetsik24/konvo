@@ -1,5 +1,5 @@
 import { Leaf, Instagram, Linkedin, Twitter, Facebook } from 'lucide-react';
-import briqLogo from "../../assets/briq.png";
+import briqLogo from "../../../assets/briq.png";
 
 export function Footer() {
   return (

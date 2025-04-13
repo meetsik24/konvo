@@ -5,9 +5,16 @@ import { store } from './store/store';
 import { AppDispatch, RootState } from './store/store';
 import { fetchUserProfile, logout } from './store/slices/authSlice';
 import { AnimatePresence } from 'framer-motion';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 // Landing Page Components
 import Home from './landing/pages/Home';
+import Features from './landing/pages/features';
+import Pricing  from './landing/pages/Pricing';
+import { Navbar } from './landing/components/Navbar';
+import { Footer } from './landing/components/Footer';
 
 // Dashboard Components
 import Layout from './components/Layout';
@@ -15,7 +22,6 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
-
 import Account from './pages/Account';
 import NotFound from './pages/NotFound';
 import SendSMS from './pages/SendSMS';
@@ -30,6 +36,38 @@ import Contacts from './pages/Contacts';
 
 import { ContactsProvider } from './components/ContactsContext';
 import { WorkspaceProvider } from './pages/WorkspaceContext';
+
+gsap.registerPlugin(ScrollTrigger);
+
+// New Landing Component combining Hero, Features, Pricing, Navbar, and Footer
+const Landing = () => {
+  useGSAP(() => {
+    gsap.fromTo(
+      '.fade-in',
+      { opacity: 0, y: 50 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 1,
+        stagger: 0.2,
+        scrollTrigger: {
+          trigger: '.fade-in',
+          start: 'top 80%',
+        },
+      }
+    );
+  });
+
+  return (
+    <div className="bg-gray-50">
+      <Navbar />
+      <Home />
+      <Features />
+      <Pricing />
+      <Footer />
+    </div>
+  );
+};
 
 // Protected Route for Dashboard Pages
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -66,13 +104,12 @@ function App() {
             <div className="min-h-screen flex flex-col">
               <AnimatePresence mode="wait">
                 <Routes>
-                  {/* Landing Page Routes */}
-                  <Route path="/" element={<Home />} />
+                  {/* Landing Page Route */}
+                  <Route path="/" element={<Landing />} />
 
                   {/* Authentication Routes */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
-                  
                   <Route path="/ResetPassword" element={<ResetPassword />} />
 
                   {/* Dashboard Protected Routes */}
