@@ -12,8 +12,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 // Landing Page Components
 import Home from './landing/pages/Home';
 import Features from './landing/pages/features';
-import Pricing  from './landing/pages/Pricing';
-import { Navbar } from './landing/components/Navbar';
+import Pricing from './landing/pages/Pricing';
+import Navbar from './landing/components/Navbar';
 import { Footer } from './landing/components/Footer';
 
 // Dashboard Components
@@ -61,10 +61,18 @@ const Landing = () => {
   return (
     <div className="bg-gray-50">
       <Navbar />
-      <Home />
-      <Features />
-      <Pricing />
-      <Footer />
+      <div id="home">
+        <Home />
+      </div>
+      <div id="services">
+        <Features />
+      </div>
+      <div id="pricing">
+        <Pricing />
+      </div>
+      <div id="footer">
+        <Footer />
+      </div>
     </div>
   );
 };
