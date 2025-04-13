@@ -21,7 +21,13 @@ import DocumentationHome from './Karibu/pages/Home';
 import OtherEndpoints from './Karibu/pages/OtherEndpoints';
 import SendSMSAPI from './Karibu/pages/SendSMS';
 
-
+// Documentation Components
+import CodeEditor from './Karibu/components/CodeEditor';
+import JsonView from './Karibu/components/JsonView';
+import EndpointCard from './Karibu/components/EndpointCard';
+import DocumentationLayout from './Karibu/components/Layout';
+import DocumentationNavbar from './Karibu/components/Navbar';
+import DocSidebar from './Karibu/components/Sidebar';
 
 // Dashboard Components
 import Layout from './components/Layout';
@@ -87,16 +93,23 @@ const Landing = () => {
 // New Documentation Component for API Documentation Pages
 const Documentation = () => {
   return (
-    <div className="bg-gray-50">
-      <Navbar />
-      <Routes>
-        <Route path="home" element={<DocumentationHome />} />
-        <Route path="otherendpoints" element={<OtherEndpoints />} />
-        <Route path="sendsms" element={<SendSMSAPI />} />
-        <Route path="/" element={<Navigate to="home" replace />} />
-      </Routes>
-      <Footer />
-    </div>
+    <DocumentationLayout>
+      <DocumentationNavbar />
+      <div className="flex">
+        <DocSidebar 
+          activeSection="home" 
+          onSectionChange={(section) => console.log('Section changed to:', section)} 
+        />
+        <div className="flex-1 p-6 bg-gray-50">
+          <Routes>
+            <Route path="home" element={<DocumentationHome />} />
+            <Route path="otherendpoints" element={<OtherEndpoints />} />
+            <Route path="sendsms" element={<SendSMSAPI />} />
+            <Route path="/" element={<Navigate to="home" replace />} />
+          </Routes>
+        </div>
+      </div>
+    </DocumentationLayout>
   );
 };
 

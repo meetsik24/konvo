@@ -5,7 +5,7 @@ interface SidebarProps {
   onSectionChange: (section: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange }) => {
+const DocSidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange }) => {
   return (
     <aside className="w-64 h-screen sticky top-0 border-r border-gray-800 p-6 bg-[#00333e] text-white shadow-xl">
       <nav className="space-y-3">
@@ -44,4 +44,4 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange }) => 
   );
 };
 
-export default Sidebar;
+export default DocSidebar;
