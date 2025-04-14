@@ -257,11 +257,11 @@ const ApiKeys = () => {
         <p className="text-sm">
           For further API integration documentation, visit the{' '}
           <a
-            href="https://x.ai/api"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-blue-800"
-          >
+  href="/documentation" // Updated to link to your documentation
+  target="_blank"
+  rel="noopener noreferrer"
+  className="underline hover:text-blue-800"
+>
            Karibu API Docs
           </a>{' '}
           to explore advanced features and integration hooks.
