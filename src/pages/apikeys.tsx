@@ -16,24 +16,18 @@ interface ApiKey {
 interface CreateApiKeyModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (name: string, expiresAt: string) => void;
+  onSubmit: (name: string) => void;
 }
 
 const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [keyName, setKeyName] = useState('');
-  const [expiresAt, setExpiresAt] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() + 30); // Default to 30 days from now
-    return date.toISOString().slice(0, 16); // For datetime-local input
-  });
 
   const handleSubmit = () => {
     if (!keyName.trim()) {
       alert('Please enter a name for the API key.');
       return;
     }
-    const expiresAtDate = new Date(expiresAt);
-    onSubmit(keyName, expiresAtDate.toISOString());
+    onSubmit(keyName);
   };
 
   if (!isOpen) return null;
@@ -43,47 +37,51 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ isOpen, onClose, 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
     >
       <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.8, opacity: 0 }}
-        className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-sm p-4"
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
+        className="bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-w-md p-6"
       >
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-[#00333e]">Generate New API Key</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-[#00333e] transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <Key className="w-6 h-6 text-[#00333e]" />
+            <h3 className="text-xl font-bold text-[#00333e]">Generate New API Key</h3>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={onClose}
+            className="text-gray-500 hover:text-[#00333e] transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </motion.button>
         </div>
-        <div className="mb-4 space-y-4">
+        <div className="mb-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-[#00333e] mb-1">API Key Name</label>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">API Key Name</label>
             <input
               type="text"
-              className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-              placeholder="Enter a name for the API key"
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all placeholder-gray-400"
+              placeholder="Enter a name for your API key (e.g., MyAppKey)"
               value={keyName}
               onChange={(e) => setKeyName(e.target.value)}
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[#00333e] mb-1">Expiration Date</label>
-            <input
-              type="datetime-local"
-              className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-              value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value)}
-            />
+            <p className="text-xs text-gray-500 mt-2">
+              The API key will expire one year from today.
+            </p>
           </div>
         </div>
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-3">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onClose}
-            className="px-3 py-1 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+            className="px-4 py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
           >
             Cancel
           </motion.button>
@@ -91,9 +89,9 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ isOpen, onClose, 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleSubmit}
-            className="px-3 py-1 text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36]"
+            className="px-4 py-2 text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors"
           >
-            Generate
+            Generate Key
           </motion.button>
         </div>
       </motion.div>
@@ -130,12 +128,15 @@ const ApiKeys = () => {
   }, []);
 
   // Handle API key creation
-  const handleCreateApiKey = async (name: string, expiresAt: string) => {
+  const handleCreateApiKey = async (name: string) => {
     setLoading(true);
     try {
+      const expiresAt = new Date();
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1); // Set to 1 year from now
+
       const newKey = await createApiKey({
         name,
-        expires_at: expiresAt,
+        expires_at: expiresAt.toISOString(),
       });
       setApiKeys((prev) => [...prev, newKey]);
       showNotification('New API key generated successfully', 'success');
@@ -261,20 +262,20 @@ const ApiKeys = () => {
             rel="noopener noreferrer"
             className="underline hover:text-blue-800"
           >
-            xAI API Docs
+           Karibu API Docs
           </a>{' '}
           to explore advanced features and integration hooks.
         </p>
         <motion.a
-          href="https://x.ai/api"
-          target="_blank"
-          rel="noopener noreferrer"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors"
-        >
+  href="/documentation" // Updated to link to your documentation
+  target="_blank"
+  rel="noopener noreferrer"
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+  className="flex items-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors"
+>
           <BookOpen className="w-5 h-5" />
-          API Docs
+          Karibu API
         </motion.a>
       </motion.div>
 
