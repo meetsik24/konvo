@@ -33,7 +33,7 @@ function Home() {
     <div className="bg-[#1a3c47] text-white font-sans">
       {/* Hero */}
       <section
-        className="h-[70vh] bg-[#00333e] text-white flex items-center relative overflow-hidden font-exo"
+        className="min-h-[70vh] sm:h-[70vh] bg-[#00333e] text-white flex items-center relative overflow-hidden font-exo pt-20 sm:pt-16" // Added pt-20 (mobile) and sm:pt-16 (desktop)
       >
         {/* Animated Texture Background */}
         <div className="absolute inset-0 z-0">
@@ -50,7 +50,7 @@ function Home() {
             className="w-full md:w-1/2 flex flex-col justify-center text-center md:text-left"
           >
             <h1
-              className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 leading-tight"
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight" // Adjusted font sizes for mobile
               style={{ fontFamily: "Exo, sans-serif" }}
             >
               Connect with{" "}
@@ -71,7 +71,7 @@ function Home() {
               </span>
             </h1>
             <p
-              className="text-base sm:text-lg text-[#6f888c] mb-6 max-w-md mx-auto md:mx-0 leading-relaxed"
+              className="text-sm sm:text-base md:text-lg text-[#6f888c] mb-6 max-w-md mx-auto md:mx-0 leading-relaxed" // Adjusted font sizes
               style={{ fontFamily: "Exo, sans-serif" }}
             >
               Reach your audience with tailored messages in Tanzania.
@@ -79,7 +79,7 @@ function Home() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
               <Button
                 onClick={() => handleNavigate("/register")}
-                className="bg-[#fddf0d] hover:bg-[#e5c90c] text-[#00333e] px-6 py-2 rounded-lg text-base sm:text-lg transition-all duration-300 hover:scale-105 [box-shadow:_0_0_15px_rgba(253,223,13,0.5)]"
+                className="bg-[#fddf0d] hover:bg-[#e5c90c] text-[#00333e] px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base md:text-lg transition-all duration-300 hover:scale-105 [box-shadow:_0_0_15px_rgba(253,223,13,0.5)]" // Adjusted padding and font size
                 style={{ fontFamily: "Exo, sans-serif" }}
               >
                 Sign Up
@@ -87,7 +87,7 @@ function Home() {
               <Button
                 variant="outline"
                 onClick={() => handleNavigate("/documentation")}
-                className="text-white border-[#6f888c] hover:bg-[#6f888c]/20 px-6 py-2 rounded-lg text-base sm:text-lg transition-all duration-300 hover:scale-105"
+                className="text-white border-[#6f888c] hover:bg-[#6f888c]/20 px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base md:text-lg transition-all duration-300 hover:scale-105" // Adjusted padding and font size
                 style={{ fontFamily: "Exo, sans-serif" }}
               >
                 Access the Developer Documentation
@@ -102,7 +102,7 @@ function Home() {
             transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
             className="w-full md:w-1/2 flex justify-center items-center"
           >
-            <div className="relative w-full h-[400px] sm:h-[500px] md:h-[700px]">
+            <div className="relative w-full h-[250px] sm:h-[300px] md:h-[400px] lg:h-[500px]"> {/* Adjusted image container height */}
               {images.map((image, index) => (
                 <img
                   key={index}
