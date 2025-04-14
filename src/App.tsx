@@ -48,6 +48,10 @@ import SenderID from './pages/SenderID';
 import Contacts from './pages/Contacts';
 import ApiKeys from './pages/apikeys';
 
+// Terms of Service and Privacy Policy Pages
+import TermsOfService from './landing/pages/Terms';
+import PrivacyPolicy from './landing/pages/Privacy';
+
 import { ContactsProvider } from './components/ContactsContext';
 import { WorkspaceProvider } from './pages/WorkspaceContext';
 
@@ -154,6 +158,10 @@ function App() {
 
                   {/* Documentation Routes */}
                   <Route path="/documentation/*" element={<Documentation />} />
+
+                  {/* Terms of Service and Privacy Policy Routes */}
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
 
                   {/* Authentication Routes */}
                   <Route path="/login" element={<Login />} />
