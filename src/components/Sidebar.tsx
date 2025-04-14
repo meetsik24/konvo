@@ -11,6 +11,8 @@ const navItems = [
   { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/logs', icon: Activity, label: 'Logs' },
   { to: '/subscription', icon: DollarSign, label: 'Subscription' },
+  { to: '/apikeys', icon: IdCard, label: 'API Keys' },
+ 
 ];
 
 interface SidebarProps {

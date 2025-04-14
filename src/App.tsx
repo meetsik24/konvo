@@ -46,6 +46,7 @@ import Logs from './pages/Logs';
 import Subscription from './pages/subscription';
 import SenderID from './pages/SenderID';
 import Contacts from './pages/Contacts';
+import ApiKeys from './pages/apikeys';
 
 import { ContactsProvider } from './components/ContactsContext';
 import { WorkspaceProvider } from './pages/WorkspaceContext';
@@ -178,6 +179,7 @@ function App() {
                     <Route path="/subscription" element={<Subscription />} />
                     <Route path="/senderid" element={<SenderID />} />
                     <Route path="/contacts" element={<Contacts />} />
+                    <Route path="/apikeys" element={<ApiKeys />} />
                   </Route>
 
                   {/* Catch-All 404 Page */}

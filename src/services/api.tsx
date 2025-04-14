@@ -197,6 +197,16 @@ interface Message {
   error_details?: string;
 }
 
+interface ApiKey {
+  api_key_id: string;
+  name: string;
+  api_key: string;
+  status: "active" | "inactive";
+  created_at: string;
+  expires_at: string;
+}
+
+
 // Utility function for consistent error handling
 const handleApiError = (error: any, defaultMessage: string): never => {
   const message =
@@ -900,6 +910,61 @@ export const generateMessage = async (prompt: string): Promise<string> => {
     handleApiError(error, 'Failed to generate SMS message');
   }
 };
+
+
+// API KEYS
+export const listApiKeys = async (): Promise<ApiKey[]> => {
+  try {
+    const response = await api.get("/api-keys/");
+    console.log("listApiKeys API response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch API keys");
+    return [];
+  }
+};
+
+export const createApiKey = async (data: { name: string; expires_at?: string }): Promise<ApiKey> => {
+  try {
+    const response = await api.post("/api-keys/", data);
+    console.log("createApiKey API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to create API key");
+  }
+};
+
+export const getApiKey = async (keyId: string): Promise<ApiKey> => {
+  try {
+    const response = await api.get(`/api-keys/${keyId}`);
+    console.log("getApiKey API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch API key");
+  }
+};
+
+export const updateApiKey = async (keyId: string, data: { name?: string; status?: "active" | "inactive" }): Promise<ApiKey> => {
+  try {
+    const response = await api.put(`/api-keys/${keyId}`, data);
+    console.log("updateApiKey API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to update API key");
+  }
+};
+
+export const deleteApiKey = async (keyId: string): Promise<void> => {
+  try {
+    await api.delete(`/api-keys/${keyId}`);
+    console.log("API key deleted successfully");
+  } catch (error: any) {
+    handleApiError(error, "Failed to delete API key");
+  }
+};
+
+
+
 
 
 export default api;
