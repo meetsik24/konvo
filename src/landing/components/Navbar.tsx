@@ -1,14 +1,14 @@
-// Karibu/components/Navbar.jsx
 import React, { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import { Menu, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom"; // Add useLocation
 import logo from "../../../assets/briq.png";
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation(); // Add to track current route
 
   // Handle scroll effect
   useEffect(() => {
@@ -29,7 +29,7 @@ function Navbar() {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  // Smooth scroll to section
+  // Smooth scroll to section (used on landing page)
   const handleScrollToSection = (sectionId) => {
     const section = document.getElementById(sectionId);
     if (section) {
@@ -53,6 +53,19 @@ function Navbar() {
     toggleMobileMenu();
   };
 
+  // Handle "Home" link click
+  const handleHomeClick = (e) => {
+    if (location.pathname === "/") {
+      // On landing page, scroll to #home
+      e.preventDefault();
+      handleScrollToSection("home");
+    } else {
+      // On other pages (e.g., /terms, /privacy), navigate to /
+      navigate("/");
+      toggleMobileMenu();
+    }
+  };
+
   return (
     <nav
       className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 backdrop-blur-md border border-gray-700/50 rounded-lg py-3 px-4 sm:px-6 transition-all duration-300 max-w-5xl w-[90%] font-exo ${
@@ -62,7 +75,9 @@ function Navbar() {
       <div className="flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <img src={logo} alt="Briq Logo" className="h-8 w-auto" />
+          <Link to="/">
+            <img src={logo} alt="Briq Logo" className="h-8 w-auto" />
+          </Link>
         </div>
 
         {/* Hamburger Icon for Mobile */}
@@ -74,16 +89,25 @@ function Navbar() {
 
         {/* Desktop Navigation Links */}
         <div className="hidden md:flex items-center gap-4 lg:gap-6">
-          <a
-            href="#home"
-            onClick={(e) => {
-              e.preventDefault();
-              handleScrollToSection("home");
-            }}
-            className="text-white hover:text-[#fddf0d] text-xs sm:text-sm uppercase transition-colors duration-300"
-          >
-            Home
-          </a>
+          {location.pathname === "/" ? (
+            <a
+              href="#home"
+              onClick={(e) => {
+                e.preventDefault();
+                handleScrollToSection("home");
+              }}
+              className="text-white hover:text-[#fddf0d] text-xs sm:text-sm uppercase transition-colors duration-300"
+            >
+              Home
+            </a>
+          ) : (
+            <Link
+              to="/"
+              className="text-white hover:text-[#fddf0d] text-xs sm:text-sm uppercase transition-colors duration-300"
+            >
+              Home
+            </Link>
+          )}
           <a
             href="#services"
             onClick={(e) => {
@@ -136,16 +160,26 @@ function Navbar() {
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden mt-4 flex flex-col items-center gap-4 bg-[#00333e] rounded-lg py-6 border-t border-gray-700/50">
-          <a
-            href="#home"
-            onClick={(e) => {
-              e.preventDefault();
-              handleScrollToSection("home");
-            }}
-            className="text-white hover:text-[#fddf0d] text-sm uppercase transition-colors duration-300"
-          >
-            Home
-          </a>
+          {location.pathname === "/" ? (
+            <a
+              href="#home"
+              onClick={(e) => {
+                e.preventDefault();
+                handleScrollToSection("home");
+              }}
+              className="text-white hover:text-[#fddf0d] text-sm uppercase transition-colors duration-300"
+            >
+              Home
+            </a>
+          ) : (
+            <Link
+              to="/"
+              onClick={toggleMobileMenu}
+              className="text-white hover:text-[#fddf0d] text-sm uppercase transition-colors duration-300"
+            >
+              Home
+            </Link>
+          )}
           <a
             href="#services"
             onClick={(e) => {
