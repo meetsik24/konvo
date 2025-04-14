@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import Navbar from '../components/Navbar'; // Corrected import path as per your update
+import Navbar from '../components/Navbar';
+import { Footer } from '../components/Footer'; // Import Footer
 
 const Privacy = () => {
   // Animation variants for sections
@@ -10,7 +11,7 @@ const Privacy = () => {
   };
 
   return (
-    <div className="bg-[#1a3c47] text-white font-exo">
+    <div className="min-h-screen flex flex-col bg-[#1a3c47] text-white font-exo">
       {/* Navbar */}
       <Navbar />
 
@@ -43,7 +44,7 @@ const Privacy = () => {
       </section>
 
       {/* Content Section */}
-      <section className="py-16">
+      <section className="flex-grow py-16">
         <div className="container mx-auto px-4">
           <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-lg p-10 max-w-5xl mx-auto space-y-12">
             <motion.section
@@ -208,6 +209,9 @@ const Privacy = () => {
           </div>
         </div>
       </section>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };
