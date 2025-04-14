@@ -1,4 +1,6 @@
-import { Leaf, Instagram, Linkedin, Twitter, Facebook } from 'lucide-react';
+import React from 'react';
+import { Link } from 'react-router-dom'; // Import Link for navigation
+import { Instagram, Twitter, Facebook } from 'lucide-react';
 import briqLogo from "../../../assets/briq.png";
 
 export function Footer() {
@@ -14,27 +16,26 @@ export function Footer() {
       <div className="container mx-auto px-4 relative z-10">
         <div className="grid md:grid-cols-4 gap-12">
           {/* Brand Section */}
-            <div className="space-y-6">
+          <div className="space-y-6">
             <div className="flex items-center gap-2">
               <img src={briqLogo} alt="Briq Logo" className="w-16 h-18 relative z-10" />
-                <span className="text-xl font-bold text-white relative z-10">
-                  Briq   Solutions  <br /> Inc
-                </span>
+              <span className="text-xl font-bold text-white relative z-10">
+                Briq Solutions <br /> Inc
+              </span>
             </div>
             <p className="text-[#6f888c]">
               We are dedicated to revolutionizing customer services through WhatsApp business solutions.
             </p>
             <div className="flex items-center gap-4">
-                <a href="https://www.instagram.com/karibubriq" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors" target="_blank" rel="noopener noreferrer">
+              <a href="https://www.instagram.com/karibubriq" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors" target="_blank" rel="noopener noreferrer">
                 <Instagram className="w-5 h-5" />
-                </a>
-             
-                <a href="https://twitter.com/karibubriq" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors" target="_blank" rel="noopener noreferrer">
+              </a>
+              <a href="https://twitter.com/karibubriq" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors" target="_blank" rel="noopener noreferrer">
                 <Twitter className="w-5 h-5" />
-                </a>
-                <a href="https://www.facebook.com/karibubriq" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors" target="_blank" rel="noopener noreferrer">
+              </a>
+              <a href="https://www.facebook.com/karibubriq" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors" target="_blank" rel="noopener noreferrer">
                 <Facebook className="w-5 h-5" />
-                </a>
+              </a>
             </div>
           </div>
 
@@ -62,7 +63,6 @@ export function Footer() {
                   Developer Documentation
                 </a>
               </li>
-              
             </ul>
           </div>
 
@@ -71,14 +71,14 @@ export function Footer() {
             <h3 className="text-lg font-semibold mb-6 text-white">Information</h3>
             <ul className="space-y-4">
               <li>
-                <a href="#privacy" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors">
+                <Link to="/privacy" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors">
                   Privacy Policy
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#terms" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors">
+                <Link to="/terms" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors">
                   Terms of Service
-                </a>
+                </Link>
               </li>
               <li>
                 <a href="#brief" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors">
@@ -98,11 +98,11 @@ export function Footer() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <span className="text-[#6f888c]">
-                  SkyCity Mall, 9th Floor, Dar Es Salaam, Tanzania
+                  Somewhere in Dar Es Salaam, Tanzania
                 </span>
               </li>
               <li>
-                <a href="mailto:info@briq.tz" className="text-[#6f888c] hover:text-[#fddf0d] flex items-center gap-2 transition-colors">
+                <a href="mailto:sms@briq.tz" className="text-[#6f888c] hover:text-[#fddf0d] flex items-center gap-2 transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
@@ -128,3 +128,5 @@ export function Footer() {
     </footer>
   );
 }
+
+export default Footer;
