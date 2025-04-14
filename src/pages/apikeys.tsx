@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Key, Copy, Trash2, Shield, RefreshCw, Lock, CheckCircle, X } from 'lucide-react';
+import { Key, Copy, Trash2, Shield, RefreshCw, Lock, CheckCircle, X, BookOpen } from 'lucide-react';
 import { listApiKeys, createApiKey, deleteApiKey } from '../services/api';
 
 interface ApiKey {
@@ -12,6 +12,95 @@ interface ApiKey {
   expires_at: string;
 }
 
+// Modal Component for API Key Creation
+interface CreateApiKeyModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (name: string, expiresAt: string) => void;
+}
+
+const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ isOpen, onClose, onSubmit }) => {
+  const [keyName, setKeyName] = useState('');
+  const [expiresAt, setExpiresAt] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 30); // Default to 30 days from now
+    return date.toISOString().slice(0, 16); // For datetime-local input
+  });
+
+  const handleSubmit = () => {
+    if (!keyName.trim()) {
+      alert('Please enter a name for the API key.');
+      return;
+    }
+    const expiresAtDate = new Date(expiresAt);
+    onSubmit(keyName, expiresAtDate.toISOString());
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.8, opacity: 0 }}
+        className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-sm p-4"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-[#00333e]">Generate New API Key</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-[#00333e] transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="mb-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-1">API Key Name</label>
+            <input
+              type="text"
+              className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+              placeholder="Enter a name for the API key"
+              value={keyName}
+              onChange={(e) => setKeyName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-1">Expiration Date</label>
+            <input
+              type="datetime-local"
+              className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onClose}
+            className="px-3 py-1 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
+          >
+            Cancel
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleSubmit}
+            className="px-3 py-1 text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36]"
+          >
+            Generate
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const ApiKeys = () => {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(false);
@@ -21,6 +110,7 @@ const ApiKeys = () => {
     type: 'success' as 'success' | 'error',
   });
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Fetch API keys
   const fetchApiKeys = async () => {
@@ -39,24 +129,20 @@ const ApiKeys = () => {
     fetchApiKeys();
   }, []);
 
-  // Create a new API key
-  const handleCreateApiKey = async () => {
+  // Handle API key creation
+  const handleCreateApiKey = async (name: string, expiresAt: string) => {
     setLoading(true);
     try {
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30); // Set to 30 days from now
-  
       const newKey = await createApiKey({
-        name: 'NewApiKey', // Simplified name
-        expires_at: expiresAt.toISOString(),
+        name,
+        expires_at: expiresAt,
       });
       setApiKeys((prev) => [...prev, newKey]);
       showNotification('New API key generated successfully', 'success');
+      setIsCreateModalOpen(false);
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        'Failed to generate API key';
+        error.response?.data?.message || error.message || 'Failed to generate API key';
       showNotification(`Failed to generate API key: ${errorMessage}`, 'error');
     } finally {
       setLoading(false);
@@ -144,6 +230,13 @@ const ApiKeys = () => {
         </motion.div>
       )}
 
+      {/* Create API Key Modal */}
+      <CreateApiKeyModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={handleCreateApiKey}
+      />
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -152,6 +245,37 @@ const ApiKeys = () => {
       >
         <Key className="w-6 h-6 text-[#00333e]" />
         <h1 className="text-xl sm:text-2xl font-bold text-[#00333e]">API Key Management</h1>
+      </motion.div>
+
+      {/* API Documentation Link */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-blue-50 border border-blue-200 text-blue-600 p-4 rounded-lg flex items-center justify-between"
+      >
+        <p className="text-sm">
+          For further API integration documentation, visit the{' '}
+          <a
+            href="https://x.ai/api"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-blue-800"
+          >
+            xAI API Docs
+          </a>{' '}
+          to explore advanced features and integration hooks.
+        </p>
+        <motion.a
+          href="https://x.ai/api"
+          target="_blank"
+          rel="noopener noreferrer"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex items-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors"
+        >
+          <BookOpen className="w-5 h-5" />
+          API Docs
+        </motion.a>
       </motion.div>
 
       {/* Loading State */}
@@ -181,7 +305,7 @@ const ApiKeys = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={handleCreateApiKey}
+                onClick={() => setIsCreateModalOpen(true)}
                 disabled={loading}
                 className="flex items-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50"
               >
