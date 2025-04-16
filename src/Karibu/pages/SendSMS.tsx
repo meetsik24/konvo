@@ -1,4 +1,3 @@
-// Karibu/pages/SendSMS.tsx
 import React, { useState } from 'react';
 import CodeEditor from '../components/CodeEditor';
 import JsonView from '../components/JsonView';
@@ -7,7 +6,7 @@ import { endpoints } from '../data/endpoints';
 import { motion } from 'framer-motion';
 
 const SendSMSAPI: React.FC = () => {
-  const [expandedEndpoint, setExpandedEndpoint] = useState<string>('POST:/v1/sms/send');
+  const [expandedEndpoint, setExpandedEndpoint] = useState<string>('POST:/v1/workspace/create/');
   const [selectedEndpoint, setSelectedEndpoint] = useState(endpoints[0]);
   const [code, setCode] = useState(selectedEndpoint.sampleCode);
 
@@ -56,17 +55,41 @@ const SendSMSAPI: React.FC = () => {
           className="w-full md:w-[400px] border-r border-gray-700/50 p-6 sticky top-[80px] self-start"
         >
           {/* Header (Non-Scrollable) */}
-          <div className="space-y-2">
+          <div className="space-y-4">
             <h2 className="text-2xl sm:text-3xl font-semibold text-[#fddf0d] [text-shadow:_0_0_10px_rgba(253,223,13,0.3)]">
-              Send SMS
+              Karibu Briq API
             </h2>
             <p className="text-gray-400 text-base sm:text-lg">
-              Send SMS messages to any phone number worldwide using our simple API.
+              Manage workspaces, campaigns, and messages with our powerful API.
             </p>
+            {/* Host */}
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Host</h3>
+              <p className="text-gray-400">
+                Base URL: <code className="text-[#fddf0d]">https://karibu.briq.tz/</code>
+              </p>
+            </div>
+            {/* Authentication */}
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Authentication</h3>
+              <p className="text-gray-400 mb-2">
+                Karibu Briq uses <code className="text-[#fddf0d]">X-API-Key</code> for authentication. Include the API key in the request headers as follows:
+              </p>
+              <pre className="bg-gray-800 p-4 rounded-lg text-gray-300 text-sm">
+                X-API-Key: &lt;your_api_key&gt;
+              </pre>
+            </div>
+            {/* Versioning */}
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Versioning</h3>
+              <p className="text-gray-400">
+                All endpoints are versioned under <code className="text-[#fddf0d]">/v1/</code>.
+              </p>
+            </div>
           </div>
 
           {/* Endpoints List (Scrollable) */}
-          <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-4 mt-6">
+          <div className="max-h-[calc(100vh-400px)] overflow-y-auto space-y-4 mt-6">
             {endpoints.map(endpoint => {
               const key = `${endpoint.method}:${endpoint.path}`;
               return (
