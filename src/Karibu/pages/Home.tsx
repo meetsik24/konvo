@@ -1,4 +1,3 @@
-// Karibu/pages/Home.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Bolt, Flame, Rocket } from "lucide-react";
@@ -31,7 +30,7 @@ function DocumentationHome() {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 text-center p-6 sm:p-10 w-full max-w-5xl">
+      <div className="relative z-10 text-center p-4 sm:p-6 md:p-10 w-full max-w-5xl">
         {/* Header Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -39,12 +38,12 @@ function DocumentationHome() {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="mb-12"
         >
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-[#fddf0d] mb-4 leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-[#fddf0d] mb-4 leading-tight">
             <Typewriter
               words={[
-                "Build with Briq APIs",
-                "Modern APIs for Developers",
-                "Start Building Today!",
+                "Send Instant Messages",
+                "Manage Workspaces",
+                "Create Campaigns",
               ]}
               loop={Infinity}
               cursor
@@ -54,8 +53,8 @@ function DocumentationHome() {
               delaySpeed={1000}
             />
           </h1>
-          <p className="text-base sm:text-lg text-gray-400">
-            Modern documentation for modern developers
+          <p className="text-sm sm:text-base md:text-lg text-gray-400">
+            Powerful APIs to manage SMS messaging, workspaces, and campaigns with ease.
           </p>
         </motion.div>
 
@@ -64,51 +63,69 @@ function DocumentationHome() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 w-full"
         >
-          {/* Quick Start Card */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-[#fddf0d] transition-colors duration-300">
+          {/* Instant Messaging Card */}
+          <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700 hover:border-[#fddf0d] transition-colors duration-300">
             <div className="flex items-center gap-3 mb-4">
               <Bolt className="text-teal-400" size={24} />
-              <h3 className="text-xl font-semibold">Quick Start</h3>
+              <h3 className="text-lg sm:text-xl font-semibold">Instant Messaging</h3>
             </div>
-            <p className="text-gray-400 mb-4">
-              Get started in seconds with our intuitive API
+            <p className="text-gray-400 text-xs sm:text-sm mb-4">
+              Send SMS messages instantly to recipients.
             </p>
-            <pre className="bg-[#00333e] p-3 rounded text-sm text-teal-300">
-              npm install @briq/docs
-            </pre>
+            <motion.pre
+              whileHover={{ scale: 1.02 }}
+              className="bg-[#00333e] p-2 sm:p-3 rounded text-xs sm:text-sm text-teal-300 whitespace-pre-wrap overflow-x-auto transition-transform duration-200 [box-shadow:_0_0_5px_rgba(253,223,13,0.2)]"
+            >
+              <span className="text-green-400">curl</span>{' '}
+              <span className="text-purple-400">-X POST</span>{' '}
+              <span className="text-blue-300">/v1/message/send-instant</span>{' '}
+              <span className="text-yellow-400">\\\n-H "X-API-Key: &lt;key&gt;"</span>{' '}
+              <span className="text-red-400">\\\n-d &#123;"content": "Hello!"&#125;</span>
+            </motion.pre>
           </div>
 
-          {/* Features Card */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-[#fddf0d] transition-colors duration-300">
+          {/* Workspace Card */}
+          <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700 hover:border-[#fddf0d] transition-colors duration-300">
             <div className="flex items-center gap-3 mb-4">
               <Flame className="text-teal-400" size={24} />
-              <h3 className="text-xl font-semibold">Features</h3>
+              <h3 className="text-lg sm:text-xl font-semibold">Workspace</h3>
             </div>
-            <ul className="text-gray-400 space-y-2">
-              <li>⚡ Blazing fast performance</li>
-              <li>🔒 Type-safe APIs</li>
-              <li>⚙️ Zero configuration</li>
-              <li>🛠️ Modern tooling</li>
-            </ul>
+            <p className="text-gray-400 text-xs sm:text-sm mb-4">
+              Create and manage workspaces for your projects.
+            </p>
+            <motion.pre
+              whileHover={{ scale: 1.02 }}
+              className="bg-[#00333e] p-2 sm:p-3 rounded text-xs sm:text-sm text-teal-300 whitespace-pre-wrap overflow-x-auto transition-transform duration-200 [box-shadow:_0_0_5px_rgba(253,223,13,0.2)]"
+            >
+              <span className="text-green-400">curl</span>{' '}
+              <span className="text-purple-400">-X POST</span>{' '}
+              <span className="text-blue-300">/v1/workspace/create/</span>{' '}
+              <span className="text-yellow-400">\\\n-H "X-API-Key: &lt;key&gt;"</span>{' '}
+              <span className="text-red-400">\\\n-d &#123;"name": "Workspace"&#125;</span>
+            </motion.pre>
           </div>
 
-          {/* Examples Card */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-[#fddf0d] transition-colors duration-300">
+          {/* Campaigns Card */}
+          <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700 hover:border-[#fddf0d] transition-colors duration-300">
             <div className="flex items-center gap-3 mb-4">
               <Rocket className="text-teal-400" size={24} />
-              <h3 className="text-xl font-semibold">Examples</h3>
+              <h3 className="text-lg sm:text-xl font-semibold">Campaigns</h3>
             </div>
-            <pre className="bg-[#00333e] p-2 rounded text-sm text-teal-300">
-              {`import create from '@briq/'
-
-const app = create({
-  name: 'MyApp',
-  version: '1.0.0'
-});
-`}
-            </pre>
+            <p className="text-gray-400 text-xs sm:text-sm mb-4">
+              Schedule and manage SMS campaigns.
+            </p>
+            <motion.pre
+              whileHover={{ scale: 1.02 }}
+              className="bg-[#00333e] p-2 sm:p-3 rounded text-xs sm:text-sm text-teal-300 whitespace-pre-wrap overflow-x-auto transition-transform duration-200 [box-shadow:_0_0_5px_rgba(253,223,13,0.2)]"
+            >
+              <span className="text-green-400">curl</span>{' '}
+              <span className="text-purple-400">-X POST</span>{' '}
+              <span className="text-blue-300">/v1/campaign/create/</span>{' '}
+              <span className="text-yellow-400">\\\n-H "X-API-Key: &lt;key&gt;"</span>{' '}
+              <span className="text-red-400">\\\n-d &#123;"name": "Campaign"&#125;</span>
+            </motion.pre>
           </div>
         </motion.div>
 
