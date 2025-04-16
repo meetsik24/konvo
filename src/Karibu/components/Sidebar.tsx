@@ -65,7 +65,7 @@ function DocumentationSidebar() {
                   }
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Send SMS
+                  SMS APIs
                 </NavLink>
               </li>
               <li>

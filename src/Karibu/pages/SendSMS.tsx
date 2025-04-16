@@ -31,6 +31,31 @@ const SendSMSAPI: React.FC = () => {
     return colors[method as keyof typeof colors] || 'gray';
   };
 
+  // Group endpoints by category
+  const groupedEndpoints = endpoints.reduce((acc, endpoint) => {
+    let category: string;
+    if (endpoint.path.startsWith('/v1/message/')) {
+      category = 'Instant Messaging';
+    } else if (endpoint.path.startsWith('/v1/workspace/')) {
+      category = 'Workspace';
+    } else if (endpoint.path.startsWith('/v1/campaign/')) {
+      category = 'Campaigns';
+    } else {
+      category = 'Other';
+    }
+
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(endpoint);
+    return acc;
+  }, {} as { [key: string]: typeof endpoints });
+
+  // Sort categories to ensure consistent order
+  const categories = ['Instant Messaging', 'Workspace', 'Campaigns', 'Other'].filter(
+    category => groupedEndpoints[category] && groupedEndpoints[category].length > 0
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -57,7 +82,7 @@ const SendSMSAPI: React.FC = () => {
           {/* Header (Non-Scrollable) */}
           <div className="space-y-4">
             <h2 className="text-2xl sm:text-3xl font-semibold text-[#fddf0d] [text-shadow:_0_0_10px_rgba(253,223,13,0.3)]">
-              Karibu Briq API
+              Karibu Briq  SMS API
             </h2>
             <p className="text-gray-400 text-base sm:text-lg">
               Manage workspaces, campaigns, and messages with our powerful API.
@@ -75,10 +100,13 @@ const SendSMSAPI: React.FC = () => {
               <p className="text-gray-400 mb-2">
                 Karibu Briq uses <code className="text-[#fddf0d]">X-API-Key</code> for authentication. Include the API key in the request headers as follows:
               </p>
-              <pre className="bg-gray-800 p-4 rounded-lg text-gray-300 text-sm">
-                X-API-Key: &lt;your_api_key&gt;
-              </pre>
-            </div>
+              <p className="text-gray-400 mb-2">
+                You can generate your API key from the dashboard under the <code className="text-[#fddf0d]">API KEY SECTION</code> section.
+              </p>
+                <pre className="bg-gray-800 p-4 rounded-lg text-gray-300 text-sm">
+                {`X-API-Key: "<your_api_key>"`}
+                </pre>
+              </div>
             {/* Versioning */}
             <div>
               <h3 className="text-lg font-medium text-white mb-2">Versioning</h3>
@@ -89,26 +117,33 @@ const SendSMSAPI: React.FC = () => {
           </div>
 
           {/* Endpoints List (Scrollable) */}
-          <div className="max-h-[calc(100vh-400px)] overflow-y-auto space-y-4 mt-6">
-            {endpoints.map(endpoint => {
-              const key = `${endpoint.method}:${endpoint.path}`;
-              return (
-                <div
-                  key={key}
-                  onClick={() => selectEndpoint(endpoint)}
-                  className={`cursor-pointer rounded-lg transition-all duration-200 ${
-                    selectedEndpoint.path === endpoint.path ? 'bg-gray-800 shadow-md' : 'hover:bg-gray-800/50'
-                  }`}
-                >
-                  <EndpointCard
-                    endpoint={endpoint}
-                    isExpanded={expandedEndpoint === key}
-                    onToggle={() => toggleEndpoint(key)}
-                    getMethodColor={getMethodColor}
-                  />
-                </div>
-              );
-            })}
+          <div className="max-h-[calc(100vh-400px)] overflow-y-auto space-y-6 mt-6">
+            {categories.map(category => (
+              <div key={category} className="space-y-4">
+                <h3 className="text-lg font-medium text-white border-b border-gray-700/50 pb-2">
+                  {category}
+                </h3>
+                {groupedEndpoints[category].map(endpoint => {
+                  const key = `${endpoint.method}:${endpoint.path}`;
+                  return (
+                    <div
+                      key={key}
+                      onClick={() => selectEndpoint(endpoint)}
+                      className={`cursor-pointer rounded-lg transition-all duration-200 ${
+                        selectedEndpoint.path === endpoint.path ? 'bg-gray-800 shadow-md' : 'hover:bg-gray-800/50'
+                      }`}
+                    >
+                      <EndpointCard
+                        endpoint={endpoint}
+                        isExpanded={expandedEndpoint === key}
+                        onToggle={() => toggleEndpoint(key)}
+                        getMethodColor={getMethodColor}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </motion.div>
 
