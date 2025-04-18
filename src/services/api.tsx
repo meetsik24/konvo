@@ -701,13 +701,21 @@ export const updateProfile = async (data: {
   }
 };
 
-export const changePassword = async (data: {
-  current_password: string;
+export const changePassword = async (token: string, data: {
+  old_password: string; // Changed from current_password to old_password
   new_password: string;
 }): Promise<void> => {
   console.log("changePassword API call initiated with data:", data);
   try {
-    await api.patch("/users/change-password", data);
+    await api.patch(
+      "/users/change-password",
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
     console.log("Password changed successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to change password");

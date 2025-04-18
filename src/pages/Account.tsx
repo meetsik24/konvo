@@ -95,7 +95,7 @@ const Account: React.FC = () => {
         email: formData.email,
         mobile_number: formData.mobile_number,
       };
-      await updateProfile(token, updatedData);
+      await updateProfile({ token, ...updatedData });
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
       const newProfile = await getProfile(token);
@@ -117,7 +117,7 @@ const Account: React.FC = () => {
     setIsLoading(true);
     setError(null);
     setSuccess(null);
-
+  
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       setError('All password fields are required.');
       setIsLoading(false);
@@ -133,10 +133,10 @@ const Account: React.FC = () => {
       setIsLoading(false);
       return;
     }
-
+  
     try {
       await changePassword(token, {
-        current_password: passwordData.currentPassword,
+        old_password: passwordData.currentPassword, // Changed from current_password to old_password
         new_password: passwordData.newPassword,
       });
       setSuccess('Password changed successfully!');
@@ -144,7 +144,12 @@ const Account: React.FC = () => {
       setIsChangingPassword(false);
     } catch (error: any) {
       console.error('Error changing password:', error);
-      setError(error.response?.data?.message || 'Failed to change password.');
+      const errorMessage = error.response?.data?.message || error.response?.data?.detail;
+      if (Array.isArray(errorMessage)) {
+        setError(errorMessage.map((err: any) => err.msg || err.message || 'Unknown error').join(', '));
+      } else {
+        setError(errorMessage || 'Failed to change password. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
