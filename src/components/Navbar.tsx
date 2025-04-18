@@ -4,11 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Settings, LogOut, Check, Menu, X, Trash2, Building } from 'lucide-react';
 import { logout, fetchUserProfile } from '../store/slices/authSlice';
 import { store } from '../store/store';
-import { fetchNotifications, deleteNotification, markNotificationAsRead, getSubscriptionUsage } from '../services/api';
+import { fetchNotifications, deleteNotification, markNotificationAsRead } from '../services/api';
 import { motion } from 'framer-motion';
-
-
-
 import type { RootState } from '../store/store';
 import { useWorkspace } from '../pages/WorkspaceContext';
 
@@ -19,20 +16,6 @@ interface Notification {
   created_at: string;
   is_read: boolean;
 }
-
-interface getSubscriptionUsage {
-  sms_credits: number;
-}
-
-
-interface Plan {
-  plan_id: string;
-  name: string;
-  sms_unit_price: string;
-  description: string;
-  minimum_sms_purchase: number;
-}
-
 
 interface NavbarProps {
   isSidebarOpen?: boolean;
@@ -60,11 +43,33 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [balance, setBalance] = useState<number | null>(null);
 
-  // Fetch notifications on mount
+  // Fetch user profile if token is present but user is not loaded
+  useEffect(() => {
+    if (!token || status === 'loading' || user) return;
+    console.log('Fetching user profile with token:', token);
+    setIsLoading(true);
+    dispatch(fetchUserProfile(token))
+      .unwrap()
+      .then((profile) => {
+        console.log('fetchUserProfile success:', profile);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        console.error('fetchUserProfile failed:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load user profile.';
+        setError(errorMessage);
+      })
+      .finally(() => setIsLoading(false));
+  }, [token, dispatch, status, user]);
+
+  // Fetch notifications on component mount
   useEffect(() => {
     const loadNotifications = async () => {
+      if (!token || !user || status === 'loading') {
+        console.log('Waiting for user data to load before fetching notifications...');
+        return;
+      }
       try {
         const fetchedNotifications = await fetchNotifications();
         setNotifications(fetchedNotifications);
@@ -73,28 +78,8 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
       }
     };
     loadNotifications();
-  }, []);
+  }, [token, user, status]);
 
-  // Fetch SMS credits balance on mount and when user or token changes
-  useEffect(() => {
-    const fetchBalance = async () => {
-      const plan_id = user?.plan_id; // Assuming `plan_id` is part of the `user` object
-      if (!plan_id || !token) return;
-      try {
-        const creditBalanceData = await getSubscriptionUsage(plan_id);
-        setBalance(creditBalanceData.sms_credits);
-      } catch (err: any) {
-        console.error('Error fetching credit balance:', err);
-        setError('Failed to fetch credit balance. Please try again later.');
-      }
-    };
-
-    fetchBalance();
-  }, [user?.plan_id, token]);
-
- 
-   
-  
   // Automatically open workspace modal if no workspaces exist
   useEffect(() => {
     if (workspaces.length === 0 && !workspaceLoading && !isWorkspaceModalOpen) {
@@ -102,18 +87,14 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     }
   }, [workspaces, workspaceLoading, isWorkspaceModalOpen]);
 
+  // Set default workspace if none is selected
   useEffect(() => {
-    if (!token || status === 'loading' || user) return;
-    setIsLoading(true);
-    dispatch(fetchUserProfile(token) as any)
-      .unwrap()
-      .then(() => setError(null))
-      .catch((err: unknown) => {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load user profile.';
-        setError(errorMessage);
-      })
-      .finally(() => setIsLoading(false));
-  }, [token, dispatch, status, user]);
+    if (workspaces.length > 0 && !currentWorkspaceId && !workspaceLoading) {
+      const newId = workspaces[0].workspace_id;
+      setCurrentWorkspaceId(newId);
+      localStorage.setItem('currentWorkspaceId', newId);
+    }
+  }, [workspaces, currentWorkspaceId, setCurrentWorkspaceId, workspaceLoading]);
 
   const handleLogout = useCallback(() => {
     dispatch(logout());
@@ -302,14 +283,13 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                     onClick={() => handleDismissNotification(notif.notification_id)}
                     className="text-gray-400 hover:text-red-500"
                     title="Dismiss"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-              ))
-            )}
-          )
+              </div>
+            ))
+          )}
         </div>
       </>
     ),
@@ -437,14 +417,6 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     ]
   );
 
-  useEffect(() => {
-    if (workspaces.length > 0 && !currentWorkspaceId && !workspaceLoading) {
-      const newId = workspaces[0].workspace_id;
-      setCurrentWorkspaceId(newId);
-      localStorage.setItem('currentWorkspaceId', newId);
-    }
-  }, [workspaces, currentWorkspaceId, setCurrentWorkspaceId, workspaceLoading]);
-
   const avatarUrl =
     user?.avatar ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || 'User')}&background=006400&color=fff`;
@@ -548,14 +520,6 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
           <div className="flex justify-end items-center h-16">
             {/* Right Side: Actions */}
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Balance */}
-              <div className="text-sm font-medium text-[#00333e] hidden md:block">
-              SMS Credits:{' '}
-              <span className="text-[#fddf0d]">
-                {balance !== null ? balance : 'Loading...'}
-              </span>
-            </div>
-
               {/* Notifications */}
               <div className="relative">
                 <button
