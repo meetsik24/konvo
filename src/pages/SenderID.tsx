@@ -32,6 +32,8 @@ const SenderID: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [reviewRequest, setReviewRequest] = useState<{ request_id: string; status: 'approved' | 'rejected' } | null>(null);
+  const [charCount, setCharCount] = useState(0);
+  const maxCharLimit = 11;
 
   // Fetch sender IDs (approved and pending)
   useEffect(() => {
@@ -63,10 +65,7 @@ const SenderID: React.FC = () => {
               sender_id: req.sender_id || req.name || '',
               name: req.name || req.sender_id || '',
               status: req.status || 'pending',
-              
               is_approved: req.status === 'approved',
-              
-              
             }))
           : [];
 
@@ -94,9 +93,25 @@ const SenderID: React.FC = () => {
     fetchSenderIds();
   }, [currentWorkspaceId, isAdmin, isAdminView, workspace?.user_id, updateWorkspace]);
 
+  const handleInputChange = (value: string) => {
+    const trimmedValue = value.trimStart(); // Prevent leading spaces
+    setNewSenderId(trimmedValue);
+    setCharCount(trimmedValue.length);
+    
+    if (trimmedValue.length > maxCharLimit) {
+      setError(`Sender ID exceeds ${maxCharLimit} character limit.`);
+    } else if (trimmedValue.length > 0) {
+      setError(null);
+    }
+  };
+
   const handleRequestSenderId = async () => {
     if (!newSenderId.trim()) {
       setError('Sender ID name cannot be empty.');
+      return;
+    }
+    if (newSenderId.length > maxCharLimit) {
+      setError(`Sender ID exceeds ${maxCharLimit} character limit.`);
       return;
     }
     setIsLoading(true);
@@ -112,13 +127,12 @@ const SenderID: React.FC = () => {
         sender_id: newSenderId.trim(),
         name: newSenderId.trim(),
         status: 'pending',
-      
         is_approved: false,
-        
       };
       const updatedSenderIds = [...senderIds, newRequest];
       setSenderIds(updatedSenderIds);
       setNewSenderId('');
+      setCharCount(0);
       setError(null);
       updateWorkspace(currentWorkspaceId, { senderIds: updatedSenderIds });
     } catch (error: any) {
@@ -189,21 +203,42 @@ const SenderID: React.FC = () => {
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md w-full">
           <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-[#00333e]">Request New Sender ID</h2>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <input
-              type="text"
-              className="flex-1 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-              placeholder="Enter sender ID name (e.g., CompanyName)"
-              value={newSenderId}
-              onChange={(e) => setNewSenderId(e.target.value)}
-            />
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                className={`w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border ${
+                  charCount > maxCharLimit ? 'border-red-400' : 'border-gray-300'
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent`}
+                placeholder="Enter sender ID name (e.g., CompanyName)"
+                value={newSenderId}
+                onChange={(e) => handleInputChange(e.target.value)}
+                maxLength={maxCharLimit}
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs sm:text-sm text-gray-500">
+                {charCount}/{maxCharLimit}
+              </div>
+            </div>
             <button
               onClick={handleRequestSenderId}
-              className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
+              disabled={charCount > maxCharLimit || charCount === 0}
+              className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 rounded-lg transition-colors duration-200 ${
+                charCount > maxCharLimit || charCount === 0
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-[#00333e] text-white hover:bg-[#005a6e]'
+              }`}
             >
               <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
               Request
             </button>
           </div>
+          {charCount > 0 && charCount <= maxCharLimit && (
+            <p className="text-green-500 text-xs sm:text-sm mt-2">Sender ID is available (within {maxCharLimit} characters).</p>
+          )}
+          {charCount > maxCharLimit && (
+            <p className="text-red-500 text-xs sm:text-sm mt-2">
+              Sender ID is not available. It exceeds the {maxCharLimit} character limit.
+            </p>
+          )}
         </div>
       )}
 
@@ -229,7 +264,6 @@ const SenderID: React.FC = () => {
                     <p className="text-xs sm:text-sm text-gray-600 capitalize">
                       Status: {senderId.status || 'approved'}
                     </p>
-                    
                   </div>
                   <div className="flex gap-1 sm:gap-2">
                     {isAdminView && senderId.status === 'pending' && (
