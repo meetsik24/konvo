@@ -147,40 +147,53 @@ Response:
           Choose a plan that suits your business needs:
         </p>
         <table class="w-full text-left border-collapse mb-4">
-          <thead>
-            <tr class="bg-gray-200">
-              <th class="p-2 text-[#00333e] font-semibold">Plan</th>
-              <th class="p-2 text-[#00333e] font-semibold">Messages (Max)</th>
-              <th class="p-2 text-[#00333e] font-semibold">Price (TZS)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="border-b">
-              <td class="p-2">Starter</td>
-              <td class="p-2">5,000</td>
-              <td class="p-2">99,999</td>
-            </tr>
-            <tr class="border-b">
-              <td class="p-2">Basic</td>
-              <td class="p-2">20,000</td>
-              <td class="p-2">399,999</td>
-            </tr>
-            <tr class="border-b">
-              <td class="p-2">Standard</td>
-              <td class="p-2">50,000</td>
-              <td class="p-2">719,999</td>
-            </tr>
-            <tr class="border-b">
-              <td class="p-2">Premium</td>
-              <td class="p-2">100,000</td>
-              <td class="p-2">1,399,999</td>
-            </tr>
-            <tr>
-              <td class="p-2">Enterprise</td>
-              <td class="p-2">500,000</td>
-              <td class="p-2">5,999,999</td>
-            </tr>
-          </tbody>
+  <thead>
+    <tr class="bg-gray-200">
+      <th class="p-2 text-[#00333e] font-semibold">Kifurushi</th>
+      <th class="p-2 text-[#00333e] font-semibold">Wateja (Max)</th>
+      <th class="p-2 text-[#00333e] font-semibold">SMS kwa Mwezi</th>
+      <th class="p-2 text-[#00333e] font-semibold">Bei (TZS)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="border-b">
+      <td class="p-2">Stata</td>
+      <td class="p-2">500</td>
+      <td class="p-2">4,000</td>
+      <td class="p-2">99,999</td>
+    </tr>
+    <tr class="border-b">
+      <td class="p-2">Baraza</td>
+      <td class="p-2">2,500</td>
+      <td class="p-2">20,000</td>
+      <td class="p-2">399,999</td>
+    </tr>
+    <tr class="border-b">
+      <td class="p-2">Smati</td>
+      <td class="p-2">5,000</td>
+      <td class="p-2">40,000</td>
+      <td class="p-2">719,999</td>
+    </tr>
+    <tr class="border-b">
+      <td class="p-2">Mipango</td>
+      <td class="p-2">10,000</td>
+      <td class="p-2">80,000</td>
+      <td class="p-2">1,399,999</td>
+    </tr>
+    <tr class="border-b">
+      <td class="p-2">Kwa Madiba</td>
+      <td class="p-2">50,000</td>
+      <td class="p-2">400,000</td>
+      <td class="p-2">5,999,999</td>
+    </tr>
+    <tr>
+      <td class="p-2">Dubai</td>
+      <td class="p-2">100,000</td>
+      <td class="p-2">800,000</td>
+      <td class="p-2">11,199,999</td>
+    </tr>
+  </tbody>
+</table>
         </table>
         <h3 class="text-xl font-semibold mb-3 text-[#00333e]">Why Choose Bulk SMS?</h3>
         <ul class="text-gray-700 mb-4 leading-relaxed list-disc list-inside">
@@ -221,7 +234,7 @@ Response:
         <div ref={videoSectionRef} className="flex flex-col md:flex-row items-center gap-8 mb-24 bg-gradient-to-r from-[#00333e] to-[#002a34] text-white p-8 rounded-lg">
           <div className="md:w-1/2">
             <span className="inline-block px-4 py-1 bg-white text-[#00333e] rounded-full text-sm font-medium mb-4">
-              🎥 Master Briq with Video Tutorials!
+             Master Briq with Video Tutorials!
             </span>
             <h2 className="text-3xl md:text-xl font-bold mb-4 text-white">
               Unlock Briq Secrets with Our{" "}
@@ -278,7 +291,7 @@ Response:
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
               Explore Our{" "}
-              <span className="text-[#00333e] bg-white px-2 py-1 rounded shadow-md">
+              <span className="text-[#00333e] bg-white px-2 py-1 ">
                 Blog Posts
               </span>
             </h2>
