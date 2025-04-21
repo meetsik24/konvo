@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { BookOpen, Play, X } from "lucide-react";
 import bg from "../../../assets/bg.png";
 import thumbnailBlog1 from "../../../assets/thumb1.jpg";
-import thumbnailBlog2 from "../../../assets/thumb2.jpeg";
-import thumbnailBlog3 from "../../../assets/thumb3.jpeg";
+import thumbnailBlog2 from "../../../assets/thumb2.jpg";
+import thumbnailBlog3 from "../../../assets/thumb3.jpg";
 import kifurushiFlyer from "../../../assets/Furushi Kibompa Flyer A4.pdf";
 
 function LearnWithBriq() {
