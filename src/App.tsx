@@ -54,6 +54,7 @@ import PrivacyPolicy from './landing/pages/Privacy';
 
 import { ContactsProvider } from './components/ContactsContext';
 import { WorkspaceProvider } from './pages/WorkspaceContext';
+import LearnWithBriq from './landing/pages/LearnwithBriq';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -85,6 +86,9 @@ const Landing = () => {
       <div id="services">
         <Features />
       </div>
+      <div id="learn">
+        <LearnWithBriq/>
+      </div>      
       <div id="pricing">
         <Pricing />
       </div>
