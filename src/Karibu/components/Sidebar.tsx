@@ -1,4 +1,3 @@
-// Karibu/components/Sidebar.jsx
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { X, Menu } from "lucide-react";
@@ -13,7 +12,7 @@ function DocumentationSidebar() {
   return (
     <div className="relative">
       {/* Mobile Toggle Button */}
-      <div className="md:hidden p-4 bg-[#00333e] text-white">
+      <div className="md:hidden p-4 bg-[#00333e] text-white fixed top-0 left-0 w-full z-50">
         <button onClick={toggleMobileMenu} className="flex items-center gap-2">
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           <span className="text-lg font-semibold">Menu</span>
@@ -24,12 +23,12 @@ function DocumentationSidebar() {
       <aside
         className={`${
           isMobileMenuOpen ? "block" : "hidden"
-        } md:block fixed top-0 left-0 w-64 h-screen bg-[#00333e] text-white p-6 pt-[80px] shadow-lg rounded-r-lg font-exo transition-all duration-300 z-40 overflow-y-auto`}
+        } md:block fixed md:sticky top-0 left-0 w-64 h-screen md:h-screen bg-[#00333e] text-white p-6 pt-[80px] md:pt-0 shadow-lg rounded-r-lg md:rounded-none font-exo transition-all duration-300 z-40 md:z-10 overflow-y-auto`}
       >
         {/* Sidebar Header */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-[#fddf0d] [text-shadow:_0_0_10px_rgba(253,223,13,0.3)]">
-           Briq Karibu API
+            Briq Karibu API
           </h2>
         </div>
 
@@ -85,10 +84,16 @@ function DocumentationSidebar() {
               </li>
             </ul>
           </div>
-
-         
         </nav>
       </aside>
+
+      {/* Overlay for Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setIsMobileMenuOpen(false)}
+        ></div>
+      )}
     </div>
   );
 }
