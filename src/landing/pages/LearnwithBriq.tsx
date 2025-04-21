@@ -9,6 +9,7 @@ import kifurushiFlyer from "../../../assets/Furushi Kibompa Flyer A4.pdf";
 function LearnWithBriq() {
   const [isBlogOpen, setIsBlogOpen] = useState(null); // Track which blog post is open
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Simulate loading state for blog posts
   const videoSectionRef = useRef(null);
 
   const openBlog = (blogId) => setIsBlogOpen(blogId);
@@ -18,13 +19,21 @@ function LearnWithBriq() {
     setIsVideoPlaying(true);
   };
 
-  // Auto-play video when the section comes into view
+  // Simulate loading delay for blog posts (replace with actual data fetching logic if needed)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000); // 2-second delay to simulate loading
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Auto-play video and load iframe when the section comes into view
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
           setIsVideoPlaying(true);
-          observer.disconnect(); // Stop observing after playing
+          observer.disconnect(); // Stop observing after loading/playing
         }
       },
       { threshold: 0.5 } // Trigger when 50% of the section is visible
@@ -41,11 +50,34 @@ function LearnWithBriq() {
     };
   }, []);
 
+  // Skeleton Component for Blog Post Cards
+  const BlogPostSkeleton = () => (
+    <div className="bg-white p-6 rounded-lg shadow-lg animate-pulse">
+      {/* Image Placeholder */}
+      <div
+        className="w-full bg-gray-200 rounded-lg mb-4"
+        style={{ aspectRatio: "4/5" }}
+      ></div>
+      {/* Title Placeholder */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
+        <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+      </div>
+      {/* Description Placeholder */}
+      <div className="space-y-2 mb-4">
+        <div className="h-4 bg-gray-200 rounded w-full"></div>
+        <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+      </div>
+      {/* Button Placeholder */}
+      <div className="h-10 bg-gray-200 rounded-lg w-full"></div>
+    </div>
+  );
+
   // Blog Post 2: KARIBU APIs
   const blogPost2Content = `
     <div class="flex flex-col md:flex-row h-full">
       <div class="md:w-1/2 p-6 flex-shrink-0">
-        <img src="${thumbnailBlog2}" alt="Blog Image 2" class="w-full h-auto rounded-lg shadow-md" style="aspect-ratio: 4/5;" />
+        <img src="${thumbnailBlog2}" alt="Blog Image 2" class="w-full h-auto rounded-lg shadow-md" style="aspect-ratio: 4/5;" loading="lazy" />
       </div>
       <div class="md:w-1/2 p-6 bg-gray-50 overflow-y-auto">
         <h2 class="text-3xl font-bold mb-4 text-[#00333e] transition-all duration-300">Unlock Seamless Communication with KARIBU APIs</h2>
@@ -102,7 +134,7 @@ Response:
   const blogPost3Content = `
     <div class="flex flex-col md:flex-row h-full">
       <div class="md:w-1/2 p-6 flex-shrink-0">
-        <img src="${thumbnailBlog3}" alt="Blog Image 3" class="w-full h-auto rounded-lg shadow-md" style="aspect-ratio: 4/5;" />
+        <img src="${thumbnailBlog3}" alt="Blog Image 3" class="w-full h-auto rounded-lg shadow-md" style="aspect-ratio: 4/5;" loading="lazy" />
       </div>
       <div class="md:w-1/2 p-6 bg-gray-50 overflow-y-auto">
         <h2 class="text-3xl font-bold mb-4 text-[#00333e] transition-all duration-300">Engage Millions with Bulk SMS Campaigns</h2>
@@ -193,7 +225,7 @@ Response:
             </span>
             <h2 className="text-3xl md:text-xl font-bold mb-4 text-white">
               Unlock Briq Secrets with Our{" "}
-              <span className="text-[#00333e] bg-[#fddf0d] px-2 py-1 rounded shadow-md ">
+              <span className="text-[#00333e] bg-[#fddf0d] px-2 py-1 rounded shadow-md">
                 YouTube Tutorials!
               </span>
             </h2>
@@ -208,26 +240,24 @@ Response:
           </div>
           <div className="md:w-1/2 bg-[#fddf0d] p-8 rounded-lg">
             <div className="relative">
-              <iframe
-                className="w-full"
-                style={{ height: "315px" }}
-                src={
-                  isVideoPlaying
-                    ? "https://www.youtube.com/embed/t1zaDwbPmyo?si=_pAq-V5QRMhgvwHJ&autoplay=1"
-                    : "https://www.youtube.com/embed/t1zaDwbPmyo?si=_pAq-V5QRMhgvwHJ"
-                }
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-              ></iframe>
-              {!isVideoPlaying && (
+              {isVideoPlaying ? (
+                <iframe
+                  className="w-full"
+                  style={{ height: "315px" }}
+                  src="https://www.youtube.com/embed/t1zaDwbPmyo?si=_pAq-V5QRMhgvwHJ&autoplay=1"
+                  title="YouTube video player"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                ></iframe>
+              ) : (
                 <div
-                  className="absolute inset-0 flex items-center justify-center cursor-pointer bg-opacity-50"
+                  className="w-full bg-gray-300 rounded-lg relative cursor-pointer"
+                  style={{ height: "315px" }}
                   onClick={playVideo}
                 >
-                  <Play className="w-12 h-12 text-white opacity-80 hover:opacity-100" />
+                  <Play className="absolute inset-0 m-auto w-12 h-12 text-white opacity-80 hover:opacity-100" />
                 </div>
               )}
             </div>
@@ -259,81 +289,94 @@ Response:
 
           {/* Blog Posts Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Substack Blog Post */}
-            <a
-              href="https://sikjunior.substack.com/p/why-communication-is-your-most-underrated"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block bg-white p-6 rounded-lg shadow-lg [filter:_drop-shadow(0_0_15px_rgba(0,51,62,0.2))]"
-            >
-              <img
-                src={thumbnailBlog1}
-                alt="Substack Blog Thumbnail"
-                className="w-full h-auto rounded-lg mb-4"
-                style={{ aspectRatio: "4/5" }}
-              />
-              <div className="flex items-center gap-2 mb-4">
-                <BookOpen className="w-6 h-6 text-[#00333e]" />
-                <h3 className="text-xl font-bold text-gray-900">Why Communication Is Your Most Underrated Business Tool</h3>
-              </div>
-              <div
-                className="substack-post-embed"
-                dangerouslySetInnerHTML={{
-                  __html: `
-                    <p lang="en" class="text-gray-900 text-justify">Why Communication Is Your Most Underrated Business Tool by Sikjunior Mrimi</p>
-                    <p class="text-gray-600 text-justify">Exploring how tools like SMS, IVR, and WhatsApp can transform customer engagement and retention.</p>
-                    <button class="bg-[#00333e] text-white px-6 py-2 rounded-lg mt-4 hover:bg-[#00333e]/80 transition-all duration-300 transform hover:scale-105 w-full">Read on Substack</button>
-                  `,
-                }}
-              />
-              <script async src="https://substack.com/embedjs/embed.js" charSet="utf-8"></script>
-            </a>
+            {isLoading ? (
+              <>
+                <BlogPostSkeleton />
+                <BlogPostSkeleton />
+                <BlogPostSkeleton />
+              </>
+            ) : (
+              <>
+                {/* Substack Blog Post */}
+                <a
+                  href="https://sikjunior.substack.com/p/why-communication-is-your-most-underrated"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block bg-white p-6 rounded-lg shadow-lg [filter:_drop-shadow(0_0_15px_rgba(0,51,62,0.2))]"
+                >
+                  <img
+                    src={thumbnailBlog1}
+                    alt="Substack Blog Thumbnail"
+                    className="w-full h-auto rounded-lg mb-4"
+                    style={{ aspectRatio: "4/5" }}
+                    loading="lazy"
+                  />
+                  <div className="flex items-center gap-2 mb-4">
+                    <BookOpen className="w-6 h-6 text-[#00333e]" />
+                    <h3 className="text-xl font-bold text-gray-900">Why Communication Is Your Most Underrated Business Tool</h3>
+                  </div>
+                  <div
+                    className="substack-post-embed"
+                    dangerouslySetInnerHTML={{
+                      __html: `
+                        <p lang="en" class="text-gray-900 text-justify">Why Communication Is Your Most Underrated Business Tool by Sikjunior Mrimi</p>
+                        <p class="text-gray-600 text-justify">Exploring how tools like SMS, IVR, and WhatsApp can transform customer engagement and retention.</p>
+                        <button class="bg-[#00333e] text-white px-6 py-2 rounded-lg mt-4 hover:bg-[#00333e]/80 transition-all duration-300 transform hover:scale-105 w-full">Read on Substack</button>
+                      `,
+                    }}
+                  />
+                  <script async src="https://substack.com/embedjs/embed.js" charSet="utf-8"></script>
+                </a>
 
-            {/* Blog Post 2 (KARIBU APIs) */}
-            <div className="bg-white p-6 rounded-lg shadow-lg [filter:_drop-shadow(0_0_15px_rgba(0,51,62,0.2))]">
-              <img
-                src={thumbnailBlog2}
-                alt="Blog Thumbnail 2"
-                className="w-full h-auto rounded-lg mb-4"
-                style={{ aspectRatio: "4/5" }}
-              />
-              <div className="flex items-center gap-2 mb-4">
-                <BookOpen className="w-6 h-6 text-[#00333e]" />
-                <h3 className="text-xl font-bold text-gray-900">Unlock Seamless Communication with KARIBU APIs</h3>
-              </div>
-              <p className="text-gray-600 mb-4 text-justify">
-                Learn how developers can integrate SMS, OTP, and transactional messaging using KARIBU APIs.
-              </p>
-              <button
-                onClick={() => openBlog("blog2")}
-                className="bg-[#00333e] text-white px-6 py-2 rounded-lg mt-4 hover:bg-[#00333e]/80 transition-all duration-300 transform hover:scale-105 w-full"
-              >
-                Read the Blog Post
-              </button>
-            </div>
+                {/* Blog Post 2 (KARIBU APIs) */}
+                <div className="bg-white p-6 rounded-lg shadow-lg [filter:_drop-shadow(0_0_15px_rgba(0,51,62,0.2))]">
+                  <img
+                    src={thumbnailBlog2}
+                    alt="Blog Thumbnail 2"
+                    className="w-full h-auto rounded-lg mb-4"
+                    style={{ aspectRatio: "4/5" }}
+                    loading="lazy"
+                  />
+                  <div className="flex items-center gap-2 mb-4">
+                    <BookOpen className="w-6 h-6 text-[#00333e]" />
+                    <h3 className="text-xl font-bold text-gray-900">Unlock Seamless Communication with KARIBU APIs</h3>
+                  </div>
+                  <p className="text-gray-600 mb-4 text-justify">
+                    Learn how developers can integrate SMS, OTP, and transactional messaging using KARIBU APIs.
+                  </p>
+                  <button
+                    onClick={() => openBlog("blog2")}
+                    className="bg-[#00333e] text-white px-6 py-2 rounded-lg mt-4 hover:bg-[#00333e]/80 transition-all duration-300 transform hover:scale-105 w-full"
+                  >
+                    Read the Blog Post
+                  </button>
+                </div>
 
-            {/* Blog Post 3 (Kifurushi Kibompa Campaign) */}
-            <div className="bg-white p-6 rounded-lg shadow-lg [filter:_drop-shadow(0_0_15px_rgba(0,51,62,0.2))]">
-              <img
-                src={thumbnailBlog3}
-                alt="Blog Thumbnail 3"
-                className="w-full h-auto rounded-lg mb-4"
-                style={{ aspectRatio: "4/5" }}
-              />
-              <div className="flex items-center gap-2 mb-4">
-                <BookOpen className="w-6 h-6 text-[#00333e]" />
-                <h3 className="text-xl font-bold text-gray-900">Engage Millions with Bulk SMS Campaigns</h3>
-              </div>
-              <p className="text-gray-600 mb-4 text-justify">
-                Discover how to reach thousands of customers with our Bulk SMS campaigns.
-              </p>
-              <button
-                onClick={() => openBlog("blog3")}
-                className="bg-[#00333e] text-white px-6 py-2 rounded-lg mt-4 hover:bg-[#00333e]/80 transition-all duration-300 transform hover:scale-105 w-full"
-              >
-                Read the Blog Post
-              </button>
-            </div>
+                {/* Blog Post 3 (Kifurushi Kibompa Campaign) */}
+                <div className="bg-white p-6 rounded-lg shadow-lg [filter:_drop-shadow(0_0_15px_rgba(0,51,62,0.2))]">
+                  <img
+                    src={thumbnailBlog3}
+                    alt="Blog Thumbnail 3"
+                    className="w-full h-auto rounded-lg mb-4"
+                    style={{ aspectRatio: "4/5" }}
+                    loading="lazy"
+                  />
+                  <div className="flex items-center gap-2 mb-4">
+                    <BookOpen className="w-6 h-6 text-[#00333e]" />
+                    <h3 className="text-xl font-bold text-gray-900">Engage Millions with Bulk SMS Campaigns</h3>
+                  </div>
+                  <p className="text-gray-600 mb-4 text-justify">
+                    Discover how to reach thousands of customers with our Bulk SMS campaigns.
+                  </p>
+                  <button
+                    onClick={() => openBlog("blog3")}
+                    className="bg-[#00333e] text-white px-6 py-2 rounded-lg mt-4 hover:bg-[#00333e]/80 transition-all duration-300 transform hover:scale-105 w-full"
+                  >
+                    Read the Blog Post
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -359,8 +402,7 @@ Response:
       </div>
 
       {/* Custom Animation Styles */}
-      {/* Styles moved to LearnwithBriq.module.css */}
-      {/* Import the CSS file at the top of the component */}
+     
     </section>
   );
 }
