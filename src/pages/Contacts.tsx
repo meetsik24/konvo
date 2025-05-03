@@ -553,10 +553,10 @@ const Contacts: React.FC = () => {
         header: true,
         complete: async (results) => {
           const validContacts = results.data
-            .filter((row: any) => row.name && row.phone)
+            .filter((row: any) => row.name && row.phone_number)
             .map((row: any) => ({
               name: row.name.toString(),
-              phone_number: row.phone.toString(),
+              phone_number: row.phone_number.toString(),
               email: row.email ? row.email.toString() : '',
               workspace_id: currentWorkspaceId,
             }));
@@ -591,7 +591,7 @@ const Contacts: React.FC = () => {
   );
 
   const downloadTemplate = useCallback(() => {
-    const csv = Papa.unparse([{ name: '', phone: '', email: '' }]);
+    const csv = Papa.unparse([{ name: '', phone_number: '', email: '' }]);
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
