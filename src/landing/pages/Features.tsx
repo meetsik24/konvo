@@ -64,7 +64,7 @@ function Features() {
             </h2>
             <p className="text-gray-600 mb-6 max-w-md">
               Briq offers secure OTP Authentication for logins and WhatsApp OTP
-              for inventory management, ensuring your business communications are
+              for transaction verifications, ensuring your business communications are
               safe and reliable.
             </p>
           </div>

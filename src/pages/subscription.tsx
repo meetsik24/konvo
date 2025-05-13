@@ -69,15 +69,11 @@ const Subscription: React.FC = () => {
 
       try {
         const plansData = await getPlans();
-        // Debug: Log plan IDs to verify uniqueness
         console.log('Plan IDs:', plansData.map((plan: Plan) => plan.plan_id));
-        // Check for duplicate plan_ids
         const planIds = plansData.map((plan: Plan) => plan.plan_id);
         const uniquePlanIds = new Set(planIds);
         if (uniquePlanIds.size !== planIds.length) {
           console.warn('Duplicate plan_ids detected:', planIds);
-          // If duplicates exist, we can generate unique keys for rendering
-          // For now, we'll proceed and handle this in rendering if needed
         }
         setPlans(plansData);
 
@@ -283,15 +279,10 @@ const Subscription: React.FC = () => {
   };
 
   const togglePlan = (planId: string) => {
-    setExpandedPlans((prev) => {
-      console.log('Toggling plan:', planId, 'Previous state:', prev);
-      const newState = {
-        ...prev,
-        [planId]: !prev[planId],
-      };
-      console.log('New state:', newState);
-      return newState;
-    });
+    setExpandedPlans((prev) => ({
+      ...prev,
+      [planId]: !prev[planId],
+    }));
   };
 
   return (
@@ -428,12 +419,12 @@ const Subscription: React.FC = () => {
             const isExpanded = expandedPlans[plan.plan_id] || false;
             return (
               <motion.div
-                key={plan.plan_id} // Ensure the key is unique
+                key={plan.plan_id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`relative rounded-2xl border ${
+                className="relative rounded-2xl border ${
                   plan.name.toLowerCase().includes('paradiso') ? 'border-[#fddf0d]' : 'border-gray-200'
-                } shadow-sm bg-white flex flex-col transition-all duration-200`}
+                } shadow-sm bg-white flex flex-col transition-all duration-200"
               >
                 {plan.name.toLowerCase().includes('paradiso') && (
                   <div className="absolute top-0 right-0 -mr-1 -mt-1 px-2 sm:px-3 py-1 bg-[#fddf0d] text-[#00333e] text-xs sm:text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
@@ -441,7 +432,7 @@ const Subscription: React.FC = () => {
                   </div>
                 )}
 
-                <div className={`p-4 sm:p-6 ${isExpanded ? 'pb-0 sm:pb-0' : ''}`}>
+                <div className="p-4 sm:p-6 ${isExpanded ? 'pb-0 sm:pb-0' : ''}">
                   <div className="flex justify-between items-center">
                     <div>
                       <h3 className="text-xl sm:text-2xl font-semibold text-[#00333e]">{plan.name}</h3>
@@ -566,36 +557,41 @@ const Subscription: React.FC = () => {
       {showPaymentModal && paymentDetails && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
           <div className="bg-white p-6 sm:p-8 rounded-lg shadow-md w-full max-w-sm sm:max-w-md">
-            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-[#00333e]">Payment Details</h2>
-            <p className="mb-1 sm:mb-2 text-sm sm:text-base text-[#6f888c]">
-              <strong>Number of SMS Credits:</strong> {paymentDetails.smsCount.toLocaleString()}
-            </p>
-            <p className="mb-3 sm:mb-4 text-sm sm:text-base text-[#6f888c]">
-              <strong>Total Amount:</strong> {paymentDetails.totalAmount.toLocaleString()} TZS
-            </p>
-            <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2 text-[#00333e]">Enter Mobile Money Number</h3>
-            <input
-              type="text"
-              className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent mb-3 sm:mb-4"
-              value={mobileMoneyNumber}
-              onChange={(e) => setMobileMoneyNumber(e.target.value)}
-              placeholder="+255XXXXXXXXX"
-              disabled={isPaymentProcessing}
-            />
-            <button
-              className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
-              onClick={handlePurchase}
-              disabled={isPaymentProcessing}
-            >
-              Pay Now
-            </button>
-            <button
-              className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 mt-1 sm:mt-2"
-              onClick={() => setShowPaymentModal(false)}
-              disabled={isPaymentProcessing}
-            >
-              Cancel
-            </button>
+            <div className="space-y-4">
+              <p className="text-sm sm:text-base text-[#6f888c]">
+                <strong>COST:</strong> {paymentDetails.totalAmount.toLocaleString()} TZS
+              </p>
+              <input
+                type="number"
+                className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent mb-3 sm:mb-4"
+                value={paymentDetails.smsCount}
+                placeholder="Credits"
+                disabled
+              />
+              <input
+                type="text"
+                className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent mb-3 sm:mb-4"
+                value={mobileMoneyNumber}
+                onChange={(e) => setMobileMoneyNumber(e.target.value)}
+                placeholder="PHONE NUMBER"
+                disabled={isPaymentProcessing}
+              />
+              <p className="text-sm sm:text-base text-[#6f888c]">CREDIT DESCRIPTIONS: SMS credits for your plan</p>
+              <button
+                className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
+                onClick={handlePurchase}
+                disabled={isPaymentProcessing}
+              >
+                PURCHASE
+              </button>
+              <button
+                className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 mt-1 sm:mt-2"
+                onClick={() => setShowPaymentModal(false)}
+                disabled={isPaymentProcessing}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
