@@ -1,17 +1,18 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Play } from "lucide-react";
+import YouTube from "react-youtube";
 import bg from "../../../assets/bg.png";
 
 function LearnWithBriq() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const videoSectionRef = useRef(null);
+  const playerRef = useRef(null);
 
   const playVideo = () => {
     setIsVideoPlaying(true);
   };
 
-  // Auto-play video and load iframe when the section comes into view
+  // Auto-play video when section comes into view
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -33,6 +34,25 @@ function LearnWithBriq() {
       }
     };
   }, []);
+
+  // YouTube player options
+  const opts = {
+    height: "315",
+    width: "100%",
+    playerVars: {
+      autoplay: isVideoPlaying ? 1 : 0,
+      mute: 1, // Mute by default
+    },
+  };
+
+  // Handle player ready event
+  const onReady = (event) => {
+    playerRef.current = event.target;
+    if (isVideoPlaying) {
+      event.target.playVideo();
+      event.target.mute(); // Ensure muted on start
+    }
+  };
 
   return (
     <section
@@ -79,16 +99,13 @@ function LearnWithBriq() {
           <div className="md:w-1/2 bg-[#fddf0d] p-8 rounded-lg">
             <div className="relative">
               {isVideoPlaying ? (
-                <iframe
-                  className="w-full"
-                  style={{ height: "315px" }}
-                  src="https://www.youtube.com/embed/t1zaDwbPmyo?si=_pAq-V5QRMhgvwHJ&autoplay=1"
-                  title="YouTube video player"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  allowFullScreen
-                ></iframe>
+                <YouTube
+                  videoId="t1zaDwbPmyo"
+                  opts={opts}
+                  onReady={onReady}
+                  className="w-full rounded-lg"
+                  containerClassName="w-full"
+                />
               ) : (
                 <div
                   className="w-full bg-gray-300 rounded-lg relative cursor-pointer"
