@@ -15,6 +15,7 @@ import Features from './landing/pages/Features';
 import Pricing from './landing/pages/Pricing';
 import Navbar from './landing/components/Navbar';
 import { Footer } from './landing/components/Footer';
+import BlogSection from  './landing/pages/blog';
 
 // Documentation Pages
 import DocumentationHome from './Karibu/pages/Home';
@@ -47,6 +48,7 @@ import Subscription from './pages/subscription';
 import SenderID from './pages/SenderID';
 import Contacts from './pages/Contacts';
 import ApiKeys from './pages/apikeys';
+
 
 // Terms of Service and Privacy Policy Pages
 import TermsOfService from './landing/pages/Terms';
@@ -91,6 +93,9 @@ const Landing = () => {
       </div>      
       <div id="pricing">
         <Pricing />
+      </div>
+      <div id="blog">
+        <BlogSection />
       </div>
       <div id="footer">
         <Footer />
