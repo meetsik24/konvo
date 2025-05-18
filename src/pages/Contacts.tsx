@@ -345,7 +345,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
 
   const handleColumnMapping = (column: string, field: string) => {
     setColumnMappings((prev) => {
-      // Remove any existing mapping for this field to prevent multiple columns mapping to the same field
       const newMappings = { ...prev };
       Object.keys(newMappings).forEach((key) => {
         if (newMappings[key] === field && key !== column && field !== '') {
@@ -503,7 +502,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         </div>
       )}
 
-      {/* Step Indicator */}
       <div className="flex items-center justify-between mb-4 overflow-x-auto">
         {['Upload File', 'Map Columns', 'Select Group', 'Preview & Import'].map((label, index) => (
           <div key={label} className="flex items-center min-w-[100px] sm:min-w-[120px]">
@@ -524,7 +522,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         ))}
       </div>
 
-      {/* Step 1: Upload File, Paste Text, or Import from Phone Book */}
       {step === 1 && (
         <div className="space-y-4 sm:space-y-6">
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
@@ -569,7 +566,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         </div>
       )}
 
-      {/* Step 2: View Uploaded Data and Map Columns */}
       {step === 2 && uploadedData.length > 0 && (
         <div>
           <div className="overflow-x-auto max-h-[300px] sm:max-h-[400px] border border-gray-200 rounded-lg">
@@ -611,7 +607,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         </div>
       )}
 
-      {/* Step 3: Select or Create Group */}
       {step === 3 && (
         <div>
           <div className="mb-4 sm:mb-6">
@@ -656,7 +651,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         </div>
       )}
 
-      {/* Step 4: Preview and Process */}
       {step === 4 && (
         <div>
           <div className="overflow-x-auto max-h-[300px] sm:max-h-[400px] border border-gray-200 rounded-lg">
@@ -691,12 +685,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
               </tbody>
             </table>
           </div>
-          <div className="mt-4 sm:mt-6">
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-[#005a6e] h-2 rounded-full" style={{ width: '100%' }}></div>
-            </div>
-            <p className="text-gray-600 text-right mt-1 sm:mt-2 text-xs sm:text-sm">Completed</p>
-          </div>
           <div className="flex flex-wrap justify-between mt-2 sm:mt-4 gap-2">
             <div className="flex flex-wrap space-x-2 gap-2">
               <span className="px-2 sm:px-3 py-1 sm:py-2 rounded border border-[#005a6e] text-[#005a6e] text-xs sm:text-sm">
@@ -719,6 +707,56 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   );
 };
 
+interface BulkAddToGroupModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (groupId: string) => void;
+  groups: Group[];
+}
+
+const BulkAddToGroupModal: React.FC<BulkAddToGroupModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  groups,
+}) => {
+  const [selectedGroup, setSelectedGroup] = useState<string>('');
+
+  const handleSubmit = () => {
+    if (selectedGroup) {
+      onSubmit(selectedGroup);
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add Selected Contacts to Group"
+      onSubmit={handleSubmit}
+      submitText="Add to Group"
+    >
+      <div>
+        <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Select Group</label>
+        <select
+          value={selectedGroup}
+          onChange={(e) => setSelectedGroup(e.target.value)}
+          className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+        >
+          <option value="">Select a group...</option>
+          {groups
+            .filter((group) => group.group_id && group.group_id !== 'all')
+            .map((group) => (
+              <option key={group.group_id} value={group.group_id}>
+                {group.name || `Group ${group.group_id}`}
+              </option>
+            ))}
+        </select>
+      </div>
+    </Modal>
+  );
+};
+
 const Contacts: React.FC = () => {
   const { currentWorkspaceId } = useWorkspace();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -729,6 +767,7 @@ const Contacts: React.FC = () => {
     showEditContact: false,
     showAddGroup: false,
     showImportModal: false,
+    showBulkAddToGroup: false,
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [newContact, setNewContact] = useState<Partial<Contact>>({
@@ -748,6 +787,7 @@ const Contacts: React.FC = () => {
   const [newGroupName, setNewGroupName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Contact[]>([]);
 
   const fetchAllContacts = useCallback(
     async (workspaceId: string, groupId?: string) => {
@@ -960,6 +1000,45 @@ const Contacts: React.FC = () => {
     [currentWorkspaceId, fetchContactsAndGroups]
   );
 
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedRows.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedRows.length} contact(s)?`)) return;
+    if (!currentWorkspaceId) {
+      setError('No workspace selected.');
+      return;
+    }
+
+    try {
+      await Promise.all(selectedRows.map((row) => deleteContact(row.contact_id)));
+      await fetchContactsAndGroups();
+      setSelectedRows([]);
+      setError(null);
+    } catch (error: any) {
+      setError(error.message || 'Failed to delete selected contacts.');
+    }
+  }, [selectedRows, currentWorkspaceId, fetchContactsAndGroups]);
+
+  const handleBulkAddToGroup = useCallback(
+    async (groupId: string) => {
+      if (selectedRows.length === 0 || !groupId) return;
+      if (!currentWorkspaceId) {
+        setError('No workspace selected.');
+        return;
+      }
+
+      try {
+        await addContactsToGroup(groupId, selectedRows.map((row) => row.contact_id));
+        await fetchContactsAndGroups();
+        setSelectedRows([]);
+        setModalState((prev) => ({ ...prev, showBulkAddToGroup: false }));
+        setError(null);
+      } catch (error: any) {
+        setError(error.message || 'Failed to add selected contacts to group.');
+      }
+    },
+    [selectedRows, currentWorkspaceId, fetchContactsAndGroups]
+  );
+
   const handleAddGroup = useCallback(
     async () => {
       if (!currentWorkspaceId || !newGroupName.trim()) {
@@ -1045,15 +1124,73 @@ const Contacts: React.FC = () => {
     window.URL.revokeObjectURL(url);
   }, []);
 
+  const filteredContacts = useMemo(() => {
+    return contacts.filter(
+      (contact) =>
+        contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        contact.phone_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (contact.email && contact.email.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  }, [contacts, searchQuery]);
+
+  const totalContacts = useMemo(() => filteredContacts.length, [filteredContacts]);
+  const invalidEmails = useMemo(() => {
+    return filteredContacts.filter((contact) => {
+      const email = contact.email || '';
+      return email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }).length;
+  }, [filteredContacts]);
+  const duplicateEmails = useMemo(() => {
+    const emails = filteredContacts.map((contact) => contact.email || '');
+    return emails.filter((email, index) => email && emails.indexOf(email) !== index).length;
+  }, [filteredContacts]);
+  const validContacts = useMemo(() => {
+    return totalContacts - invalidEmails - duplicateEmails;
+  }, [totalContacts, invalidEmails, duplicateEmails]);
+
   const columns: TableColumn<Contact>[] = useMemo(
     () => [
-      { name: 'Name', selector: (row) => row.name, sortable: true },
-      { name: 'Phone', selector: (row) => row.phone_number, sortable: true },
+      {
+        name: 'Select',
+        selector: (row) => row.contact_id,
+        cell: (row: Contact) => (
+          <input
+            type="checkbox"
+            checked={selectedRows.some((selected) => selected.contact_id === row.contact_id)}
+            onChange={() => {
+              setSelectedRows((prev) =>
+                prev.some((selected) => selected.contact_id === row.contact_id)
+                  ? prev.filter((selected) => selected.contact_id !== row.contact_id)
+                  : [...prev, row]
+              );
+            }}
+          />
+        ),
+        width: '60px',
+      },
+      {
+        name: 'Name',
+        selector: (row) => row.name,
+        sortable: true,
+        minWidth: '150px',
+        grow: 2,
+        wrap: true,
+      },
+      {
+        name: 'Phone',
+        selector: (row) => row.phone_number,
+        sortable: true,
+        minWidth: '150px',
+        grow: 2,
+        wrap: true,
+      },
       {
         name: 'Email',
         selector: (row) => row.email || 'N/A',
         sortable: true,
-        omit: window.innerWidth < 640,
+        minWidth: '200px',
+        grow: 3,
+        wrap: true,
       },
       {
         name: 'Groups',
@@ -1063,12 +1200,14 @@ const Contacts: React.FC = () => {
             .filter(Boolean)
             .join(', ') || 'None',
         sortable: false,
-        omit: window.innerWidth < 640,
+        minWidth: '150px',
+        grow: 2,
+        wrap: true,
       },
       {
         name: 'Actions',
         cell: (row: Contact) => (
-          <div className="flex justify-end gap-1 sm:gap-2">
+          <div className="flex justify-end gap-2 sm:gap-3">
             <button
               onClick={() => {
                 setEditContact({
@@ -1083,62 +1222,56 @@ const Contacts: React.FC = () => {
               }}
               className="p-2 rounded-full text-[#00333e] hover:bg-[#fddf0d] transition-colors duration-200"
             >
-              <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Edit2 className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             <button
               onClick={() => handleDeleteContact(row.contact_id)}
               className="p-2 rounded-full text-red-500 hover:bg-red-100 transition-colors duration-200"
             >
-              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
         ),
         ignoreRowClick: true,
         allowOverflow: true,
         button: true,
+        minWidth: '120px',
       },
     ],
-    [groups, handleDeleteContact]
+    [groups, handleDeleteContact, selectedRows]
   );
-
-  const filteredContacts = useMemo(() => {
-    return contacts.filter(
-      (contact) =>
-        contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        contact.phone_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (contact.email && contact.email.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [contacts, searchQuery]);
 
   const customStyles = {
     headCells: {
       style: {
         backgroundColor: '#f9fafb',
         fontWeight: '600',
-        padding: '8px 12px',
-        fontSize: window.innerWidth < 640 ? '12px' : '14px',
+        padding: '12px 16px',
+        fontSize: window.innerWidth < 640 ? '14px' : '16px',
         color: '#00333e',
+        borderBottom: '2px solid #e5e7eb',
       },
     },
     cells: {
       style: {
-        padding: '8px 12px',
-        fontSize: window.innerWidth < 640 ? '12px' : '14px',
+        padding: '12px 16px',
+        fontSize: window.innerWidth < 640 ? '14px' : '16px',
         color: '#374151',
+        borderBottom: '1px solid #e5e7eb',
       },
     },
     table: {
       style: {
         border: '1px solid #e5e7eb',
         borderRadius: '8px',
-        overflow: 'auto',
+        width: '100%',
       },
     },
     pagination: {
       style: {
         borderTop: '1px solid #e5e7eb',
-        padding: '8px 10px',
-        fontSize: window.innerWidth < 640 ? '12px' : '14px',
+        padding: '12px 16px',
+        fontSize: window.innerWidth < 640 ? '14px' : '16px',
         color: '#00333e',
       },
     },
@@ -1191,14 +1324,15 @@ const Contacts: React.FC = () => {
                   <div key={group.group_id} className="flex justify-between items-center group">
                     <button
                       onClick={() => setSelectedGroup(group.group_id)}
-                      className={`w-full text-left px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex justify-between items-center transition-colors text-xs sm:text-sm ${
+                      className={`w-full text-left px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center gap-2 transition-colors text-xs sm:text-sm ${
                         selectedGroup === group.group_id
                           ? 'bg-[#fddf0d] text-[#00333e]'
                           : 'hover:bg-[#005a6e] hover:text-white'
                       }`}
                     >
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                       <span className="truncate">{group.name}</span>
-                      <span className="text-xs sm:text-sm ml-1 sm:ml-2">{group.count}</span>
+                      <span className="text-xs sm:text-sm ml-auto">{group.count}</span>
                     </button>
                     {group.group_id !== 'all' && (
                       <button
@@ -1261,32 +1395,78 @@ const Contacts: React.FC = () => {
                 </div>
               </div>
 
-              <StyledDataTable
-                columns={columns}
-                data={filteredContacts}
-                pagination
-                paginationPerPage={25}
-                paginationRowsPerPageOptions={[10, 25, 50, 100]}
-                paginationComponentOptions={{
-                  rowsPerPageText: 'Contacts per page:',
-                  rangeSeparatorText: 'of',
-                }}
-                progressPending={isLoading}
-                progressComponent={
-                  <div className="p-3 sm:p-4 text-center text-gray-500 text-xs sm:text-sm">
-                    Loading contacts...
-                  </div>
-                }
-                noDataComponent={
-                  <div className="p-3 sm:p-4 text-center text-gray-500 text-xs sm:text-sm">
-                    No contacts found.
-                  </div>
-                }
-                customStyles={customStyles}
-                highlightOnHover
-                striped
-                responsive
-              />
+              {selectedRows.length > 0 && (
+                <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
+                  <span className="text-sm sm:text-base text-[#00333e]">
+                    Selected {selectedRows.length} contact(s)
+                  </span>
+                  <button
+                    onClick={handleBulkDelete}
+                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Delete Selected
+                  </button>
+                  <button
+                    onClick={() => setModalState((prev) => ({ ...prev, showBulkAddToGroup: true }))}
+                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
+                  >
+                    <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Add to Group
+                  </button>
+                  <button
+                    onClick={() => setSelectedRows([])}
+                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+                  >
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Clear Selection
+                  </button>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
+                <span className="px-3 sm:px-4 py-2 sm:py-3 rounded border border-[#005a6e] text-[#005a6e] text-sm sm:text-base">
+                  Total Contacts: {totalContacts}
+                </span>
+                <span className="px-3 sm:px-4 py-2 sm:py-3 rounded border border-red-500 text-red-500 text-sm sm:text-base">
+                  Invalid Emails: {invalidEmails}
+                </span>
+                <span className="px-3 sm:px-4 py-2 sm:py-3 rounded border border-yellow-500 text-yellow-500 text-sm sm:text-base">
+                  Duplicate Emails: {duplicateEmails}
+                </span>
+                <span className="px-3 sm:px-4 py-2 sm:py-3 rounded border border-green-500 text-green-500 text-sm sm:text-base">
+                  Valid Contacts: {validContacts}
+                </span>
+              </div>
+
+              <div className="w-full overflow-x-auto">
+                <StyledDataTable
+                  columns={columns}
+                  data={filteredContacts}
+                  pagination
+                  paginationPerPage={25}
+                  paginationRowsPerPageOptions={[10, 25, 50, 100]}
+                  paginationComponentOptions={{
+                    rowsPerPageText: 'Contacts per page:',
+                    rangeSeparatorText: 'of',
+                  }}
+                  progressPending={isLoading}
+                  progressComponent={
+                    <div className="p-3 sm:p-4 text-center text-gray-500 text-sm sm:text-base">
+                      Loading contacts...
+                    </div>
+                  }
+                  noDataComponent={
+                    <div className="p-3 sm:p-4 text-center text-gray-500 text-sm sm:text-base">
+                      No contacts found.
+                    </div>
+                  }
+                  customStyles={customStyles}
+                  highlightOnHover
+                  striped
+                  responsive
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -1350,6 +1530,13 @@ const Contacts: React.FC = () => {
           onSubmit={handleImportSubmit}
           groups={groups}
           setGroups={setGroups}
+        />
+
+        <BulkAddToGroupModal
+          isOpen={modalState.showBulkAddToGroup}
+          onClose={() => setModalState((prev) => ({ ...prev, showBulkAddToGroup: false }))}
+          onSubmit={handleBulkAddToGroup}
+          groups={groups}
         />
       </motion.div>
     </ErrorBoundary>
