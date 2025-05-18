@@ -226,9 +226,10 @@ interface ImportModalProps {
   onClose: () => void;
   onSubmit: (groupId: string, contacts: Contact[]) => void;
   groups: Group[];
+  setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
 }
 
-const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, groups }) => {
+const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, groups, setGroups }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(1);
   const [uploadedData, setUploadedData] = useState<UploadedContact[]>([]);
@@ -343,11 +344,44 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   };
 
   const handleColumnMapping = (column: string, field: string) => {
-    setColumnMappings((prev) => ({ ...prev, [column]: field }));
+    setColumnMappings((prev) => {
+      // Remove any existing mapping for this field to prevent multiple columns mapping to the same field
+      const newMappings = { ...prev };
+      Object.keys(newMappings).forEach((key) => {
+        if (newMappings[key] === field && key !== column && field !== '') {
+          delete newMappings[key];
+        }
+      });
+      if (field) {
+        newMappings[column] = field;
+      } else {
+        delete newMappings[column];
+      }
+      return newMappings;
+    });
+  };
+
+  const validateMappings = () => {
+    const hasName = Object.values(columnMappings).includes('name');
+    const hasPhoneNumber = Object.values(columnMappings).includes('phone_number');
+    if (!hasName || !hasPhoneNumber) {
+      setError('Please map both Name and Phone Number fields.');
+      return false;
+    }
+    setError(null);
+    return true;
+  };
+
+  const handleProceedToGroupSelection = () => {
+    if (validateMappings()) {
+      setStep(3);
+    }
   };
 
   const handleGroupSelection = () => {
-    if (selectedGroup) setStep(4);
+    if (validateMappings()) {
+      setStep(4);
+    }
   };
 
   const handleCreateGroup = async () => {
@@ -367,7 +401,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         { ...newGroup, count: 0 },
       ]);
       setSelectedGroup(newGroup.group_id);
-      setNewGroupName(''); // Clear the input after successful creation
+      setNewGroupName('');
       setError(null);
     } catch (error: any) {
       setError(error.message || 'Failed to create group.');
@@ -380,17 +414,20 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         throw new Error('No workspace selected.');
       }
 
-      if (!columnMappings['name'] || !columnMappings['phone_number']) {
-        throw new Error('Please map both Name and Phone Number fields.');
+      if (!validateMappings()) {
+        return;
       }
 
       const contactsToImport = uploadedData
         .map((data) => {
-          const name = columnMappings['name'] ? data[columnMappings['name']]?.toString().trim() : '';
-          const phone_number = columnMappings['phone_number']
-            ? data[columnMappings['phone_number']]?.toString().trim()
-            : '';
-          const email = columnMappings['email'] ? data[columnMappings['email']]?.toString().trim() : '';
+          const nameColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'name');
+          const phoneColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'phone_number');
+          const emailColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'email');
+
+          const name = nameColumn ? data[nameColumn]?.toString().trim() : '';
+          const phone_number = phoneColumn ? data[phoneColumn]?.toString().trim() : '';
+          const email = emailColumn ? data[emailColumn]?.toString().trim() : '';
+
           return { name, phone_number, email, workspace_id: currentWorkspaceId };
         })
         .filter((contact) => contact.name && contact.phone_number);
@@ -408,13 +445,17 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   };
 
   const duplicates = useMemo(() => {
-    const emails = uploadedData.map((data) => (columnMappings['email'] ? data[columnMappings['email']] : ''));
+    const emailColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'email');
+    if (!emailColumn) return 0;
+    const emails = uploadedData.map((data) => data[emailColumn] || '');
     return emails.filter((email, index) => email && emails.indexOf(email) !== index).length;
   }, [uploadedData, columnMappings]);
 
   const invalid = useMemo(() => {
+    const emailColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'email');
+    if (!emailColumn) return 0;
     return uploadedData.filter((data) => {
-      const email = columnMappings['email'] ? data[columnMappings['email']] : '';
+      const email = data[emailColumn] || '';
       return email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }).length;
   }, [uploadedData, columnMappings]);
@@ -445,7 +486,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         step === 1
           ? handleTextPaste
           : step === 2
-          ? () => setStep(3)
+          ? handleProceedToGroupSelection
           : step === 3
           ? handleGroupSelection
           : handleFinalImport
@@ -529,27 +570,26 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       )}
 
       {/* Step 2: View Uploaded Data and Map Columns */}
-      {step === 2 && (
+      {step === 2 && uploadedData.length > 0 && (
         <div>
           <div className="overflow-x-auto max-h-[300px] sm:max-h-[400px] border border-gray-200 rounded-lg">
             <table className="w-full text-left text-gray-700">
               <thead className="sticky top-0 bg-gray-100">
                 <tr>
-                  {uploadedData.length > 0 &&
-                    Object.keys(uploadedData[0]).map((column) => (
-                      <th key={column} className="p-2 sm:p-3 min-w-[120px]">
-                        <select
-                          value={columnMappings[column] || ''}
-                          onChange={(e) => handleColumnMapping(column, e.target.value)}
-                          className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
-                        >
-                          <option value="">Select...</option>
-                          <option value="name">Name</option>
-                          <option value="phone_number">Phone Number</option>
-                          <option value="email">Email</option>
-                        </select>
-                      </th>
-                    ))}
+                  {Object.keys(uploadedData[0]).map((column) => (
+                    <th key={column} className="p-2 sm:p-3 min-w-[120px]">
+                      <select
+                        value={columnMappings[column] || ''}
+                        onChange={(e) => handleColumnMapping(column, e.target.value)}
+                        className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
+                      >
+                        <option value="">Select...</option>
+                        <option value="name">Name</option>
+                        <option value="phone_number">Phone Number</option>
+                        <option value="email">Email</option>
+                      </select>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -629,19 +669,25 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
                 </tr>
               </thead>
               <tbody>
-                {uploadedData.map((row, index) => (
-                  <tr key={index} className="border-b border-gray-200">
-                    <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
-                      {columnMappings['name'] ? row[columnMappings['name']] : 'N/A'}
-                    </td>
-                    <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
-                      {columnMappings['phone_number'] ? row[columnMappings['phone_number']] : 'N/A'}
-                    </td>
-                    <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
-                      {columnMappings['email'] ? row[columnMappings['email']] : 'N/A'}
-                    </td>
-                  </tr>
-                ))}
+                {uploadedData.map((row, index) => {
+                  const nameColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'name');
+                  const phoneColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'phone_number');
+                  const emailColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'email');
+
+                  return (
+                    <tr key={index} className="border-b border-gray-200">
+                      <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
+                        {nameColumn ? row[nameColumn] || 'N/A' : 'N/A'}
+                      </td>
+                      <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
+                        {phoneColumn ? row[phoneColumn] || 'N/A' : 'N/A'}
+                      </td>
+                      <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
+                        {emailColumn ? row[emailColumn] || 'N/A' : 'N/A'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1303,6 +1349,7 @@ const Contacts: React.FC = () => {
           }}
           onSubmit={handleImportSubmit}
           groups={groups}
+          setGroups={setGroups}
         />
       </motion.div>
     </ErrorBoundary>
