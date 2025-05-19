@@ -18,6 +18,10 @@ interface Campaign {
   name: string;
   description: string;
   launch_date: string;
+  schedule_type?: 'daily' | 'weekly' | 'monthly';
+  start_date?: string;
+  end_date?: string;
+  end_time?: string;
   created_by: string;
   created_at: string;
 }
@@ -35,7 +39,11 @@ const SMSCampaigns: React.FC = () => {
   const [newCampaign, setNewCampaign] = useState({
     name: '',
     description: '',
-    launch_date: '', // Added launch_date to state
+    launch_date: '',
+    schedule_type: 'daily' as 'daily' | 'weekly' | 'monthly',
+    start_date: '',
+    end_date: '',
+    end_time: '',
   });
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -102,7 +110,11 @@ const SMSCampaigns: React.FC = () => {
       const campaignPayload = {
         name: campaignData.name,
         description: campaignData.description,
-        launch_date: campaignData.launch_date || undefined, // Include launch_date if provided
+        launch_date: campaignData.launch_date || undefined,
+        schedule_type: campaignData.schedule_type,
+        start_date: campaignData.start_date || undefined,
+        end_date: campaignData.end_date || undefined,
+        end_time: campaignData.end_time || undefined,
         workspace_id: currentWorkspaceId,
       };
 
@@ -110,7 +122,11 @@ const SMSCampaigns: React.FC = () => {
         const updatePayload = {
           name: campaignData.name,
           description: campaignData.description,
-          launch_date: campaignData.launch_date || undefined, // Include launch_date for update
+          launch_date: campaignData.launch_date || undefined,
+          schedule_type: campaignData.schedule_type,
+          start_date: campaignData.start_date || undefined,
+          end_date: campaignData.end_date || undefined,
+          end_time: campaignData.end_time || undefined,
         };
         const updatedCampaign = await updateCampaign(editingCampaign.campaign_id, updatePayload);
         setCampaigns(
@@ -125,7 +141,15 @@ const SMSCampaigns: React.FC = () => {
           const updatedGroups = await getCampaignGroups(createdCampaign.campaign_id);
           setCampaignGroups({ ...campaignGroups, [createdCampaign.campaign_id]: updatedGroups });
         }
-        setNewCampaign({ name: '', description: '', launch_date: '' }); // Reset launch_date
+        setNewCampaign({
+          name: '',
+          description: '',
+          launch_date: '',
+          schedule_type: 'daily',
+          start_date: '',
+          end_date: '',
+          end_time: '',
+        });
         setSelectedGroupId('');
       }
       setError(null);
@@ -164,7 +188,11 @@ const SMSCampaigns: React.FC = () => {
     setNewCampaign({
       name: campaign.name,
       description: campaign.description,
-      launch_date: campaign.launch_date || '', // Set launch_date for editing
+      launch_date: campaign.launch_date || '',
+      schedule_type: campaign.schedule_type || 'daily',
+      start_date: campaign.start_date || '',
+      end_date: campaign.end_date || '',
+      end_time: campaign.end_time || '',
     });
   };
 
@@ -250,26 +278,69 @@ const SMSCampaigns: React.FC = () => {
           </div>
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Launch Date (Optional)
+              Schedule Type
             </label>
-            <input
-              type="datetime-local"
+            <select
               className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-              value={editingCampaign?.launch_date || newCampaign.launch_date}
+              value={editingCampaign?.schedule_type || newCampaign.schedule_type}
               onChange={(e) =>
                 editingCampaign
-                  ? setEditingCampaign({ ...editingCampaign, launch_date: e.target.value })
-                  : setNewCampaign({ ...newCampaign, launch_date: e.target.value })
+                  ? setEditingCampaign({ ...editingCampaign, schedule_type: e.target.value as 'daily' | 'weekly' | 'monthly' })
+                  : setNewCampaign({ ...newCampaign, schedule_type: e.target.value as 'daily' | 'weekly' | 'monthly' })
               }
+            >
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Start Date
+            </label>
+            <input
+              type="date"
+              className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+              value={editingCampaign?.start_date || newCampaign.start_date}
+              onChange={(e) =>
+                editingCampaign
+                  ? setEditingCampaign({ ...editingCampaign, start_date: e.target.value })
+                  : setNewCampaign({ ...newCampaign, start_date: e.target.value })
+              }
+              required
             />
-            {(editingCampaign?.launch_date || newCampaign.launch_date) && (
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                Scheduled for:{' '}
-                {new Date(
-                  editingCampaign?.launch_date || newCampaign.launch_date
-                ).toLocaleString()}
-              </p>
-            )}
+          </div>
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              End Date
+            </label>
+            <input
+              type="date"
+              className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+              value={editingCampaign?.end_date || newCampaign.end_date}
+              onChange={(e) =>
+                editingCampaign
+                  ? setEditingCampaign({ ...editingCampaign, end_date: e.target.value })
+                  : setNewCampaign({ ...newCampaign, end_date: e.target.value })
+              }
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              End Time
+            </label>
+            <input
+              type="time"
+              className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+              value={editingCampaign?.end_time || newCampaign.end_time}
+              onChange={(e) =>
+                editingCampaign
+                  ? setEditingCampaign({ ...editingCampaign, end_time: e.target.value })
+                  : setNewCampaign({ ...newCampaign, end_time: e.target.value })
+              }
+              required
+            />
           </div>
           {!editingCampaign && (
             <div>
@@ -293,7 +364,15 @@ const SMSCampaigns: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setEditingCampaign(null);
-                  setNewCampaign({ name: '', description: '', launch_date: '' });
+                  setNewCampaign({
+                    name: '',
+                    description: '',
+                    launch_date: '',
+                    schedule_type: 'daily',
+                    start_date: '',
+                    end_date: '',
+                    end_time: '',
+                  });
                 }}
                 className="text-xs sm:text-sm text-[#00333e] hover:bg-[#fddf0d] px-2 sm:px-3 py-1 rounded-lg transition-colors"
               >
@@ -387,6 +466,22 @@ const SMSCampaigns: React.FC = () => {
                         Launch Date: {new Date(campaign.launch_date).toLocaleString()}
                       </p>
                     )}
+                    {campaign.schedule_type && (
+                      <p className="text-xs sm:text-sm text-gray-600">
+                        Schedule: {campaign.schedule_type.charAt(0).toUpperCase() + campaign.schedule_type.slice(1)}
+                      </p>
+                    )}
+                    {campaign.start_date && (
+                      <p className="text-xs sm:text-sm text-gray-600">
+                        Start Date: {new Date(campaign.start_date).toLocaleDateString()}
+                      </p>
+                    )}
+                    {(campaign.end_date || campaign.end_time) && (
+                      <p className="text-xs sm:text-sm text-gray-600">
+                        End: {campaign.end_date ? new Date(campaign.end_date).toLocaleDateString() : ''}{' '}
+                        {campaign.end_time ? campaign.end_time : ''}
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-1 sm:gap-2 mt-1">
                       {campaignGroups[campaign.campaign_id]?.map((group) => (
                         <span
@@ -434,7 +529,7 @@ const SMSCampaigns: React.FC = () => {
             Scheduled Campaigns
           </h3>
           <p className="text-gray-600 text-xs sm:text-sm">
-            {campaigns.filter((c) => c.launch_date).length} pending
+            {campaigns.filter((c) => c.start_date || c.launch_date).length} pending
           </p>
         </div>
         <div className="bg-white p-3 sm:p-4 rounded-lg shadow-md">
