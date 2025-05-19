@@ -514,7 +514,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
               {index + 1}
             </div>
             <span
-              className={`ml-2 text-xs sm:text-sm ${step >= index + 1 ? 'text-[#fddf0d]' : 'text-gray-400'} truncate`}
+              className={`ml-2 text-xs sm:text-sm ${step >= index + 1 ? 'text-[#00333e]' : 'text-gray-400'} truncate`}
             >
               {label}
             </span>
