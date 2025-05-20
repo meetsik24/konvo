@@ -222,6 +222,31 @@ const handleApiError = (error: any, defaultMessage: string): never => {
   throw new Error(message);
 };
 
+// Interfaces for Calls
+interface CallRequest {
+  receiver_number: string;
+  tts_message?: string; // Optional since audio_url is an alternative
+  audio_url?: string;  // Optional since tts_message is an alternative
+}
+
+interface CallLog {
+  call_log_id: string;
+  user_id: string;
+  caller_number: string;
+  receiver_number: string;
+  status: 'initiated' | 'completed' | 'failed'; // Expanded status options
+  duration_seconds: number;
+  started_at: string; // ISO 8601 format
+  ended_at?: string;  // Optional, as it may not be set for ongoing calls
+  error_details?: string;
+  infobip_call_id?: string;
+}
+
+interface CallLogsResponse {
+  user_id: string;
+  logs: CallLog[];
+}
+
 // AUTHENTICATION
 export const registerUser = async (
   username: string,
@@ -971,7 +996,46 @@ export const deleteApiKey = async (keyId: string): Promise<void> => {
   }
 };
 
+// CALLS
+export const makeCall = async (
+  workspaceId: string,
+  data: CallRequest
+): Promise<{ call_log_id: string; status: string }> => {
+  console.log('makeCall API call initiated for workspace:', workspaceId, 'with data:', data);
+  try {
+    if (!data.tts_message && !data.audio_url) {
+      throw new Error('Either tts_message or audio_url must be provided');
+    }
 
+    console.log('Request URL:', `${api.defaults.baseURL}/calls/make`);
+    console.log('Headers:', api.defaults.headers);
+    const response = await api.post(`/calls/make`, {
+      workspace_id: workspaceId,
+      ...data,
+    });
+    console.log('makeCall API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, 'Failed to make call');
+    throw error; // Ensure the error is rethrown for the caller
+  }
+};
+
+export const getCallLogs = async (
+  userId: string
+): Promise<CallLogsResponse | undefined> => {
+  console.log('getCallLogs API call initiated for user:', userId);
+  try {
+    const response = await api.get(`/calls/logs`, {
+      params: { user_id: userId },
+    });
+    console.log('getCallLogs API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, 'Failed to fetch call logs');
+  }
+  return undefined; // Ensure all code paths return a value
+};
 
 
 

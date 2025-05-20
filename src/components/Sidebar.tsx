@@ -12,6 +12,7 @@ const navItems = [
   { to: '/logs', icon: Activity, label: 'Logs' },
   { to: '/subscription', icon: DollarSign, label: 'Subscription' },
   { to: '/apikeys', icon: IdCard, label: 'API Keys' },
+  { to: '/voice', icon: Megaphone, label: 'Voice API' },
  
 ];
 
