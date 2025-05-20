@@ -13,8 +13,8 @@ import {
   getContacts,
   getGroupContacts,
 } from '../services/api';
+import Papa from 'papaparse';
 
-// Define interfaces for type safety
 interface Campaign {
   campaign_id: string;
   workspace_id: string;
@@ -55,7 +55,13 @@ interface SenderId {
   created_at: string;
 }
 
-// Fallback sender IDs in case API fails
+interface UploadedContact {
+  name?: string;
+  phone_number?: string;
+  message?: string;
+  [key: string]: any; // Allow for additional CSV columns
+}
+
 const FALLBACK_SENDER_IDS: SenderId[] = [
   {
     sender_id: 'default_sender',
@@ -66,7 +72,6 @@ const FALLBACK_SENDER_IDS: SenderId[] = [
   },
 ];
 
-// Generic Modal Component to reduce redundancy
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -99,7 +104,7 @@ const Modal: React.FC<ModalProps> = ({
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.8, opacity: 0 }}
-        className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-sm p-4"
+        className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-lg p-4"
       >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold text-[#00333e]">{title}</h3>
@@ -148,6 +153,7 @@ const SendSMS: React.FC = () => {
     isAIModalOpen: false,
     isImportModalOpen: false,
     isGroupModalOpen: false,
+    isFileModalOpen: false,
   });
   const [isSchedulingEnabled, setIsSchedulingEnabled] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -155,20 +161,24 @@ const SendSMS: React.FC = () => {
   const [keywords, setKeywords] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [messageLogs, setMessageLogs] = useState<MessageLog[]>([]);
-  const [sendMode, setSendMode] = useState<'contacts' | 'campaign'>('contacts');
+  const [sendMode, setSendMode] = useState<'contacts' | 'campaign' | 'file'>('contacts');
   const [manualContacts, setManualContacts] = useState('');
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [uploadedContacts, setUploadedContacts] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [useFallbackSenderIds, setUseFallbackSenderIds] = useState(false);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
-  const [useAllContacts, setUseAllContacts] = useState(false); // New state for toggling "All Contacts"
+  const [useAllContacts, setUseAllContacts] = useState(false);
+  const [uploadedData, setUploadedData] = useState<UploadedContact[]>([]);
+  const [columnMappings, setColumnMappings] = useState<{ [key: string]: string }>({});
+  const [step, setStep] = useState(1);
+  const [campaignName, setCampaignName] = useState('');
+  const [availablePlaceholders, setAvailablePlaceholders] = useState<string[]>([]);
+  const [selectedPlaceholders, setSelectedPlaceholders] = useState<string[]>([]);
 
-  // Cache for contacts to avoid redundant API calls
   const contactCache = useRef<Map<string, Contact[]>>(new Map());
-  const allContactsCache = useRef<Contact[] | null>(null); // Cache specifically for all contacts
+  const allContactsCache = useRef<Contact[] | null>(null);
 
-  // Fetch all contacts with pagination support
   const fetchAllContacts = useCallback(
     async (workspaceId: string, groupId?: string) => {
       const perPage = 50;
@@ -176,14 +186,9 @@ const SendSMS: React.FC = () => {
       let totalPages = 1;
 
       try {
-        console.log(
-          `Fetching contacts for workspace ${workspaceId}${groupId ? `, group ${groupId}` : ''}, page 1`
-        );
         const firstResponse = groupId
           ? await getGroupContacts(workspaceId, groupId, 1, perPage)
           : await getContacts(workspaceId, 1, perPage);
-
-        console.log('First response:', firstResponse);
 
         if (!firstResponse || typeof firstResponse !== 'object') {
           throw new Error('Invalid response from API: Response is not an object');
@@ -193,43 +198,20 @@ const SendSMS: React.FC = () => {
         totalPages = firstResponse.total_pages || 1;
 
         if (!Array.isArray(allContacts)) {
-          console.warn('Contacts field is not an array:', allContacts);
           throw new Error('Invalid response from API: Contacts field is not an array');
         }
 
-        console.log(`Total pages: ${totalPages}, Contacts on page 1: ${allContacts.length}`);
-
         if (totalPages > 1) {
-          const pageRequests = Array.from({ length: totalPages - 1 }, (_, i) => {
-            const page = i + 2;
-            console.log(
-              `Fetching contacts for workspace ${workspaceId}${groupId ? `, group ${groupId}` : ''}, page ${page}`
-            );
-            return groupId
-              ? getGroupContacts(workspaceId, groupId, page, perPage)
-              : getContacts(workspaceId, page, perPage);
-          });
-
+          const pageRequests = Array.from({ length: totalPages - 1 }, (_, i) =>
+            groupId
+              ? getGroupContacts(workspaceId, groupId, i + 2, perPage)
+              : getContacts(workspaceId, i + 2, perPage)
+          );
           const responses = await Promise.all(pageRequests);
-          console.log('Subsequent page responses:', responses);
-
-          const additionalContacts = responses.flatMap((res) => {
-            if (!res || typeof res !== 'object') {
-              console.warn('Invalid page response:', res);
-              return [];
-            }
-            const contacts = res.contacts || [];
-            if (!Array.isArray(contacts)) {
-              console.warn('Contacts field in page response is not an array:', contacts);
-              return [];
-            }
-            return contacts;
-          });
-
+          const additionalContacts = responses.flatMap((res) => res.contacts || []);
           allContacts = [...allContacts, ...additionalContacts];
         }
 
-        console.log(`Total contacts fetched: ${allContacts.length}`);
         return allContacts;
       } catch (error: any) {
         console.error('Error in fetchAllContacts:', error);
@@ -239,7 +221,6 @@ const SendSMS: React.FC = () => {
     []
   );
 
-  // Fetch initial data (campaigns, groups, sender IDs, message logs)
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -249,90 +230,58 @@ const SendSMS: React.FC = () => {
           return;
         }
 
-        // Fetch approved sender IDs
-        try {
-          const response = await getApprovedSenderIds(currentWorkspaceId);
-          let approvedSenderIds: SenderId[] = [];
-
-          if (Array.isArray(response)) {
-            approvedSenderIds = response
-              .filter((sender) => sender.is_approved === true)
-              .map((sender) => ({
-                sender_id: sender.sender_id,
-                user_id: sender.user_id,
-                is_approved: sender.is_approved,
-                approved_at: sender.approved_at,
-                name: sender.name || sender.sender_id,
-                created_at: sender.created_at || new Date().toISOString(),
-              }));
-          } else if (response?.data && Array.isArray(response.data)) {
-            approvedSenderIds = response.data
-              .filter((sender) => sender.is_approved === true)
-              .map((sender: any) => ({
-                sender_id: sender.sender_id,
-                user_id: sender.user_id,
-                is_approved: sender.is_approved,
-                approved_at: sender.approved_at,
-                name: sender.name || sender.sender_id,
-                created_at: sender.created_at,
-              }));
-          } else if (
-            response &&
-            typeof response === 'object' &&
-            response.sender_id &&
-            response.is_approved === true
-          ) {
-            approvedSenderIds = [
-              {
-                sender_id: response.sender_id,
-                user_id: response.user_id,
-                is_approved: response.is_approved,
-                approved_at: response.approved_at,
-                name: response.name || response.sender_id,
-                created_at: response.created_at,
-              },
-            ];
-          } else {
-            throw new Error('Invalid sender IDs response format');
-          }
-
-          setSenderIds(approvedSenderIds);
-          setUseFallbackSenderIds(false);
-
-          if (approvedSenderIds.length > 0) {
-            setSelectedSenderId(approvedSenderIds[0].sender_id);
-          } else {
-            setSelectedSenderId('');
-            setError('No approved sender IDs available');
-          }
-        } catch (senderIdError) {
-          setSenderIds(FALLBACK_SENDER_IDS);
-          setUseFallbackSenderIds(true);
-          setSelectedSenderId(FALLBACK_SENDER_IDS[0].sender_id);
-          setError('Warning: Using fallback sender IDs due to API error');
+        const response = await getApprovedSenderIds(currentWorkspaceId);
+        let approvedSenderIds: SenderId[] = [];
+        if (Array.isArray(response)) {
+          approvedSenderIds = response.filter((sender) => sender.is_approved).map((sender) => ({
+            sender_id: sender.sender_id,
+            user_id: sender.user_id,
+            is_approved: sender.is_approved,
+            approved_at: sender.approved_at,
+            name: sender.name || sender.sender_id,
+            created_at: sender.created_at || new Date().toISOString(),
+          }));
+        } else if (response?.data && Array.isArray(response.data)) {
+          approvedSenderIds = response.data.filter((sender: any) => sender.is_approved).map((sender: any) => ({
+            sender_id: sender.sender_id,
+            user_id: sender.user_id,
+            is_approved: sender.is_approved,
+            approved_at: sender.approved_at,
+            name: sender.name || sender.sender_id,
+            created_at: sender.created_at,
+          }));
+        } else if (response && typeof response === 'object' && response.is_approved) {
+          approvedSenderIds = [{
+            sender_id: response.sender_id,
+            user_id: response.user_id,
+            is_approved: response.is_approved,
+            approved_at: response.approved_at,
+            name: response.name || response.sender_id,
+            created_at: response.created_at,
+          }];
+        } else {
+          throw new Error('Invalid sender IDs response format');
         }
 
-        // Fetch campaigns
-        const campaignsData = await getCampaigns();
-        const formattedCampaigns = Array.isArray(campaignsData) ? campaignsData : campaignsData?.data || [];
-        setCampaigns(
-          formattedCampaigns.filter((campaign: Campaign) => campaign.workspace_id === currentWorkspaceId)
-        );
+        setSenderIds(approvedSenderIds);
+        setUseFallbackSenderIds(false);
+        setSelectedSenderId(approvedSenderIds[0]?.sender_id || '');
 
-        // Fetch workspace groups
+        const campaignsData = await getCampaigns();
+        setCampaigns(Array.isArray(campaignsData) ? campaignsData : campaignsData?.data || []);
+
         const workspaceGroups = await getWorkspaceGroups(currentWorkspaceId);
         setValidGroups(Array.isArray(workspaceGroups) ? workspaceGroups : workspaceGroups?.data || []);
 
-        // Fetch message logs
         const logsData = await getMessageLogs();
         setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
 
-        if (!useFallbackSenderIds) {
-          setError(null);
-        }
+        if (!useFallbackSenderIds) setError(null);
       } catch (err: any) {
-        const message = err.message || 'Failed to fetch data.';
-        setError(message);
+        setSenderIds(FALLBACK_SENDER_IDS);
+        setUseFallbackSenderIds(true);
+        setSelectedSenderId(FALLBACK_SENDER_IDS[0].sender_id);
+        setError('Warning: Using fallback sender IDs due to API error');
       } finally {
         setIsLoading(false);
       }
@@ -341,7 +290,6 @@ const SendSMS: React.FC = () => {
     fetchData();
   }, [currentWorkspaceId]);
 
-  // Refresh campaign groups when the selected campaign changes
   useEffect(() => {
     const fetchCampaignGroups = async () => {
       if (!selectedCampaignId) return;
@@ -366,56 +314,30 @@ const SendSMS: React.FC = () => {
     fetchCampaignGroups();
   }, [selectedCampaignId, validGroups]);
 
-  // Consolidated function to fetch recipients from groups with caching and validation
   const fetchRecipientsFromGroups = useCallback(
     async (groupIds: string[]): Promise<string[]> => {
       if (!currentWorkspaceId) throw new Error('Workspace ID is null.');
 
       const recipientPhones: string[] = [];
-      const failedGroups: string[] = [];
-
       for (const groupId of groupIds) {
         if (contactCache.current.has(groupId)) {
-          const cachedContacts = contactCache.current.get(groupId)!;
-          const phoneNumbers = cachedContacts
+          const phoneNumbers = contactCache.current.get(groupId)!
             .map((contact: Contact) => contact.phone_number)
-            .filter((phone): phone is string => {
-              const trimmedPhone = phone?.trim();
-              return !!trimmedPhone && /^\+?\d{10,15}$/.test(trimmedPhone);
-            });
+            .filter((phone): phone is string => !!phone && /^\+?\d{10,15}$/.test(phone.trim()));
           recipientPhones.push(...phoneNumbers);
-          console.log(`Used cached contacts for group ${groupId}: ${phoneNumbers.length} phone numbers`);
           continue;
         }
 
         try {
-          console.log(`Fetching contacts for group ${groupId} using fetchAllContacts`);
           const groupContacts = await fetchAllContacts(currentWorkspaceId, groupId);
-
-          if (!Array.isArray(groupContacts)) {
-            console.warn(`fetchAllContacts for group ${groupId} did not return an array. Received:`, groupContacts);
-            failedGroups.push(groupId);
-            continue;
-          }
-
           contactCache.current.set(groupId, groupContacts);
-
           const phoneNumbers = groupContacts
             .map((contact: Contact) => contact.phone_number)
-            .filter((phone): phone is string => {
-              const trimmedPhone = phone?.trim();
-              return !!trimmedPhone && /^\+?\d{10,15}$/.test(trimmedPhone);
-            });
+            .filter((phone): phone is string => !!phone && /^\+?\d{10,15}$/.test(phone.trim()));
           recipientPhones.push(...phoneNumbers);
-          console.log(`Found ${phoneNumbers.length} contacts in group ${groupId}`);
         } catch (error: any) {
-          console.error(`Failed to fetch contacts for group ${groupId}:`, error.message || error);
-          failedGroups.push(groupId);
+          console.error(`Failed to fetch contacts for group ${groupId}:`, error.message);
         }
-      }
-
-      if (failedGroups.length > 0) {
-        throw new Error(`Failed to fetch contacts for groups: ${failedGroups.join(', ')}`);
       }
 
       return [...new Set(recipientPhones)];
@@ -423,101 +345,65 @@ const SendSMS: React.FC = () => {
     [currentWorkspaceId, fetchAllContacts]
   );
 
-  // Fetch all contacts in the workspace with caching
   const fetchAllWorkspaceContacts = useCallback(async (): Promise<string[]> => {
     if (!currentWorkspaceId) throw new Error('Workspace ID is null.');
 
-    // Check cache first
     if (allContactsCache.current) {
-      console.log('Using cached all contacts');
       const phoneNumbers = allContactsCache.current
         .map((contact: Contact) => contact.phone_number)
-        .filter((phone): phone is string => {
-          const trimmedPhone = phone?.trim();
-          return !!trimmedPhone && /^\+?\d{10,15}$/.test(trimmedPhone);
-        });
+        .filter((phone): phone is string => !!phone && /^\+?\d{10,15}$/.test(phone.trim()));
       return [...new Set(phoneNumbers)];
     }
 
     try {
-      console.log('Fetching all contacts in workspace using fetchAllContacts');
       const allContacts = await fetchAllContacts(currentWorkspaceId);
-      if (!Array.isArray(allContacts)) {
-        console.warn('fetchAllContacts did not return an array. Received:', allContacts);
-        throw new Error('Failed to fetch all contacts: Invalid response format');
-      }
-
-      // Cache the contacts
       allContactsCache.current = allContacts;
-
       const phoneNumbers = allContacts
         .map((contact: Contact) => contact.phone_number)
-        .filter((phone): phone is string => {
-          const trimmedPhone = phone?.trim();
-          return !!trimmedPhone && /^\+?\d{10,15}$/.test(trimmedPhone);
-        });
-      console.log(`Found ${phoneNumbers.length} contacts in workspace`);
+        .filter((phone): phone is string => !!phone && /^\+?\d{10,15}$/.test(phone.trim()));
       return [...new Set(phoneNumbers)];
     } catch (error: any) {
-      console.error('Failed to fetch all contacts:', error.message || error);
+      console.error('Failed to fetch all contacts:', error.message);
       throw new Error('Failed to fetch all contacts: ' + error.message);
     }
   }, [currentWorkspaceId, fetchAllContacts]);
 
-  // Get recipients for campaign mode
   const getCampaignRecipients = useCallback(async (): Promise<string[]> => {
-    const selectedCampaign = campaigns.find((c) => c.campaign_id === selectedCampaignId);
-    if (!selectedCampaign) {
-      throw new Error('Selected campaign not found.');
-    }
-
     const groups = campaignGroups[selectedCampaignId] || [];
-    if (groups.length === 0) {
-      throw new Error(`No groups assigned to campaign '${selectedCampaign.name}'. Please assign groups first.`);
-    }
-
-    const groupIds = groups
-      .filter((group) => group.group_id)
-      .map((group) => group.group_id);
+    if (groups.length === 0) throw new Error(`No groups assigned to campaign '${selectedCampaignId}'.`);
+    const groupIds = groups.map((group) => group.group_id);
     return fetchRecipientsFromGroups(groupIds);
-  }, [campaigns, selectedCampaignId, campaignGroups, fetchRecipientsFromGroups]);
+  }, [selectedCampaignId, campaignGroups, fetchRecipientsFromGroups]);
 
-  // Get recipients for contacts mode
   const getContactRecipients = useCallback(async (): Promise<string[]> => {
     let recipientPhones: string[] = [];
 
-    // If "All Contacts" is selected, fetch all contacts in the workspace
     if (useAllContacts) {
       const allPhones = await fetchAllWorkspaceContacts();
       recipientPhones.push(...allPhones);
       return [...new Set(recipientPhones)];
     }
 
-    // Process manual contacts with validation
     if (manualContacts.trim()) {
       const manualPhones = manualContacts
         .split(/[\n,]+/)
         .map((phone) => phone.trim())
-        .filter((phone): phone is string => {
-          return !!phone && /^\+?\d{10,15}$/.test(phone);
-        });
-      if (manualPhones.length === 0 && manualContacts.trim()) {
-        throw new Error('No valid phone numbers provided in manual contacts.');
-      }
+        .filter((phone): phone is string => !!phone && /^\+?\d{10,15}$/.test(phone));
       recipientPhones.push(...manualPhones);
-      console.log('Added manual contacts:', manualPhones);
     }
 
-    // Process selected groups
     if (selectedGroups.length > 0) {
       const groupPhones = await fetchRecipientsFromGroups(selectedGroups);
       recipientPhones.push(...groupPhones);
     }
 
-    return [...new Set(recipientPhones)];
-  }, [manualContacts, selectedGroups, useAllContacts, fetchRecipientsFromGroups, fetchAllWorkspaceContacts]);
+    if (uploadedContacts.length > 0) {
+      recipientPhones.push(...uploadedContacts);
+    }
 
-  // Generate AI message using the API endpoint
+    return [...new Set(recipientPhones)];
+  }, [manualContacts, selectedGroups, uploadedContacts, useAllContacts, fetchRecipientsFromGroups, fetchAllWorkspaceContacts]);
+
   const generateAIMessage = async () => {
     if (!keywords.trim()) {
       setError('Please provide prompts to generate SMS.');
@@ -525,66 +411,136 @@ const SendSMS: React.FC = () => {
     }
 
     setIsGenerating(true);
-    setError(null);
-
     try {
       const prompt = `Generate an SMS message based on the prompts: ${keywords}`;
-      console.log('Calling generateMessage with prompt:', prompt);
-
       const generatedMessage = await generateMessage(prompt);
-      console.log('Generated message:', generatedMessage);
-
       setMessage(generatedMessage);
       setModalState((prev) => ({ ...prev, isAIModalOpen: false }));
     } catch (err: any) {
-      const errorMessage = err.message || 'Failed to generate AI message. Please try again.';
-      console.error('Error generating AI message:', err);
-      setError(errorMessage);
+      setError(err.message || 'Failed to generate AI message.');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Handle file upload for contacts
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      const phoneNumbers = text
-        .split(/[\n,]+/)
-        .map((phone) => phone.trim())
-        .filter((phone): phone is string => {
-          return !!phone && /^\+?\d{10,15}$/.test(phone);
-        });
-      setUploadedContacts(phoneNumbers);
-      setManualContacts((prev) => (prev ? `${prev}\n${phoneNumbers.join('\n')}` : phoneNumbers.join('\n')));
-      setModalState((prev) => ({ ...prev, isImportModalOpen: false }));
-    };
-    reader.readAsText(file);
+    Papa.parse(file, {
+      header: true,
+      complete: (result) => {
+        const data = result.data as UploadedContact[];
+        setUploadedData(data);
+        if (data.length > 0) {
+          const columns = Object.keys(data[0]);
+          setAvailablePlaceholders(columns);
+        }
+        setStep(2);
+      },
+      error: (error) => {
+        setError(`Failed to parse file: ${error.message}`);
+      },
+    });
   };
 
-  // Handle group selection toggle
+  const handleColumnMapping = (column: string, field: string) => {
+    setColumnMappings((prev) => ({
+      ...prev,
+      [column]: field,
+    }));
+  };
+
+  const togglePlaceholderSelection = (placeholder: string) => {
+    setSelectedPlaceholders((prev) =>
+      prev.includes(placeholder) ? prev.filter((p) => p !== placeholder) : [...prev, placeholder]
+    );
+  };
+
+  const handleSendFileSMS = async () => {
+    if (!currentWorkspaceId) {
+      setError('No workspace selected.');
+      return;
+    }
+    if (!selectedSenderId) {
+      setError('Please select a sender ID.');
+      return;
+    }
+    if (!campaignName.trim()) {
+      setError('Please enter a campaign name.');
+      return;
+    }
+    if (!message.trim()) {
+      setError('Please enter a message.');
+      return;
+    }
+
+    const validData = uploadedData
+      .map((row) => {
+        const phone_number = columnMappings['phone_number'] ? row[columnMappings['phone_number']] : '';
+        return { ...row, phone_number };
+      })
+      .filter((row) => row.phone_number && /^\+?\d{10,15}$/.test(row.phone_number.trim()));
+
+    if (validData.length === 0) {
+      setError('No valid data to send. Please map the phone number field and ensure valid phone numbers.');
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      for (const contact of validData) {
+        let personalizedMessage = message;
+        selectedPlaceholders.forEach((placeholder) => {
+          const value = contact[placeholder] || '';
+          personalizedMessage = personalizedMessage.replace(`{${placeholder}}`, value);
+        });
+
+        await sendInstantMessage(currentWorkspaceId, {
+          recipients: [contact.phone_number],
+          content: personalizedMessage,
+          sender_id: selectedSenderId,
+        });
+      }
+
+      contactCache.current.clear();
+      allContactsCache.current = null;
+
+      setUploadedData([]);
+      setColumnMappings({});
+      setStep(1);
+      setCampaignName('');
+      setMessage('');
+      setAvailablePlaceholders([]);
+      setSelectedPlaceholders([]);
+      setModalState((prev) => ({ ...prev, isFileModalOpen: false }));
+      setShowSuccessNotification(true);
+      setTimeout(() => setShowSuccessNotification(false), 3000);
+
+      const logsData = await getMessageLogs();
+      setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send SMS.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const toggleGroupSelection = (groupId: string) => {
     setSelectedGroups((prev) =>
       prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
     );
   };
 
-  // Handle "All Contacts" toggle
   const toggleAllContacts = () => {
     setUseAllContacts((prev) => !prev);
     if (!useAllContacts) {
-      // Clear other selections when "All Contacts" is enabled
       setManualContacts('');
       setSelectedGroups([]);
       setUploadedContacts([]);
     }
   };
 
-  // Handle sending SMS
   const handleSendSMS = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentWorkspaceId) {
@@ -614,13 +570,11 @@ const SendSMS: React.FC = () => {
     }
 
     setIsSending(true);
-    setError(null);
-
     try {
       const recipientPhones = sendMode === 'campaign' ? await getCampaignRecipients() : await getContactRecipients();
 
       if (recipientPhones.length === 0) {
-        throw new Error('No valid recipients found. Please ensure there are contacts available.');
+        throw new Error('No valid recipients found.');
       }
 
       await sendInstantMessage(currentWorkspaceId, {
@@ -629,7 +583,6 @@ const SendSMS: React.FC = () => {
         sender_id: selectedSenderId,
       });
 
-      // Clear caches after sending SMS to ensure fresh data on next fetch
       contactCache.current.clear();
       allContactsCache.current = null;
 
@@ -649,7 +602,7 @@ const SendSMS: React.FC = () => {
       const logsData = await getMessageLogs();
       setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
     } catch (err: any) {
-      setError(err.message || 'Failed to send SMS. Please check the recipients and try again.');
+      setError(err.message || 'Failed to send SMS.');
     } finally {
       setIsSending(false);
     }
@@ -657,7 +610,6 @@ const SendSMS: React.FC = () => {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 max-w-6xl mx-auto">
-      {/* Success Notification */}
       {showSuccessNotification && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
@@ -682,7 +634,6 @@ const SendSMS: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -692,7 +643,6 @@ const SendSMS: React.FC = () => {
         <h1 className="text-xl sm:text-2xl font-bold text-[#00333e]">Send SMS</h1>
       </motion.div>
 
-      {/* Warning and Error Messages */}
       {useFallbackSenderIds && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -713,7 +663,6 @@ const SendSMS: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Loading State */}
       {isLoading && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -725,17 +674,14 @@ const SendSMS: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Main Content */}
       {!isLoading && (
         <div className="space-y-6">
-          {/* Form Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
           >
-            {/* Tabs for Send Mode */}
             <div className="flex border-b border-gray-200 mb-4">
               <button
                 onClick={() => setSendMode('contacts')}
@@ -757,11 +703,19 @@ const SendSMS: React.FC = () => {
               >
                 Campaign SMS
               </button>
+              <button
+                onClick={() => setSendMode('file')}
+                className={`flex-1 py-2 px-3 text-sm font-medium text-center transition-colors ${
+                  sendMode === 'file'
+                    ? 'border-b-2 border-[#00333e] text-[#00333e]'
+                    : 'text-gray-500 hover:text-[#00333e]'
+                }`}
+              >
+                File SMS
+              </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSendSMS} className="space-y-4">
-              {/* Sender ID */}
+            <form onSubmit={sendMode === 'file' ? handleSendFileSMS : handleSendSMS} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[#00333e] mb-1">Sender ID</label>
                 <select
@@ -773,21 +727,14 @@ const SendSMS: React.FC = () => {
                   <option value="" disabled>
                     Select Sender ID
                   </option>
-                  {senderIds.length > 0 ? (
-                    senderIds.map((sender) => (
-                      <option key={sender.sender_id} value={sender.sender_id}>
-                        {sender.name} ({sender.sender_id})
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled>
-                      No approved sender IDs
+                  {senderIds.map((sender) => (
+                    <option key={sender.sender_id} value={sender.sender_id}>
+                      {sender.name} ({sender.sender_id})
                     </option>
-                  )}
+                  ))}
                 </select>
               </div>
 
-              {/* Campaign Mode */}
               {sendMode === 'campaign' && (
                 <>
                   <div>
@@ -811,18 +758,16 @@ const SendSMS: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-[#00333e] mb-1">Recipient Groups</label>
                     <div className="text-sm text-gray-600">
-                      {campaignGroups[selectedCampaignId]?.length > 0 ? (
-                        campaignGroups[selectedCampaignId].map((group) => (
-                          <span
-                            key={group.group_id}
-                            className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded mr-2 mb-2"
-                          >
-                            {group.name}
-                          </span>
-                        ))
-                      ) : (
-                        <span>No groups assigned.</span>
-                      )}
+                      {campaignGroups[selectedCampaignId]?.length > 0
+                        ? campaignGroups[selectedCampaignId].map((group) => (
+                            <span
+                              key={group.group_id}
+                              className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded mr-2 mb-2"
+                            >
+                              {group.name}
+                            </span>
+                          ))
+                        : 'No groups assigned.'}
                     </div>
                   </div>
                   <div>
@@ -832,11 +777,8 @@ const SendSMS: React.FC = () => {
                         checked={isSchedulingEnabled}
                         onChange={(e) => {
                           setIsSchedulingEnabled(e.target.checked);
-                          if (e.target.checked) {
-                            setModalState((prev) => ({ ...prev, isScheduleModalOpen: true }));
-                          } else {
-                            setSchedule('');
-                          }
+                          if (e.target.checked) setModalState((prev) => ({ ...prev, isScheduleModalOpen: true }));
+                          else setSchedule('');
                         }}
                         className="w-4 h-4"
                       />
@@ -851,11 +793,9 @@ const SendSMS: React.FC = () => {
                 </>
               )}
 
-              {/* Contacts Mode */}
               {sendMode === 'contacts' && (
                 <div>
                   <label className="block text-sm font-medium text-[#00333e] mb-1">Contacts</label>
-                  {/* Toggle for All Contacts */}
                   <div className="mb-2">
                     <label className="flex items-center gap-2">
                       <input
@@ -872,8 +812,6 @@ const SendSMS: React.FC = () => {
                       </p>
                     )}
                   </div>
-
-                  {/* Manual Contacts and Group Selection (disabled if All Contacts is selected) */}
                   {!useAllContacts && (
                     <>
                       <textarea
@@ -881,7 +819,6 @@ const SendSMS: React.FC = () => {
                         placeholder="Enter phone numbers (e.g., +255788344348, one per line or comma-separated)"
                         value={manualContacts}
                         onChange={(e) => setManualContacts(e.target.value)}
-                        disabled={useAllContacts}
                       />
                       <div className="flex flex-wrap gap-2 mt-2">
                         <motion.button
@@ -889,8 +826,7 @@ const SendSMS: React.FC = () => {
                           whileTap={{ scale: 0.95 }}
                           type="button"
                           onClick={() => setModalState((prev) => ({ ...prev, isGroupModalOpen: true }))}
-                          className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors disabled:bg-gray-200 disabled:text-gray-500"
-                          disabled={useAllContacts}
+                          className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors"
                         >
                           Select Groups
                         </motion.button>
@@ -899,13 +835,11 @@ const SendSMS: React.FC = () => {
                           whileTap={{ scale: 0.95 }}
                           type="button"
                           onClick={() => setModalState((prev) => ({ ...prev, isImportModalOpen: true }))}
-                          className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors disabled:bg-gray-200 disabled:text-gray-500"
-                          disabled={useAllContacts}
+                          className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors"
                         >
                           Import Contacts
                         </motion.button>
                       </div>
-                      {/* Display selected groups */}
                       {selectedGroups.length > 0 && (
                         <div className="mt-2">
                           <label className="block text-sm font-medium text-[#00333e] mb-1">
@@ -937,51 +871,74 @@ const SendSMS: React.FC = () => {
                 </div>
               )}
 
-              {/* Message Input */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm font-medium text-[#00333e]">Message</label>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+              {sendMode === 'file' && (
+                <div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-[#00333e] mb-1">Campaign Name</label>
+                    <input
+                      type="text"
+                      className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                      placeholder="Enter campaign name"
+                      value={campaignName}
+                      onChange={(e) => setCampaignName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <button
                     type="button"
-                    onClick={() => setModalState((prev) => ({ ...prev, isAIModalOpen: true }))}
-                    className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors flex items-center gap-1"
+                    onClick={() => setModalState((prev) => ({ ...prev, isFileModalOpen: true }))}
+                    className="flex items-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors"
                   >
-                    <Bot className="w-4 h-4" />
-                    Generate with AI
-                  </motion.button>
+                    <Upload className="w-5 h-5" />
+                    Upload File
+                  </button>
                 </div>
-                <textarea
-                  className="w-full min-h-[100px] text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-                  placeholder="Type your message..."
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  required
-                />
-                <div className="mt-1 flex justify-between text-sm text-gray-500">
-                  <span>{message.length} characters</span>
-                  <span>{Math.ceil(message.length / 160)} message(s)</span>
-                </div>
-              </div>
+              )}
 
-              {/* Submit Button */}
+              {(sendMode === 'contacts' || sendMode === 'campaign') && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-[#00333e]">Message</label>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      type="button"
+                      onClick={() => setModalState((prev) => ({ ...prev, isAIModalOpen: true }))}
+                      className="text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-[#fddf0d] transition-colors flex items-center gap-1"
+                    >
+                      <Bot className="w-4 h-4" />
+                      Generate with AI
+                    </motion.button>
+                  </div>
+                  <textarea
+                    className="w-full min-h-[100px] text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    placeholder="Type your message..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    required={sendMode !== 'file'}
+                  />
+                  <div className="mt-1 flex justify-between text-sm text-gray-500">
+                    <span>{message.length} characters</span>
+                    <span>{Math.ceil(message.length / 160)} message(s)</span>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   type="submit"
-                  disabled={isSending || senderIds.length === 0}
+                  disabled={isSending || senderIds.length === 0 || (sendMode === 'campaign' && !selectedCampaignId) || (sendMode === 'contacts' && !useAllContacts && !manualContacts.trim() && selectedGroups.length === 0) || (sendMode === 'file' && step !== 3)}
                   className="flex items-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50"
                 >
                   <Send className="w-5 h-5" />
-                  {isSending ? 'Sending...' : 'Send SMS'}
+                  {isSending ? 'Sending...' : sendMode === 'file' ? 'Send SMS' : 'Send SMS'}
                 </motion.button>
               </div>
             </form>
           </motion.div>
 
-          {/* AI Modal */}
           <Modal
             isOpen={modalState.isAIModalOpen}
             onClose={() => setModalState((prev) => ({ ...prev, isAIModalOpen: false }))}
@@ -999,7 +956,6 @@ const SendSMS: React.FC = () => {
             />
           </Modal>
 
-          {/* Import Contacts Modal */}
           <Modal
             isOpen={modalState.isImportModalOpen}
             onClose={() => setModalState((prev) => ({ ...prev, isImportModalOpen: false }))}
@@ -1009,7 +965,22 @@ const SendSMS: React.FC = () => {
             <input
               type="file"
               accept=".csv,.txt"
-              onChange={handleFileUpload}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  const text = event.target?.result as string;
+                  const phoneNumbers = text
+                    .split(/[\n,]+/)
+                    .map((phone) => phone.trim())
+                    .filter((phone): phone is string => !!phone && /^\+?\d{10,15}$/.test(phone));
+                  setUploadedContacts(phoneNumbers);
+                  setManualContacts((prev) => (prev ? `${prev}\n${phoneNumbers.join('\n')}` : phoneNumbers.join('\n')));
+                  setModalState((prev) => ({ ...prev, isImportModalOpen: false }));
+                };
+                reader.readAsText(file);
+              }}
               className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
             />
             <p className="text-sm text-gray-500 mt-1">
@@ -1017,33 +988,27 @@ const SendSMS: React.FC = () => {
             </p>
           </Modal>
 
-          {/* Select Groups Modal */}
           <Modal
             isOpen={modalState.isGroupModalOpen}
             onClose={() => setModalState((prev) => ({ ...prev, isGroupModalOpen: false }))}
             title="Select Contact Groups"
           >
             <div className="max-h-48 overflow-y-auto">
-              {validGroups.length > 0 ? (
-                validGroups.map((group) => (
-                  <label key={group.group_id} className="flex items-center gap-2 mb-2">
-                    <input
-                      type="checkbox"
-                      value={group.group_id}
-                      checked={selectedGroups.includes(group.group_id)}
-                      onChange={() => toggleGroupSelection(group.group_id)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm text-[#00333e]">{group.name}</span>
-                  </label>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No groups available.</p>
-              )}
+              {validGroups.map((group) => (
+                <label key={group.group_id} className="flex items-center gap-2 mb-2">
+                  <input
+                    type="checkbox"
+                    value={group.group_id}
+                    checked={selectedGroups.includes(group.group_id)}
+                    onChange={() => toggleGroupSelection(group.group_id)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-[#00333e]">{group.name}</span>
+                </label>
+              ))}
             </div>
           </Modal>
 
-          {/* Schedule Modal (Campaign Mode Only) */}
           <Modal
             isOpen={modalState.isScheduleModalOpen}
             onClose={() => {
@@ -1065,7 +1030,177 @@ const SendSMS: React.FC = () => {
             />
           </Modal>
 
-          {/* SMS Logs */}
+          <Modal
+            isOpen={modalState.isFileModalOpen}
+            onClose={() => {
+              setModalState((prev) => ({ ...prev, isFileModalOpen: false }));
+              setStep(1);
+              setUploadedData([]);
+              setColumnMappings({});
+              setAvailablePlaceholders([]);
+              setSelectedPlaceholders([]);
+              setMessage('');
+            }}
+            title="Upload File for SMS"
+          >
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-4 overflow-x-auto">
+                {['Upload File', 'Preview Contacts', 'Send Message'].map((label, index) => (
+                  <div key={label} className="flex items-center min-w-[100px]">
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        step >= index + 1 ? 'bg-[#00333e] text-white' : 'bg-gray-300 text-gray-600'
+                      }`}
+                    >
+                      {index + 1}
+                    </div>
+                    <span
+                      className={`ml-2 text-sm ${step >= index + 1 ? 'text-[#00333e]' : 'text-gray-400'} truncate`}
+                    >
+                      {label}
+                    </span>
+                    {index < 2 && <div className="w-6 h-1 bg-gray-300 mx-1" />}
+                  </div>
+                ))}
+              </div>
+
+              {step === 1 && (
+                <div className="text-center">
+                  <Upload className="w-10 h-10 text-gray-500 mx-auto mb-2" />
+                  <p className="text-gray-600 mb-2 text-sm">Drag and drop a CSV file here, or click to select</p>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="inline-block text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] cursor-pointer"
+                  >
+                    Upload CSV File
+                  </label>
+                  <p className="text-gray-500 mt-2 text-sm">(Format: name, phone_number, message, etc.)</p>
+                </div>
+              )}
+
+              {step === 2 && uploadedData.length > 0 && (
+                <div>
+                  <p className="text-sm text-gray-700 mb-2">Map Columns and Select Placeholders</p>
+                  <div className="overflow-x-auto max-h-[300px] border border-gray-200 rounded-lg mb-4">
+                    <table className="w-full text-left text-gray-700">
+                      <thead className="sticky top-0 bg-gray-100">
+                        <tr>
+                          {Object.keys(uploadedData[0]).map((column) => (
+                            <th key={column} className="p-2 min-w-[120px]">
+                              <select
+                                value={columnMappings[column] || ''}
+                                onChange={(e) => handleColumnMapping(column, e.target.value)}
+                                className="w-full text-sm py-1 px-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
+                              >
+                                <option value="">Select...</option>
+                                <option value="phone_number">Phone Number</option>
+                                <option value="name">Name</option>
+                                <option value="message">Message</option>
+                                {Object.keys(uploadedData[0])
+                                  .filter((col) => col !== column)
+                                  .map((col) => (
+                                    <option key={col} value={col}>
+                                      {col}
+                                    </option>
+                                  ))}
+                              </select>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {uploadedData.slice(0, 5).map((row, index) => (
+                          <tr key={index} className="border-b border-gray-200">
+                            {Object.values(row).map((value, i) => (
+                              <td key={i} className="p-2 text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
+                                {value}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-2">Showing first 5 rows. Total rows: {uploadedData.length}</p>
+                  <p className="text-sm text-gray-700 mb-2">Select Placeholders for Message</p>
+                  <div className="flex flex-wrap gap-2">
+                    {availablePlaceholders.map((placeholder) => (
+                      <label key={placeholder} className="flex items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedPlaceholders.includes(placeholder)}
+                          onChange={() => togglePlaceholderSelection(placeholder)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm text-[#00333e]">{placeholder}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div>
+                  <p className="text-sm text-gray-700 mb-2">Compose Message with Placeholders</p>
+                  <textarea
+                    className="w-full min-h-[100px] text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+                    placeholder="Type your message (e.g., Hello {name}, your number is {phone_number})"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    required
+                  />
+                  <p className="text-sm text-gray-600 mt-2">
+                    Available placeholders: {selectedPlaceholders.map((p) => `{${p}}`).join(', ')}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Preview (first contact):{' '}
+                    {uploadedData.length > 0
+                      ? selectedPlaceholders.reduce(
+                          (msg, placeholder) =>
+                            msg.replace(`{${placeholder}}`, uploadedData[0][placeholder] || ''),
+                          message
+                        )
+                      : 'No preview available'}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              {step > 1 && (
+                <button
+                  onClick={() => setStep(step - 1)}
+                  className="px-3 py-1 text-sm bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                >
+                  Back
+                </button>
+              )}
+              {step < 3 ? (
+                <button
+                  onClick={() => setStep(step + 1)}
+                  className="px-3 py-1 text-sm bg-[#00333e] text-white rounded-lg hover:bg-[#002a36]"
+                  disabled={step === 2 && (!columnMappings['phone_number'] || selectedPlaceholders.length === 0)}
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="px-3 py-1 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600"
+                  disabled={isSending}
+                >
+                  {isSending ? 'Sending...' : 'Send SMS'}
+                </button>
+              )}
+            </div>
+          </Modal>
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1100,17 +1235,13 @@ const SendSMS: React.FC = () => {
             )}
           </motion.div>
 
-          {/* Stats Cards */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
           >
-            <motion.div
-              whileHover={{ scale: 1.03 }}
-              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
-            >
+            <motion.div whileHover={{ scale: 1.03 }} className="bg-white rounded-xl shadow-md p-4 border border-gray-100">
               <div className="flex items-center gap-3">
                 <Users className="w-6 h-6 text-[#00333e]" />
                 <div>
@@ -1119,10 +1250,7 @@ const SendSMS: React.FC = () => {
                 </div>
               </div>
             </motion.div>
-            <motion.div
-              whileHover={{ scale: 1.03 }}
-              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
-            >
+            <motion.div whileHover={{ scale: 1.03 }} className="bg-white rounded-xl shadow-md p-4 border border-gray-100">
               <div className="flex items-center gap-3">
                 <Clock className="w-6 h-6 text-[#00333e]" />
                 <div>
@@ -1131,10 +1259,7 @@ const SendSMS: React.FC = () => {
                 </div>
               </div>
             </motion.div>
-            <motion.div
-              whileHover={{ scale: 1.03 }}
-              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
-            >
+            <motion.div whileHover={{ scale: 1.03 }} className="bg-white rounded-xl shadow-md p-4 border border-gray-100">
               <div className="flex items-center gap-3">
                 <BarChart2 className="w-6 h-6 text-[#00333e]" />
                 <div>
