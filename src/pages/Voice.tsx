@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Phone, CheckCircle } from 'lucide-react';
+import { Phone, Save } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import { makeCall, getCallLogs } from '../services/api';
+import VoiceRecorder from '../components/VoiceRecorder';
+import axios from 'axios';
 
 interface CallRequest {
   receiver_number: string;
@@ -28,102 +30,173 @@ interface CallLogsResponse {
   logs: CallLog[];
 }
 
-const Modal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  children: React.ReactNode;
-}> = ({ isOpen, onClose, title, children }) => {
-  if (!isOpen) return null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-    >
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.8, opacity: 0 }}
-        className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-lg p-4"
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-[#00333e]">{title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-[#00333e]">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="mb-4">{children}</div>
-      </motion.div>
-    </motion.div>
-  );
-};
-
 const Voice: React.FC = () => {
-  const { currentWorkspaceId } = useWorkspace();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { userId } = useWorkspace();
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const [receiverNumber, setReceiverNumber] = useState('');
+  const [countryCode, setCountryCode] = useState('+1');
+  const [messageType, setMessageType] = useState<'tts' | 'audio'>('tts');
   const [ttsMessage, setTtsMessage] = useState('');
   const [audioUrl, setAudioUrl] = useState('');
   const [isCalling, setIsCalling] = useState(false);
+  const [callActive, setCallActive] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchCallLogs = async () => {
-      if (!currentWorkspaceId) {
-        setError('No workspace selected.');
+      if (!userId) {
+        setError('No user selected.');
         return;
       }
       try {
-        const response = await getCallLogs(currentWorkspaceId);
-        setCallLogs(response.logs);
+        const response = await getCallLogs(userId);
+        if (isMounted && response) {
+          setCallLogs(response.logs || []);
+        }
       } catch (err: any) {
-        setError(err.message || 'Failed to fetch call logs.');
+        if (isMounted) {
+          setError(err.message || 'Failed to fetch call logs.');
+        }
       }
     };
     fetchCallLogs();
-  }, [currentWorkspaceId]);
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (callActive) {
+      interval = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [callActive]);
 
   const handleMakeCall = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentWorkspaceId || !receiverNumber) {
+    const trimmedNumber = receiverNumber.trim();
+    if (!userId || !trimmedNumber) {
       setError('Receiver number is required.');
       return;
     }
 
     setIsCalling(true);
+    setCallActive(true);
+    setCallDuration(0);
     try {
+      const fullNumber = `${countryCode}${trimmedNumber}`.replace(/\s/g, '');
+      let finalAudioUrl: string | undefined = audioUrl;
+      let finalTtsMessage: string | undefined = undefined;
+
+      if (messageType === 'tts' && ttsMessage) {
+        finalTtsMessage = ttsMessage;
+      } else if (messageType === 'audio' && !audioUrl) {
+        throw new Error('Please record or upload an audio message.');
+      }
+
       const data: CallRequest = {
-        receiver_number: `${receiverNumber}`, // Combines country code and number
-        tts_message: ttsMessage || undefined,
-        audio_url: audioUrl || undefined,
+        receiver_number: fullNumber,
+        tts_message: finalTtsMessage,
+        audio_url: finalAudioUrl,
       };
-      await makeCall(currentWorkspaceId, data);
-      const updatedLogs = await getCallLogs(currentWorkspaceId);
-      setCallLogs(updatedLogs.logs);
+      await makeCall(userId, data);
+      const response = await getCallLogs(userId);
+      if (response) setCallLogs(response.logs || []);
       setReceiverNumber('');
       setTtsMessage('');
       setAudioUrl('');
       setShowSuccessNotification(true);
       setTimeout(() => setShowSuccessNotification(false), 3000);
     } catch (err: any) {
-      setError(err.message || 'Failed to make call.');
+      setError(err.message || 'Failed to make call. Please check the endpoint and server status.');
     } finally {
       setIsCalling(false);
     }
+  };
+
+  const handleEndCall = () => {
+    setCallActive(false);
+    setCallDuration(0);
+  };
+
+  const handleRecordingComplete = (blob: Blob | null, url: string) => {
+    setAudioBlob(blob);
+    setAudioUrl(url);
+  };
+
+  const handlePlay = () => {
+    if (audioRef.current && audioUrl) {
+      audioRef.current.src = audioUrl;
+      audioRef.current.play().catch((err) => console.error('Playback error:', err));
+    }
+  };
+
+  const handlePause = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+  };
+
+  const handleConvertTts = async () => {
+    if (!ttsMessage) {
+      setError('Please enter a TTS message to convert.');
+      return;
+    }
+
+    try {
+      const ttsResponse = await axios.post('https://your-tts-endpoint.com/convert', { text: ttsMessage }, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const convertedAudioUrl = ttsResponse.data.audio_url;
+      const response = await fetch(convertedAudioUrl);
+      const blob = await response.blob();
+      setAudioBlob(blob);
+      setAudioUrl(convertedAudioUrl);
+      setShowSuccessNotification(true);
+      setTimeout(() => setShowSuccessNotification(false), 3000);
+    } catch (err) {
+      setError('Failed to convert TTS to audio.');
+    }
+  };
+
+  const handleSave = async () => {
+    if (audioBlob) {
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.wav');
+      try {
+        const response = await axios.post('https://your-firebase-storage-endpoint.com/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        setAudioUrl(response.data.url);
+        setShowSuccessNotification(true);
+        setTimeout(() => setShowSuccessNotification(false), 3000);
+      } catch (err) {
+        setError('Failed to upload audio.');
+      }
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto space-y-6 p-4 sm:p-6"
+      className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8"
     >
       {showSuccessNotification && (
         <motion.div
@@ -133,166 +206,149 @@ const Voice: React.FC = () => {
           className="fixed inset-0 flex items-center justify-center z-50 p-4"
         >
           <div className="bg-green-500 text-white p-4 rounded-xl shadow-2xl flex flex-col items-center gap-2 w-full max-w-xs">
-            <CheckCircle className="w-10 h-10" />
-            <span>Call Initiated Successfully!</span>
-            <p>Your call was initiated at 07:42 PM EAT, May 20, 2025.</p>
+            <Save className="w-10 h-10" />
+            <span>Action Successful!</span>
+            <p>Performed at 09:36 PM EAT, May 21, 2025.</p>
           </div>
         </motion.div>
       )}
 
       {error && (
-        <motion.div className="bg-red-50 border border-gray-200 text-red-600 p-4 rounded-lg">
+        <motion.div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg w-full max-w-3xl mb-6">
           {error}
         </motion.div>
       )}
 
-      <div className="flex items-center gap-3 mb-8">
-        <Phone className="w-8 h-8 text-[#00333e]" />
-        <h1 className="text-3xl font-bold text-[#00333e]">Voice API</h1>
-      </div>
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="bg-white p-4 rounded-lg shadow-md text-center">
+            <p className="text-sm text-gray-600">Total Calls</p>
+            <p className="text-xl font-bold text-[#00333e]">150</p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-md text-center">
+            <p className="text-sm text-gray-600">Total Minutes</p>
+            <p className="text-xl font-bold text-[#00333e]">120</p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-md text-center">
+            <p className="text-sm text-gray-600">Rejected</p>
+            <p className="text-xl font-bold text-[#00333e]">10</p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-md text-center">
+            <p className="text-sm text-gray-600">Received</p>
+            <p className="text-xl font-bold text-[#00333e]">140</p>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
-          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-[#00333e]">
-            <Phone className="w-6 h-6 text-[#00333e]" />
-            Make a Call
-          </h2>
-          <form onSubmit={handleMakeCall} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-[#00333e] mb-2">Phone Number</label>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Make a Call */}
+          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+            <h2 className="text-xl font-semibold mb-4 text-[#00333e] flex items-center gap-2">
+              <Phone className="w-6 h-6 text-[#00333e]" /> Make a Call
+            </h2>
+            <div className="space-y-4">
               <div className="flex gap-3">
-                <div className="w-24">
-                  <select
-                    className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-                    value={receiverNumber.split(' ')[0] || '+1'}
-                    onChange={(e) => {
-                      const countryCode = e.target.value;
-                      const numberPart = receiverNumber.split(' ').slice(1).join(' ') || '';
-                      setReceiverNumber(`${countryCode} ${numberPart}`);
-                    }}
-                  >
-                    <option value="+255">+255</option>
-                    <option value="+1">+1</option>
-                    <option value="+44">+44</option>
-                    <option value="+91">+91</option>
-                  </select>
-                </div>
+                <select
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  className="w-24 text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d]"
+                >
+                  <option value="+1">+1</option>
+                  <option value="+44">+44</option>
+                  <option value="+91">+91</option>
+                  <option value="+255">+255</option>
+                </select>
                 <input
                   type="tel"
-                  className="input w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-                  placeholder="(555) 123-4567"
-                  value={receiverNumber.split(' ').slice(1).join(' ') || ''}
-                  onChange={(e) => {
-                    const countryCode = receiverNumber.split(' ')[0] || '+1';
-                    setReceiverNumber(`${countryCode} ${e.target.value}`);
-                  }}
+                  value={receiverNumber}
+                  onChange={(e) => setReceiverNumber(e.target.value)}
+                  placeholder="Enter phone number"
+                  className="flex-1 text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d]"
                 />
               </div>
+              <select className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d]">
+                <option>Choose Contact Group</option>
+                <option>Group 1</option>
+                <option>Group 2</option>
+              </select>
+              <select className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d]">
+                <option>Dropdown Menu</option>
+                <option>Option 1</option>
+                <option>Option 2</option>
+              </select>
+              <select
+                value={messageType}
+                onChange={(e) => setMessageType(e.target.value as 'tts' | 'audio')}
+                className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d]"
+              >
+                <option value="tts">Use TTS</option>
+                <option value="audio">Use Recorded Audio</option>
+              </select>
+              <button
+                onClick={handleMakeCall}
+                className="w-full bg-[#00333e] text-white py-2 rounded-lg hover:bg-[#002a36] transition-all"
+                disabled={isCalling}
+              >
+                {isCalling ? 'Calling...' : 'Make Call'}
+              </button>
             </div>
-            <button
-              type="submit"
-              className="w-full flex items-center justify-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-all"
-              disabled={isCalling}
-            >
-              <Phone className="w-5 h-5" />
-              {isCalling ? 'Calling...' : 'Start Call'}
-            </button>
-          </form>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
-          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-[#00333e]">
-            Voice Options
-          </h2>
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-[#00333e] mb-2">TTS Message (optional)</label>
-              <textarea
-                className="w-full min-h-[100px] text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-                value={ttsMessage}
-                onChange={(e) => setTtsMessage(e.target.value)}
-                placeholder="Enter text-to-speech message"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[#00333e] mb-2">Audio URL (optional)</label>
-              <input
-                type="text"
-                className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-                value={audioUrl}
-                onChange={(e) => setAudioUrl(e.target.value)}
-                placeholder="e.g., https://example.com/audio.mp3"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="w-full flex items-center justify-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-all"
-            >
-              <Phone className="w-5 h-5" />
-              Advanced Options
-            </button>
           </div>
-        </div>
-      </div>
 
-      <div className="bg-white rounded-xl shadow-md p-8 border border-gray-100">
-        <h2 className="text-xl font-semibold mb-6 text-[#00333e]">Recent Calls</h2>
-        <div className="space-y-4">
-          {callLogs.map((log) => (
-            <div
-              key={log.call_log_id}
-              className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
-            >
-              <div className="flex items-center gap-4">
-                <Phone className="w-5 h-5 text-[#00333e]" />
-                <div>
-                  <p className="font-medium">{log.receiver_number}</p>
-                  <p className="text-sm text-gray-500">{new Date(log.started_at).toLocaleString()}</p>
-                </div>
+          {/* Voice Recording and TTS Conversion */}
+          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+            <h2 className="text-xl font-semibold mb-4 text-[#00333e]">Voice Recording & TTS</h2>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={ttsMessage}
+                  onChange={(e) => setTtsMessage(e.target.value)}
+                  placeholder="Enter TTS text to convert"
+                  className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d]"
+                />
+                <button
+                  onClick={handleConvertTts}
+                  className="w-full bg-[#00333e] text-white py-2 rounded-lg hover:bg-[#002a36] transition-all"
+                >
+                  Convert TTS to Audio
+                </button>
               </div>
-              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-                {log.status}
-              </span>
+              <VoiceRecorder
+                onRecordingComplete={handleRecordingComplete}
+                onPlay={handlePlay}
+                onPause={handlePause}
+              />
+              <button
+                onClick={handleSave}
+                className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 flex items-center justify-center gap-2"
+                disabled={!audioBlob}
+              >
+                <Save className="w-5 h-5" /> Save Audio
+              </button>
             </div>
-          ))}
-          {callLogs.length === 0 && (
-            <p className="text-center text-gray-500 mt-4">No call logs available.</p>
-          )}
+          </div>
+        </div>
+
+        {/* Call Logs */}
+        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+          <h2 className="text-xl font-semibold mb-4 text-[#00333e]">Call Logs</h2>
+          <div className="grid grid-cols-4 gap-4 text-sm">
+            <div className="font-medium">Time</div>
+            <div className="font-medium">Contact</div>
+            <div className="font-medium">Call Duration</div>
+            <div className="font-medium">Status</div>
+            {callLogs.map((log) => (
+              <React.Fragment key={log.call_log_id}>
+                <div>{new Date(log.started_at).toLocaleString()}</div>
+                <div>{log.receiver_number}</div>
+                <div>{formatDuration(log.duration_seconds)}</div>
+                <div>{log.status}</div>
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </div>
-
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Advanced Call Options">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-[#00333e] mb-2">Receiver Number</label>
-            <input
-              type="text"
-              className="w-full text-sm py-2 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
-              value={receiverNumber}
-              onChange={(e) => setReceiverNumber(e.target.value)}
-              placeholder="Enter number with country code (e.g., +255788344348)"
-              required
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleMakeCall}
-              className="px-3 py-1 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all"
-              disabled={isCalling}
-            >
-              {isCalling ? 'Calling...' : 'Initiate'}
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <audio ref={audioRef} />
     </motion.div>
   );
 };
