@@ -13,7 +13,6 @@ const navItems = [
   { to: '/subscription', icon: DollarSign, label: 'Subscription' },
   { to: '/apikeys', icon: IdCard, label: 'API Keys' },
   { to: '/voice', icon: Megaphone, label: 'Voice API' },
- 
 ];
 
 interface SidebarProps {
@@ -34,48 +33,46 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
   }, [workspaces, currentWorkspaceId, activeWorkspace, isWorkspaceSelected]);
 
   return (
-    <aside
-      className={`w-64 bg-[#00333e] flex flex-col h-screen overflow-y-auto sticky top-0 z-40 sm:z-0 ${
-        isSidebarOpen ? 'block' : 'hidden'
-      } sm:block`}
-    >
-      <div className="flex flex-col h-full py-4">
+    <aside className="w-30 bg-white flex flex-col h-screen overflow-y-auto sticky top-0 z-40">
+      <div className="flex flex-col h-full py-3">
         {/* Logo Section */}
-        <div className="px-4 mb-6 flex items-center gap-2 border-b border-[#005a6e]">
-          <img src="/assets/briq.png" alt="Briq Logo" className="w-8 h-8" />
-          <h1 className="text-lg font-bold text-white py-2">Briq Solutions</h1>
+        <div className="px-3 mb-3 flex items-center justify-between border-b border-gray-200 pb-2">
+          <div className="flex items-center">
+            <img src="/assets/briq.png" alt="Briq Logo" className="w-8 h-8" />
+            <h1 className="text-sm font-semibold text-gray-800 ml-2">Briq Solutions</h1>
+          </div>
         </div>
 
         {/* Workspace Section */}
-        <div className="px-4 mb-4">
-          <h2 className="text-lg font-semibold text-white mb-3">Workspace</h2>
+        <div className="px-3 mb-3">
+          <h2 className="text-sm font-semibold text-gray-800 mb-2">Workspace</h2>
           <div
-            className={`px-3 py-2 text-lg font-medium rounded-lg transition-all duration-200 ${
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
               isWorkspaceSelected
-                ? 'text-white bg-[#005a6e] border border-[#fddf0d]/20'
-                : 'text-gray-400 bg-[#002a36] italic'
+                ? 'text-gray-800 bg-gray-200'
+                : 'text-gray-500 bg-gray-100 italic'
             }`}
           >
             {activeWorkspace?.name || 'No Workspace Selected'}
           </div>
           {!isWorkspaceSelected && (
-            <p className="mt-2 text-xs text-red-400">Please select a workspace from the Navbar.</p>
+            <p className="mt-1 text-xs text-red-500">Select a workspace from Navbar.</p>
           )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-4 px-2">
+        <nav className="flex-1 space-y-1 px-2">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center px-3 py-2 text-lg font-medium rounded-lg transition-all duration-200 ${
+                `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                   !isWorkspaceSelected
-                    ? 'text-gray-400 cursor-not-allowed bg-[#002a36]'
+                    ? 'text-gray-400 cursor-not-allowed bg-gray-100'
                     : isActive
-                    ? 'bg-[#fddf0d] text-[#00333e] shadow-md shadow-[#fddf0d]/20'
-                    : 'text-white hover:bg-[#005a6e]'
+                    ? 'bg-[#fddf0d] text-gray-800'
+                    : 'text-gray-600 hover:bg-gray-200'
                 }`
               }
               onClick={(e) => {
@@ -85,13 +82,19 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
                   closeSidebar();
                 }
               }}
-              title={!isWorkspaceSelected ? 'Select a workspace to enable navigation' : undefined}
             >
-              <item.icon className="w-5 h-5 mr-2" />
+              <item.icon className="w-5 h-5 mr-2 flex-shrink-0" />
               {item.label}
             </NavLink>
           ))}
         </nav>
+
+        {/* Notifications */}
+        <div className="px-3 mt-auto">
+          <div className="text-sm text-gray-600 flex items-center">
+            <span>Notifications</span>
+          </div>
+        </div>
       </div>
     </aside>
   );
