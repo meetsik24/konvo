@@ -74,191 +74,171 @@ const Register: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Left Section (Banner Image and Content) */}
-      <div className="order-last md:order-first w-full md:w-1/2 bg-gray-100 p-6 flex items-center justify-center">
-        <motion.div
-          className="text-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="mb-6 flex justify-center">
-            <div className="w-60 h-100 rounded-md overflow-hidden">
-              <img src={loginBanner} alt="Register Banner" className="w-full h-full object-cover" />
-            </div>
-          </div>
-          <h2 className="text-lg font-semibold text-[#00333e] mb-2">Welcome to Briq</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Empowering your journey with cutting-edge solutions tailored for your success.
-          </p>
-          <a href="#" className="text-sm text-[#00333e] hover:underline">Learn more about Briq</a>
-        </motion.div>
-      </div>
-
-      {/* Right Section (Registration Form) */}
-      <div className="order-first md:order-last w-full md:w-1/2 bg-white p-6 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="w-full max-w-sm space-y-6"
-        >
-          {/* Logo in Top Center */}
-          <div className="flex justify-center mb-4">
-            <img src={Logo} alt="Logo" className="h-20 w-auto" />
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="w-full max-w-3xl bg-white shadow-lg rounded-lg overflow-hidden">
+        {/* Centered Card with Two Segments */}
+        <div className="flex flex-col md:flex-row">
+          {/* Left Segment - Informational Image (hidden on mobile) */}
+          <div className="hidden md:block w-full md:w-1/2 p-0 order-2 md:order-1">
+            <img src={loginBanner} alt="Register Banner" className="w-full h-full object-cover" />
           </div>
 
-          <h2 className="text-lg font-semibold text-[#00333e] text-center">Create Your Account</h2>
-          <p className="text-center text-sm text-gray-600">
-            Already have an account?{' '}
-            <Link to="/login" className="text-[#00333e] hover:underline">Sign in</Link>
-          </p>
-
-          {error && (
-            <div className="bg-red-50 text-red-600 text-sm p-2 rounded text-center">
-              {Array.isArray(error) ? error.map((msg, index) => <p key={index}>{msg}</p>) : error}
+          {/* Right Segment - Registration Form (first on mobile) */}
+          <div className="w-full md:w-1/2 p-6 flex flex-col items-center order-1 md:order-2">
+            <div className="mb-4">
+              <img src={Logo} alt="Logo" className="h-16 w-auto" />
             </div>
-          )}
+            <h2 className="text-lg font-semibold text-[#00333e] mb-2">Create Your Account</h2>
+            <p className="text-center text-sm text-gray-600">
+              Already have an account?{' '}
+              <Link to="/login" className="text-[#00333e] hover:underline">Sign in</Link>
+            </p>
 
-          <AnimatePresence>
-            {successMessage && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.5, ease: "easeInOut" }}
-                className="flex items-center justify-center gap-2 bg-green-100 text-green-700 p-3 rounded-lg shadow-lg border border-green-200"
-              >
-                <CheckCircle className="w-6 h-6 animate-bounce text-green-600" />
-                <p className="text-sm font-semibold">{successMessage}</p>
-              </motion.div>
+            {error && (
+              <div className="bg-red-50 text-red-600 text-sm p-2 rounded mb-4 text-center">
+                {Array.isArray(error) ? error.map((msg, index) => <p key={index}>{msg}</p>) : error}
+              </div>
             )}
-          </AnimatePresence>
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                autoComplete="username"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                placeholder="Username"
-                value={formData.username}
-                onChange={handleChange}
-                disabled={status === 'loading'}
-              />
-            </div>
-            <div>
-              <input
-                id="fullName"
-                name="fullName"
-                type="text"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                placeholder="Full name"
-                value={formData.fullName}
-                onChange={handleChange}
-                disabled={status === 'loading'}
-              />
-            </div>
-            <div>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                placeholder="Email address"
-                value={formData.email}
-                onChange={handleChange}
-                disabled={status === 'loading'}
-              />
-            </div>
-            <div>
-              <input
-                id="mobileNumber"
-                name="mobileNumber"
-                type="tel"
-                autoComplete="tel"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                placeholder="Mobile number (e.g., 0xxxxxxxxxx)"
-                value={formData.mobileNumber}
-                onChange={handleChange}
-                disabled={status === 'loading'}
-              />
-            </div>
-            <div>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                disabled={status === 'loading'}
-              />
-            </div>
-            <div>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                placeholder="Confirm password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                disabled={status === 'loading'}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-2 px-4 bg-[#00333e] text-white text-sm font-medium rounded-md hover:bg-[#002a36] focus:outline-none focus:ring-2 focus:ring-[#00333e] transition duration-200"
-              disabled={status === 'loading'}
-            >
-              {status === 'loading' ? (
-                <span className="flex items-center justify-center">
-                  <svg
-                    className="animate-spin h-4 w-4 mr-2 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v8H4z"
-                    />
-                  </svg>
-                  Registering...
-                </span>
-              ) : (
-                <span className="flex items-center justify-center">
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Create Account
-                </span>
+            <AnimatePresence>
+              {successMessage && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                  className="flex items-center justify-center gap-2 bg-green-100 text-green-700 p-3 rounded-lg shadow-lg border border-green-200 mb-4"
+                >
+                  <CheckCircle className="w-6 h-6 animate-bounce text-green-600" />
+                  <p className="text-sm font-semibold">{successMessage}</p>
+                </motion.div>
               )}
-            </button>
-          </form>
-        </motion.div>
+            </AnimatePresence>
+
+            <form className="space-y-4 w-full max-w-xs" onSubmit={handleSubmit}>
+              <div>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  placeholder="Username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  disabled={status === 'loading'}
+                />
+              </div>
+              <div>
+                <input
+                  id="fullName"
+                  name="fullName"
+                  type="text"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  placeholder="Full name"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  disabled={status === 'loading'}
+                />
+              </div>
+              <div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  placeholder="Email address"
+                  value={formData.email}
+                  onChange={handleChange}
+                  disabled={status === 'loading'}
+                />
+              </div>
+              <div>
+                <input
+                  id="mobileNumber"
+                  name="mobileNumber"
+                  type="tel"
+                  autoComplete="tel"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  placeholder="Mobile number (e.g., 0xxxxxxxxxx)"
+                  value={formData.mobileNumber}
+                  onChange={handleChange}
+                  disabled={status === 'loading'}
+                />
+              </div>
+              <div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  disabled={status === 'loading'}
+                />
+              </div>
+              <div>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  placeholder="Confirm password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  disabled={status === 'loading'}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2 px-4 bg-[#00333e] text-white text-sm font-medium rounded-md hover:bg-[#002a36] focus:outline-none focus:ring-2 focus:ring-[#00333e] transition duration-200"
+                disabled={status === 'loading'}
+              >
+                {status === 'loading' ? (
+                  <span className="flex items-center justify-center">
+                    <svg
+                      className="animate-spin h-4 w-4 mr-2 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8H4z"
+                      />
+                    </svg>
+                    Registering...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Create Account
+                  </span>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
 
       {/* Modal for Success/Error Handling (if needed in future) */}
