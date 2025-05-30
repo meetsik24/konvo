@@ -33,21 +33,21 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
   }, [workspaces, currentWorkspaceId, activeWorkspace, isWorkspaceSelected]);
 
   return (
-    <aside className="w-30 bg-white flex flex-col h-screen overflow-y-auto sticky top-0 z-40">
+    <aside className="w-56 bg-white flex flex-col h-screen overflow-y-auto sticky top-0 z-40">
       <div className="flex flex-col h-full py-3">
         {/* Logo Section */}
         <div className="px-3 mb-3 flex items-center justify-between border-b border-gray-200 pb-2">
           <div className="flex items-center">
-            <img src="/assets/briq.png" alt="Briq Logo" className="w-8 h-8" />
+            <img src="/assets/briq2.png" alt="Briq Logo" className="w-8 h-8" />
             <h1 className="text-sm font-semibold text-gray-800 ml-2">Briq Solutions</h1>
           </div>
         </div>
 
         {/* Workspace Section */}
         <div className="px-3 mb-3">
-          <h2 className="text-sm font-semibold text-gray-800 mb-2">Workspace</h2>
+          <h2 className="text-sm font-regular text-gray-800 mb-2">Workspace</h2>
           <div
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
+            className={`px-3 py-1.5 text-sm font-regular rounded-sm transition-all duration-200 ${
               isWorkspaceSelected
                 ? 'text-gray-800 bg-gray-200'
                 : 'text-gray-500 bg-gray-100 italic'
@@ -67,7 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                `flex items-center px-3 py-2 text-sm font-regular rounded-sm transition-all duration-200 ${
                   !isWorkspaceSelected
                     ? 'text-gray-400 cursor-not-allowed bg-gray-100'
                     : isActive

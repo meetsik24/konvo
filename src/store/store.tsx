@@ -1,7 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { persistStore, persistReducer } from 'redux-persist';
 import storage from 'redux-persist/lib/storage'; // defaults to localStorage for web
-import { thunk } from 'redux-thunk';
+
 import authReducer from './slices/authSlice';
 
 // Persist configuration
@@ -34,8 +34,8 @@ export const store = configureStore({
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
         ignoredPaths: ['auth.user'],
       },
-    }).concat(thunk), // Add redux-thunk middleware
-  devTools: process.env.NODE_ENV !== 'production', // Enable Redux DevTools in development
+    }), // No .concat(thunk) needed
+  devTools: process.env.NODE_ENV !== 'production',
 });
 
 export const persistor = persistStore(store);
