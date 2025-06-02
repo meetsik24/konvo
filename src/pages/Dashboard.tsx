@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Users, MessageSquare, XCircle, Megaphone, Folder, TrendingUp } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
@@ -9,9 +8,6 @@ interface Stat {
   title: string;
   value: string;
   icon: React.FC<React.SVGProps<SVGSVGElement>>;
-  gradient: string;
-  titleLine1: string;
-  titleLine2: string;
 }
 
 interface DataPoint {
@@ -34,11 +30,11 @@ interface DashboardData {
 
 const initialDashboardData: DashboardData = {
   stats: [
-    { title: 'Messages Sent', value: '0', icon: MessageSquare, gradient: 'from-blue-500 to-blue-600', titleLine1: 'Messages', titleLine2: 'Sent' },
-    { title: 'Number of Campaigns', value: '0', icon: Megaphone, gradient: 'from-green-500 to-green-600', titleLine1: 'Number of', titleLine2: 'Campaigns' },
-    { title: 'Total Fails', value: '0', icon: XCircle, gradient: 'from-red-500 to-red-600', titleLine1: 'Total', titleLine2: 'Fails' },
-    { title: 'Total Contacts', value: '0', icon: Users, gradient: 'from-purple-500 to-purple-600', titleLine1: 'Total', titleLine2: 'Contacts' },
-    { title: 'Total Contact Groups', value: '0', icon: Folder, gradient: 'from-yellow-500 to-yellow-600', titleLine1: 'Total Contact', titleLine2: 'Groups' },
+    { title: 'Messages Sent', value: '0', icon: MessageSquare },
+    { title: 'Campaigns', value: '0', icon: Megaphone },
+    { title: 'Total Fails', value: '0', icon: XCircle },
+    { title: 'Total Contacts', value: '0', icon: Users },
+    { title: 'Contact Groups', value: '0', icon: Folder },
   ],
   data: [],
   campaigns: [],
@@ -53,30 +49,22 @@ const Dashboard: React.FC = () => {
 
   const fetchAllMessageLogs = useCallback(async () => {
     try {
-      const response = await fetchLogs();
-      const logs = response?.logs || [];
-      console.log('fetchLogs response:', response);
-      console.log(`Total message logs: ${logs.length}`);
-      if (!Array.isArray(logs)) {
-        console.error('Logs is not an array:', logs);
-        throw new Error('Invalid logs data: expected an array');
-      }
+      const { logs = [] } = await fetchLogs();
+      if (!Array.isArray(logs)) throw new Error('Invalid logs data');
       return logs;
-    } catch (error: any) {
-      console.error('Error fetching logs:', error.message);
-      throw new Error(error.message || 'Failed to fetch message logs');
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to fetch logs');
     }
   }, []);
 
   useEffect(() => {
-    const storedDashboardData = workspace?.dashboardData;
-    if (storedDashboardData?.stats?.length || storedDashboardData?.data?.length || storedDashboardData?.campaigns?.length) {
+    const storedData = workspace?.dashboardData;
+    if (storedData?.stats?.length || storedData?.data?.length || storedData?.campaigns?.length) {
       setDashboardData({
-        stats: storedDashboardData.stats || initialDashboardData.stats,
-        data: storedDashboardData.data || initialDashboardData.data,
-        campaigns: storedDashboardData.campaigns || initialDashboardData.campaigns,
+        stats: storedData.stats || initialDashboardData.stats,
+        data: storedData.data || initialDashboardData.data,
+        campaigns: storedData.campaigns || initialDashboardData.campaigns,
       });
-      setError(null);
     } else {
       setDashboardData(initialDashboardData);
     }
@@ -84,102 +72,55 @@ const Dashboard: React.FC = () => {
 
   const loadDashboardData = useCallback(async () => {
     if (!currentWorkspaceId) {
-      setError('No workspace selected.');
+      setError('No workspace selected');
       return;
     }
 
-    const hasValidData =
-      workspace?.dashboardData?.stats?.some((stat) => stat.value !== '0') ||
-      workspace?.dashboardData?.data?.length > 0 ||
-      workspace?.dashboardData?.campaigns?.length > 0;
-    if (hasValidData) {
+    if (workspace?.dashboardData?.stats?.some((stat) => stat.value !== '0') ||
+        workspace?.dashboardData?.data?.length ||
+        workspace?.dashboardData?.campaigns?.length) {
       return;
     }
 
     setIsLoading(true);
     setError(null);
     try {
-      let campaigns = [], contactsMetrics = { total_contacts: 0, total_contact_groups: 0 }, logs = [];
-      
-      try {
-        campaigns = await getCampaigns() || [];
-      } catch (err) {
-        console.error('Error fetching campaigns:', err);
-        campaigns = [];
-      }
-      
-      try {
-        contactsMetrics = await getContactMetrics() || { total_contacts: 0, total_contact_groups: 0 };
-      } catch (err) {
-        console.error('Error fetching contact metrics:', err);
-        contactsMetrics = { total_contacts: 0, total_contact_groups: 0 };
-      }
-      
-      try {
-        logs = await fetchAllMessageLogs() || [];
-      } catch (err) {
-        console.error('Error fetching logs:', err);
-        logs = [];
-      }
+      const [campaigns, contactsMetrics, logs] = await Promise.all([
+        getCampaigns().catch(() => []),
+        getContactMetrics().catch(() => ({ total_contacts: 0, total_contact_groups: 0 })),
+        fetchAllMessageLogs().catch(() => []),
+      ]);
 
-      const messagesSent = logs.filter(
-        (log: any) => log?.status === 'sent' && log?.response_group_name === 'PENDING'
-      ).length;
-      const numberOfCampaigns = Array.isArray(campaigns) ? campaigns.length : 0;
-      const totalFails = logs.filter(
-        (log: any) => log?.response_group_name === 'REJECTED'
-      ).length;
-      const totalContacts = contactsMetrics?.total_contacts || 0;
-      const totalContactGroups = contactsMetrics?.total_contact_groups || 0;
-
-      const messageVolume = logs.reduce((acc: { [key: string]: number }, log: any) => {
-        const timestamp = log?.timestamp;
-        if (!timestamp) {
-          console.warn('Missing timestamp in log:', log);
-          return acc;
-        }
-        const date = new Date(timestamp);
-        if (isNaN(date.getTime())) {
-          console.warn('Invalid timestamp in log:', log);
-          return acc;
-        }
-        const dateString = date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-        });
+      const messagesSent = logs.filter((log) => log?.status === 'sent' && log?.response_group_name === 'PENDING').length;
+      const totalFails = logs.filter((log) => log?.response_group_name === 'REJECTED').length;
+      const messageVolume = logs.reduce((acc: { [key: string]: number }, log) => {
+        const date = new Date(log?.timestamp);
+        if (isNaN(date.getTime())) return acc;
+        const dateString = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         acc[dateString] = (acc[dateString] || 0) + 1;
         return acc;
       }, {});
 
       const dataPoints = Object.entries(messageVolume)
         .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => {
-          const dateA = new Date(a.name);
-          const dateB = new Date(b.name);
-          return dateA.getTime() - dateB.getTime();
-        });
-
-      console.log('Processed data points for chart:', dataPoints);
+        .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
 
       const newDashboardData: DashboardData = {
         stats: [
-          { title: 'Messages Sent', value: messagesSent.toString(), icon: MessageSquare, gradient: 'from-blue-500 to-blue-600', titleLine1: 'Messages', titleLine2: 'Sent' },
-          { title: 'Number of Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, gradient: 'from-green-500 to-green-600', titleLine1: 'Number of', titleLine2: 'Campaigns' },
-          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, gradient: 'from-red-500 to-red-600', titleLine1: 'Total', titleLine2: 'Fails' },
-          { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, gradient: 'from-purple-500 to-purple-600', titleLine1: 'Total', titleLine2: 'Contacts' },
-          { title: 'Total Contact Groups', value: totalContactGroups.toString(), icon: Folder, gradient: 'from-yellow-500 to-yellow-600', titleLine1: 'Total Contact', titleLine2: 'Groups' },
+          { title: 'Messages Sent', value: messagesSent.toString(), icon: MessageSquare },
+          { title: 'Campaigns', value: campaigns.length.toString(), icon: Megaphone },
+          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle },
+          { title: 'Total Contacts', value: contactsMetrics.total_contacts.toString(), icon: Users },
+          { title: 'Contact Groups', value: contactsMetrics.total_contact_groups.toString(), icon: Folder },
         ],
         data: dataPoints,
-        campaigns: Array.isArray(campaigns) ? campaigns : [],
+        campaigns,
       };
 
       setDashboardData(newDashboardData);
       updateWorkspace(currentWorkspaceId, { dashboardData: newDashboardData });
-      setError(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unable to load dashboard data. Please try again.';
-      console.error('Failed to fetch dashboard data:', err);
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
       setDashboardData(initialDashboardData);
     } finally {
       setIsLoading(false);
@@ -191,166 +132,118 @@ const Dashboard: React.FC = () => {
   }, [loadDashboardData]);
 
   return (
-    <div className="space-y-6">
-      {/* Loading State */}
+    <div className="space-y-4">
       {isLoading && (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#00333e]"></div>
-          <p className="ml-4 text-[#00333e] text-lg">Loading dashboard...</p>
+        <div className="flex justify-center items-center h-48">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#00333e]" />
+          <p className="ml-2 text-[#00333e] text-sm">Loading...</p>
         </div>
       )}
 
-      {/* Error State */}
       {error && !isLoading && (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg text-center">
+        <div className="border border-gray-200 bg-white p-3 text-[#00333e] text-xs text-center">
           {error}
         </div>
       )}
 
-      {/* Main Content */}
       {!isLoading && !error && (
-        <div className="space-y-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {dashboardData.stats.map((stat, index) => (
-              <motion.div
-                key={stat.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.03 }}
-                className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100"
-              >
-                <div className={`p-5 bg-gradient-to-r ${stat.gradient} flex items-center`}>
-                  <stat.icon className="w-8 h-8 text-white" />
-                  <div className="ml-4">
-                    <p className="text-sm text-white/80 leading-tight">
-                      {stat.titleLine1}<br />{stat.titleLine2}
-                    </p>
-                    <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
-                  </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            {dashboardData.stats.map((stat) => (
+              <div key={stat.title} className="bg-white border border-gray-200 p-3 flex items-center">
+                <stat.icon className="w-4 h-4 text-[#00333e] mr-2" />
+                <div>
+                  <p className="text-xs text-[#00333e]">{stat.title}</p>
+                  <p className="text-base font-semibold text-[#00333e]">{stat.value}</p>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
 
-          {/* Message Volume Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-[#00333e] flex items-center">
-                <TrendingUp className="w-6 h-6 mr-2 text-[#fddf0d]" />
+          <div className="bg-white border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-base text-[#00333e] flex items-center">
+                <TrendingUp className="w-4 h-4 mr-1 text-[#00333e]" />
                 Message Volume
               </h2>
-              <div className="text-sm text-[#00333e]">
-                Last {dashboardData.data?.length || 0} days
-              </div>
+              <span className="text-xs text-[#00333e]">{dashboardData.data.length} days</span>
             </div>
-            <div className="h-80">
-              {dashboardData.data && dashboardData.data.length > 0 ? (
+            <div className="h-64">
+              {dashboardData.data.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={dashboardData.data}
-                    margin={{ top: 10, right: 30, left: 0, bottom: 50 }}
-                  >
-                    <defs>
-                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#fddf0d" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#fddf0d" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <AreaChart data={dashboardData.data} margin={{ top: 10, right: 10, left: 0, bottom: 30 }}>
+                    <CartesianGrid stroke="#e5e7eb" strokeDasharray="2 2" />
                     <XAxis
                       dataKey="name"
-                      tick={{ fontSize: 12, fill: '#00333e' }}
+                      tick={{ fontSize: 10, fill: '#00333e' }}
                       interval={0}
                       angle={-45}
                       textAnchor="end"
-                      height={70}
-                      tickFormatter={(value) => value}
+                      height={50}
                     />
-                    <YAxis
-                      tick={{ fontSize: 12, fill: '#00333e' }}
-                      width={40}
-                    />
+                    <YAxis tick={{ fontSize: 10, fill: '#00333e' }} width={30} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: '#fff',
                         border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        fontSize: '12px',
                         color: '#00333e',
                       }}
                     />
                     <Area
                       type="monotone"
                       dataKey="value"
-                      stroke="#fddf0d"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorValue)"
-                      activeDot={{ r: 6, fill: '#fddf0d', stroke: '#fff', strokeWidth: 2 }}
+                      stroke="#00333e"
+                      strokeWidth={1}
+                      fill="#fddf0d"
+                      fillOpacity={0.2}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-[#00333e]">
-                  <MessageSquare className="w-8 h-8 mr-2 text-[#fddf0d]" />
-                  No message volume data available.
+                <div className="flex items-center justify-center h-full text-[#00333e] text-xs">
+                  <MessageSquare className="w-4 h-4 mr-1 text-[#00333e]" />
+                  No data available
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
 
-          {/* Recent Campaigns */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
-          >
-            <h2 className="text-xl font-semibold text-[#00333e] mb-4">Recent Campaigns</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-sm text-[#00333e] border-b border-gray-200">
-                    <th className="pb-2">Name</th>
-                    <th className="pb-2">Date</th>
-                    <th className="pb-2">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboardData.campaigns && dashboardData.campaigns.length > 0 ? (
-                    dashboardData.campaigns.slice(0, 5).map((campaign) => (
-                      <tr key={campaign.campaign_id} className="border-b last:border-b-0 hover:bg-gray-50">
-                        <td className="py-3 text-[#00333e]">{campaign.name}</td>
-                        <td className="py-3 text-[#00333e]">
-                          {new Date(campaign.created_at).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </td>
-                        <td className="py-3">
-                          <span className="text-[#fddf0d] font-medium">{campaign.status}</span>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={3} className="py-3 text-center text-[#00333e]">
-                        No recent campaigns available.
+          <div className="bg-white border border-gray-200 p-4">
+            <h2 className="text-base text-[#00333e] mb-2">Recent Campaigns</h2>
+            <table className="w-full text-xs text-[#00333e]">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="pb-1 text-left">Name</th>
+                  <th className="pb-1 text-left">Date</th>
+                  <th className="pb-1 text-left">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dashboardData.campaigns.length > 0 ? (
+                  dashboardData.campaigns.slice(0, 5).map((campaign) => (
+                    <tr key={campaign.campaign_id} className="border-b border-gray-200 last:border-0">
+                      <td className="py-1">{campaign.name}</td>
+                      <td className="py-1">
+                        {new Date(campaign.created_at).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
                       </td>
+                      <td className="py-1 text-[#fddf0d]">{campaign.status}</td>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="py-1 text-center">
+                      No campaigns
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
