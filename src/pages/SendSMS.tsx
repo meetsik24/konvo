@@ -129,7 +129,7 @@ const ModeTabs: React.FC<{ mode: string; setMode: (mode: 'contacts' | 'campaign'
 );
 
 const SmsForm: React.FC<{
-  mode: string;
+  mode: 'contacts' | 'campaign' | 'file';
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
   ui: UiState;
@@ -194,7 +194,7 @@ const SmsForm: React.FC<{
                 setForm({
                   ...form,
                   useAllContacts: !form.useAllContacts,
-                  contacts: form.useAllContacts ? 'form.contacts' : '',
+                  contacts: form.useAllContacts ? '' : form.contacts,
                   groups: form.useAllContacts ? [] : form.groups,
                 });
               }}
@@ -385,15 +385,12 @@ const Logs: React.FC<{ logs: MessageLog[] }> = ({ logs }) => (
             className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
           >
             <p className="text-sm text-[#00333e]">
-              <span className="font-medium">Message:</span> {log.message || 'N/A'}
-            </p>
+              <span className="font-medium">Message:</span> {log.message || 'N/A'}</p>
             <p className="text-sm text-gray-600">
-              <span className="font-medium">Status:</span> {log.status || 'N/A'}
-            </p>
+              <span className="font-medium">Status:</span> {log.status || 'N/A'}</p>
             <p className="text-sm text-gray-600">
               <span className="font-medium">Timestamp:</span>{' '}
-              {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}
-            </p>
+              {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}</p>
           </motion.div>
         ))}
       </div>
@@ -406,7 +403,7 @@ const Stats: React.FC<{ groups: Group[]; campaignId: string; senderIds: SenderId
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: 0.6 }}
-    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+    className="grid grid-cols-1 sm:grid-cols-3 gap-4"
   >
     {[
       { icon: Users, label: 'Total Groups', value: groups.length },
@@ -517,37 +514,50 @@ const SendSMS: React.FC = () => {
   );
 
   useEffect(() => {
+    if (!currentWorkspaceId) {
+      console.warn('No workspace ID available, skipping fetchData');
+      setUi((prev) => ({ ...prev, error: 'Please select a workspace.', isLoading: false }));
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('No auth token, redirecting to login');
+      window.location.href = '/login';
+      return;
+    }
+
     const fetchData = async () => {
       setUi((prev) => ({ ...prev, isLoading: true }));
       try {
-        if (!currentWorkspaceId) {
-          setUi((prev) => ({ ...prev, error: 'No workspace selected.', isLoading: false }));
-          return;
-        }
-        console.log('Fetching initial data...');
+        console.log('Fetching initial data for workspace:', currentWorkspaceId);
         const [senderIdsRes, groupsRes, logsRes] = await Promise.all([
-          getApprovedSenderIds().catch(() => FALLBACK_SENDER_IDS),
-          getWorkspaceGroups().then((data) => (data && (Array.isArray(data) ? data : data.data || [])) || []),
-          getMessageLogs().then((data) => (data && (Array.isArray(data) ? data : data.data || [])) || []),
+          getApprovedSenderIds(currentWorkspaceId).catch(() => FALLBACK_SENDER_IDS),
+          getWorkspaceGroups(currentWorkspaceId).catch(() => []),
+          getMessageLogs().catch(() => []),
         ]);
-        const approvedIds = Array.isArray(senderIdsRes)
-          ? senderIdsRes.filter((s) => s.is_approved)
-          : senderIdsRes?.data?.filter((s: any) => s.is_approved) || FALLBACK_SENDER_IDS;
-        console.log('Data fetched:', { senderIds: approvedIds, groups: groupsRes, logs: logsRes });
-        setSenderIds(approvedIds);
-        setForm((prev) => ({ ...prev, senderId: approvedIds[0]?.sender_id || '' }));
+        console.log('Data fetched:', { senderIds: senderIdsRes, groups: groupsRes, logs: logsRes });
+        setSenderIds(senderIdsRes);
+        setForm((prev) => ({ ...prev, senderId: senderIdsRes[0]?.sender_id || '' }));
         setValidGroups(groupsRes);
         setMessageLogs(logsRes);
         setUi((prev) => ({
           ...prev,
           isLoading: false,
-          error: approvedIds === FALLBACK_SENDER_IDS ? 'Using fallback sender IDs' : null,
+          error: senderIdsRes === FALLBACK_SENDER_IDS ? 'Using fallback sender IDs' : null,
         }));
-      } catch (err) {
+      } catch (err: any) {
         console.error('Initial data fetch error:', err);
+        if (err.message.includes('Unauthorized access')) {
+          setUi((prev) => ({ ...prev, error: 'You do not have access to this workspace. Please check your permissions.', isLoading: false }));
+        } else if (err.response?.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+        } else {
+          setUi((prev) => ({ ...prev, error: 'Failed to load data. Please try again.', isLoading: false }));
+        }
         setSenderIds(FALLBACK_SENDER_IDS);
         setForm((prev) => ({ ...prev, senderId: FALLBACK_SENDER_IDS[0].sender_id }));
-        setUi((prev) => ({ ...prev, isLoading: false, error: 'Failed to load data.' }));
       }
     };
     fetchData();
@@ -679,8 +689,8 @@ const SendSMS: React.FC = () => {
         fileStep: 1,
       }));
       setTimeout(() => setUi((prev) => ({ ...prev, success: false })), 3000);
-      const logs = await getMessageLogs();
-      setMessageLogs((data && (Array.isArray(data) ? data : data.data || [])) || []);
+      const logs = await getMessageLogs().catch(() => []);
+      setMessageLogs(logs);
     } catch (err: any) {
       console.error('Send SMS error:', err);
       setUi((prev) => ({ ...prev, error: err.message || 'Failed to send SMS', isSending: false }));
