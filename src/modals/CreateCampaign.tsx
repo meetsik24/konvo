@@ -12,7 +12,7 @@ import {
   assignGroupToCampaign,
   getCampaignGroups,
 } from '../services/api.tsx';
-import { getRecipients } from '../utils/smsUtilis.ts';
+
 import CampaignModal from '../pages/CampaignModal.tsx';
 
 interface Campaign {
