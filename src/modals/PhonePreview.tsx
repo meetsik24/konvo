@@ -19,7 +19,7 @@ const PhonePreview: React.FC<PhonePreviewProps> = ({ data }) => {
           <div className="absolute inset-2 bg-white rounded-[1.1rem] overflow-hidden">
             {/* Status Bar */}
             <div className="flex justify-between items-center px-4 py-1 bg-white relative z-10">
-              <div className="text-xs font-bold text-[#00333e]">01:12</div>
+              <div className="text-xs font-bold text-[#00333e]">01:19</div>
               <div className="flex items-center gap-1">
                 <Signal size={12} className="text-[#00333e]" />
                 <Wifi size={12} className="text-[#00333e]" />
@@ -46,13 +46,13 @@ const PhonePreview: React.FC<PhonePreviewProps> = ({ data }) => {
             <div className="p-3 space-y-2 min-h-[400px]">
               {/* Message Bubble */}
               <div className="flex flex-col">
-                <div className="bg-[#fddf0d] rounded-lg rounded-tl-md px-3 py-2 max-w-[80%]">
+                <div className="bg-[#fddf0d] rounded-lg rounded-tl-md px-3 py-2 max-w-[80%] break-words">
                   <p className="text-sm text-[#00333e] leading-relaxed font-medium">
                     {data.message || 'You have received 50,000 TZs from BriqPay. Your new balance is 75,000. Keep Using Briq'}
                   </p>
                 </div>
                 <div className="text-xs text-gray-500 mt-1 ml-2 flex items-center gap-1">
-                  <span>{data.timestamp || '01:12'}</span>
+                  <span>{data.timestamp || '01:19'}</span>
                   <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
                   <span>Delivered</span>
                 </div>
