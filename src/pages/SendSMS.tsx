@@ -1,162 +1,78 @@
 import React, { useState, useEffect } from 'react';
+import { Phone, Upload, Users, Calendar, MessageSquare, FileText, Send, Bot } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Send, Upload, X, Bot } from 'lucide-react';
+import PhonePreview from '../modals/PhonePreview';
 import { useWorkspace } from './WorkspaceContext';
+import Modal from '../modals/Modal';
 import {
+  getApprovedSenderIds,
   getCampaigns,
   getCampaignGroups,
-  getApprovedSenderIds,
   sendInstantMessage,
-  getMessageLogs,
-  getWorkspaceGroups,
   generateMessage,
-  getContacts,
+  getWorkspaceGroups,
   getGroupContacts,
 } from '../services/api';
 
-// Define interfaces
-interface Campaign {
-  campaign_id: string;
-  workspace_id: string;
-  name: string;
-  description: string;
-  launch_date: string;
-}
+interface Campaign { campaign_id: string; workspace_id: string; name: string; }
+interface Group { group_id: string; name: string; }
+interface SenderId { sender_id: string; name: string; is_approved: boolean; }
+interface Contact { contact_id: string; phone_number: string; }
 
-interface Group {
-  group_id: string;
-  name: string;
-}
-
-interface Contact {
-  contact_id: string;
-  phone_number: string;
-}
-
-interface MessageLog {
-  id?: string;
-  message?: string;
-  status?: string;
-  timestamp?: string;
-}
-
-interface SenderId {
-  sender_id: string;
-  name: string;
-  is_approved: boolean;
-}
-
-// Modal Component
-interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  children: React.ReactNode;
-  onSubmit?: () => void;
-  submitText?: string;
-}
-
-const Modal: React.FC<ModalProps> = ({
-  isOpen,
-  onClose,
-  title,
-  children,
-  onSubmit,
-  submitText = 'Submit',
-}) => {
-  if (!isOpen) return null;
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-    >
-      <motion.div
-        initial={{ scale: 0.8 }}
-        animate={{ scale: 1 }}
-        className="bg-white rounded-lg p-4 max-w-sm w-full border border-gray-200"
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-[#00333e]">{title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-[#00333e]">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="mb-4">{children}</div>
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-3 py-1 text-sm text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
-          >
-            Cancel
-          </button>
-          {onSubmit && (
-            <button
-              onClick={onSubmit}
-              className="px-3 py-1 text-sm bg-[#00333e] text-white rounded-lg hover:bg-[#002a36]"
-            >
-              {submitText}
-            </button>
-          )}
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
-
-const SendSMS: React.FC = () => {
+const SendSMS = () => {
   const { currentWorkspaceId } = useWorkspace();
-  const [sendMode, setSendMode] = useState<'contacts' | 'campaign'>('contacts');
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [sendMode, setSendMode] = useState<'instant' | 'campaign' | 'file'>('instant');
+  const [formData, setFormData] = useState({
+    senderId: '',
+    message: '',
+    manualContacts: '',
+    campaignName: '',
+    startDate: '',
+    startTime: '',
+    endDate: '',
+    endTime: '',
+    frequency: '',
+    template: '',
+  });
+  const [charCount, setCharCount] = useState(0);
+  const [smsCount, setSmsCount] = useState(1);
   const [senderIds, setSenderIds] = useState<SenderId[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignGroups, setCampaignGroups] = useState<{ [key: string]: Group[] }>({});
-  const [selectedCampaignId, setSelectedCampaignId] = useState('');
-  const [selectedSenderId, setSelectedSenderId] = useState('');
+  const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [manualContacts, setManualContacts] = useState('');
-  const [message, setMessage] = useState('');
-  const [keywords, setKeywords] = useState('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [parsedContacts, setParsedContacts] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [messageLogs, setMessageLogs] = useState<MessageLog[]>([]);
+  const [keywords, setKeywords] = useState('');
   const [modalState, setModalState] = useState({
     isAIModalOpen: false,
     isGroupModalOpen: false,
     isImportModalOpen: false,
   });
 
-  // Fetch initial data
+  useEffect(() => {
+    const count = formData.message.length;
+    setCharCount(count);
+    setSmsCount(Math.ceil(count / 160) || 1);
+  }, [formData.message]);
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
         if (!currentWorkspaceId) throw new Error('No workspace selected.');
-
-        // Sender IDs
         const senderResponse = await getApprovedSenderIds(currentWorkspaceId);
-        const approvedSenderIds = Array.isArray(senderResponse)
-          ? senderResponse.filter((s) => s.is_approved)
-          : senderResponse?.data?.filter((s: SenderId) => s.is_approved) || [];
-        setSenderIds(approvedSenderIds);
-        if (approvedSenderIds.length) setSelectedSenderId(approvedSenderIds[0].sender_id);
-
-        // Campaigns
+        setSenderIds(senderResponse);
+        if (senderResponse.length) setFormData(prev => ({ ...prev, senderId: senderResponse[0].sender_id }));
         const campaignsData = await getCampaigns();
-        const formattedCampaigns = Array.isArray(campaignsData)
-          ? campaignsData
-          : campaignsData?.data || [];
-        setCampaigns(formattedCampaigns.filter((c: Campaign) => c.campaign_id));
-
-        // Groups
+        setCampaigns(campaignsData);
         const groupsData = await getWorkspaceGroups(currentWorkspaceId);
-        setGroups(Array.isArray(groupsData) ? groupsData : groupsData?.data || []);
-
-        // Logs
-        const logsData = await getMessageLogs();
-        setMessageLogs(Array.isArray(logsData) ? logsData : logsData?.data || []);
+        setGroups(groupsData);
       } catch (err: any) {
         setError(err.message || 'Failed to load data.');
       } finally {
@@ -166,19 +82,12 @@ const SendSMS: React.FC = () => {
     fetchData();
   }, [currentWorkspaceId]);
 
-  // Fetch campaign groups
   useEffect(() => {
     const fetchCampaignGroups = async () => {
       if (!selectedCampaignId) return;
       try {
         const groupsData = await getCampaignGroups(selectedCampaignId);
-        const formattedGroups = Array.isArray(groupsData)
-          ? groupsData
-          : groupsData?.data || [];
-        setCampaignGroups((prev) => ({
-          ...prev,
-          [selectedCampaignId]: formattedGroups,
-        }));
+        setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: groupsData }));
       } catch (err) {
         setError('Failed to fetch campaign groups.');
       }
@@ -186,12 +95,15 @@ const SendSMS: React.FC = () => {
     fetchCampaignGroups();
   }, [selectedCampaignId]);
 
-  // Inline recipient fetching
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   const fetchRecipients = async (groupIds: string[]): Promise<string[]> => {
     const recipientPhones: string[] = [];
     for (const groupId of groupIds) {
       try {
-        const contacts = await getGroupContacts(currentWorkspaceId, groupId, 1, 50);
+        const contacts = await getGroupContacts(currentWorkspaceId!, groupId, 1, 50);
         const phones = (contacts?.contacts || [])
           .map((c: Contact) => c.phone_number)
           .filter((p: string) => p && /^\+?\d{10,15}$/.test(p.trim()));
@@ -203,55 +115,65 @@ const SendSMS: React.FC = () => {
     return [...new Set(recipientPhones)];
   };
 
-  // Handle form submission
+  const parseFileRecipients = (file: File): Promise<string[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const phones = text
+          .split(/[\n,]+/)
+          .map((p) => p.trim())
+          .filter((p) => p && /^\+?\d{10,15}$/.test(p));
+        resolve([...new Set(phones)]);
+      };
+      reader.onerror = () => reject(new Error('Failed to read file.'));
+      reader.readAsText(file);
+    });
+  };
+
   const handleSendSMS = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsSending(true);
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected.');
-      if (!selectedSenderId) throw new Error('Please select a sender ID.');
-      if (!message.trim()) throw new Error('Please enter a message.');
-      
+      if (!formData.senderId) throw new Error('Please select a sender ID.');
+      if (!formData.message.trim()) throw new Error('Please enter a message.');
+
       let recipients: string[] = [];
-      if (sendMode === 'campaign') {
-        if (!selectedCampaignId) throw new Error('Please select a campaign.');
-        const campaignGroups = campaignGroups[selectedCampaignId] || [];
-        if (!campaignGroups.length) throw new Error('No groups assigned to campaign.');
-        recipients = await fetchRecipients(campaignGroups.map((g) => g.group_id));
-      } else {
-        if (!manualContacts.trim() && !selectedGroups.length) {
-          throw new Error('Please enter contacts or select groups.');
-        }
-        if (manualContacts.trim()) {
-          const manualPhones = manualContacts
+      if (sendMode === 'instant') {
+        if (formData.manualContacts.trim()) {
+          recipients = formData.manualContacts
             .split(/[\n,]+/)
             .map((p) => p.trim())
             .filter((p) => p && /^\+?\d{10,15}$/.test(p));
-          recipients.push(...manualPhones);
         }
         if (selectedGroups.length) {
           const groupPhones = await fetchRecipients(selectedGroups);
           recipients.push(...groupPhones);
         }
+      } else if (sendMode === 'campaign') {
+        if (!selectedCampaignId) throw new Error('Please select a campaign.');
+        const groups = campaignGroups[selectedCampaignId] || [];
+        if (!groups.length) throw new Error('No groups assigned to campaign.');
+        recipients = await fetchRecipients(groups.map(g => g.group_id));
+      } else if (sendMode === 'file') {
+        if (!parsedContacts.length) throw new Error('No valid recipients found in file.');
+        recipients = parsedContacts;
       }
-      
+
       if (!recipients.length) throw new Error('No valid recipients found.');
-      
       await sendInstantMessage(currentWorkspaceId, {
         recipients,
-        content: message,
-        sender_id: selectedSenderId,
+        content: formData.message,
+        sender_id: formData.senderId,
       });
-      
-      setMessage('');
-      setManualContacts('');
+
+      setFormData(prev => ({ ...prev, message: '', manualContacts: '', campaignName: '', startDate: '', startTime: '', endDate: '', endTime: '', frequency: '', template: '' }));
       setSelectedGroups([]);
       setSelectedCampaignId('');
-      setMessageLogs((prev) => [
-        { id: Date.now().toString(), message, status: 'sent', timestamp: new Date().toISOString() },
-        ...prev,
-      ]);
+      setUploadedFile(null);
+      setParsedContacts([]);
     } catch (err: any) {
       setError(err.message || 'Failed to send SMS.');
     } finally {
@@ -259,7 +181,6 @@ const SendSMS: React.FC = () => {
     }
   };
 
-  // Generate AI message
   const generateAIMessage = async () => {
     if (!keywords.trim()) {
       setError('Please enter a prompt.');
@@ -268,8 +189,9 @@ const SendSMS: React.FC = () => {
     setIsGenerating(true);
     try {
       const generatedMessage = await generateMessage(`Generate an SMS message based on: ${keywords}`);
-      setMessage(generatedMessage);
-      setModalState((prev) => ({ ...prev, isAIModalOpen: false }));
+      setFormData(prev => ({ ...prev, message: generatedMessage }));
+      setModalState(prev => ({ ...prev, isAIModalOpen: false }));
+      setKeywords('');
     } catch (err: any) {
       setError(err.message || 'Failed to generate message.');
     } finally {
@@ -277,281 +199,462 @@ const SendSMS: React.FC = () => {
     }
   };
 
-  // Handle file upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      const phones = text
-        .split(/[\n,]+/)
-        .map((p) => p.trim())
-        .filter((p) => p && /^\+?\d{10,15}$/.test(p));
-      setManualContacts(phones.join('\n'));
-      setModalState((prev) => ({ ...prev, isImportModalOpen: false }));
-    };
-    reader.readAsText(file);
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.type === 'text/csv' || file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.txt')) {
+        setUploadedFile(file);
+        const contacts = await parseFileRecipients(file);
+        setParsedContacts(contacts);
+        if (contacts.length === 0) setError('No valid phone numbers found in the file.');
+      } else {
+        setError('Please upload a CSV, Excel, or TXT file.');
+      }
+    }
   };
 
-  // Toggle group selection
-  const toggleGroupSelection = (groupId: string) => {
-    setSelectedGroups((prev) =>
-      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
-    );
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      parseFileRecipients(e.target.files[0])
+        .then((phones) => {
+          setFormData(prev => ({ ...prev, manualContacts: phones.join('\n') }));
+          setModalState(prev => ({ ...prev, isImportModalOpen: false }));
+        })
+        .catch((err) => setError(err.message));
+    }
   };
+
+  const toggleGroupSelection = (groupId: string) => {
+    setSelectedGroups(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-48">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#00333e]" />
+        <p className="ml-2 text-[#00333e] text-sm">Loading...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <MessageSquare className="w-6 h-6 text-[#00333e]" />
-        <h1 className="text-2xl font-bold text-[#00333e]">Send SMS</h1>
-      </div>
-
-      {/* Error */}
+    <div className="space-y-4 bg-white p-4">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg text-sm">
+        <div className="border border-gray-200 bg-white p-3 text-[#00333e] text-xs text-center">
           {error}
         </div>
       )}
 
-      {/* Loading */}
-      {isLoading && (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#00333e]"></div>
-        </div>
-      )}
+      <div className="space-y-4">
+        <h1 className="text-lg font-semibold text-[#00333e] text-center">Send SMS</h1>
+        <p className="text-[#00333e] text-xs text-center">Send messages instantly, create campaigns, or upload files</p>
 
-      {!isLoading && (
-        <div className="space-y-6">
-          {/* Form */}
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <div className="flex border-b border-gray-200 mb-4">
-              <button
-                onClick={() => setSendMode('contacts')}
-                className={`flex-1 py-2 text-sm font-medium ${
-                  sendMode === 'contacts' ? 'border-b-2 border-[#00333e] text-[#00333e]' : 'text-gray-500'
-                }`}
-              >
-                Instant SMS
-              </button>
-              <button
-                onClick={() => setSendMode('campaign')}
-                className={`flex-1 py-2 text-sm font-medium ${
-                  sendMode === 'campaign' ? 'border-b-2 border-[#00333e] text-[#00333e]' : 'text-gray-500'
-                }`}
-              >
-                Campaign SMS
-              </button>
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Left Panel */}
+          <div className="flex-1">
+            {/* Mode Selection */}
+            <div className="grid grid-cols-3 gap-2 mb-4 border-b border-gray-200">
+              {['instant', 'campaign', 'file'].map((mode) => {
+                const IconComponent = mode === 'instant' ? MessageSquare : mode === 'campaign' ? Calendar : FileText;
+                const isActive = sendMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => setSendMode(mode as 'instant' | 'campaign' | 'file')}
+                    className={`p-2 flex items-center justify-center gap-1 text-xs font-medium rounded ${
+                      isActive
+                        ? 'bg-gray-100 text-[#00333e] border-b-2 border-[#00333e]'
+                        : 'text-[#00333e] hover:bg-gray-50'
+                    }`}
+                  >
+                    <IconComponent className="w-4 h-4" />
+                    <span className="capitalize">{mode.replace('instant', 'Instant SMS')}</span>
+                  </button>
+                );
+              })}
             </div>
-            <form onSubmit={handleSendSMS} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[#00333e] mb-1">Sender ID</label>
+
+            {/* Form Content */}
+            <div className="space-y-4">
+              {/* Sender ID */}
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-[#00333e]">Sender ID</label>
                 <select
-                  value={selectedSenderId}
-                  onChange={(e) => setSelectedSenderId(e.target.value)}
-                  className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00333e]"
+                  value={formData.senderId}
+                  onChange={(e) => handleInputChange('senderId', e.target.value)}
+                  className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
                   required
                 >
                   <option value="">Select Sender ID</option>
-                  {senderIds.map((sender) => (
+                  {senderIds.map(sender => (
                     <option key={sender.sender_id} value={sender.sender_id}>
-                      {sender.name}
+                      {sender.name} ({sender.sender_id})
                     </option>
                   ))}
                 </select>
               </div>
-              {sendMode === 'campaign' && (
-                <div>
-                  <label className="block text-sm font-medium text-[#00333e] mb-1">Campaign</label>
-                  <select
-                    value={selectedCampaignId}
-                    onChange={(e) => setSelectedCampaignId(e.target.value)}
-                    className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00333e]"
-                    required
-                  >
-                    <option value="">Select Campaign</option>
-                    {campaigns.map((campaign) => (
-                      <option key={campaign.campaign_id} value={campaign.campaign_id}>
-                        {campaign.name}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedCampaignId && (
-                    <div className="mt-2">
-                      <label className="block text-sm font-medium text-[#00333e] mb-1">Groups</label>
-                      <div className="flex flex-wrap gap-2">
-                        {campaignGroups[selectedCampaignId]?.map((group) => (
-                          <span
-                            key={group.group_id}
-                            className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm"
-                          >
-                            {group.name}
-                          </span>
-                        )) || <span className="text-sm text-gray-500">No groups assigned.</span>}
-                      </div>
+
+              {/* Mode-Specific Fields */}
+              {sendMode === 'instant' && (
+                <div className="space-y-4">
+                  <label className="block text-xs font-medium text-[#00333e]">Contacts</label>
+                  <div className="flex flex-col lg:flex-row gap-2">
+                    <textarea
+                      value={formData.manualContacts}
+                      onChange={(e) => handleInputChange('manualContacts', e.target.value)}
+                      rows={4}
+                      className="flex-1 w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white resize-none"
+                      placeholder="Enter phone numbers (one per line or comma-separated)"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setModalState(prev => ({ ...prev, isGroupModalOpen: true }))}
+                        className="p-2 bg-gray-100 text-[#00333e] rounded hover:bg-gray-200 flex items-center gap-1 text-xs font-medium"
+                      >
+                        <Users className="w-4 h-4" />
+                        <span>Select Group</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModalState(prev => ({ ...prev, isImportModalOpen: true }))}
+                        className="p-2 bg-gray-100 text-[#00333e] rounded hover:bg-gray-200 flex items-center gap-1 text-xs font-medium"
+                      >
+                        <Upload className="w-4 h-4" />
+                        <span>Upload</span>
+                      </button>
                     </div>
-                  )}
-                </div>
-              )}
-              {sendMode === 'contacts' && (
-                <div>
-                  <label className="block text-sm font-medium text-[#00333e] mb-1">Contacts</label>
-                  <textarea
-                    value={manualContacts}
-                    onChange={(e) => setManualContacts(e.target.value)}
-                    placeholder="Enter phone numbers (one per line or comma-separated)"
-                    className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00333e] h-20"
-                  />
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setModalState((prev) => ({ ...prev, isGroupModalOpen: true }))}
-                      className="px-3 py-1 text-sm text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
-                    >
-                      Select Groups
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setModalState((prev) => ({ ...prev, isImportModalOpen: true }))}
-                      className="px-3 py-1 text-sm text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200"
-                    >
-                      Import Contacts
-                    </button>
                   </div>
                   {selectedGroups.length > 0 && (
-                    <div className="mt-2">
-                      <label className="block text-sm font-medium text-[#00333e] mb-1">Selected Groups</label>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedGroups.map((groupId) => {
-                          const group = groups.find((g) => g.group_id === groupId);
-                          return group ? (
-                            <span
-                              key={groupId}
-                              className="inline-flex items-center bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm"
+                    <div className="flex flex-wrap gap-2">
+                      {selectedGroups.map(groupId => {
+                        const group = groups.find(g => g.group_id === groupId);
+                        return (
+                          <span
+                            key={groupId}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-[#00333e] rounded-full text-xs font-medium"
+                          >
+                            {group?.name}
+                            <button
+                              type="button"
+                              onClick={() => toggleGroupSelection(groupId)}
+                              className="text-[#00333e] hover:text-gray-700"
                             >
-                              {group.name}
-                              <button
-                                onClick={() => toggleGroupSelection(groupId)}
-                                className="ml-1 text-gray-500 hover:text-red-500"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </span>
-                          ) : null;
-                        })}
+                              ×
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {sendMode === 'campaign' && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-[#00333e]">Campaign Name</label>
+                    <input
+                      type="text"
+                      value={formData.campaignName}
+                      onChange={(e) => handleInputChange('campaignName', e.target.value)}
+                      className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+                      placeholder="Enter campaign name"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-[#00333e]">Select Campaign</label>
+                    <select
+                      value={selectedCampaignId}
+                      onChange={(e) => setSelectedCampaignId(e.target.value)}
+                      className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+                      required
+                    >
+                      <option value="">Select a campaign</option>
+                      {campaigns.map(campaign => (
+                        <option key={campaign.campaign_id} value={campaign.campaign_id}>
+                          {campaign.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {selectedCampaignId && campaignGroups[selectedCampaignId] && (
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-[#00333e]">Target Groups</label>
+                      <div className="flex flex-wrap gap-2">
+                        {campaignGroups[selectedCampaignId].map(group => (
+                          <span
+                            key={group.group_id}
+                            className="inline-flex items-center px-2 py-1 bg-gray-100 text-[#00333e] rounded-full text-xs font-medium"
+                          >
+                            <Users className="w-3 h-3 mr-1" />
+                            {group.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-[#00333e] flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> Start Date & Time
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={formData.startDate}
+                          onChange={(e) => handleInputChange('startDate', e.target.value)}
+                          className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+                        />
+                        <input
+                          type="time"
+                          value={formData.startTime}
+                          onChange={(e) => handleInputChange('startTime', e.target.value)}
+                          className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-[#00333e] flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> End Date & Time
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={formData.endDate}
+                          onChange={(e) => handleInputChange('endDate', e.target.value)}
+                          className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+                        />
+                        <input
+                          type="time"
+                          value={formData.endTime}
+                          onChange={(e) => handleInputChange('endTime', e.target.value)}
+                          className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-[#00333e] flex items-center gap-1">
+                      <Calendar className="w-3 h-3" /> Frequency
+                    </label>
+                    <select
+                      value={formData.frequency}
+                      onChange={(e) => handleInputChange('frequency', e.target.value)}
+                      className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+                    >
+                      <option value="">Select frequency</option>
+                      <option value="once">Send Once</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {sendMode === 'file' && (
+                <div className="space-y-4">
+                  <div
+                    className={`relative border-2 border-dashed rounded p-4 text-center ${
+                      uploadedFile
+                        ? 'border-[#00333e] bg-gray-50'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      accept=".csv,.xlsx,.xls,.txt"
+                      onChange={handleFileSelect}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    {uploadedFile ? (
+                      <>
+                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                          <svg className="w-6 h-6 text-[#00333e]" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-[#00333e] mb-1">{uploadedFile.name}</p>
+                          <p className="text-xs text-[#00333e]">File uploaded successfully!</p>
+                          {parsedContacts.length > 0 && (
+                            <p className="text-xs text-[#00333e] mt-1">
+                              Found {parsedContacts.length} valid phone numbers
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                          <Upload className="w-6 h-6 text-[#00333e]" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-[#00333e] mb-1">Upload File</p>
+                          <p className="text-xs text-[#00333e]">Drag and drop your file here</p>
+                          <p className="text-xs text-[#00333e] mt-1">or click to browse</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {parsedContacts.length > 0 && (
+                    <div className="bg-white border border-gray-200 p-3">
+                      <div className="flex items-center gap-1 mb-2">
+                        <Users className="w-4 h-4 text-[#00333e]" />
+                        <h3 className="text-sm font-medium text-[#00333e]">File Preview</h3>
+                      </div>
+                      <table className="w-full text-xs text-[#00333e]">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="pb-1 text-left">#</th>
+                            <th className="pb-1 text-left">Phone Number</th>
+                            <th className="pb-1 text-left">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {parsedContacts.slice(0, 5).map((phone, index) => (
+                            <tr key={index} className="border-b border-gray-200 last:border-0">
+                              <td className="py-1">{index + 1}</td>
+                              <td className="py-1">{phone}</td>
+                              <td className="py-1 text-[#fddf0d]">Valid</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="mt-2 flex justify-between text-xs text-[#00333e]">
+                        <span>Showing {Math.min(5, parsedContacts.length)} of {parsedContacts.length} contacts</span>
+                        <span>✓ File validated successfully</span>
                       </div>
                     </div>
                   )}
                 </div>
               )}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm font-medium text-[#00333e]">Message</label>
+
+              {/* Message Section */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="block text-xs font-medium text-[#00333e]">Message</label>
                   <button
                     type="button"
-                    onClick={() => setModalState((prev) => ({ ...prev, isAIModalOpen: true }))}
-                    className="flex items-center gap-1 text-sm text-[#00333e] bg-gray-100 px-3 py-1 rounded-lg hover:bg-gray-200"
+                    onClick={() => setModalState(prev => ({ ...prev, isAIModalOpen: true }))}
+                    className="p-2 bg-gray-100 text-[#00333e] rounded hover:bg-gray-200 flex items-center gap-1 text-xs font-medium"
                   >
-                    <Bot className="w-4 h-4" /> AI Generate
+                    <Bot className="w-4 h-4" />
+                    <span>AI Assist</span>
                   </button>
                 </div>
                 <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00333e] h-24"
+                  value={formData.message}
+                  onChange={(e) => handleInputChange('message', e.target.value)}
+                  rows={6}
+                  className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white resize-none"
+                  placeholder="Type your message here..."
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">{message.length} characters</p>
+                <div className="flex justify-end gap-2 text-xs text-[#00333e]">
+                  <span>{smsCount} SMS</span>
+                  <span>{charCount}/160</span>
+                </div>
               </div>
-              <div className="flex justify-end">
+
+              {/* Submit Button */}
+              <div className="flex justify-center">
                 <button
                   type="submit"
                   disabled={isSending}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm bg-[#00333e] text-white rounded-lg ${
-                    isSending ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002a36]'
+                  onClick={handleSendSMS}
+                  className={`w-full p-2 bg-[#00333e] text-white rounded hover:bg-gray-800 transition-colors duration-200 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 ${
+                    isSending ? 'bg-gray-500' : ''
                   }`}
                 >
-                  <Send className="w-5 h-5" /> {isSending ? 'Sending...' : 'Send SMS'}
+                  {isSending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      {sendMode === 'instant' ? 'Sending...' : sendMode === 'campaign' ? 'Launching...' : 'Sending to All...'}
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      {sendMode === 'instant' ? 'Send SMS Now' : sendMode === 'campaign' ? 'Launch Campaign' : 'Send to All Contacts'}
+                    </>
+                  )}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
 
-          {/* Modals */}
-          <Modal
-            isOpen={modalState.isAIModalOpen}
-            onClose={() => setModalState((prev) => ({ ...prev, isAIModalOpen: false }))}
-            title="Generate AI Message"
-            onSubmit={generateAIMessage}
-            submitText={isGenerating ? 'Generating...' : 'Generate'}
-          >
-            <input
-              type="text"
-              value={keywords}
-              onChange={(e) => setKeywords(e.target.value)}
-              placeholder="Enter prompt for AI message"
-              className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00333e]"
-            />
-          </Modal>
-          <Modal
-            isOpen={modalState.isGroupModalOpen}
-            onClose={() => setModalState((prev) => ({ ...prev, isGroupModalOpen: false }))}
-            title="Select Groups"
-          >
-            <div className="max-h-48 overflow-y-auto">
-              {groups.length ? (
-                groups.map((group) => (
-                  <label key={group.group_id} className="flex items-center gap-2 mb-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedGroups.includes(group.group_id)}
-                      onChange={() => toggleGroupSelection(group.group_id)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm text-[#00333e]">{group.name}</span>
-                  </label>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No groups available.</p>
-              )}
-            </div>
-          </Modal>
-          <Modal
-            isOpen={modalState.isImportModalOpen}
-            onClose={() => setModalState((prev) => ({ ...prev, isImportModalOpen: false }))}
-            title="Import Contacts"
-          >
-            <input
-              type="file"
-              accept=".csv,.txt"
-              onChange={handleFileUpload}
-              className="w-full p-2 border rounded-lg text-sm"
-            />
-            <p className="text-xs text-gray-500 mt-1">Upload CSV/TXT with phone numbers (one per line or comma-separated).</p>
-          </Modal>
-
-          {/* Logs */}
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <h2 className="text-lg font-semibold text-[#00333e] mb-4">SMS Logs</h2>
-            {messageLogs.length ? (
-              <div className="space-y-2">
-                {messageLogs.map((log) => (
-                  <div key={log.id || log.timestamp} className="p-2 border rounded-lg text-sm">
-                    <p><strong>Message:</strong> {log.message || 'N/A'}</p>
-                    <p><strong>Status:</strong> {log.status || 'N/A'}</p>
-                    <p><strong>Time:</strong> {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">No logs available.</p>
-            )}
+          {/* Right Panel - Phone Preview */}
+          <div className="w-full lg:w-96 bg-white border border-gray-200 p-4 flex items-center justify-center">
+            <PhonePreview data={{
+              senderName: formData.senderId || 'Briq Solutions',
+              message: formData.message || 'You have received 50,000 TZs from BriqPay. Your new balance is 75,000. Keep Using Briq',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }} />
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Modals */}
+      <Modal
+        isOpen={modalState.isAIModalOpen}
+        onClose={() => setModalState(prev => ({ ...prev, isAIModalOpen: false }))}
+        title="Generate AI Message"
+        onSubmit={generateAIMessage}
+        submitText={isGenerating ? 'Generating...' : 'Generate'}
+        isLoading={isGenerating}
+      >
+        <div className="space-y-2">
+          <label className="block text-xs font-medium text-[#00333e]">Enter a prompt</label>
+          <input
+            type="text"
+            value={keywords}
+            onChange={(e) => setKeywords(e.target.value)}
+            placeholder="e.g., promotional message for summer sale"
+            className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+          />
+        </div>
+      </Modal>
+      <Modal
+        isOpen={modalState.isGroupModalOpen}
+        onClose={() => setModalState(prev => ({ ...prev, isGroupModalOpen: false }))}
+        title="Select Groups"
+      >
+        <div className="space-y-2 max-h-48 overflow-y-auto">
+          {groups.length ? (
+            groups.map((group) => (
+              <label key={group.group_id} className="flex items-center gap-1 p-2 hover:bg-gray-50 rounded text-[#00333e] text-xs">
+                <input
+                  type="checkbox"
+                  checked={selectedGroups.includes(group.group_id)}
+                  onChange={() => toggleGroupSelection(group.group_id)}
+                  className="w-4 h-4 text-[#00333e] rounded"
+                />
+                <span>{group.name}</span>
+              </label>
+            ))
+          ) : (
+            <p className="text-[#00333e] text-xs text-center py-2">No groups available.</p>
+          )}
+        </div>
+      </Modal>
+      <Modal
+        isOpen={modalState.isImportModalOpen}
+        onClose={() => setModalState(prev => ({ ...prev, isImportModalOpen: false }))}
+        title="Import Contacts"
+      >
+        <div className="space-y-2">
+          <label className="block text-xs font-medium text-[#00333e]">Upload CSV/TXT file</label>
+          <input
+            type="file"
+            accept=".csv,.txt"
+            onChange={handleFileImport}
+            className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+          />
+          <p className="text-xs text-[#00333e]">Upload CSV/TXT with phone numbers (one per line or comma-separated).</p>
+        </div>
+      </Modal>
     </div>
   );
 };
