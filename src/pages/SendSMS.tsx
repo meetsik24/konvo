@@ -17,6 +17,8 @@ interface Campaign { campaign_id: string; workspace_id: string; name: string; }
 interface Group { group_id: string; name: string; }
 interface SenderId { sender_id: string; name: string; is_approved: boolean; }
 interface Contact { contact_id: string; phone_number: string; }
+interface UploadedRow { [key: string]: string; }
+interface ColumnMapping { [key: string]: 'name' | 'phone_number' | 'email' | ''; }
 
 const SendSMS = () => {
   const { currentWorkspaceId } = useWorkspace();
@@ -43,11 +45,15 @@ const SendSMS = () => {
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [parsedContacts, setParsedContacts] = useState<string[]>([]);
+  const [uploadedData, setUploadedData] = useState<UploadedRow[]>([]);
+  const [columnMappings, setColumnMappings] = useState<ColumnMapping>({});
+  const [step, setStep] = useState(1); // 1: Upload, 2: Map Columns
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keywords, setKeywords] = useState('');
+
   const [modalState, setModalState] = useState({
     isAIModalOpen: false,
     isGroupModalOpen: false,
@@ -114,20 +120,67 @@ const SendSMS = () => {
     return [...new Set(recipientPhones)];
   };
 
-  const parseFileRecipients = (file: File): Promise<string[]> => {
+  const parseFileRecipients = (file: File): Promise<UploadedRow[]> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target?.result as string;
-        const phones = text
-          .split(/[\n,]+/)
-          .map((p) => p.trim())
-          .filter((p) => p && /^\+?\d{10,15}$/.test(p));
-        resolve([...new Set(phones)]);
+        const rows = text.split('\n').map(row => {
+          const columns = row.split(',').map(col => col.trim());
+          const obj: UploadedRow = {};
+          columns.forEach((col, index) => {
+            obj[`column${index + 1}`] = col;
+          });
+          return obj;
+        });
+        resolve(rows);
       };
       reader.onerror = () => reject(new Error('Failed to read file.'));
       reader.readAsText(file);
     });
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.type === 'text/csv' || file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.txt')) {
+        setUploadedFile(file);
+        try {
+          const data = await parseFileRecipients(file);
+          setUploadedData(data);
+          setStep(2); // Move to mapping step
+          setError(null);
+        } catch (err: any) {
+          setError(err.message || 'Failed to parse file.');
+        }
+      } else {
+        setError('Please upload a CSV, Excel, or TXT file.');
+      }
+    }
+  };
+
+  const handleColumnMapping = (column: string, value: 'name' | 'phone_number' | 'email' | '') => {
+    setColumnMappings(prev => ({ ...prev, [column]: value }));
+  };
+
+  const handleConfirmMapping = () => {
+    const phoneColumn = Object.entries(columnMappings).find(([_, value]) => value === 'phone_number')?.[0];
+    if (!phoneColumn) {
+      setError('Please map a phone number column.');
+      return;
+    }
+    const mappedContacts = uploadedData.map(row => {
+      const phone = row[phoneColumn];
+      const name = columnMappings[Object.keys(row)[0]] === 'name' ? row[Object.keys(row)[0]] : '';
+      return { phone_number: phone, name };
+    }).filter(contact => contact.phone_number && /^\+?\d{10,15}$/.test(contact.phone_number));
+    setParsedContacts(mappedContacts.map(c => c.phone_number));
+    setFormData(prev => ({ ...prev, message: applyPlaceholders(prev.message, mappedContacts[0]?.name || '') }));
+    setStep(1); // Return to upload step after mapping
+  };
+
+  const applyPlaceholders = (message: string, name: string) => {
+    return message.replace(/{name}/g, name);
   };
 
   const handleSendSMS = async (e: React.FormEvent) => {
@@ -140,6 +193,8 @@ const SendSMS = () => {
       if (!formData.message.trim()) throw new Error('Please enter a message.');
 
       let recipients: string[] = [];
+      let personalizedMessages: { phone: string; content: string }[] = [];
+
       if (sendMode === 'instant') {
         if (formData.manualContacts.trim()) {
           recipients = formData.manualContacts
@@ -158,21 +213,40 @@ const SendSMS = () => {
         recipients = await fetchRecipients(groups.map(g => g.group_id));
       } else if (sendMode === 'file') {
         if (!parsedContacts.length) throw new Error('No valid recipients found in file.');
-        recipients = parsedContacts;
+        const nameColumn = Object.entries(columnMappings).find(([_, value]) => value === 'name')?.[0];
+        const phoneColumn = Object.entries(columnMappings).find(([_, value]) => value === 'phone_number')?.[0];
+        personalizedMessages = uploadedData.map(row => ({
+          phone: row[phoneColumn!],
+          content: applyPlaceholders(formData.message, nameColumn ? row[nameColumn] : ''),
+        })).filter(msg => msg.phone && /^\+?\d{10,15}$/.test(msg.phone));
+        recipients = personalizedMessages.map(msg => msg.phone);
       }
 
       if (!recipients.length) throw new Error('No valid recipients found.');
-      await sendInstantMessage(currentWorkspaceId, {
-        recipients,
-        content: formData.message,
-        sender_id: formData.senderId,
-      });
+      if (sendMode === 'file' && personalizedMessages.length) {
+        await Promise.all(personalizedMessages.map(msg =>
+          sendInstantMessage(currentWorkspaceId, {
+            recipients: [msg.phone],
+            content: msg.content,
+            sender_id: formData.senderId,
+          })
+        ));
+      } else {
+        await sendInstantMessage(currentWorkspaceId, {
+          recipients,
+          content: formData.message,
+          sender_id: formData.senderId,
+        });
+      }
 
       setFormData(prev => ({ ...prev, message: '', manualContacts: '', campaignName: '', startDate: '', startTime: '', endDate: '', endTime: '', frequency: '', template: '' }));
       setSelectedGroups([]);
       setSelectedCampaignId('');
       setUploadedFile(null);
       setParsedContacts([]);
+      setUploadedData([]);
+      setColumnMappings({});
+      setStep(1);
     } catch (err: any) {
       setError(err.message || 'Failed to send SMS.');
     } finally {
@@ -195,20 +269,6 @@ const SendSMS = () => {
       setError(err.message || 'Failed to generate message.');
     } finally {
       setIsGenerating(false);
-    }
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.type === 'text/csv' || file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.txt')) {
-        setUploadedFile(file);
-        const contacts = await parseFileRecipients(file);
-        setParsedContacts(contacts);
-        if (contacts.length === 0) setError('No valid phone numbers found in the file.');
-      } else {
-        setError('Please upload a CSV, Excel, or TXT file.');
-      }
     }
   };
 
@@ -455,50 +515,109 @@ const SendSMS = () => {
 
               {sendMode === 'file' && (
                 <div className="space-y-4">
-                  <div
-                    className={`relative border-2 border-dashed rounded p-4 text-center ${
-                      uploadedFile
-                        ? 'border-[#00333e] bg-gray-50'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="file"
-                      accept=".csv,.xlsx,.xls,.txt"
-                      onChange={handleFileSelect}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    {uploadedFile ? (
-                      <>
-                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                          <svg className="w-6 h-6 text-[#00333e]" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-[#00333e] mb-1">{uploadedFile.name}</p>
-                          <p className="text-xs text-[#00333e]">File uploaded successfully!</p>
-                          {parsedContacts.length > 0 && (
-                            <p className="text-xs text-[#00333e] mt-1">
-                              Found {parsedContacts.length} valid phone numbers
-                            </p>
-                          )}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                          <Upload className="w-6 h-6 text-[#00333e]" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-[#00333e] mb-1">Upload File</p>
-                          <p className="text-xs text-[#00333e]">Drag and drop your file here</p>
-                          <p className="text-xs text-[#00333e] mt-1">or click to browse</p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  {parsedContacts.length > 0 && (
+                  {step === 1 && (
+                    <div
+                      className={`relative border-2 border-dashed rounded p-4 text-center ${
+                        uploadedFile
+                          ? 'border-[#00333e] bg-gray-50'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="file"
+                        accept=".csv,.xlsx,.xls,.txt"
+                        onChange={handleFileSelect}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                      {uploadedFile ? (
+                        <>
+                          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                            <svg className="w-6 h-6 text-[#00333e]" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-[#00333e] mb-1">{uploadedFile.name}</p>
+                            <p className="text-xs text-[#00333e]">File uploaded successfully!</p>
+                            <button
+                              onClick={() => setStep(2)}
+                              className="mt-2 px-3 py-1 bg-[#00333e] text-white rounded text-xs hover:bg-gray-800"
+                            >
+                              Map Columns
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                            <Upload className="w-6 h-6 text-[#00333e]" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-[#00333e] mb-1">Upload File</p>
+                            <p className="text-xs text-[#00333e]">Drag and drop your file here</p>
+                            <p className="text-xs text-[#00333e] mt-1">or click to browse</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {step === 2 && uploadedData.length > 0 && (
+                    <div>
+                      <div className="overflow-x-auto max-h-[300px] sm:max-h-[400px] border border-gray-200 rounded-lg">
+                        <table className="w-full text-left text-gray-700">
+                          <thead className="sticky top-0 bg-gray-100">
+                            <tr>
+                              {Object.keys(uploadedData[0]).map((column) => (
+                                <th key={column} className="p-2 sm:p-3 min-w-[120px]">
+                                  <select
+                                    value={columnMappings[column] || ''}
+                                    onChange={(e) => handleColumnMapping(column, e.target.value as 'name' | 'phone_number' | 'email' | '')}
+                                    className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
+                                  >
+                                    <option value="">Select...</option>
+                                    <option value="name">Name</option>
+                                    <option value="phone_number">Phone Number</option>
+                                    <option value="email">Email</option>
+                                  </select>
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {uploadedData.map((row, index) => (
+                              <tr key={index} className="border-b border-gray-200">
+                                {Object.values(row).map((value, i) => (
+                                  <td
+                                    key={i}
+                                    className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis"
+                                  >
+                                    {value}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="mt-4 flex justify-end gap-2">
+                        <button
+                          onClick={() => { setStep(1); setUploadedFile(null); setUploadedData([]); }}
+                          className="px-3 py-1 bg-gray-200 text-[#00333e] rounded text-xs hover:bg-gray-300"
+                        >
+                          Back
+                        </button>
+                        <button
+                          onClick={handleConfirmMapping}
+                          className="px-3 py-1 bg-[#00333e] text-white rounded text-xs hover:bg-gray-800"
+                        >
+                          Confirm Mapping
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {parsedContacts.length > 0 && step === 1 && (
                     <div className="bg-white border border-gray-200 p-3">
                       <div className="flex items-center gap-1 mb-2">
                         <Users className="w-4 h-4 text-[#00333e]" />
@@ -507,23 +626,27 @@ const SendSMS = () => {
                       <table className="w-full text-xs text-[#00333e]">
                         <thead>
                           <tr className="border-b border-gray-200">
-                            <th className="pb-1 text-left">#</th>
                             <th className="pb-1 text-left">Phone Number</th>
+                            <th className="pb-1 text-left">Name</th>
                             <th className="pb-1 text-left">Status</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {parsedContacts.slice(0, 5).map((phone, index) => (
-                            <tr key={index} className="border-b border-gray-200 last:border-0">
-                              <td className="py-1">{index + 1}</td>
-                              <td className="py-1">{phone}</td>
-                              <td className="py-1 text-[#fddf0d]">Valid</td>
-                            </tr>
-                          ))}
+                          {uploadedData.slice(0, 5).map((row, index) => {
+                            const phoneColumn = Object.entries(columnMappings).find(([_, value]) => value === 'phone_number')?.[0];
+                            const nameColumn = Object.entries(columnMappings).find(([_, value]) => value === 'name')?.[0];
+                            return (
+                              <tr key={index} className="border-b border-gray-200 last:border-0">
+                                <td className="py-1">{phoneColumn ? row[phoneColumn] : ''}</td>
+                                <td className="py-1">{nameColumn ? row[nameColumn] : ''}</td>
+                                <td className="py-1 text-[#fddf0d]">Valid</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                       <div className="mt-2 flex justify-between text-xs text-[#00333e]">
-                        <span>Showing {Math.min(5, parsedContacts.length)} of {parsedContacts.length} contacts</span>
+                        <span>Showing {Math.min(5, uploadedData.length)} of {uploadedData.length} contacts</span>
                         <span>✓ File validated successfully</span>
                       </div>
                     </div>
@@ -549,7 +672,7 @@ const SendSMS = () => {
                   onChange={(e) => handleInputChange('message', e.target.value)}
                   rows={6}
                   className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white resize-none"
-                  placeholder="Type your message here..."
+                  placeholder="Type your message here... (e.g., Hi {name}, your balance is updated!)"
                   required
                 />
                 <div className="flex justify-end gap-2 text-xs text-[#00333e]">
