@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, Upload, Users, Calendar, MessageSquare, FileText, Send, Bot } from 'lucide-react';
-import { motion } from 'framer-motion';
 import PhonePreview from '../modals/PhonePreview';
 import { useWorkspace } from './WorkspaceContext';
 import Modal from '../modals/Modal';
@@ -586,7 +585,7 @@ const SendSMS = () => {
           </div>
 
           {/* Right Panel - Phone Preview */}
-          <div className="w-full lg:w-96 bg-white border border-gray-200 p-4 flex items-center justify-center">
+          <div className="w-full lg:w-96 h-[600px] bg-white border border-gray-200 p-4 flex items-center justify-center">
             <PhonePreview data={{
               senderName: formData.senderId || 'Briq Solutions',
               message: formData.message || 'You have received 50,000 TZs from BriqPay. Your new balance is 75,000. Keep Using Briq',
