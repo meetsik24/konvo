@@ -13,12 +13,12 @@ import {
   getGroupContacts,
 } from '../services/api';
 
-interface Campaign { campaign_id: string; workspace_id: string; name: string; }
+interface Campaign { campaign_id: string; workspace_id: string; name: string; status: 'active' | 'completed'; }
 interface Group { group_id: string; name: string; }
 interface SenderId { sender_id: string; name: string; is_approved: boolean; }
 interface Contact { contact_id: string; phone_number: string; }
 interface UploadedRow { [key: string]: string; }
-interface ColumnMapping { [key: string]: 'name' | 'phone_number' | 'email' | ''; }
+interface ColumnMapping { [key: string]: 'name' | 'phone_number' | 'email' | 'message' | ''; }
 
 const SendSMS = () => {
   const { currentWorkspaceId } = useWorkspace();
@@ -53,11 +53,13 @@ const SendSMS = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keywords, setKeywords] = useState('');
+  const [showPhoneBook, setShowPhoneBook] = useState(false);
 
   const [modalState, setModalState] = useState({
     isAIModalOpen: false,
     isGroupModalOpen: false,
     isImportModalOpen: false,
+    isCreateCampaignOpen: false,
   });
 
   useEffect(() => {
@@ -75,7 +77,7 @@ const SendSMS = () => {
         setSenderIds(senderResponse);
         if (senderResponse.length) setFormData(prev => ({ ...prev, senderId: senderResponse[0].sender_id }));
         const campaignsData = await getCampaigns();
-        setCampaigns(campaignsData);
+        setCampaigns(campaignsData.map(c => ({ ...c, status: 'active' }))); // Mock status for demo
         const groupsData = await getWorkspaceGroups(currentWorkspaceId);
         setGroups(groupsData);
       } catch (err: any) {
@@ -120,6 +122,12 @@ const SendSMS = () => {
     return [...new Set(recipientPhones)];
   };
 
+  const normalizePhone = (phone: string): string => {
+    let normalized = phone.trim().replace(/^\+?0/, '255');
+    if (!normalized.startsWith('255')) normalized = '255' + normalized;
+    return normalized.replace(/[^0-9]/g, '').slice(0, 12); // Ensure 12 digits max
+  };
+
   const parseFileRecipients = (file: File): Promise<UploadedRow[]> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -159,23 +167,25 @@ const SendSMS = () => {
     }
   };
 
-  const handleColumnMapping = (column: string, value: 'name' | 'phone_number' | 'email' | '') => {
+  const handleColumnMapping = (column: string, value: 'name' | 'phone_number' | 'email' | 'message' | '') => {
     setColumnMappings(prev => ({ ...prev, [column]: value }));
   };
 
   const handleConfirmMapping = () => {
     const phoneColumn = Object.entries(columnMappings).find(([_, value]) => value === 'phone_number')?.[0];
+    const messageColumn = Object.entries(columnMappings).find(([_, value]) => value === 'message')?.[0];
     if (!phoneColumn) {
       setError('Please map a phone number column.');
       return;
     }
     const mappedContacts = uploadedData.map(row => {
-      const phone = row[phoneColumn];
+      const phone = normalizePhone(row[phoneColumn] || '');
       const name = columnMappings[Object.keys(row)[0]] === 'name' ? row[Object.keys(row)[0]] : '';
-      return { phone_number: phone, name };
+      const message = messageColumn ? row[messageColumn] : formData.message;
+      return { phone_number: phone, name, message };
     }).filter(contact => contact.phone_number && /^\+?\d{10,15}$/.test(contact.phone_number));
     setParsedContacts(mappedContacts.map(c => c.phone_number));
-    setFormData(prev => ({ ...prev, message: applyPlaceholders(prev.message, mappedContacts[0]?.name || '') }));
+    setFormData(prev => ({ ...prev, message: applyPlaceholders(mappedContacts[0]?.message || prev.message, mappedContacts[0]?.name || '') }));
     setStep(1); // Return to upload step after mapping
   };
 
@@ -199,12 +209,12 @@ const SendSMS = () => {
         if (formData.manualContacts.trim()) {
           recipients = formData.manualContacts
             .split(/[\n,]+/)
-            .map((p) => p.trim())
+            .map((p) => normalizePhone(p))
             .filter((p) => p && /^\+?\d{10,15}$/.test(p));
         }
         if (selectedGroups.length) {
           const groupPhones = await fetchRecipients(selectedGroups);
-          recipients.push(...groupPhones);
+          recipients.push(...groupPhones.map(normalizePhone));
         }
       } else if (sendMode === 'campaign') {
         if (!selectedCampaignId) throw new Error('Please select a campaign.');
@@ -215,9 +225,10 @@ const SendSMS = () => {
         if (!parsedContacts.length) throw new Error('No valid recipients found in file.');
         const nameColumn = Object.entries(columnMappings).find(([_, value]) => value === 'name')?.[0];
         const phoneColumn = Object.entries(columnMappings).find(([_, value]) => value === 'phone_number')?.[0];
+        const messageColumn = Object.entries(columnMappings).find(([_, value]) => value === 'message')?.[0];
         personalizedMessages = uploadedData.map(row => ({
-          phone: row[phoneColumn!],
-          content: applyPlaceholders(formData.message, nameColumn ? row[nameColumn] : ''),
+          phone: normalizePhone(row[phoneColumn!] || ''),
+          content: applyPlaceholders(messageColumn ? row[messageColumn] : formData.message, nameColumn ? row[nameColumn] : ''),
         })).filter(msg => msg.phone && /^\+?\d{10,15}$/.test(msg.phone));
         recipients = personalizedMessages.map(msg => msg.phone);
       }
@@ -276,7 +287,7 @@ const SendSMS = () => {
     if (e.target.files && e.target.files[0]) {
       parseFileRecipients(e.target.files[0])
         .then((phones) => {
-          setFormData(prev => ({ ...prev, manualContacts: phones.join('\n') }));
+          setFormData(prev => ({ ...prev, manualContacts: phones.map(normalizePhone).join('\n') }));
           setModalState(prev => ({ ...prev, isImportModalOpen: false }));
         })
         .catch((err) => setError(err.message));
@@ -285,6 +296,24 @@ const SendSMS = () => {
 
   const toggleGroupSelection = (groupId: string) => {
     setSelectedGroups(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]);
+  };
+
+  const handleCreateCampaign = async () => {
+    if (!formData.campaignName || !selectedGroups.length) {
+      setError('Please enter a campaign name and select at least one group.');
+      return;
+    }
+    try {
+      // Mock API call to create campaign
+      const newCampaign = { campaign_id: Date.now().toString(), workspace_id: currentWorkspaceId!, name: formData.campaignName, status: 'active' };
+      setCampaigns(prev => [...prev, newCampaign]);
+      setSelectedCampaignId(newCampaign.campaign_id);
+      setModalState(prev => ({ ...prev, isCreateCampaignOpen: false }));
+      setFormData(prev => ({ ...prev, campaignName: '' }));
+      setSelectedGroups([]);
+    } catch (err) {
+      setError('Failed to create campaign.');
+    }
   };
 
   if (isLoading) {
@@ -369,18 +398,26 @@ const SendSMS = () => {
                       <button
                         type="button"
                         onClick={() => setModalState(prev => ({ ...prev, isGroupModalOpen: true }))}
-                        className="p-2 bg-gray-100 text-[#00333e] rounded hover:bg-gray-200 flex items-center gap-1 text-xs font-medium"
+                        className="p-1 bg-gray-100 text-[#00333e] rounded hover:bg-gray-200 flex items-center gap-1 text-xs"
                       >
-                        <Users className="w-4 h-4" />
+                        <Users className="w-3 h-3" />
                         <span>Select Group</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setModalState(prev => ({ ...prev, isImportModalOpen: true }))}
-                        className="p-2 bg-gray-100 text-[#00333e] rounded hover:bg-gray-200 flex items-center gap-1 text-xs font-medium"
+                        className="p-1 bg-gray-100 text-[#00333e] rounded hover:bg-gray-200 flex items-center gap-1 text-xs"
                       >
-                        <Upload className="w-4 h-4" />
+                        <Upload className="w-3 h-3" />
                         <span>Upload</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowPhoneBook(true)}
+                        className="p-1 bg-gray-100 text-[#00333e] rounded hover:bg-gray-200 flex items-center gap-1 text-xs"
+                      >
+                        <Phone className="w-3 h-3" />
+                        <span>Phone Book</span>
                       </button>
                     </div>
                   </div>
@@ -412,31 +449,28 @@ const SendSMS = () => {
               {sendMode === 'campaign' && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="block text-xs font-medium text-[#00333e]">Campaign Name</label>
-                    <input
-                      type="text"
-                      value={formData.campaignName}
-                      onChange={(e) => handleInputChange('campaignName', e.target.value)}
-                      className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
-                      placeholder="Enter campaign name"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-xs font-medium text-[#00333e]">Select Campaign</label>
-                    <select
-                      value={selectedCampaignId}
-                      onChange={(e) => setSelectedCampaignId(e.target.value)}
-                      className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
-                      required
-                    >
-                      <option value="">Select a campaign</option>
-                      {campaigns.map(campaign => (
-                        <option key={campaign.campaign_id} value={campaign.campaign_id}>
-                          {campaign.name}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="block text-xs font-medium text-[#00333e]">Campaign Action</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setModalState(prev => ({ ...prev, isCreateCampaignOpen: true }))}
+                        className="p-2 bg-[#00333e] text-white rounded hover:bg-gray-800 text-xs"
+                      >
+                        Create New Campaign
+                      </button>
+                      <select
+                        value={selectedCampaignId}
+                        onChange={(e) => setSelectedCampaignId(e.target.value)}
+                        className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+                      >
+                        <option value="">Select Existing Campaign</option>
+                        {campaigns.map(campaign => (
+                          <option key={campaign.campaign_id} value={campaign.campaign_id}>
+                            {campaign.name} ({campaign.status})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   {selectedCampaignId && campaignGroups[selectedCampaignId] && (
                     <div className="space-y-2">
@@ -572,13 +606,14 @@ const SendSMS = () => {
                                 <th key={column} className="p-2 sm:p-3 min-w-[120px]">
                                   <select
                                     value={columnMappings[column] || ''}
-                                    onChange={(e) => handleColumnMapping(column, e.target.value as 'name' | 'phone_number' | 'email' | '')}
+                                    onChange={(e) => handleColumnMapping(column, e.target.value as 'name' | 'phone_number' | 'email' | 'message' | '')}
                                     className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
                                   >
                                     <option value="">Select...</option>
                                     <option value="name">Name</option>
                                     <option value="phone_number">Phone Number</option>
                                     <option value="email">Email</option>
+                                    <option value="message">Message</option>
                                   </select>
                                 </th>
                               ))}
@@ -628,6 +663,7 @@ const SendSMS = () => {
                           <tr className="border-b border-gray-200">
                             <th className="pb-1 text-left">Phone Number</th>
                             <th className="pb-1 text-left">Name</th>
+                            <th className="pb-1 text-left">Message</th>
                             <th className="pb-1 text-left">Status</th>
                           </tr>
                         </thead>
@@ -635,10 +671,12 @@ const SendSMS = () => {
                           {uploadedData.slice(0, 5).map((row, index) => {
                             const phoneColumn = Object.entries(columnMappings).find(([_, value]) => value === 'phone_number')?.[0];
                             const nameColumn = Object.entries(columnMappings).find(([_, value]) => value === 'name')?.[0];
+                            const messageColumn = Object.entries(columnMappings).find(([_, value]) => value === 'message')?.[0];
                             return (
                               <tr key={index} className="border-b border-gray-200 last:border-0">
-                                <td className="py-1">{phoneColumn ? row[phoneColumn] : ''}</td>
+                                <td className="py-1">{phoneColumn ? normalizePhone(row[phoneColumn]) : ''}</td>
                                 <td className="py-1">{nameColumn ? row[nameColumn] : ''}</td>
+                                <td className="py-1">{messageColumn ? row[messageColumn] : ''}</td>
                                 <td className="py-1 text-[#fddf0d]">Valid</td>
                               </tr>
                             );
@@ -708,7 +746,7 @@ const SendSMS = () => {
           </div>
 
           {/* Right Panel - Phone Preview */}
-          <div className="w-full lg:w-96 h-[600px]  border-gray-200 p-4 flex items-center justify-center">
+          <div className="w-full lg:w-96 h-[600px] bg-white border border-gray-200 p-4 flex items-center justify-center">
             <PhonePreview data={{
               senderName: formData.senderId || 'Briq Solutions',
               message: formData.message || 'You have received 50,000 TZs from BriqPay. Your new balance is 75,000. Keep Using Briq',
@@ -775,6 +813,73 @@ const SendSMS = () => {
             className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
           />
           <p className="text-xs text-[#00333e]">Upload CSV/TXT with phone numbers (one per line or comma-separated).</p>
+        </div>
+      </Modal>
+      <Modal
+        isOpen={modalState.isCreateCampaignOpen}
+        onClose={() => setModalState(prev => ({ ...prev, isCreateCampaignOpen: false }))}
+        title="Create Campaign"
+        onSubmit={handleCreateCampaign}
+        submitText="Create"
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-[#00333e]">Campaign Name</label>
+            <input
+              type="text"
+              value={formData.campaignName}
+              onChange={(e) => handleInputChange('campaignName', e.target.value)}
+              className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+              placeholder="Enter campaign name"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-[#00333e]">Select Groups</label>
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {groups.map((group) => (
+                <label key={group.group_id} className="flex items-center gap-1 p-1 hover:bg-gray-50 rounded text-[#00333e] text-xs">
+                  <input
+                    type="checkbox"
+                    checked={selectedGroups.includes(group.group_id)}
+                    onChange={() => toggleGroupSelection(group.group_id)}
+                    className="w-4 h-4 text-[#00333e] rounded"
+                  />
+                  <span>{group.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        isOpen={showPhoneBook}
+        onClose={() => setShowPhoneBook(false)}
+        title="Phone Book"
+      >
+        <div className="space-y-2 max-h-48 overflow-y-auto">
+          {[
+            { name: 'John Doe', phone: '+255788123456' },
+            { name: 'Jane Smith', phone: '0789123456' },
+          ].map((contact, index) => (
+            <label key={index} className="flex items-center gap-1 p-2 hover:bg-gray-50 rounded text-[#00333e] text-xs">
+              <input
+                type="checkbox"
+                checked={formData.manualContacts.includes(normalizePhone(contact.phone))}
+                onChange={(e) => {
+                  const phone = normalizePhone(contact.phone);
+                  setFormData(prev => ({
+                    ...prev,
+                    manualContacts: e.target.checked
+                      ? (prev.manualContacts ? `${prev.manualContacts}\n${phone}` : phone)
+                      : prev.manualContacts.replace(new RegExp(`\\n?${phone}`), ''),
+                  }));
+                }}
+                className="w-4 h-4 text-[#00333e] rounded"
+              />
+              <span>{contact.name} ({contact.phone})</span>
+            </label>
+          ))}
         </div>
       </Modal>
     </div>
