@@ -18,7 +18,7 @@ function Home() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
-    }, 3000); // Change image every 3 seconds
+    }, 5000); // Change image every 3 seconds
 
     return () => clearInterval(interval); // Cleanup on unmount
   }, [images.length]);
@@ -102,7 +102,7 @@ function Home() {
             transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
             className="w-full md:w-1/2 flex justify-center items-center"
           >
-            <div className="relative w-full h-[250px] sm:h-[300px] md:h-[400px] lg:h-[500px]"> {/* Adjusted image container height */}
+            <div className="relative w-full h-[250px] sm:h-[300px] md:h-[400px] lg:h-[600px]"> {/* Adjusted image container height */}
               {images.map((image, index) => (
                 <img
                   key={index}
