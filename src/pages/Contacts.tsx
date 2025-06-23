@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Users, Upload, Trash2, Edit2, Search, UserPlus, FolderPlus, Download, X, Book, ArrowLeft, Plus, ChevronDown } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { useWorkspace } from './WorkspaceContext';
 import {
   createContact,
@@ -14,6 +15,7 @@ import {
   addContactsToGroup,
   getContacts,
   getGroupContacts,
+  bulkUploadContacts,
 } from '../services/api';
 import DataTable, { TableColumn } from 'react-data-table-component';
 import styled from 'styled-components';
@@ -224,7 +226,7 @@ const ContactModal: React.FC<ContactModalProps> = ({
 interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (groupId: string, contacts: Contact[]) => void;
+  onSubmit: (groupId: string, data: File | Contact[], sourceType: 'file' | 'text' | 'phonebook') => void;
   groups: Group[];
   setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
 }
@@ -239,13 +241,22 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
+  const [defaultCountry, setDefaultCountry] = useState<string>('TZ'); // Default to Tanzania
   const { currentWorkspaceId } = useWorkspace();
+  const MAX_PASTED_CONTACTS = 500;
+  const MAX_FILE_SIZE_MB = 10;
 
   const isMobile = /Mobi|Android/i.test(navigator.userAgent) || window.innerWidth < 640;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
     if (!uploadedFile) return;
+
+    // File size limit
+    if (uploadedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      setError(`File size exceeds ${MAX_FILE_SIZE_MB}MB limit.`);
+      return;
+    }
 
     const fileType = uploadedFile.type;
     const fileExtension = uploadedFile.name.split('.').pop()?.toLowerCase();
@@ -307,6 +318,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       setError('No data provided in the text input.');
       return;
     }
+    if (rows.length > MAX_PASTED_CONTACTS) {
+      setError(`Too many contacts (${rows.length}). Maximum is ${MAX_PASTED_CONTACTS} for pasted text.`);
+      return;
+    }
     Papa.parse(rows.join('\n'), {
       header: true,
       complete: (results) => {
@@ -327,6 +342,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       const contacts = await (navigator.contacts as any).select(['name', 'tel', 'email'], { multiple: true });
       if (contacts.length === 0) {
         setError('No contacts selected.');
+        return;
+      }
+      if (contacts.length > MAX_PASTED_CONTACTS) {
+        setError(`Too many contacts (${contacts.length}). Maximum is ${MAX_PASTED_CONTACTS} for phonebook imports.`);
         return;
       }
 
@@ -409,12 +428,13 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
 
   const handleFinalImport = async () => {
     try {
-      if (!currentWorkspaceId) {
-        throw new Error('No workspace selected.');
-      }
+      if (!currentWorkspaceId) throw new Error('No workspace selected.');
+      if (!validateMappings()) return;
 
-      if (!validateMappings()) {
-        return;
+      const sourceType: 'file' | 'text' | 'phonebook' = file ? 'file' : textInput ? 'text' : 'phonebook';
+
+      if (sourceType !== 'file' && uploadedData.length > MAX_PASTED_CONTACTS) {
+        throw new Error(`Too many contacts (${uploadedData.length}). Maximum is ${MAX_PASTED_CONTACTS} for pasted/phonebook imports.`);
       }
 
       const contactsToImport = uploadedData
@@ -424,30 +444,45 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
           const emailColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'email');
 
           const name = nameColumn ? data[nameColumn]?.toString().trim() : '';
-          const phone_number = phoneColumn ? data[phoneColumn]?.toString().trim() : '';
+          let phone_number = phoneColumn ? data[phoneColumn]?.toString().trim() : '';
           const email = emailColumn ? data[emailColumn]?.toString().trim() : '';
+
+          // Normalize phone numbers for text/phonebook
+          if (sourceType !== 'file' && phone_number) {
+            const parsed = parsePhoneNumberFromString(phone_number, defaultCountry);
+            if (parsed && parsed.isValid()) {
+              phone_number = parsed.format('E.164'); // e.g., "0712345678" -> "+255712345678"
+            } else {
+              return null;
+            }
+          }
 
           return { name, phone_number, email, workspace_id: currentWorkspaceId };
         })
-        .filter((contact) => contact.name && contact.phone_number);
+        .filter((contact): contact is Contact => contact && contact.name && contact.phone_number);
 
-      if (contactsToImport.length === 0) {
-        throw new Error('No valid contacts found in the data. Ensure Name and Phone Number are provided.');
-      }
+      if (contactsToImport.length === 0) throw new Error('No valid contacts found.');
 
-      await onSubmit(selectedGroup, contactsToImport);
+      await onSubmit(selectedGroup, sourceType === 'file' && file ? file : contactsToImport, sourceType);
       setError(null);
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to import contacts. Please try again.');
+      setError(err.message || 'Failed to import contacts.');
     }
   };
 
   const duplicates = useMemo(() => {
     const emailColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'email');
-    if (!emailColumn) return 0;
-    const emails = uploadedData.map((data) => data[emailColumn] || '');
-    return emails.filter((email, index) => email && emails.indexOf(email) !== index).length;
+    const phoneColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'phone_number');
+    if (!emailColumn && !phoneColumn) return { email: 0, phone: 0 };
+
+    const emails = emailColumn ? uploadedData.map((data) => data[emailColumn] || '') : [];
+    const phones = phoneColumn ? uploadedData.map((data) => data[phoneColumn] || '') : [];
+
+    return {
+      email: emails.filter((email, index) => email && emails.indexOf(email) !== index).length,
+      phone: phones.filter((phone, index) => phone && phones.indexOf(phone) !== index).length,
+    };
   }, [uploadedData, columnMappings]);
 
   const invalid = useMemo(() => {
@@ -477,6 +512,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         setTextInput('');
         setFile(null);
         setNewGroupName('');
+        setDefaultCountry('TZ');
         setError(null);
         onClose();
       }}
@@ -527,9 +563,18 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       {step === 1 && (
         <div className="space-y-4 sm:space-y-6">
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
+            <select
+              value={defaultCountry}
+              onChange={(e) => setDefaultCountry(e.target.value)}
+              className="mb-2 sm:mb-4 w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg"
+            >
+              <option value="TZ">Tanzania (+255)</option>
+              <option value="US">United States (+1)</option>
+              <option value="GB">United Kingdom (+44)</option>
+            </select>
             <Upload className="w-8 h-8 sm:w-10 sm:h-10 text-gray-500 mx-auto mb-2 sm:mb-4" />
             <p className="text-gray-600 mb-2 sm:mb-4 text-xs sm:text-sm">
-              Drag and drop some files here, or click to select files
+              Drag and drop a CSV/Excel file, or click to select. Use E.164 phone numbers (e.g., +255712345678).
             </p>
             <input
               type="file"
@@ -546,14 +591,14 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
               Upload Files (CSV/Excel)
             </label>
             <p className="text-gray-500 mt-2 sm:mt-4 text-xs sm:text-sm">
-              Or paste contacts below (CSV format: name,phone_number,email)
+              Or paste contacts below (CSV format: name,phone_number,email, max {MAX_PASTED_CONTACTS} contacts)
             </p>
             <textarea
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] mt-2 sm:mt-4"
               rows={4}
-              placeholder="Paste CSV data here..."
+              placeholder="John Doe,+255712345678,john@example.com"
             />
           </div>
           {isMobile && (
@@ -673,13 +718,17 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
                   const phoneColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'phone_number');
                   const emailColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'email');
 
+                  const phone_number = phoneColumn && row[phoneColumn]
+                    ? (file ? row[phoneColumn] : parsePhoneNumberFromString(row[phoneColumn], defaultCountry)?.format('E.164') || row[phoneColumn])
+                    : 'N/A';
+
                   return (
                     <tr key={index} className="border-b border-gray-200">
                       <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
                         {nameColumn ? row[nameColumn] || 'N/A' : 'N/A'}
                       </td>
                       <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
-                        {phoneColumn ? row[phoneColumn] || 'N/A' : 'N/A'}
+                        {phone_number}
                       </td>
                       <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
                         {emailColumn ? row[emailColumn] || 'N/A' : 'N/A'}
@@ -705,10 +754,13 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
                 Invalid Records: {invalid}
               </span>
               <span className="px-2 sm:px-3 py-1 sm:py-2 rounded border border-yellow-500 text-yellow-500 text-xs sm:text-sm">
-                Duplicate Records: {duplicates}
+                Duplicate Emails: {duplicates.email}
+              </span>
+              <span className="px-2 sm:px-3 py-1 sm:py-2 rounded border border-yellow-500 text-yellow-500 text-xs sm:text-sm">
+                Duplicate Phones: {duplicates.phone}
               </span>
               <span className="px-2 sm:px-3 py-1 sm:py-2 rounded border border-green-500 text-green-500 text-xs sm:text-sm">
-                Valid Records: {uploadedData.length - invalid - duplicates}
+                Valid Records: {uploadedData.length - invalid - duplicates.email}
               </span>
             </div>
           </div>
@@ -1037,40 +1089,73 @@ const Contacts: React.FC = () => {
   );
 
   const handleImportSubmit = useCallback(
-    async (groupId: string, importedContacts: Contact[]) => {
+    async (groupId: string, data: File | Contact[], sourceType: 'file' | 'text' | 'phonebook') => {
       if (!currentWorkspaceId) {
         setError('No workspace selected.');
         return;
       }
 
+      setIsLoading(true);
       try {
-        const createdContacts = await Promise.all(
-          importedContacts.map((contact) =>
-            createContact({
-              name: contact.name.trim(),
-              phone_number: contact.phone_number.trim(),
-              email: contact.email?.trim() || '',
-              workspace_id: currentWorkspaceId,
-            })
-          )
-        );
+        let createdContacts: Contact[] = [];
+        if (sourceType === 'file' && data instanceof File) {
+          const response = await bulkUploadContacts(currentWorkspaceId, data);
+          createdContacts = response.contacts || [];
+          if (!createdContacts.length && response.count) {
+            createdContacts = Array(response.count).fill({} as Contact); // Placeholder for count
+          }
+        } else if ((sourceType === 'text' || sourceType === 'phonebook') && Array.isArray(data)) {
+          const importPromises = data.map(async (contact, index) => {
+            await new Promise((resolve) => setTimeout(resolve, index * 100)); // 100ms delay
+            try {
+              return await createContact({
+                name: contact.name.trim(),
+                phone_number: contact.phone_number.trim(),
+                email: contact.email?.trim() || '',
+                workspace_id: currentWorkspaceId,
+              });
+            } catch (err) {
+              console.error(`Failed to import contact ${contact.name}:`, err);
+              return null;
+            }
+          });
+          const results = await Promise.allSettled(importPromises);
+          createdContacts = results
+            .filter((result): result is PromiseFulfilledResult<Contact> => result.status === 'fulfilled' && result.value)
+            .map((result) => result.value);
+          if (results.some((result) => result.status === 'rejected')) {
+            setError(`Imported ${createdContacts.length} contacts, but some failed. Check console for details.`);
+          }
+        }
 
         if (groupId !== 'all' && createdContacts.length > 0) {
-          await addContactsToGroup(groupId, createdContacts.map((c) => c.contact_id));
+          const contactIds = createdContacts
+            .filter((c) => c.contact_id)
+            .map((c) => c.contact_id);
+          if (contactIds.length > 0) {
+            await addContactsToGroup(groupId, contactIds);
+          }
         }
 
         await fetchContactsAndGroups();
         setError(null);
         setSelectedGroup(groupId);
+        alert(`Successfully imported ${createdContacts.length} contacts.`);
       } catch (error: any) {
         setError(error.message || 'Failed to import contacts. Please try again.');
+      } finally {
+        setIsLoading(false);
       }
     },
     [currentWorkspaceId, fetchContactsAndGroups]
   );
 
   const downloadTemplate = useCallback(() => {
-    const csv = Papa.unparse([{ name: '', phone_number: '', email: '' }]);
+    const csv = Papa.unparse([{
+      name: 'John Doe',
+      phone_number: '+255712345678',
+      email: 'john@example.com'
+    }]);
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
