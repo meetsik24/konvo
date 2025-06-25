@@ -1098,51 +1098,61 @@ const Contacts: React.FC = () => {
       setIsLoading(true);
       try {
         let createdContacts: Contact[] = [];
+        let fileToUpload: File;
+
         if (sourceType === 'file' && data instanceof File) {
-          const response = await bulkUploadContacts(currentWorkspaceId, data);
-          createdContacts = response.contacts || [];
-          if (!createdContacts.length && response.count) {
-            createdContacts = Array(response.count).fill({} as Contact); // Placeholder for count
-          }
+          fileToUpload = data;
         } else if ((sourceType === 'text' || sourceType === 'phonebook') && Array.isArray(data)) {
-          const importPromises = data.map(async (contact, index) => {
-            await new Promise((resolve) => setTimeout(resolve, index * 100)); // 100ms delay
-            try {
-              return await createContact({
+          // Validate and normalize contacts
+          const validContacts = data
+            .map((contact) => {
+              const parsedPhone = parsePhoneNumberFromString(contact.phone_number, 'TZ');
+              if (!parsedPhone || !parsedPhone.isValid() || !contact.name.trim()) {
+                return null;
+              }
+              return {
                 name: contact.name.trim(),
-                phone_number: contact.phone_number.trim(),
+                phone_number: parsedPhone.format('E.164'),
                 email: contact.email?.trim() || '',
-                workspace_id: currentWorkspaceId,
-              });
-            } catch (err) {
-              console.error(`Failed to import contact ${contact.name}:`, err);
-              return null;
-            }
-          });
-          const results = await Promise.allSettled(importPromises);
-          createdContacts = results
-            .filter((result): result is PromiseFulfilledResult<Contact> => result.status === 'fulfilled' && result.value)
-            .map((result) => result.value);
-          if (results.some((result) => result.status === 'rejected')) {
-            setError(`Imported ${createdContacts.length} contacts, but some failed. Check console for details.`);
+              };
+            })
+            .filter((contact): contact is { name: string; phone_number: string; email: string } => contact !== null);
+
+          if (validContacts.length === 0) {
+            throw new Error('No valid contacts found after validation.');
           }
+
+          // Convert to CSV
+          const csv = Papa.unparse(validContacts, {
+            header: true,
+            columns: ['name', 'phone_number', 'email'],
+          });
+          const blob = new Blob([csv], { type: 'text/csv' });
+          fileToUpload = new File([blob], 'contacts.csv', { type: 'text/csv' });
+        } else {
+          throw new Error('Invalid data type for upload.');
         }
 
-        if (groupId !== 'all' && createdContacts.length > 0) {
-          const contactIds = createdContacts
-            .filter((c) => c.contact_id)
-            .map((c) => c.contact_id);
-          if (contactIds.length > 0) {
-            await addContactsToGroup(groupId, contactIds);
-          }
+        // Prepare FormData
+        const formData = new FormData();
+        formData.append('file', fileToUpload);
+        if (groupId !== 'all') {
+          formData.append('group_id', groupId);
+        }
+
+        // Call bulkUploadContacts
+        const response = await bulkUploadContacts(currentWorkspaceId, fileToUpload);
+        createdContacts = response.contacts || [];
+        if (!Array.isArray(createdContacts) || !response.success) {
+          throw new Error(response.message || 'Bulk upload failed.');
         }
 
         await fetchContactsAndGroups();
         setError(null);
         setSelectedGroup(groupId);
         alert(`Successfully imported ${createdContacts.length} contacts.`);
-      } catch (error: any) {
-        setError(error.message || 'Failed to import contacts. Please try again.');
+      } catch (err: any) {
+        setError(err.message || 'Failed to import contacts.');
       } finally {
         setIsLoading(false);
       }
@@ -1316,7 +1326,7 @@ const Contacts: React.FC = () => {
                   className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
                 >
                   <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Import CSV
+                  Import Contacts
                 </button>
                 <button
                   onClick={downloadTemplate}
@@ -1334,7 +1344,7 @@ const Contacts: React.FC = () => {
               <input
                 type="text"
                 placeholder="Search contacts..."
-                className="w-full pl-8 sm:pl-10 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+                className="w-full pl-8 sm:pl-10 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -1342,17 +1352,17 @@ const Contacts: React.FC = () => {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
-              <div className="bg-[#f9fafb] p-3 sm:p-4 rounded-lg shadow-sm">
+              <div className="bg-[#f9fafb] p-3 sm:p-4 rounded">
                 <h3 className="text-xs sm:text-sm font-medium text-gray-600">Total Contacts</h3>
-                <p className="text-lg sm:text-xl font-bold text-[#00333e]">{contacts.length}</p>
+                <p className="text-lg sm:text-xl font-bold text-[#33333e]">{contacts.length}</p>
               </div>
-              <div className="bg-[#f9fafb] p-3 sm:p-4 rounded-lg shadow-sm">
+              <div className="bg-[#f9fafb] p-3 sm:p-4 rounded">
                 <h3 className="text-xs sm:text-sm font-medium text-gray-600">Groups</h3>
-                <p className="text-lg sm:text-xl font-bold text-[#00333e]">{groups.length - 1}</p>
+                <p className="text-lg sm:text-xl font-bold text-[#33333e]">{groups.length - 1}</p>
               </div>
-              <div className="bg-[#f9fafb] p-3 sm:p-4 rounded-lg shadow-sm">
+              <div className="bg-[#f9fafb] p-3 sm:p-4 rounded">
                 <h3 className="text-xs sm:text-sm font-medium text-gray-600">Selected Group</h3>
-                <p className="text-lg sm:text-xl font-bold text-[#00333e]">
+                <p className="text-lg sm:text-xl font-bold text-[#33333e]">
                   {groups.find((g) => g.group_id === selectedGroup)?.name || 'All Contacts'}
                 </p>
               </div>
@@ -1360,9 +1370,9 @@ const Contacts: React.FC = () => {
           </div>
 
           {/* Main Card with Wider Layout and Styled Dropdown */}
-          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-4 sm:mb-6" style={{ maxWidth: 'none', width: '100%' }}>
+          <div className="bg-white p-4 sm:p-6 rounded shadow-md mb-4 sm:mb-6" style={{ maxWidth: 'none', width: '100%' }}>
             <div className="flex flex-col sm:flex-row items-center justify-between mb-3 sm:mb-4 gap-2 sm:gap-4">
-              <h2 className="text-base sm:text-lg font-semibold text-[#00333e]">Selected Group</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-[#33333e]">Selected Group</h2>
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <CustomDropdown
                   value={selectedGroup}
@@ -1372,7 +1382,7 @@ const Contacts: React.FC = () => {
                 />
                 <button
                   onClick={() => setModalState((prev) => ({ ...prev, showAddGroup: true }))}
-                  className="flex items-center gap-1 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
+                  className="flex items-center gap-1 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#33333e] text-white rounded hover:bg-[#335a6e] transition-colors duration-200"
                 >
                   <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                   Create New
@@ -1381,7 +1391,7 @@ const Contacts: React.FC = () => {
             </div>
 
             {error && (
-              <div className="text-red-600 bg-red-50 p-3 sm:p-4 rounded-lg mb-3 sm:mb-4 text-xs sm:text-sm">
+              <div className="text-red-600 bg-red-50 p-3 sm:p-4 rounded mb-3 sm:mb-4 text-xs sm:text-sm">
                 <p className="font-semibold">Error:</p>
                 <p>{error}</p>
               </div>
@@ -1460,7 +1470,7 @@ const Contacts: React.FC = () => {
           <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Group Name</label>
           <input
             type="text"
-            className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+            className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
           />

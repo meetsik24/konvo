@@ -68,6 +68,14 @@ interface Contact {
   created_at: string;
 }
 
+interface BulkUploadResponse {
+  contacts: Contact[];
+  total_count?: number;
+  success: boolean;
+  message?: string;
+}
+
+
 interface ContactsResponse {
   contacts: Contact[];
   total_count: number;
@@ -431,7 +439,6 @@ export const getContacts = async (
 };
 
 
-
 export const createContact = async (data: {
   name: string;
   phone_number: string;
@@ -448,20 +455,21 @@ export const createContact = async (data: {
     handleApiError(error, "Failed to create contact");
   }
 };
-
-export const bulkUploadContacts = async (workspaceId: string, file: File): Promise<any> => {
-  console.log("bulkUploadContacts API call initiated for workspace:", workspaceId);
+export const bulkUploadContacts = async (workspace_id: string, file: File, group_id: string): Promise<BulkUploadResponse> => {
+  console.log("bulkUploadContacts API call initiated for workspace:", workspace_id, `and group: ${group_id}`);
   try {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("workspace_id", workspaceId);
-    const response = await api.post("/contacts/bulk-upload", formData, {
+    formData.append("group_id", group_id);
+    const response = await api.post(`/contacts/${workspace_id}/${group_id}/bulk-upload`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     console.log("bulkUploadContacts API response:", response.data);
-    return response.data;
+    return response.data as BulkUploadResponse;
   } catch (error: any) {
+    console.error("bulkUploadContacts API error:", error);
     handleApiError(error, "Failed to bulk upload contacts");
+    throw error; // Re-throw to allow client-side handling
   }
 };
 
@@ -571,6 +579,7 @@ export const deleteGroup = async (groupId: string): Promise<void> => {
   }
 };
 
+
 export const getGroupContacts = async (
   workspaceId: string,
   groupId: string,
@@ -578,14 +587,20 @@ export const getGroupContacts = async (
   perPage: number = 50
 ): Promise<ContactsResponse> => {
   try {
-    console.log(`Fetching contacts for group ${groupId} in workspace ${workspaceId}`);
+    console.log(`Fetching contacts for group ${groupId}, page ${page}, perPage ${perPage}`);
     const response = await api.get(`/workspaces/${workspaceId}/groups/${groupId}/contacts`, {
       params: { page, per_page: perPage },
     });
     console.log(`Raw getGroupContacts response for group ${groupId}:`, response.data);
+    if (!response.data || !Array.isArray(response.data.contacts)) {
+      console.warn(`Invalid response structure for group ${groupId}`, response.data);
+      return { contacts: [], total_count: 0, total_pages: 0, current_page: page };
+    }
     return response.data;
   } catch (error: any) {
+    console.error(`Failed to fetch contacts for group ${groupId}:`, error);
     handleApiError(error, `Failed to fetch contacts for group ${groupId}`);
+    return { contacts: [], total_count: 0, total_pages: 0, current_page: page };
   }
 };
 
