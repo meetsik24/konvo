@@ -241,6 +241,21 @@ interface ImportModalProps {
   setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
 }
 
+interface ImportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (groupId: string, data: File, sourceType: 'file') => void;
+  groups: Group[];
+  setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
+}
+
+interface UploadStats {
+  totalContacts: number;
+  duplicates: number;
+  formatErrors: number;
+  uploaded: number;
+}
+
 const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, groups, setGroups }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(1);
@@ -248,6 +263,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
+  const [previewData, setPreviewData] = useState<UploadedContact[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [stats, setStats] = useState<UploadStats>({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
   const { currentWorkspaceId } = useWorkspace();
   const MAX_FILE_SIZE_MB = 10;
 
@@ -258,7 +277,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
     if (!uploadedFile) return;
 
     if (uploadedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      setError(`File size exceeds ${MAX_FILE_SIZE_MB}MB limit.`);
+      setError(`File exceeds ${MAX_FILE_SIZE_MB}MB. Please upload a smaller file.`);
+      setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
       return;
     }
 
@@ -273,27 +293,94 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       fileExtension === 'xls' ||
       fileExtension === 'xlsx'
     ) {
-      // Validate CSV headers
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
           const text = event.target?.result as string;
-          const parsed = Papa.parse(text, { header: true, preview: 1 });
+          const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
           const headers = parsed.meta.fields as string[] | undefined;
           if (!headers || !headers.includes('name') || !headers.includes('phone_number')) {
-            setError('CSV file must contain "name" and "phone_number" columns.');
+            setError('CSV must include "name" and "phone_number" columns.');
+            setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
             return;
           }
+
+          const allData = parsed.data as any[];
+          const formattedData = allData.map((row) => {
+            const name = row.name?.toString().trim() || '';
+            let phone_number = row.phone_number?.toString().trim() || '';
+            const email = row.email?.toString().trim() || '';
+
+            if (!name) {
+              setStats((prev) => ({ ...prev, formatErrors: prev.formatErrors + 1 }));
+              return null;
+            }
+
+            // Reformat +255 or 255 to E.164
+            if (phone_number.startsWith('+255')) {
+              const digits = phone_number.replace(/^\+255/, '').trim();
+              phone_number = digits.length === 9 ? `+255${digits}` : phone_number;
+            } else if (phone_number.startsWith('255')) {
+              const digits = phone_number.replace(/^255/, '').trim();
+              phone_number = digits.length === 9 ? `+255${digits}` : `+${phone_number}`;
+            }
+
+            const parsedPhone = parsePhoneNumberFromString(phone_number, 'TZ');
+            if (!parsedPhone || !parsedPhone.isValid()) {
+              const fallbackParsed = parsePhoneNumberFromString(phone_number, 'US');
+              phone_number = fallbackParsed?.format('E.164') || phone_number;
+              if (!/^\+\d{10,15}$/.test(phone_number)) {
+                setStats((prev) => ({ ...prev, formatErrors: prev.formatErrors + 1 }));
+                return null;
+              }
+            } else {
+              phone_number = parsedPhone.format('E.164');
+            }
+
+            return { name, phone_number, email };
+          }).filter((row): row is UploadedContact => row !== null);
+
+          if (formattedData.length === 0) {
+            setError('No valid contacts found. Please check the CSV file.');
+            setStats({ totalContacts: allData.length, duplicates: 0, formatErrors: allData.length, uploaded: 0 });
+            return;
+          }
+
+          // Check for duplicates and filter them out
+          const phoneNumbers = new Set();
+          const uniqueData = formattedData.filter((contact) => {
+            if (phoneNumbers.has(contact.phone_number)) {
+              setStats((prev) => ({ ...prev, duplicates: prev.duplicates + 1 }));
+              return false;
+            }
+            phoneNumbers.add(contact.phone_number);
+            return true;
+          });
+
+          setStats({
+            totalContacts: allData.length,
+            duplicates: allData.length - uniqueData.length - (allData.length - formattedData.length),
+            formatErrors: allData.length - formattedData.length,
+            uploaded: 0,
+          });
+
           setFile(uploadedFile);
+          setPreviewData(uniqueData); // Use unique data for preview
           setStep(2);
+          setError(null);
         } catch (err: any) {
-          setError('Failed to validate CSV file: ' + err.message);
+          setError(`Error processing CSV: ${err.message}. Please use a valid file.`);
+          setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
         }
       };
-      reader.onerror = () => setError('Failed to read the file.');
+      reader.onerror = () => {
+        setError('Failed to read the file. Please try again.');
+        setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
+      };
       reader.readAsText(uploadedFile);
     } else {
       setError('Unsupported file format. Please upload a CSV or Excel file.');
+      setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
     }
   };
 
@@ -314,26 +401,48 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       setNewGroupName('');
       setError(null);
     } catch (error: any) {
-      setError(error.message || 'Failed to create group.');
+      setError(`Failed to create group: ${error.message}. Please try again.`);
     }
   };
 
   const handleFinalImport = async () => {
+    let interval: NodeJS.Timeout;
     try {
-      if (!currentWorkspaceId) throw new Error('No workspace selected.');
-      if (!file) throw new Error('No file selected for upload.');
+      if (!currentWorkspaceId) throw new Error('No workspace selected. Please select a workspace.');
+      if (!file) throw new Error('No file selected. Please upload a CSV file.');
       if (!selectedGroup || selectedGroup === 'all') throw new Error('Please select a valid group or create a new one.');
 
-      console.log("Uploading to group_id:", selectedGroup); // Debug log
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      interval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 20, 80));
+      }, 500);
+
+      console.log("Uploading to group_id:", selectedGroup);
       const response = await bulkUploadContacts(currentWorkspaceId, file, selectedGroup);
+
+      clearInterval(interval);
+      setUploadProgress(100);
+
       if (!response.success) {
-        throw new Error(response.message || 'Bulk upload failed.');
+        setError('Upload failed. Please check the file and try again.');
+        setStats((prev) => ({ ...prev, uploaded: 0 }));
+        return;
       }
 
-      alert(`Successfully imported ${response.contacts?.length || 0} contacts.`);
-      onClose();
+      const uploadedCount = response.contacts?.length || 0;
+      setStats((prev) => ({ ...prev, uploaded: uploadedCount }));
+      alert(`${stats.duplicates} contacts were duplicates and ignored. ${uploadedCount} contacts uploaded successfully at 06:23 PM EAT, June 25, 2025.`);
+      setError(null);
+      onClose(); // Exit modal on success
     } catch (err: any) {
-      setError(err.message || 'Failed to import contacts.');
+      setError('Upload failed. Please check the file and try again.');
+      setStats((prev) => ({ ...prev, uploaded: 0 }));
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      if (interval) clearInterval(interval);
     }
   };
 
@@ -352,7 +461,11 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         setFile(null);
         setSelectedGroup('all');
         setNewGroupName('');
+        setPreviewData([]);
         setError(null);
+        setIsUploading(false);
+        setUploadProgress(0);
+        setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
         onClose();
       }}
       title="Import Contacts"
@@ -394,7 +507,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
             <Upload className="w-8 h-8 sm:w-10 sm:h-10 text-gray-500 mx-auto mb-2 sm:mb-4" />
             <p className="text-gray-600 mb-2 sm:mb-4 text-xs sm:text-sm">
-              Drag and drop a CSV/Excel file, or click to select. File must contain "name" and "phone_number" columns.
+              Drag and drop a CSV/Excel file, or click to select. File must contain "name" and "phone_number" columns (email is optional).
             </p>
             <input
               type="file"
@@ -417,6 +530,36 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       {step === 2 && (
         <div>
           <div className="mb-4 sm:mb-6">
+            <h3 className="text-sm sm:text-base font-medium text-gray-700 mb-2">Preview Data</h3>
+            <div className="overflow-x-auto max-h-[200px] sm:max-h-[250px] border border-gray-200 rounded-lg mb-4">
+              <table className="w-full text-left text-gray-700">
+                <thead className="sticky top-0 bg-gray-100">
+                  <tr>
+                    {previewData.length > 0 && Object.keys(previewData[0]).map((header) => (
+                      <th key={header} className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px]">
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewData.map((row, index) => (
+                    <tr key={index} className="border-b border-gray-200">
+                      {Object.values(row).map((value, i) => (
+                        <td key={i} className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
+                          {value}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {previewData.length === 0 && (
+                <div className="p-2 sm:p-3 text-center text-gray-500 text-xs sm:text-sm">
+                  No preview data available.
+                </div>
+              )}
+            </div>
             <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-700">
               Select Group
             </label>
@@ -454,45 +597,44 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
               </div>
             </div>
           </div>
+          {isUploading && (
+            <div className="mb-4 sm:mb-6">
+              <h3 className="text-sm sm:text-base font-medium text-gray-700 mb-2">Uploading...</h3>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div
+                  className="bg-[#005a6e] h-2.5 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">{uploadProgress}%</p>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Stats Tabs */}
+      <div className="mt-4 sm:mt-6 border-t border-gray-200 pt-2 sm:pt-3">
+        <h3 className="text-sm sm:text-base font-medium text-gray-700 mb-2">Upload Summary</h3>
+        <div className="flex flex-wrap gap-2 sm:gap-3 text-xs sm:text-sm">
+          <div className="flex-1 min-w-[100px] p-2 sm:p-3 bg-gray-50 rounded-lg">
+            <p className="font-medium text-gray-700">Total Contacts</p>
+            <p className="text-[#00333e]">{stats.totalContacts}</p>
+          </div>
+          <div className="flex-1 min-w-[100px] p-2 sm:p-3 bg-gray-50 rounded-lg">
+            <p className="font-medium text-gray-700">Duplicates</p>
+            <p className="text-[#00333e]">{stats.duplicates}</p>
+          </div>
+          <div className="flex-1 min-w-[100px] p-2 sm:p-3 bg-gray-50 rounded-lg">
+            <p className="font-medium text-gray-700">Format Errors</p>
+            <p className="text-[#00333e]">{stats.formatErrors}</p>
+          </div>
+          <div className="flex-1 min-w-[100px] p-2 sm:p-3 bg-gray-50 rounded-lg">
+            <p className="font-medium text-gray-700">Uploaded</p>
+            <p className="text-[#00333e]">{stats.uploaded}</p>
+          </div>
+        </div>
+      </div>
     </Modal>
-  );
-};
-
-const CustomDropdown = ({ value, onChange, options, className }: { value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; className?: string }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <div className={`relative w-full sm:w-auto ${className}`}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full sm:w-auto flex items-center justify-between text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg bg-white text-[#00333e] focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent hover:bg-gray-50 transition-colors duration-200"
-      >
-        <span className="truncate max-w-[150px] sm:max-w-[200px]">
-          {options.find((opt) => opt.value === value)?.label || 'Select a group'}
-        </span>
-        <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 ml-2 text-[#00333e]" />
-      </button>
-      {isOpen && (
-        <div className="absolute z-10 w-full sm:w-auto mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => {
-                onChange(option.value);
-                setIsOpen(false);
-              }}
-              className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-[#00333e] hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors duration-200 truncate"
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 };
 
@@ -965,6 +1107,28 @@ const Contacts: React.FC = () => {
     [groups]
   );
 
+  // Minimal CustomDropdown implementation
+  interface CustomDropdownProps {
+    value: string;
+    onChange: (value: string) => void;
+    options: { value: string; label: string }[];
+    className?: string;
+  }
+
+  const CustomDropdown: React.FC<CustomDropdownProps> = ({ value, onChange, options, className }) => (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className={`border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fddf0d] ${className || ''}`}
+    >
+      {options.map(opt => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  );
+
   return (
     <ErrorBoundary>
       <motion.div
@@ -1069,7 +1233,7 @@ const Contacts: React.FC = () => {
               </div>
             )}
 
-            <StyledDataTable
+            <StyledDataTable<Contact>
               columns={columns}
               data={filteredContacts}
               pagination

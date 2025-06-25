@@ -456,20 +456,23 @@ export const createContact = async (data: {
   }
 };
 export const bulkUploadContacts = async (workspace_id: string, file: File, group_id: string): Promise<BulkUploadResponse> => {
-  console.log("bulkUploadContacts API call initiated for workspace:", workspace_id, `and group: ${group_id}`);
   try {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("group_id", group_id);
     const response = await api.post(`/contacts/${workspace_id}/${group_id}/bulk-upload`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+        // This would need to be passed back to the component (e.g., via a callback or context)
+        console.log(`Upload progress: ${percentCompleted}%`);
+      },
     });
-    console.log("bulkUploadContacts API response:", response.data);
     return response.data as BulkUploadResponse;
   } catch (error: any) {
-    console.error("bulkUploadContacts API error:", error);
+    console.error("bulkUploadContacts API error:", error.response?.data || error);
     handleApiError(error, "Failed to bulk upload contacts");
-    throw error; // Re-throw to allow client-side handling
+    throw error;
   }
 };
 
