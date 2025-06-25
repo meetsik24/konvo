@@ -25,9 +25,8 @@ const StyledDataTable = styled(DataTable).withConfig({
   shouldForwardProp: (prop) => !['allowOverflow', 'button'].includes(prop),
 })``;
 
-// Error Boundary Component (unchanged)
 class ErrorBoundary extends Component<{ children: React.ReactNode }> {
-  state: { hasError: boolean; error: Error | null } = { hasError: false, error: null };
+  state = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
@@ -80,6 +79,19 @@ interface UploadedContact {
   [key: string]: string;
 }
 
+interface ContactsResponse {
+  contacts: Contact[];
+  total_count: number;
+  total_pages: number;
+  current_page: number;
+}
+
+interface BulkUploadResponse {
+  success: boolean;
+  message?: string;
+  contacts?: Contact[];
+}
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -114,33 +126,31 @@ const Modal: React.FC<ModalProps> = ({
             <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
-        <div className="space-y-3 sm:space-y-4">
-          {children}
-          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-            {showBackButton && onBack && (
-              <button
-                onClick={onBack}
-                className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 flex items-center gap-1 sm:gap-2"
-              >
-                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-                Back
-              </button>
-            )}
+        <div className="space-y-3 sm:space-y-4">{children}</div>
+        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+          {showBackButton && onBack && (
             <button
-              onClick={onClose}
-              className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+              onClick={onBack}
+              className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 flex items-center gap-1 sm:gap-2"
             >
-              {cancelText}
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              Back
             </button>
-            {onSubmit && (
-              <button
-                onClick={onSubmit}
-                className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
-              >
-                {submitText}
-              </button>
-            )}
-          </div>
+          )}
+          <button
+            onClick={onClose}
+            className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+          >
+            {cancelText}
+          </button>
+          {onSubmit && (
+            <button
+              onClick={onSubmit}
+              className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
+            >
+              {submitText}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -241,7 +251,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
-  const [defaultCountry, setDefaultCountry] = useState<string>('TZ'); // Default to Tanzania
+  const [defaultCountry, setDefaultCountry] = useState<string>('TZ');
   const { currentWorkspaceId } = useWorkspace();
   const MAX_PASTED_CONTACTS = 500;
   const MAX_FILE_SIZE_MB = 10;
@@ -252,7 +262,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
     const uploadedFile = e.target.files?.[0];
     if (!uploadedFile) return;
 
-    // File size limit
     if (uploadedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
       setError(`File size exceeds ${MAX_FILE_SIZE_MB}MB limit.`);
       return;
@@ -447,11 +456,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
           let phone_number = phoneColumn ? data[phoneColumn]?.toString().trim() : '';
           const email = emailColumn ? data[emailColumn]?.toString().trim() : '';
 
-          // Normalize phone numbers for text/phonebook
           if (sourceType !== 'file' && phone_number) {
             const parsed = parsePhoneNumberFromString(phone_number, defaultCountry);
             if (parsed && parsed.isValid()) {
-              phone_number = parsed.format('E.164'); // e.g., "0712345678" -> "+255712345678"
+              phone_number = parsed.format('E.164');
             } else {
               return null;
             }
@@ -463,7 +471,15 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
 
       if (contactsToImport.length === 0) throw new Error('No valid contacts found.');
 
-      await onSubmit(selectedGroup, sourceType === 'file' && file ? file : contactsToImport, sourceType);
+      const groupId = selectedGroup !== 'all' ? selectedGroup : undefined;
+      if (sourceType === 'file' && file) {
+        await onSubmit(groupId || 'all', file, sourceType);
+      } else {
+        const csv = Papa.unparse(contactsToImport, { header: true, columns: ['name', 'phone_number', 'email'] });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const tempFile = new File([blob], 'contacts.csv', { type: 'text/csv' });
+        await onSubmit(groupId || 'all', tempFile, sourceType);
+      }
       setError(null);
       onClose();
     } catch (err: any) {
@@ -538,7 +554,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         </div>
       )}
 
-      {/* Step Indicator */}
       <div className="flex items-center justify-between mb-4 overflow-x-auto">
         {['Upload File', 'Map Columns', 'Select Group', 'Preview & Import'].map((label, index) => (
           <div key={label} className="flex items-center min-w-[100px] sm:min-w-[120px]">
@@ -559,7 +574,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         ))}
       </div>
 
-      {/* Step 1: Upload File, Paste Text, or Import from Phone Book */}
       {step === 1 && (
         <div className="space-y-4 sm:space-y-6">
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
@@ -613,7 +627,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         </div>
       )}
 
-      {/* Step 2: View Uploaded Data and Map Columns */}
       {step === 2 && uploadedData.length > 0 && (
         <div>
           <div className="overflow-x-auto max-h-[300px] sm:max-h-[400px] border border-gray-200 rounded-lg">
@@ -655,7 +668,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         </div>
       )}
 
-      {/* Step 3: Select or Create Group */}
       {step === 3 && (
         <div>
           <div className="mb-4 sm:mb-6">
@@ -700,7 +712,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         </div>
       )}
 
-      {/* Step 4: Preview and Process */}
       {step === 4 && (
         <div>
           <div className="overflow-x-auto max-h-[300px] sm:max-h-[400px] border border-gray-200 rounded-lg">
@@ -835,35 +846,37 @@ const Contacts: React.FC = () => {
   const [newGroupName, setNewGroupName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const perPage = 10;
 
   const fetchAllContacts = useCallback(
-    async (workspaceId: string, groupId?: string) => {
-      const perPage = 50;
-      let allContacts: Contact[] = [];
-      let totalPages = 1;
-
+    async (workspaceId: string, groupId?: string, page: number = 1, pagesToFetch: number = 2): Promise<ContactsResponse> => {
       try {
-        const firstResponse = groupId
-          ? await getGroupContacts(workspaceId, groupId, 1, perPage)
-          : await getContacts(workspaceId, 1, perPage);
-        allContacts = firstResponse.contacts || [];
-        totalPages = firstResponse.total_pages || 1;
+        const startPage = page;
+        const endPage = Math.min(page + pagesToFetch - 1, totalPages);
+        let allContacts: Contact[] = [];
+        let totalPagesCount = 0;
 
-        if (totalPages > 1) {
-          const pageRequests = Array.from({ length: totalPages - 1 }, (_, i) =>
-            groupId
-              ? getGroupContacts(workspaceId, groupId, i + 2, perPage)
-              : getContacts(workspaceId, i + 2, perPage)
-          );
-          const responses = await Promise.all(pageRequests);
-          allContacts = [...allContacts, ...responses.flatMap((res) => res.contacts || [])];
-        }
-        return allContacts;
+        const pageRequests = Array.from({ length: endPage - startPage + 1 }, (_, i) => {
+          const targetPage = startPage + i;
+          return groupId
+            ? getGroupContacts(workspaceId, groupId, targetPage, perPage)
+            : getContacts(workspaceId, targetPage, perPage);
+        });
+
+        const responses = await Promise.all(pageRequests);
+        responses.forEach((res) => {
+          allContacts = [...allContacts, ...res.contacts];
+          totalPagesCount = Math.max(totalPagesCount, res.total_pages);
+        });
+
+        return { contacts: allContacts, total_count: allContacts.length, total_pages: totalPagesCount, current_page: page };
       } catch (error: any) {
         throw new Error(`Failed to fetch contacts: ${error.message}`);
       }
     },
-    []
+    [totalPages]
   );
 
   const fetchContactsAndGroups = useCallback(async () => {
@@ -874,42 +887,29 @@ const Contacts: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const contactsData = selectedGroup === 'all'
-        ? await fetchAllContacts(currentWorkspaceId)
-        : await fetchAllContacts(currentWorkspaceId, selectedGroup);
+      // Fetch first two pages of contacts
+      const { contacts: initialContacts, total_pages: contactTotalPages } = await fetchAllContacts(currentWorkspaceId, selectedGroup === 'all' ? undefined : selectedGroup, 1, 2);
+      setContacts(initialContacts);
+      setTotalPages(contactTotalPages);
+      setCurrentPage(1);
 
+      // Fetch groups
       const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
-      const groupsData = Array.isArray(groupsResponse) ? groupsResponse : groupsResponse?.data || [];
-
-      const contactToGroupsMap: { [contactId: string]: string[] } = {};
-      contactsData.forEach((contact) => {
-        contactToGroupsMap[contact.contact_id] = [];
-      });
-
-      const groupContactsPromises = groupsData.map(async (group) => {
-        const groupContacts = await fetchAllContacts(currentWorkspaceId, group.group_id);
-        groupContacts.forEach((contact) => {
-          if (contactToGroupsMap[contact.contact_id]) {
-            contactToGroupsMap[contact.contact_id].push(group.group_id);
-          }
-        });
-        return { ...group, count: groupContacts.length };
-      });
-
-      const updatedGroups = await Promise.all(groupContactsPromises);
-      const updatedContacts = contactsData.map((contact) => ({
-        ...contact,
-        group_ids: contactToGroupsMap[contact.contact_id] || [],
-      }));
+      const updatedGroups = await Promise.all(
+        groupsResponse.map(async (group) => {
+          const { contacts: groupContacts, total_pages: groupTotalPages } = await fetchAllContacts(currentWorkspaceId, group.group_id, 1, 2);
+          return { ...group, count: groupContacts.length, total_pages: groupTotalPages };
+        })
+      );
 
       const allGroup = {
         group_id: 'all',
         name: 'All Contacts',
         workspace_id: currentWorkspaceId,
-        count: contactsData.length,
+        count: initialContacts.length,
+        total_pages: contactTotalPages,
       };
 
-      setContacts(updatedContacts);
       setGroups([allGroup, ...updatedGroups]);
       setError(null);
     } catch (error: any) {
@@ -922,6 +922,23 @@ const Contacts: React.FC = () => {
   useEffect(() => {
     fetchContactsAndGroups();
   }, [fetchContactsAndGroups]);
+
+  const handlePageChange = async (page: number) => {
+    if (!currentWorkspaceId) return;
+
+    setIsLoading(true);
+    try {
+      const pagesToFetch = page === 2 ? 2 : 1; // Fetch next two pages when navigating to second page
+      const { contacts: newContacts, total_pages: newTotalPages } = await fetchAllContacts(currentWorkspaceId, selectedGroup === 'all' ? undefined : selectedGroup, page, pagesToFetch);
+      setContacts(newContacts);
+      setTotalPages(newTotalPages);
+      setCurrentPage(page);
+    } catch (error: any) {
+      setError(error.message || 'Failed to fetch contacts.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const validateContact = (contact: Partial<Contact>): string | null => {
     const { name, phone_number, email } = contact;
@@ -954,14 +971,12 @@ const Contacts: React.FC = () => {
           phone_number: contact.phone_number!.trim(),
           email: contact.email?.trim() || '',
           workspace_id: currentWorkspaceId,
+          group_id: contact.group_ids?.[0] || undefined,
         };
         const createdContact = await createContact(contactPayload);
 
-        if (contact.group_ids?.length) {
-          const groupsToAdd = contact.group_ids.filter((groupId) => groupId !== 'all');
-          await Promise.all(
-            groupsToAdd.map((groupId) => addContactsToGroup(groupId, [createdContact.contact_id]))
-          );
+        if (contact.group_ids?.length && contact.group_ids[0] !== 'all') {
+          await addContactsToGroup(contact.group_ids[0], [createdContact.contact_id]);
         }
 
         await fetchContactsAndGroups();
@@ -997,24 +1012,9 @@ const Contacts: React.FC = () => {
         });
 
         if (contact.group_ids) {
-          const contactToGroupsMap: { [contactId: string]: string[] } = { [contact.contact_id]: [] };
-          const groupsData = groups.filter((g) => g.group_id !== 'all');
-          await Promise.all(
-            groupsData.map(async (group) => {
-              const groupContacts = await fetchAllContacts(currentWorkspaceId, group.group_id);
-              if (groupContacts.some((c) => c.contact_id === contact.contact_id)) {
-                contactToGroupsMap[contact.contact_id].push(group.group_id);
-              }
-            })
-          );
-          const currentGroupIds = contactToGroupsMap[contact.contact_id];
-          const groupsToAdd = contact.group_ids.filter(
-            (groupId) => !currentGroupIds.includes(groupId) && groupId !== 'all'
-          );
-
-          await Promise.all(
-            groupsToAdd.map((groupId) => addContactsToGroup(groupId, [contact.contact_id]))
-          );
+          const currentGroupIds = (await getContactGroups(currentWorkspaceId, contact.contact_id)).map(g => g.group_id);
+          const groupsToAdd = contact.group_ids.filter(id => !currentGroupIds.includes(id) && id !== 'all');
+          await Promise.all(groupsToAdd.map(id => addContactsToGroup(id, [contact.contact_id])));
         }
 
         await fetchContactsAndGroups();
@@ -1025,7 +1025,7 @@ const Contacts: React.FC = () => {
         setError(error.message || 'Failed to update contact.');
       }
     },
-    [currentWorkspaceId, groups, fetchContactsAndGroups, fetchAllContacts]
+    [currentWorkspaceId, fetchContactsAndGroups]
   );
 
   const handleDeleteContact = useCallback(
@@ -1097,13 +1097,11 @@ const Contacts: React.FC = () => {
 
       setIsLoading(true);
       try {
-        let createdContacts: Contact[] = [];
         let fileToUpload: File;
 
         if (sourceType === 'file' && data instanceof File) {
           fileToUpload = data;
         } else if ((sourceType === 'text' || sourceType === 'phonebook') && Array.isArray(data)) {
-          // Validate and normalize contacts
           const validContacts = data
             .map((contact) => {
               const parsedPhone = parsePhoneNumberFromString(contact.phone_number, 'TZ');
@@ -1122,7 +1120,6 @@ const Contacts: React.FC = () => {
             throw new Error('No valid contacts found after validation.');
           }
 
-          // Convert to CSV
           const csv = Papa.unparse(validContacts, {
             header: true,
             columns: ['name', 'phone_number', 'email'],
@@ -1133,24 +1130,16 @@ const Contacts: React.FC = () => {
           throw new Error('Invalid data type for upload.');
         }
 
-        // Prepare FormData
-        const formData = new FormData();
-        formData.append('file', fileToUpload);
-        if (groupId !== 'all') {
-          formData.append('group_id', groupId);
-        }
-
-        // Call bulkUploadContacts
-        const response = await bulkUploadContacts(currentWorkspaceId, fileToUpload);
-        createdContacts = response.contacts || [];
-        if (!Array.isArray(createdContacts) || !response.success) {
+        const responseMap = await bulkUploadContacts(currentWorkspaceId, fileToUpload, groupId || 'all');
+        const response = Array.from(responseMap.values())[0];
+        if (!response.success) {
           throw new Error(response.message || 'Bulk upload failed.');
         }
 
         await fetchContactsAndGroups();
         setError(null);
         setSelectedGroup(groupId);
-        alert(`Successfully imported ${createdContacts.length} contacts.`);
+        alert(`Successfully imported ${response.contacts?.length || 0} contacts.`);
       } catch (err: any) {
         setError(err.message || 'Failed to import contacts.');
       } finally {
@@ -1295,9 +1284,7 @@ const Contacts: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="min-h-screen bg-gray-100"
       >
-        {/* Main Content */}
         <div className="p-4 sm:p-6">
-          {/* Header Section */}
           <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-4 sm:mb-6">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
               <div className="flex items-center gap-2 sm:gap-3">
@@ -1338,7 +1325,6 @@ const Contacts: React.FC = () => {
               </div>
             </div>
 
-            {/* Search Bar */}
             <div className="relative mb-4 sm:mb-6">
               <Search className="w-4 h-4 sm:w-5 sm:h-5 absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
@@ -1350,7 +1336,6 @@ const Contacts: React.FC = () => {
               />
             </div>
 
-            {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
               <div className="bg-[#f9fafb] p-3 sm:p-4 rounded">
                 <h3 className="text-xs sm:text-sm font-medium text-gray-600">Total Contacts</h3>
@@ -1369,7 +1354,6 @@ const Contacts: React.FC = () => {
             </div>
           </div>
 
-          {/* Main Card with Wider Layout and Styled Dropdown */}
           <div className="bg-white p-4 sm:p-6 rounded shadow-md mb-4 sm:mb-6" style={{ maxWidth: 'none', width: '100%' }}>
             <div className="flex flex-col sm:flex-row items-center justify-between mb-3 sm:mb-4 gap-2 sm:gap-4">
               <h2 className="text-base sm:text-lg font-semibold text-[#33333e]">Selected Group</h2>
@@ -1401,8 +1385,10 @@ const Contacts: React.FC = () => {
               columns={columns}
               data={filteredContacts}
               pagination
-              paginationPerPage={25}
-              paginationRowsPerPageOptions={[10, 25, 50, 100]}
+              paginationPerPage={perPage}
+              paginationTotalRows={totalPages * perPage}
+              paginationServer
+              onChangePage={handlePageChange}
               paginationComponentOptions={{
                 rowsPerPageText: 'Contacts per page:',
                 rangeSeparatorText: 'of',
