@@ -236,7 +236,7 @@ const ContactModal: React.FC<ContactModalProps> = ({
 interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (groupId: string, data: File | Contact[], sourceType: 'file' | 'text' | 'phonebook') => void;
+  onSubmit: (groupId: string, data: File, sourceType: 'file') => void;
   groups: Group[];
   setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
 }
@@ -244,16 +244,11 @@ interface ImportModalProps {
 const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, groups, setGroups }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(1);
-  const [uploadedData, setUploadedData] = useState<UploadedContact[]>([]);
-  const [columnMappings, setColumnMappings] = useState<{ [key: string]: string }>({});
-  const [selectedGroup, setSelectedGroup] = useState<string>('all');
-  const [textInput, setTextInput] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
-  const [defaultCountry, setDefaultCountry] = useState<string>('TZ');
   const { currentWorkspaceId } = useWorkspace();
-  const MAX_PASTED_CONTACTS = 500;
   const MAX_FILE_SIZE_MB = 10;
 
   const isMobile = /Mobi|Android/i.test(navigator.userAgent) || window.innerWidth < 640;
@@ -278,136 +273,27 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       fileExtension === 'xls' ||
       fileExtension === 'xlsx'
     ) {
-      setFile(uploadedFile);
-
-      if (fileExtension === 'xls' || fileExtension === 'xlsx') {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const data = new Uint8Array(event.target?.result as ArrayBuffer);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheet = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheet];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-            const headers = jsonData[0] as string[];
-            const rows = jsonData.slice(1).map((row: any) =>
-              headers.reduce((obj, header, index) => {
-                obj[header] = row[index] || '';
-                return obj;
-              }, {} as UploadedContact)
-            );
-
-            setUploadedData(rows);
-            setStep(2);
-          } catch (err: any) {
-            setError('Failed to parse the Excel file: ' + err.message);
+      // Validate CSV headers
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const text = event.target?.result as string;
+          const parsed = Papa.parse(text, { header: true, preview: 1 });
+          const headers = parsed.meta.fields as string[] | undefined;
+          if (!headers || !headers.includes('name') || !headers.includes('phone_number')) {
+            setError('CSV file must contain "name" and "phone_number" columns.');
+            return;
           }
-        };
-        reader.onerror = () => setError('Failed to read the Excel file.');
-        reader.readAsArrayBuffer(uploadedFile);
-      } else {
-        Papa.parse(uploadedFile, {
-          header: true,
-          complete: (results) => {
-            setUploadedData(results.data as UploadedContact[]);
-            setStep(2);
-          },
-          error: () => setError('Failed to parse the CSV file.'),
-        });
-      }
+          setFile(uploadedFile);
+          setStep(2);
+        } catch (err: any) {
+          setError('Failed to validate CSV file: ' + err.message);
+        }
+      };
+      reader.onerror = () => setError('Failed to read the file.');
+      reader.readAsText(uploadedFile);
     } else {
       setError('Unsupported file format. Please upload a CSV or Excel file.');
-    }
-  };
-
-  const handleTextPaste = () => {
-    const rows = textInput.split('\n').filter((row) => row.trim() !== '');
-    if (rows.length === 0) {
-      setError('No data provided in the text input.');
-      return;
-    }
-    if (rows.length > MAX_PASTED_CONTACTS) {
-      setError(`Too many contacts (${rows.length}). Maximum is ${MAX_PASTED_CONTACTS} for pasted text.`);
-      return;
-    }
-    Papa.parse(rows.join('\n'), {
-      header: true,
-      complete: (results) => {
-        setUploadedData(results.data as UploadedContact[]);
-        setStep(2);
-      },
-      error: () => setError('Failed to parse the pasted text.'),
-    });
-  };
-
-  const handleImportFromPhoneBook = async () => {
-    if (!('contacts' in navigator && 'select' in (navigator.contacts as any))) {
-      setError('Phone book access is not supported on this device.');
-      return;
-    }
-
-    try {
-      const contacts = await (navigator.contacts as any).select(['name', 'tel', 'email'], { multiple: true });
-      if (contacts.length === 0) {
-        setError('No contacts selected.');
-        return;
-      }
-      if (contacts.length > MAX_PASTED_CONTACTS) {
-        setError(`Too many contacts (${contacts.length}). Maximum is ${MAX_PASTED_CONTACTS} for phonebook imports.`);
-        return;
-      }
-
-      const formattedContacts = contacts.map((contact: any) => ({
-        name: contact.name?.[0] || '',
-        phone_number: contact.tel?.[0] || '',
-        email: contact.email?.[0] || '',
-      }));
-
-      setUploadedData(formattedContacts);
-      setStep(2);
-    } catch (err: any) {
-      setError('Failed to access phone book: ' + err.message);
-    }
-  };
-
-  const handleColumnMapping = (column: string, field: string) => {
-    setColumnMappings((prev) => {
-      const newMappings = { ...prev };
-      Object.keys(newMappings).forEach((key) => {
-        if (newMappings[key] === field && key !== column && field !== '') {
-          delete newMappings[key];
-        }
-      });
-      if (field) {
-        newMappings[column] = field;
-      } else {
-        delete newMappings[column];
-      }
-      return newMappings;
-    });
-  };
-
-  const validateMappings = () => {
-    const hasName = Object.values(columnMappings).includes('name');
-    const hasPhoneNumber = Object.values(columnMappings).includes('phone_number');
-    if (!hasName || !hasPhoneNumber) {
-      setError('Please map both Name and Phone Number fields.');
-      return false;
-    }
-    setError(null);
-    return true;
-  };
-
-  const handleProceedToGroupSelection = () => {
-    if (validateMappings()) {
-      setStep(3);
-    }
-  };
-
-  const handleGroupSelection = () => {
-    if (validateMappings()) {
-      setStep(4);
     }
   };
 
@@ -423,10 +309,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         workspace_id: currentWorkspaceId,
       };
       const newGroup = await createGroup(groupPayload);
-      setGroups((prev) => [
-        ...prev,
-        { ...newGroup, count: 0 },
-      ]);
+      setGroups((prev) => [...prev, { ...newGroup, count: 0 }]);
       setSelectedGroup(newGroup.group_id);
       setNewGroupName('');
       setError(null);
@@ -438,110 +321,42 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   const handleFinalImport = async () => {
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected.');
-      if (!validateMappings()) return;
+      if (!file) throw new Error('No file selected for upload.');
+      if (!selectedGroup || selectedGroup === 'all') throw new Error('Please select a valid group or create a new one.');
 
-      const sourceType: 'file' | 'text' | 'phonebook' = file ? 'file' : textInput ? 'text' : 'phonebook';
-
-      if (sourceType !== 'file' && uploadedData.length > MAX_PASTED_CONTACTS) {
-        throw new Error(`Too many contacts (${uploadedData.length}). Maximum is ${MAX_PASTED_CONTACTS} for pasted/phonebook imports.`);
+      console.log("Uploading to group_id:", selectedGroup); // Debug log
+      const response = await bulkUploadContacts(currentWorkspaceId, file, selectedGroup);
+      if (!response.success) {
+        throw new Error(response.message || 'Bulk upload failed.');
       }
 
-      const contactsToImport = uploadedData
-        .map((data) => {
-          const nameColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'name');
-          const phoneColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'phone_number');
-          const emailColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'email');
-
-          const name = nameColumn ? data[nameColumn]?.toString().trim() : '';
-          let phone_number = phoneColumn ? data[phoneColumn]?.toString().trim() : '';
-          const email = emailColumn ? data[emailColumn]?.toString().trim() : '';
-
-          if (sourceType !== 'file' && phone_number) {
-            const parsed = parsePhoneNumberFromString(phone_number, defaultCountry);
-            if (parsed && parsed.isValid()) {
-              phone_number = parsed.format('E.164');
-            } else {
-              return null;
-            }
-          }
-
-          return { name, phone_number, email, workspace_id: currentWorkspaceId };
-        })
-        .filter((contact): contact is Contact => contact && contact.name && contact.phone_number);
-
-      if (contactsToImport.length === 0) throw new Error('No valid contacts found.');
-
-      const groupId = selectedGroup !== 'all' ? selectedGroup : undefined;
-      if (sourceType === 'file' && file) {
-        await onSubmit(groupId || 'all', file, sourceType);
-      } else {
-        const csv = Papa.unparse(contactsToImport, { header: true, columns: ['name', 'phone_number', 'email'] });
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const tempFile = new File([blob], 'contacts.csv', { type: 'text/csv' });
-        await onSubmit(groupId || 'all', tempFile, sourceType);
-      }
-      setError(null);
+      alert(`Successfully imported ${response.contacts?.length || 0} contacts.`);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to import contacts.');
     }
   };
 
-  const duplicates = useMemo(() => {
-    const emailColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'email');
-    const phoneColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'phone_number');
-    if (!emailColumn && !phoneColumn) return { email: 0, phone: 0 };
-
-    const emails = emailColumn ? uploadedData.map((data) => data[emailColumn] || '') : [];
-    const phones = phoneColumn ? uploadedData.map((data) => data[phoneColumn] || '') : [];
-
-    return {
-      email: emails.filter((email, index) => email && emails.indexOf(email) !== index).length,
-      phone: phones.filter((phone, index) => phone && phones.indexOf(phone) !== index).length,
-    };
-  }, [uploadedData, columnMappings]);
-
-  const invalid = useMemo(() => {
-    const emailColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'email');
-    if (!emailColumn) return 0;
-    return uploadedData.filter((data) => {
-      const email = data[emailColumn] || '';
-      return email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }).length;
-  }, [uploadedData, columnMappings]);
-
   const handleBack = () => {
     setStep((prev) => Math.max(1, prev - 1));
     setError(null);
   };
 
-  const submitText = step === 1 ? 'Next' : step === 2 ? 'Next' : step === 3 ? 'Next' : 'Import';
+  const submitText = step === 1 ? 'Next' : 'Import';
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={() => {
         setStep(1);
-        setUploadedData([]);
-        setColumnMappings({});
-        setSelectedGroup('all');
-        setTextInput('');
         setFile(null);
+        setSelectedGroup('all');
         setNewGroupName('');
-        setDefaultCountry('TZ');
         setError(null);
         onClose();
       }}
       title="Import Contacts"
-      onSubmit={
-        step === 1
-          ? handleTextPaste
-          : step === 2
-          ? handleProceedToGroupSelection
-          : step === 3
-          ? handleGroupSelection
-          : handleFinalImport
-      }
+      onSubmit={step === 1 ? () => setStep(2) : handleFinalImport}
       onBack={step > 1 ? handleBack : undefined}
       submitText={submitText}
       cancelText="Cancel"
@@ -555,7 +370,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       )}
 
       <div className="flex items-center justify-between mb-4 overflow-x-auto">
-        {['Upload File', 'Map Columns', 'Select Group', 'Preview & Import'].map((label, index) => (
+        {['Upload File', 'Select Group'].map((label, index) => (
           <div key={label} className="flex items-center min-w-[100px] sm:min-w-[120px]">
             <div
               className={`w-6 h-6 rounded-full flex items-center justify-center ${
@@ -569,7 +384,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
             >
               {label}
             </span>
-            {index < 3 && <div className="w-6 sm:w-12 h-1 bg-gray-300 mx-1 sm:mx-2" />}
+            {index < 1 && <div className="w-6 sm:w-12 h-1 bg-gray-300 mx-1 sm:mx-2" />}
           </div>
         ))}
       </div>
@@ -577,18 +392,9 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       {step === 1 && (
         <div className="space-y-4 sm:space-y-6">
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
-            <select
-              value={defaultCountry}
-              onChange={(e) => setDefaultCountry(e.target.value)}
-              className="mb-2 sm:mb-4 w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg"
-            >
-              <option value="TZ">Tanzania (+255)</option>
-              <option value="US">United States (+1)</option>
-              <option value="GB">United Kingdom (+44)</option>
-            </select>
             <Upload className="w-8 h-8 sm:w-10 sm:h-10 text-gray-500 mx-auto mb-2 sm:mb-4" />
             <p className="text-gray-600 mb-2 sm:mb-4 text-xs sm:text-sm">
-              Drag and drop a CSV/Excel file, or click to select. Use E.164 phone numbers (e.g., +255712345678).
+              Drag and drop a CSV/Excel file, or click to select. File must contain "name" and "phone_number" columns.
             </p>
             <input
               type="file"
@@ -604,174 +410,48 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
             >
               Upload Files (CSV/Excel)
             </label>
-            <p className="text-gray-500 mt-2 sm:mt-4 text-xs sm:text-sm">
-              Or paste contacts below (CSV format: name,phone_number,email, max {MAX_PASTED_CONTACTS} contacts)
-            </p>
-            <textarea
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] mt-2 sm:mt-4"
-              rows={4}
-              placeholder="John Doe,+255712345678,john@example.com"
-            />
           </div>
-          {isMobile && (
-            <button
-              onClick={handleImportFromPhoneBook}
-              className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] flex items-center justify-center gap-2"
+        </div>
+      )}
+
+      {step === 2 && (
+        <div>
+          <div className="mb-4 sm:mb-6">
+            <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-700">
+              Select Group
+            </label>
+            <select
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+              className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] mb-4 sm:mb-6"
             >
-              <Book className="w-4 h-4 sm:w-5 sm:h-5" />
-              Import from Phone Book
-            </button>
-          )}
-        </div>
-      )}
-
-      {step === 2 && uploadedData.length > 0 && (
-        <div>
-          <div className="overflow-x-auto max-h-[300px] sm:max-h-[400px] border border-gray-200 rounded-lg">
-            <table className="w-full text-left text-gray-700">
-              <thead className="sticky top-0 bg-gray-100">
-                <tr>
-                  {Object.keys(uploadedData[0]).map((column) => (
-                    <th key={column} className="p-2 sm:p-3 min-w-[120px]">
-                      <select
-                        value={columnMappings[column] || ''}
-                        onChange={(e) => handleColumnMapping(column, e.target.value)}
-                        className="w-full text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
-                      >
-                        <option value="">Select...</option>
-                        <option value="name">Name</option>
-                        <option value="phone_number">Phone Number</option>
-                        <option value="email">Email</option>
-                      </select>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {uploadedData.map((row, index) => (
-                  <tr key={index} className="border-b border-gray-200">
-                    {Object.values(row).map((value, i) => (
-                      <td
-                        key={i}
-                        className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis"
-                      >
-                        {value}
-                      </td>
-                    ))}
-                  </tr>
+              {groups
+                .filter((group) => group.group_id && group.group_id !== 'all')
+                .map((group) => (
+                  <option key={group.group_id} value={group.group_id}>
+                    {group.name || `Group ${group.group_id}`}
+                  </option>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {step === 3 && (
-  <div>
-    <div className="mb-4 sm:mb-6">
-      <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-700">
-        Select Group
-      </label>
-      <select
-        value={selectedGroup}
-        onChange={(e) => setSelectedGroup(e.target.value)}
-        className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] mb-4 sm:mb-6"
-      >
-        {groups
-          .filter((group) => group.group_id && group.group_id !== 'all')
-          .map((group) => (
-            <option key={group.group_id} value={group.group_id}>
-              {group.name || `Group ${group.group_id}`}
-            </option>
-          ))}
-      </select>
-      <div className="mb-4 sm:mb-6">
-        <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-700">
-          Or Create New Group
-        </label>
-        <div className="flex gap-2 sm:gap-3">
-          <input
-            type="text"
-            value={newGroupName}
-            onChange={(e) => setNewGroupName(e.target.value)}
-            className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-            placeholder="Enter group name"
-          />
-          <button
-            onClick={handleCreateGroup}
-            className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
-          >
-            Create
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-      {step === 4 && (
-        <div>
-          <div className="overflow-x-auto max-h-[300px] sm:max-h-[400px] border border-gray-200 rounded-lg">
-            <table className="w-full text-left text-gray-700">
-              <thead className="sticky top-0 bg-gray-100">
-                <tr>
-                  <th className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px]">Name</th>
-                  <th className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px]">Phone Number</th>
-                  <th className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px]">Email</th>
-                </tr>
-              </thead>
-              <tbody>
-                {uploadedData.map((row, index) => {
-                  const nameColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'name');
-                  const phoneColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'phone_number');
-                  const emailColumn = Object.keys(columnMappings).find((key) => columnMappings[key] === 'email');
-
-                  const phone_number = phoneColumn && row[phoneColumn]
-                    ? (file ? row[phoneColumn] : parsePhoneNumberFromString(row[phoneColumn], defaultCountry)?.format('E.164') || row[phoneColumn])
-                    : 'N/A';
-
-                  return (
-                    <tr key={index} className="border-b border-gray-200">
-                      <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
-                        {nameColumn ? row[nameColumn] || 'N/A' : 'N/A'}
-                      </td>
-                      <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
-                        {phone_number}
-                      </td>
-                      <td className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
-                        {emailColumn ? row[emailColumn] || 'N/A' : 'N/A'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-4 sm:mt-6">
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-[#005a6e] h-2 rounded-full" style={{ width: '100%' }}></div>
-            </div>
-            <p className="text-gray-600 text-right mt-1 sm:mt-2 text-xs sm:text-sm">Completed</p>
-          </div>
-          <div className="flex flex-wrap justify-between mt-2 sm:mt-4 gap-2">
-            <div className="flex flex-wrap space-x-2 gap-2">
-              <span className="px-2 sm:px-3 py-1 sm:py-2 rounded border border-[#005a6e] text-[#005a6e] text-xs sm:text-sm">
-                Total Records: {uploadedData.length}
-              </span>
-              <span className="px-2 sm:px-3 py-1 sm:py-2 rounded border border-red-500 text-red-500 text-xs sm:text-sm">
-                Invalid Records: {invalid}
-              </span>
-              <span className="px-2 sm:px-3 py-1 sm:py-2 rounded border border-yellow-500 text-yellow-500 text-xs sm:text-sm">
-                Duplicate Emails: {duplicates.email}
-              </span>
-              <span className="px-2 sm:px-3 py-1 sm:py-2 rounded border border-yellow-500 text-yellow-500 text-xs sm:text-sm">
-                Duplicate Phones: {duplicates.phone}
-              </span>
-              <span className="px-2 sm:px-3 py-1 sm:py-2 rounded border border-green-500 text-green-500 text-xs sm:text-sm">
-                Valid Records: {uploadedData.length - invalid - duplicates.email}
-              </span>
+            </select>
+            <div className="mb-4 sm:mb-6">
+              <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-700">
+                Or Create New Group
+              </label>
+              <div className="flex gap-2 sm:gap-3">
+                <input
+                  type="text"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+                  placeholder="Enter group name"
+                />
+                <button
+                  onClick={handleCreateGroup}
+                  className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
+                >
+                  Create
+                </button>
+              </div>
             </div>
           </div>
         </div>
