@@ -669,48 +669,47 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       )}
 
       {step === 3 && (
-        <div>
-          <div className="mb-4 sm:mb-6">
-            <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-700">
-              Select Group
-            </label>
-            <select
-              value={selectedGroup}
-              onChange={(e) => setSelectedGroup(e.target.value)}
-              className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] mb-4 sm:mb-6"
-            >
-              <option value="all">All Contacts</option>
-              {groups
-                .filter((group) => group.group_id && group.group_id !== 'all')
-                .map((group) => (
-                  <option key={group.group_id} value={group.group_id}>
-                    {group.name || `Group ${group.group_id}`}
-                  </option>
-                ))}
-            </select>
-            <div className="mb-4 sm:mb-6">
-              <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-700">
-                Or Create New Group
-              </label>
-              <div className="flex gap-2 sm:gap-3">
-                <input
-                  type="text"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-                  placeholder="Enter group name"
-                />
-                <button
-                  onClick={handleCreateGroup}
-                  className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
-                >
-                  Create
-                </button>
-              </div>
-            </div>
-          </div>
+  <div>
+    <div className="mb-4 sm:mb-6">
+      <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-700">
+        Select Group
+      </label>
+      <select
+        value={selectedGroup}
+        onChange={(e) => setSelectedGroup(e.target.value)}
+        className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] mb-4 sm:mb-6"
+      >
+        {groups
+          .filter((group) => group.group_id && group.group_id !== 'all')
+          .map((group) => (
+            <option key={group.group_id} value={group.group_id}>
+              {group.name || `Group ${group.group_id}`}
+            </option>
+          ))}
+      </select>
+      <div className="mb-4 sm:mb-6">
+        <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-700">
+          Or Create New Group
+        </label>
+        <div className="flex gap-2 sm:gap-3">
+          <input
+            type="text"
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+            placeholder="Enter group name"
+          />
+          <button
+            onClick={handleCreateGroup}
+            className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
+          >
+            Create
+          </button>
         </div>
-      )}
+      </div>
+    </div>
+  </div>
+)}
 
       {step === 4 && (
         <div>
@@ -1089,65 +1088,74 @@ const Contacts: React.FC = () => {
   );
 
   const handleImportSubmit = useCallback(
-    async (groupId: string, data: File | Contact[], sourceType: 'file' | 'text' | 'phonebook') => {
-      if (!currentWorkspaceId) {
-        setError('No workspace selected.');
-        return;
-      }
+  async (groupId: string, data: File | Contact[], sourceType: 'file' | 'text' | 'phonebook') => {
+    if (!currentWorkspaceId) {
+      setError('No workspace selected.');
+      return;
+    }
 
-      setIsLoading(true);
-      try {
-        let fileToUpload: File;
+    setIsLoading(true);
+    try {
+      let fileToUpload: File;
 
-        if (sourceType === 'file' && data instanceof File) {
-          fileToUpload = data;
-        } else if ((sourceType === 'text' || sourceType === 'phonebook') && Array.isArray(data)) {
-          const validContacts = data
-            .map((contact) => {
-              const parsedPhone = parsePhoneNumberFromString(contact.phone_number, 'TZ');
-              if (!parsedPhone || !parsedPhone.isValid() || !contact.name.trim()) {
-                return null;
-              }
-              return {
-                name: contact.name.trim(),
-                phone_number: parsedPhone.format('E.164'),
-                email: contact.email?.trim() || '',
-              };
-            })
-            .filter((contact): contact is { name: string; phone_number: string; email: string } => contact !== null);
+      if (sourceType === 'file' && data instanceof File) {
+        fileToUpload = data;
+      } else if ((sourceType === 'text' || sourceType === 'phonebook') && Array.isArray(data)) {
+        const validContacts = data
+          .map((contact) => {
+            const parsedPhone = parsePhoneNumberFromString(contact.phone_number, 'TZ');
+            if (!parsedPhone || !parsedPhone.isValid() || !contact.name.trim()) {
+              return null;
+            }
+            return {
+              name: contact.name.trim(),
+              phone_number: parsedPhone.format('E.164'),
+              email: contact.email?.trim() || '',
+            };
+          })
+          .filter((contact): contact is { name: string; phone_number: string; email: string } => contact !== null);
 
-          if (validContacts.length === 0) {
-            throw new Error('No valid contacts found after validation.');
-          }
-
-          const csv = Papa.unparse(validContacts, {
-            header: true,
-            columns: ['name', 'phone_number', 'email'],
-          });
-          const blob = new Blob([csv], { type: 'text/csv' });
-          fileToUpload = new File([blob], 'contacts.csv', { type: 'text/csv' });
-        } else {
-          throw new Error('Invalid data type for upload.');
+        if (validContacts.length === 0) {
+          throw new Error('No valid contacts found after validation.');
         }
 
-        const responseMap = await bulkUploadContacts(currentWorkspaceId, fileToUpload, groupId || 'all');
-        const response = Array.from(responseMap.values())[0];
-        if (!response.success) {
-          throw new Error(response.message || 'Bulk upload failed.');
-        }
-
-        await fetchContactsAndGroups();
-        setError(null);
-        setSelectedGroup(groupId);
-        alert(`Successfully imported ${response.contacts?.length || 0} contacts.`);
-      } catch (err: any) {
-        setError(err.message || 'Failed to import contacts.');
-      } finally {
-        setIsLoading(false);
+        const csv = Papa.unparse(validContacts, {
+          header: true,
+          columns: ['name', 'phone_number', 'email'],
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        fileToUpload = new File([blob], 'contacts.csv', { type: 'text/csv' });
+      } else {
+        throw new Error('Invalid data type for upload.');
       }
-    },
-    [currentWorkspaceId, fetchContactsAndGroups]
-  );
+
+      // Ensure groupId is a valid group ID, fallback to first group if 'all'
+      const effectiveGroupId = groupId === 'all' && groups.length > 1 
+        ? groups.find(g => g.group_id !== 'all')?.group_id 
+        : groupId;
+      if (!effectiveGroupId || effectiveGroupId === 'all') {
+        throw new Error('Please select a valid group or create a new one.');
+      }
+
+      console.log("Uploading to group_id:", effectiveGroupId); // Debug log
+      const response = await bulkUploadContacts(currentWorkspaceId, fileToUpload, effectiveGroupId);
+      if (!response.success) {
+        throw new Error(response.message || 'Bulk upload failed.');
+      }
+
+      await fetchContactsAndGroups();
+      setError(null);
+      setSelectedGroup(effectiveGroupId);
+      alert(`Successfully imported ${response.contacts?.length || 0} contacts.`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to import contacts.');
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [currentWorkspaceId, fetchContactsAndGroups, groups]
+);
+
 
   const downloadTemplate = useCallback(() => {
     const csv = Papa.unparse([{
