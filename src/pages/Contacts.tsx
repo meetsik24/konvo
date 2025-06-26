@@ -249,13 +249,6 @@ interface ImportModalProps {
   setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
 }
 
-interface UploadStats {
-  totalContacts: number;
-  duplicates: number;
-  formatErrors: number;
-  uploaded: number;
-}
-
 const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, groups, setGroups }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(1);
@@ -266,7 +259,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   const [previewData, setPreviewData] = useState<UploadedContact[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [stats, setStats] = useState<UploadStats>({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
   const { currentWorkspaceId } = useWorkspace();
   const MAX_FILE_SIZE_MB = 10;
 
@@ -277,8 +269,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
     if (!uploadedFile) return;
 
     if (uploadedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      setError(`File exceeds ${MAX_FILE_SIZE_MB}MB. Please upload a smaller file.`);
-      setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
+      setError(`File size exceeds ${MAX_FILE_SIZE_MB}MB limit. Please upload a smaller file.`);
       return;
     }
 
@@ -297,42 +288,28 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       reader.onload = (event) => {
         try {
           const text = event.target?.result as string;
-          const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+          const parsed = Papa.parse(text, { header: true, preview: 5, skipEmptyLines: true });
           const headers = parsed.meta.fields as string[] | undefined;
           if (!headers || !headers.includes('name') || !headers.includes('phone_number')) {
-            setError('CSV must include "name" and "phone_number" columns.');
-            setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
+            setError('CSV file must contain "name" and "phone_number" columns.');
             return;
           }
 
-          const allData = parsed.data as any[];
-          const formattedData = allData.map((row) => {
+          // Validate and convert data
+          const formattedData = parsed.data.map((row: any) => {
             const name = row.name?.toString().trim() || '';
             let phone_number = row.phone_number?.toString().trim() || '';
             const email = row.email?.toString().trim() || '';
 
             if (!name) {
-              setStats((prev) => ({ ...prev, formatErrors: prev.formatErrors + 1 }));
+              setError('One or more rows are missing a name. Please correct the CSV file.');
               return null;
-            }
-
-            // Reformat +255 or 255 to E.164
-            if (phone_number.startsWith('+255')) {
-              const digits = phone_number.replace(/^\+255/, '').trim();
-              phone_number = digits.length === 9 ? `+255${digits}` : phone_number;
-            } else if (phone_number.startsWith('255')) {
-              const digits = phone_number.replace(/^255/, '').trim();
-              phone_number = digits.length === 9 ? `+255${digits}` : `+${phone_number}`;
             }
 
             const parsedPhone = parsePhoneNumberFromString(phone_number, 'TZ');
             if (!parsedPhone || !parsedPhone.isValid()) {
-              const fallbackParsed = parsePhoneNumberFromString(phone_number, 'US');
+              const fallbackParsed = parsePhoneNumberFromString(phone_number, 'US'); // Try fallback country
               phone_number = fallbackParsed?.format('E.164') || phone_number;
-              if (!/^\+\d{10,15}$/.test(phone_number)) {
-                setStats((prev) => ({ ...prev, formatErrors: prev.formatErrors + 1 }));
-                return null;
-              }
             } else {
               phone_number = parsedPhone.format('E.164');
             }
@@ -341,46 +318,21 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
           }).filter((row): row is UploadedContact => row !== null);
 
           if (formattedData.length === 0) {
-            setError('No valid contacts found. Please check the CSV file.');
-            setStats({ totalContacts: allData.length, duplicates: 0, formatErrors: allData.length, uploaded: 0 });
+            setError('No valid contacts found after formatting. Please check the CSV file.');
             return;
           }
 
-          // Check for duplicates and filter them out
-          const phoneNumbers = new Set();
-          const uniqueData = formattedData.filter((contact) => {
-            if (phoneNumbers.has(contact.phone_number)) {
-              setStats((prev) => ({ ...prev, duplicates: prev.duplicates + 1 }));
-              return false;
-            }
-            phoneNumbers.add(contact.phone_number);
-            return true;
-          });
-
-          setStats({
-            totalContacts: allData.length,
-            duplicates: allData.length - uniqueData.length - (allData.length - formattedData.length),
-            formatErrors: allData.length - formattedData.length,
-            uploaded: 0,
-          });
-
           setFile(uploadedFile);
-          setPreviewData(uniqueData); // Use unique data for preview
+          setPreviewData(formattedData);
           setStep(2);
-          setError(null);
         } catch (err: any) {
-          setError(`Error processing CSV: ${err.message}. Please use a valid file.`);
-          setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
+          setError(`Failed to process CSV file: ${err.message}. Ensure the file is not corrupted.`);
         }
       };
-      reader.onerror = () => {
-        setError('Failed to read the file. Please try again.');
-        setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
-      };
+      reader.onerror = () => setError('Failed to read the file. Please try again.');
       reader.readAsText(uploadedFile);
     } else {
       setError('Unsupported file format. Please upload a CSV or Excel file.');
-      setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
     }
   };
 
@@ -406,16 +358,16 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   };
 
   const handleFinalImport = async () => {
-    let interval: NodeJS.Timeout;
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected. Please select a workspace.');
-      if (!file) throw new Error('No file selected. Please upload a CSV file.');
+      if (!file) throw new Error('No file selected for upload. Please upload a CSV file.');
       if (!selectedGroup || selectedGroup === 'all') throw new Error('Please select a valid group or create a new one.');
 
       setIsUploading(true);
       setUploadProgress(0);
 
-      interval = setInterval(() => {
+      // Simulate progress updates (replace with actual API progress if supported)
+      const interval = setInterval(() => {
         setUploadProgress((prev) => Math.min(prev + 20, 80));
       }, 500);
 
@@ -426,23 +378,17 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       setUploadProgress(100);
 
       if (!response.success) {
-        setError('Upload failed. Please check the file and try again.');
-        setStats((prev) => ({ ...prev, uploaded: 0 }));
-        return;
+        throw new Error(`Bulk upload failed: ${response.message || 'Please check the file format and try again.'}`);
       }
 
-      const uploadedCount = response.contacts?.length || 0;
-      setStats((prev) => ({ ...prev, uploaded: uploadedCount }));
-      alert(`${stats.duplicates} contacts were duplicates and ignored. ${uploadedCount} contacts uploaded successfully at 06:23 PM EAT, June 25, 2025.`);
-      setError(null);
-      onClose(); // Exit modal on success
+      alert(`Successfully imported ${response.contacts?.length || 0} contacts at ${new Date().toLocaleString('en-US', { timeZone: 'Africa/Nairobi' })}.`);
+      onClose(); // Close modal after successful upload
     } catch (err: any) {
-      setError('Upload failed. Please check the file and try again.');
-      setStats((prev) => ({ ...prev, uploaded: 0 }));
+      setError(`Import failed: ${err.message}. Please verify the file and try again.`);
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
-      if (interval) clearInterval(interval);
+      clearInterval(interval); // Ensure interval is cleared
     }
   };
 
@@ -465,7 +411,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         setError(null);
         setIsUploading(false);
         setUploadProgress(0);
-        setStats({ totalContacts: 0, duplicates: 0, formatErrors: 0, uploaded: 0 });
         onClose();
       }}
       title="Import Contacts"
@@ -611,29 +556,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
           )}
         </div>
       )}
-
-      {/* Stats Tabs */}
-      <div className="mt-4 sm:mt-6 border-t border-gray-200 pt-2 sm:pt-3">
-        <h3 className="text-sm sm:text-base font-medium text-gray-700 mb-2">Upload Summary</h3>
-        <div className="flex flex-wrap gap-2 sm:gap-3 text-xs sm:text-sm">
-          <div className="flex-1 min-w-[100px] p-2 sm:p-3 bg-gray-50 rounded-lg">
-            <p className="font-medium text-gray-700">Total Contacts</p>
-            <p className="text-[#00333e]">{stats.totalContacts}</p>
-          </div>
-          <div className="flex-1 min-w-[100px] p-2 sm:p-3 bg-gray-50 rounded-lg">
-            <p className="font-medium text-gray-700">Duplicates</p>
-            <p className="text-[#00333e]">{stats.duplicates}</p>
-          </div>
-          <div className="flex-1 min-w-[100px] p-2 sm:p-3 bg-gray-50 rounded-lg">
-            <p className="font-medium text-gray-700">Format Errors</p>
-            <p className="text-[#00333e]">{stats.formatErrors}</p>
-          </div>
-          <div className="flex-1 min-w-[100px] p-2 sm:p-3 bg-gray-50 rounded-lg">
-            <p className="font-medium text-gray-700">Uploaded</p>
-            <p className="text-[#00333e]">{stats.uploaded}</p>
-          </div>
-        </div>
-      </div>
     </Modal>
   );
 };
