@@ -87,8 +87,14 @@ interface ContactsResponse {
 }
 
 interface BulkUploadResponse {
-  success: boolean;
-  message?: string;
+  success?: boolean;
+  message?: {
+    invalid?: any[];
+    message?: string;
+    status?: string;
+    valid?: any[];
+    contacts?: Contact[];
+  } | string;
   contacts?: Contact[];
 }
 
@@ -241,14 +247,6 @@ interface ImportModalProps {
   setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
 }
 
-interface ImportModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (groupId: string, data: File, sourceType: 'file') => void;
-  groups: Group[];
-  setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
-}
-
 const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, groups, setGroups }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(1);
@@ -357,6 +355,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
     }
   };
 
+  let interval: NodeJS.Timeout | undefined;
+
   const handleFinalImport = async () => {
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected. Please select a workspace.');
@@ -367,7 +367,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       setUploadProgress(0);
 
       // Simulate progress updates (replace with actual API progress if supported)
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         setUploadProgress((prev) => Math.min(prev + 20, 80));
       }, 500);
 
@@ -377,18 +377,53 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       clearInterval(interval);
       setUploadProgress(100);
 
-      if (!response.success) {
-        throw new Error(`Bulk upload failed: ${response.message || 'Please check the file format and try again.'}`);
+      // Handle nested response structure
+      const responseData = typeof response.message === 'object' ? response.message : response;
+      const status = typeof responseData === 'object' ? responseData.status : undefined;
+      const message = typeof responseData === 'object' ? responseData.message : undefined;
+      
+      // Treat both 'started' and 'success' as successful responses
+      if (response.success || status === 'started' || status === 'success') {
+        let validCount = 0;
+        let invalidCount = 0;
+        
+        // Try to get counts from arrays first
+        if (typeof responseData === 'object') {
+          validCount = responseData.valid?.length || responseData.contacts?.length || 0;
+          invalidCount = responseData.invalid?.length || 0;
+        }
+        
+        // If arrays are not available, try to extract from message text
+        if (validCount === 0 && typeof responseData === 'object' && responseData.message) {
+          const messageText = responseData.message;
+          const validMatch = messageText.match(/Processing (\d+) valid contacts/);
+          const invalidMatch = messageText.match(/Invalid (\d+) contacts found/);
+          
+          if (validMatch) {
+            validCount = parseInt(validMatch[1], 10);
+          }
+          if (invalidMatch) {
+            invalidCount = parseInt(invalidMatch[1], 10);
+          }
+        }
+        
+        let alertMessage = `Successfully processed ${validCount} contacts`;
+        if (invalidCount > 0) {
+          alertMessage += ` (${invalidCount} invalid contacts skipped)`;
+        }
+        alertMessage += ` at ${new Date().toLocaleString('en-US', { timeZone: 'Africa/Nairobi' })}.`;
+        
+        alert(alertMessage);
+        onClose(); // Close modal after successful upload
+      } else {
+        throw new Error(`Bulk upload failed: ${message || 'Please check the file format and try again.'}`);
       }
-
-      alert(`Successfully imported ${response.contacts?.length || 0} contacts at ${new Date().toLocaleString('en-US', { timeZone: 'Africa/Nairobi' })}.`);
-      onClose(); // Close modal after successful upload
     } catch (err: any) {
-      setError(`Import failed: ${err.message}. Please verify the file and try again.`);
+      setError(err.message || 'Failed to import contacts.');
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
-      clearInterval(interval); // Ensure interval is cleared
+      if (interval) clearInterval(interval); // Ensure interval is cleared
     }
   };
 

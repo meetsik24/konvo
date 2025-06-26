@@ -468,6 +468,7 @@ export const bulkUploadContacts = async (workspace_id: string, file: File, group
         console.log(`Upload progress: ${percentCompleted}%`);
       },
     });
+    console.log("bulkUploadContacts API response:", response.data);
     return response.data as BulkUploadResponse;
   } catch (error: any) {
     console.error("bulkUploadContacts API error:", error.response?.data || error);
