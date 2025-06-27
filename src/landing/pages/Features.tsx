@@ -218,7 +218,7 @@ function Features() {
             <img
               src={linesImage}
               alt="Your Business Amplified"
-              className="w-full h-auto object-cover shadow-lg"
+              className="w-full h-auto object-cover "
             />
           </div>
         </div>

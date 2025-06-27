@@ -24,6 +24,7 @@
     "gsap": "^3.12.7",
     "howler": "^2.2.4",
     "jwt-decode": "^4.0.0",
+    "libphonenumber-js": "^1.12.9",
     "lottie-react": "^2.4.0",
     "lucide-react": "^0.475.0",
     "papaparse": "^5.5.2",

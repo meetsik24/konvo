@@ -34,8 +34,8 @@ export const store = configureStore({
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
         ignoredPaths: ['auth.user'],
       },
-    }), // No .concat(thunk) needed
-  devTools: process.env.NODE_ENV !== 'production',
+    }), // Add redux-thunk middleware
+  devTools: process.env.NODE_ENV !== 'production', // Enable Redux DevTools in development
 });
 
 export const persistor = persistStore(store);

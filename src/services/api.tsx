@@ -68,6 +68,14 @@ interface Contact {
   created_at: string;
 }
 
+interface BulkUploadResponse {
+  contacts: Contact[];
+  total_count?: number;
+  success: boolean;
+  message?: string;
+}
+
+
 interface ContactsResponse {
   contacts: Contact[];
   total_count: number;
@@ -456,7 +464,6 @@ export const getContacts = async (
 };
 
 
-
 export const createContact = async (data: {
   name: string;
   phone_number: string;
@@ -473,21 +480,54 @@ export const createContact = async (data: {
     handleApiError(error, "Failed to create contact");
   }
 };
-
-export const bulkUploadContacts = async (workspaceId: string, file: File): Promise<any> => {
-  console.log("bulkUploadContacts API call initiated for workspace:", workspaceId);
+export const bulkUploadContacts = async (
+  workspace_id: string, 
+  file: File, 
+  group_id: string
+): Promise<BulkUploadResponse & { status: number }> => {
   try {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("workspace_id", workspaceId);
-    const response = await api.post("/contacts/bulk-upload", formData, {
+    formData.append("group_id", group_id);
+    
+    const response = await api.post(`/contacts/${workspace_id}/${group_id}/bulk-upload`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+        console.log(`Upload progress: ${percentCompleted}%`);
+      },
     });
+    
     console.log("bulkUploadContacts API response:", response.data);
-    return response.data;
+    console.log("HTTP Status Code:", response.status);
+    
+    // Return both the response data and status code
+    return {
+      ...response.data,
+      status: response.status
+    } as BulkUploadResponse & { status: number };
+    
   } catch (error: any) {
+    console.error("bulkUploadContacts API error:", error.response?.data || error);
+    
+    // If it's a progress code, don't treat as error
+    if (error.response?.status && isProgressCode(error.response.status)) {
+      return {
+        ...error.response.data,
+        status: error.response.status,
+        success: false // Keep success false but status indicates progress
+      };
+    }
+    
     handleApiError(error, "Failed to bulk upload contacts");
+    throw error;
   }
+};
+
+// Helper function (can be shared/imported)
+const isProgressCode = (statusCode: number): boolean => {
+  const progressCodes = [202, 206, 102];
+  return progressCodes.includes(statusCode);
 };
 
 export const updateContact = async (contactId: string, contact: Partial<Contact>): Promise<Contact> => {
@@ -596,6 +636,7 @@ export const deleteGroup = async (groupId: string): Promise<void> => {
   }
 };
 
+
 export const getGroupContacts = async (
   workspaceId: string,
   groupId: string,
@@ -603,14 +644,20 @@ export const getGroupContacts = async (
   perPage: number = 50
 ): Promise<ContactsResponse> => {
   try {
-    console.log(`Fetching contacts for group ${groupId} in workspace ${workspaceId}`);
+    console.log(`Fetching contacts for group ${groupId}, page ${page}, perPage ${perPage}`);
     const response = await api.get(`/workspaces/${workspaceId}/groups/${groupId}/contacts`, {
       params: { page, per_page: perPage },
     });
     console.log(`Raw getGroupContacts response for group ${groupId}:`, response.data);
+    if (!response.data || !Array.isArray(response.data.contacts)) {
+      console.warn(`Invalid response structure for group ${groupId}`, response.data);
+      return { contacts: [], total_count: 0, total_pages: 0, current_page: page };
+    }
     return response.data;
   } catch (error: any) {
+    console.error(`Failed to fetch contacts for group ${groupId}:`, error);
     handleApiError(error, `Failed to fetch contacts for group ${groupId}`);
+    return { contacts: [], total_count: 0, total_pages: 0, current_page: page };
   }
 };
 
