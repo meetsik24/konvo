@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
@@ -20,6 +21,7 @@ interface Notification {
 interface NavbarProps {
   isSidebarOpen?: boolean;
   toggleSidebar: () => void;
+  closeSidebar?: () => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
@@ -175,7 +177,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
       <>
         {/* Mobile: Centered Pop-Up */}
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:hidden">
-          <div className="bg-white border rounded-xl w-full max-w-[90vw] max-h-[80vh] overflow-y-auto">
+          <div className="bg-white border rounded-xl shadow-lg w-full max-w-[90vw] max-h-[80vh] overflow-y-auto">
             <div className="p-3 border-b flex justify-between items-center">
               <h3 className="text-sm font-semibold text-gray-800">Notifications</h3>
               <button
@@ -237,7 +239,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         </div>
 
         {/* Desktop: Dropdown */}
-        <div className="hidden sm:block absolute right-0 mt-2 w-72 bg-white border rounded-xl z-10 max-h-80 overflow-y-auto">
+        <div className="hidden sm:block absolute right-0 mt-2 w-72 bg-white border rounded-xl shadow-lg z-10 max-h-80 overflow-y-auto">
           <div className="p-3 border-b">
             <h3 className="text-base font-semibold text-gray-800">Notifications</h3>
           </div>
@@ -304,7 +306,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         }}
       >
         <div
-          className="bg-white border border-gray-200 rounded-2xl w-full max-w-[90vw] sm:max-w-sm max-h-[90vh] sm:max-h-[80vh] overflow-y-auto"
+          className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-[90vw] sm:max-w-sm max-h-[90vh] sm:max-h-[80vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -424,12 +426,12 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
   return (
     <>
-      {/* Mobile Navbar (visible on mobile, hidden on desktop) */}
-      <nav className="bg-white fixed top-0 left-0 right-0 w-full z-50 border-b border-gray-200 sm:hidden">
-        <div className="px-3 mx-auto max-w-7xl">
-          <div className="flex justify-between items-center h-12"> {/* Reduced height to h-12 */}
-            {/* Left Side: Hamburger Menu */}
-            <div className="flex items-center">
+      {/* Mobile Navbar (hidden on desktop) */}
+      <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50 sm:hidden">
+        <div className="px-3 sm:px-5 mx-auto max-w-7xl">
+          <div className="flex justify-between items-center h-14 sm:h-16">
+            {/* Left Side: Hamburger Menu and Logo */}
+            <div className="flex items-center gap-2">
               <button
                 onClick={toggleSidebar}
                 className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300"
@@ -438,19 +440,28 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
               >
                 {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
+              <Link to="/" className="flex items-center">
+                <motion.img
+                  src="/assets/briq2.png"
+                  alt="Briq Logo"
+                  className="w-10 h-10"
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                />
+              </Link>
             </div>
 
-            {/* Right Side: Actions (aligned to the far right) */}
-            <div className="flex items-center gap-2">
+            {/* Right Side: Actions */}
+            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
               {/* Notifications */}
               <div className="relative">
                 <button
                   onClick={() => setIsNotificationOpen(!isNotificationOpen)}
                   className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 relative"
                 >
-                  <Bell className="w-5 h-5" />
+                  <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    <span className="absolute top-0 right-0 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                       {unreadCount}
                     </span>
                   )}
@@ -462,10 +473,10 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
               <div className="relative">
                 <button
                   onClick={() => setIsWorkspaceModalOpen(true)}
-                  className="flex items-center gap-1 px-2 py-1 text-[#00333e] rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 text-xs font-medium border border-transparent hover:border-[#fddf0d]"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 text-[#00333e] rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 text-xs sm:text-sm font-medium border border-transparent hover:border-[#fddf0d]"
                   disabled={isLoading || workspaceLoading}
                 >
-                  <Building className="w-4 h-4" />
+                  <Building className="w-4 h-4 sm:w-5 sm:h-5" />
                   Workspace
                 </button>
                 {isWorkspaceModalOpen && workspaceModal}
@@ -476,13 +487,13 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 to="/account"
                 className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300"
               >
-                <Settings className="w-5 h-5" />
+                <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
               </Link>
 
               {/* Avatar */}
-              <div className="flex items-center gap-1 bg-[#fddf0d] px-2 py-1 rounded-full">
+              <div className="flex items-center gap-1 sm:gap-2 bg-[#fddf0d] px-2 sm:px-3 py-1 sm:py-2 rounded-full">
                 <img
-                  className="w-6 h-6 rounded-full border-2 border-green-500 hover:border-[#00333e] transition-all duration-300" // Reduced size for smaller Navbar
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-green-500 hover:border-[#00333e] transition-all duration-300"
                   src={avatarUrl}
                   alt={user?.username || 'User'}
                   onError={(e) => {
@@ -497,26 +508,26 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 onClick={handleLogout}
                 className="p-2 text-[#00333e] rounded-full hover:bg-red-500 hover:text-white transition-all duration-300"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Desktop Navbar (visible on desktop, hidden on mobile) */}
-      <nav className="bg-white fixed top-0 left-56 right-0 z-50 border-b border-gray-200 hidden sm:block"> {/* Starts after Sidebar's w-56 */}
-        <div className="px-4 mx-auto ">
-          <div className="flex justify-end items-center h-12"> {/* Reduced height to h-14, items aligned to far right */}
+      {/* Desktop Navbar (hidden on mobile) */}
+      <nav className="bg-white shadow-md fixed top-0 left-64 w-[calc(100%-256px)] z-50 hidden sm:block">
+        <div className="px-4 sm:px-3">
+          <div className="flex justify-end items-center h-16">
             {/* Right Side: Actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               {/* Notifications */}
               <div className="relative">
                 <button
                   onClick={() => setIsNotificationOpen(!isNotificationOpen)}
                   className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 relative"
                 >
-                  <Bell className="w-5 h-5" /> {/* Adjusted size for smaller Navbar */}
+                  <Bell className="w-6 h-6" />
                   {unreadCount > 0 && (
                     <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                       {unreadCount}
@@ -529,7 +540,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
               {/* Workspace Button */}
               <button
                 onClick={() => setIsWorkspaceModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-1 text-[#00333e] rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 text-sm font-medium border border-transparent hover:border-[#fddf0d] hidden md:flex"
+                className="flex items-center gap-2 px-3 py-2 text-[#00333e] rounded-lg hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300 text-sm font-medium border border-transparent hover:border-[#fddf0d] hidden md:flex"
                 disabled={isLoading || workspaceLoading}
               >
                 <Building className="w-5 h-5" />
@@ -542,13 +553,13 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 to="/account"
                 className="p-2 text-[#00333e] rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-all duration-300"
               >
-                <Settings className="w-5 h-5" /> {/* Adjusted size for smaller Navbar */}
+                <Settings className="w-6 h-6" />
               </Link>
 
               {/* Avatar */}
-              <div className="flex items-center gap-2  px-3 py-1 ">
+              <div className="flex items-center gap-2 bg-[#fddf0d] px-3 py-2 rounded-full">
                 <img
-                  className="w-7 h-7 rounded-full border-2 border-green-500 hover:border-[#00333e] transition-all duration-300" // Reduced size for smaller Navbar
+                  className="w-8 h-8 rounded-full border-2 border-green-500 hover:border-[#00333e] transition-all duration-300"
                   src={avatarUrl}
                   alt={user?.username || 'User'}
                   onError={(e) => (e.currentTarget.src = '/assets/default-avatar.png')}
@@ -564,7 +575,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 onClick={handleLogout}
                 className="p-2 text-[#00333e] rounded-full hover:bg-red-500 hover:text-white transition-all duration-300"
               >
-                <LogOut className="w-5 h-5" /> {/* Adjusted size for smaller Navbar */}
+                <LogOut className="w-6 h-6" />
               </button>
             </div>
           </div>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
@@ -15,7 +16,7 @@ const Layout: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-100"> {/* Added background class */}
       {/* Sidebar */}
       <Sidebar isSidebarOpen={isSidebarOpen} closeSidebar={closeSidebar} />
 
@@ -27,14 +28,14 @@ const Layout: React.FC = () => {
         {/* Overlay for mobile */}
         {isSidebarOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-30 sm:hidden transition-opacity duration-300"
+            className="fixed inset-0 bg-black bg-opacity-50 z-30 sm:hidden"
             onClick={closeSidebar}
           />
         )}
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto pt-12 sm:pt-14"> {/* Adjusted padding for new Navbar height */}
-          <div className="flex justify-center items-start px-4 sm:px-6 py-6 bg-gray-100 min-h-screen">
+        <main className="flex-1 overflow-y-auto pt-14 sm:pt-16">
+          <div className="flex justify-center items-start px-4 sm:px-6 py-6 h-full">
             <div className="w-full max-w-5xl">
               <Outlet />
             </div>
