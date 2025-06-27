@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, Component } from 'react';
-import { motion } from 'framer-motion';
-import { Users, Upload, Trash2, Edit2, Search, UserPlus, FolderPlus, Download, X, Book, ArrowLeft, Plus, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Users, Upload, Trash2, Edit2, Search, UserPlus, FolderPlus, Download, X, ArrowLeft, Plus, ChevronDown, CheckCircle } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
@@ -39,16 +39,14 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-3 sm:p-4 text-red-400 bg-red-50 rounded">
-          <h2 className="text-base sm:text-lg font-semibold">Something went wrong.</h2>
-          <p className="text-sm sm:text-base">
-            {this.state.error?.message || 'An unexpected error occurred.'}
-          </p>
+        <div className="p-4 text-red-400 bg-red-50 rounded-lg">
+          <h2 className="text-lg font-semibold">Something went wrong.</h2>
+          <p className="text-base">{this.state.error?.message || 'An unexpected error occurred.'}</p>
           <button
             onClick={() => this.setState({ hasError: false })}
-            className="mt-1 sm:mt-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
+            className="mt-2 text-sm py-2 px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
           >
-            Try Again
+ spa            Try Again
           </button>
         </div>
       );
@@ -86,18 +84,6 @@ interface ContactsResponse {
   current_page: number;
 }
 
-interface BulkUploadResponse {
-  success?: boolean;
-  message?: {
-    invalid?: any[];
-    message?: string;
-    status?: string;
-    valid?: any[];
-    contacts?: Contact[];
-  } | string;
-  contacts?: Contact[];
-}
-
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -124,35 +110,35 @@ const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
-      <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-full sm:max-w-md md:max-w-lg lg:max-w-3xl">
-        <div className="flex justify-between items-center mb-3 sm:mb-4">
-          <h2 className="text-lg sm:text-xl font-semibold text-[#00333e]">{title}</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-[#00333e]">{title}</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="space-y-3 sm:space-y-4">{children}</div>
-        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+        <div className="space-y-4">{children}</div>
+        <div className="flex justify-end gap-3 mt-4">
           {showBackButton && onBack && (
             <button
               onClick={onBack}
-              className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 flex items-center gap-1 sm:gap-2"
+              className="text-sm py-2 px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 flex items-center gap-2"
             >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ArrowLeft className="w-5 h-5" />
               Back
             </button>
           )}
           <button
             onClick={onClose}
-            className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+            className="text-sm py-2 px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
           >
             {cancelText}
           </button>
           {onSubmit && (
             <button
               onClick={onSubmit}
-              className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
+              className="text-sm py-2 px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
             >
               {submitText}
             </button>
@@ -187,39 +173,39 @@ const ContactModal: React.FC<ContactModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} onSubmit={handleSubmit} submitText={title}>
       <div>
-        <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Name</label>
+        <label className="block text-sm font-medium mb-1 text-gray-700">Name</label>
         <input
           type="text"
-          className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+          className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
           value={contact.name || ''}
           onChange={(e) => setContact({ ...contact, name: e.target.value })}
           required
         />
       </div>
       <div>
-        <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Phone Number</label>
+        <label className="block text-sm font-medium mb-1 text-gray-700">Phone Number</label>
         <input
           type="tel"
-          className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+          className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
           value={contact.phone_number || ''}
           onChange={(e) => setContact({ ...contact, phone_number: e.target.value })}
           required
         />
       </div>
       <div>
-        <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Email (Optional)</label>
+        <label className="block text-sm font-medium mb-1 text-gray-700">Email (Optional)</label>
         <input
           type="email"
-          className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+          className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
           value={contact.email || ''}
           onChange={(e) => setContact({ ...contact, email: e.target.value })}
         />
       </div>
       <div>
-        <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Assign to Groups</label>
+        <label className="block text-sm font-medium mb-1 text-gray-700">Assign to Groups</label>
         <select
           multiple
-          className="w-full min-h-[80px] sm:min-h-[100px] text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+          className="w-full min-h-[100px] text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
           value={contact.group_ids || []}
           onChange={(e) => {
             const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
@@ -259,8 +245,9 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
   const [uploadProgress, setUploadProgress] = useState(0);
   const { currentWorkspaceId } = useWorkspace();
   const MAX_FILE_SIZE_MB = 10;
-
-  const isMobile = /Mobi|Android/i.test(navigator.userAgent) || window.innerWidth < 640;
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [successSubMessage, setSuccessSubMessage] = useState('');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
@@ -293,7 +280,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
             return;
           }
 
-          // Validate and convert data
           const formattedData = parsed.data.map((row: any) => {
             const name = row.name?.toString().trim() || '';
             let phone_number = row.phone_number?.toString().trim() || '';
@@ -306,7 +292,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
 
             const parsedPhone = parsePhoneNumberFromString(phone_number, 'TZ');
             if (!parsedPhone || !parsedPhone.isValid()) {
-              const fallbackParsed = parsePhoneNumberFromString(phone_number, 'US'); // Try fallback country
+              const fallbackParsed = parsePhoneNumberFromString(phone_number, 'US');
               phone_number = fallbackParsed?.format('E.164') || phone_number;
             } else {
               phone_number = parsedPhone.format('E.164');
@@ -355,9 +341,9 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
     }
   };
 
-  let interval: NodeJS.Timeout | undefined;
-
   const handleFinalImport = async () => {
+    let interval: NodeJS.Timeout | null = null;
+    
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected. Please select a workspace.');
       if (!file) throw new Error('No file selected for upload. Please upload a CSV file.');
@@ -366,64 +352,49 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       setIsUploading(true);
       setUploadProgress(0);
 
-      // Simulate progress updates (replace with actual API progress if supported)
       interval = setInterval(() => {
         setUploadProgress((prev) => Math.min(prev + 20, 80));
       }, 500);
 
-      console.log("Uploading to group_id:", selectedGroup);
       const response = await bulkUploadContacts(currentWorkspaceId, file, selectedGroup);
 
-      clearInterval(interval);
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
       setUploadProgress(100);
 
-      // Handle nested response structure
-      const responseData = typeof response.message === 'object' ? response.message : response;
-      const status = typeof responseData === 'object' ? responseData.status : undefined;
-      const message = typeof responseData === 'object' ? responseData.message : undefined;
+      const isSuccessful = response.success || response.status === 202 || response.status === 206 || response.status === 102;
       
-      // Treat both 'started' and 'success' as successful responses
-      if (response.success || status === 'started' || status === 'success') {
-        let validCount = 0;
-        let invalidCount = 0;
-        
-        // Try to get counts from arrays first
-        if (typeof responseData === 'object') {
-          validCount = responseData.valid?.length || responseData.contacts?.length || 0;
-          invalidCount = responseData.invalid?.length || 0;
-        }
-        
-        // If arrays are not available, try to extract from message text
-        if (validCount === 0 && typeof responseData === 'object' && responseData.message) {
-          const messageText = responseData.message;
-          const validMatch = messageText.match(/Processing (\d+) valid contacts/);
-          const invalidMatch = messageText.match(/Invalid (\d+) contacts found/);
-          
-          if (validMatch) {
-            validCount = parseInt(validMatch[1], 10);
-          }
-          if (invalidMatch) {
-            invalidCount = parseInt(invalidMatch[1], 10);
-          }
-        }
-        
-        let alertMessage = `Successfully processed ${validCount} contacts`;
-        if (invalidCount > 0) {
-          alertMessage += ` (${invalidCount} invalid contacts skipped)`;
-        }
-        alertMessage += ` at ${new Date().toLocaleString('en-US', { timeZone: 'Africa/Nairobi' })}.`;
-        
-        alert(alertMessage);
-        onClose(); // Close modal after successful upload
-      } else {
-        throw new Error(`Bulk upload failed: ${message || 'Please check the file format and try again.'}`);
+      if (!isSuccessful) {
+        throw new Error(`Bulk upload failed: ${response.message || 'Please check the file format and try again.'}`);
       }
+
+      if (response.success) {
+        setSuccessMessage(`Successfully imported ${response.contacts?.length || 0} contacts!`);
+        setSuccessSubMessage(`Import completed at ${new Date().toLocaleString('en-US', { timeZone: 'Africa/Nairobi' })}`);
+      } else {
+        setSuccessMessage('Upload initiated successfully!');
+        setSuccessSubMessage(`Processing ${response.contacts?.length || 'your'} contacts. You'll be notified when complete.`);
+      }
+
+      setShowSuccessNotification(true);
+      
+      setTimeout(() => {
+        setShowSuccessNotification(false);
+        setTimeout(() => {
+          onClose();
+        }, 300);
+      }, 3000);
+      
     } catch (err: any) {
-      setError(err.message || 'Failed to import contacts.');
+      setError(`Import failed: ${err.message}. Please verify the file and try again.`);
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
-      if (interval) clearInterval(interval); // Ensure interval is cleared
+      if (interval) {
+        clearInterval(interval);
+      }
     }
   };
 
@@ -456,7 +427,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       showBackButton={step > 1}
     >
       {error && (
-        <div className="text-red-600 bg-red-50 p-3 sm:p-4 rounded-lg mb-3 sm:mb-4 text-xs sm:text-sm">
+        <div className="text-red-600 bg-red-50 p-4 rounded-lg mb-4 text-sm">
           <p className="font-semibold">Error:</p>
           <p>{error}</p>
         </div>
@@ -464,7 +435,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
 
       <div className="flex items-center justify-between mb-4 overflow-x-auto">
         {['Upload File', 'Select Group'].map((label, index) => (
-          <div key={label} className="flex items-center min-w-[100px] sm:min-w-[120px]">
+          <div key={label} className="flex items-center min-w-[120px]">
             <div
               className={`w-6 h-6 rounded-full flex items-center justify-center ${
                 step >= index + 1 ? 'bg-[#fddf0d] text-[#00333e]' : 'bg-gray-300 text-gray-600'
@@ -473,20 +444,20 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
               {index + 1}
             </div>
             <span
-              className={`ml-2 text-xs sm:text-sm ${step >= index + 1 ? 'text-[#fddf0d]' : 'text-gray-400'} truncate`}
+              className={`ml-2 text-sm ${step >= index + 1 ? 'text-[#fddf0d]' : 'text-gray-400'} truncate`}
             >
               {label}
             </span>
-            {index < 1 && <div className="w-6 sm:w-12 h-1 bg-gray-300 mx-1 sm:mx-2" />}
+            {index < 1 && <div className="w-12 h-1 bg-gray-300 mx-2" />}
           </div>
         ))}
       </div>
 
       {step === 1 && (
-        <div className="space-y-4 sm:space-y-6">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
-            <Upload className="w-8 h-8 sm:w-10 sm:h-10 text-gray-500 mx-auto mb-2 sm:mb-4" />
-            <p className="text-gray-600 mb-2 sm:mb-4 text-xs sm:text-sm">
+        <div className="space-y-6">
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+            <Upload className="w-10 h-10 text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-600 mb-4 text-sm">
               Drag and drop a CSV/Excel file, or click to select. File must contain "name" and "phone_number" columns (email is optional).
             </p>
             <input
@@ -499,7 +470,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
             />
             <label
               htmlFor="file-upload"
-              className="inline-block text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] cursor-pointer"
+              className="inline-block text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] cursor-pointer"
             >
               Upload Files (CSV/Excel)
             </label>
@@ -509,14 +480,14 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
 
       {step === 2 && (
         <div>
-          <div className="mb-4 sm:mb-6">
-            <h3 className="text-sm sm:text-base font-medium text-gray-700 mb-2">Preview Data</h3>
-            <div className="overflow-x-auto max-h-[200px] sm:max-h-[250px] border border-gray-200 rounded-lg mb-4">
+          <div className="mb-6">
+            <h3 className="text-base font-medium text-gray-700 mb-2">Preview Data</h3>
+            <div className="overflow-x-auto max-h-[250px] border border-gray-200 rounded-lg mb-4">
               <table className="w-full text-left text-gray-700">
                 <thead className="sticky top-0 bg-gray-100">
                   <tr>
                     {previewData.length > 0 && Object.keys(previewData[0]).map((header) => (
-                      <th key={header} className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px]">
+                      <th key={header} className="p-3 text-sm min-w-[120px]">
                         {header}
                       </th>
                     ))}
@@ -526,7 +497,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
                   {previewData.map((row, index) => (
                     <tr key={index} className="border-b border-gray-200">
                       {Object.values(row).map((value, i) => (
-                        <td key={i} className="p-2 sm:p-3 text-xs sm:text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
+                        <td key={i} className="p-3 text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
                           {value}
                         </td>
                       ))}
@@ -535,18 +506,18 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
                 </tbody>
               </table>
               {previewData.length === 0 && (
-                <div className="p-2 sm:p-3 text-center text-gray-500 text-xs sm:text-sm">
+                <div className="p-3 text-center text-gray-500 text-sm">
                   No preview data available.
                 </div>
               )}
             </div>
-            <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-700">
+            <label className="block text-sm font-medium mb-2 text-gray-700">
               Select Group
             </label>
             <select
               value={selectedGroup}
               onChange={(e) => setSelectedGroup(e.target.value)}
-              className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] mb-4 sm:mb-6"
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] mb-6"
             >
               {groups
                 .filter((group) => group.group_id && group.group_id !== 'all')
@@ -556,21 +527,21 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
                   </option>
                 ))}
             </select>
-            <div className="mb-4 sm:mb-6">
-              <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-gray-700">
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2 text-gray-700">
                 Or Create New Group
               </label>
-              <div className="flex gap-2 sm:gap-3">
+              <div className="flex gap-3">
                 <input
                   type="text"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
-                  className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+                  className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
                   placeholder="Enter group name"
                 />
                 <button
                   onClick={handleCreateGroup}
-                  className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
+                  className="text-sm py-2 px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
                 >
                   Create
                 </button>
@@ -578,19 +549,46 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
             </div>
           </div>
           {isUploading && (
-            <div className="mb-4 sm:mb-6">
-              <h3 className="text-sm sm:text-base font-medium text-gray-700 mb-2">Uploading...</h3>
+            <div className="mb-6">
+              <h3 className="text-base font-medium text-gray-700 mb-2">Uploading...</h3>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div
                   className="bg-[#005a6e] h-2.5 rounded-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 ></div>
               </div>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">{uploadProgress}%</p>
+              <p className="text-sm text-gray-600 mt-1">{uploadProgress}%</p>
             </div>
           )}
         </div>
       )}
+      <AnimatePresence>
+        {showSuccessNotification && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.5, type: 'spring', stiffness: 120 }}
+            className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          >
+            <div className="bg-green-500 text-white p-4 rounded-xl shadow-2xl flex flex-col items-center gap-2 w-full max-w-xs">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, duration: 0.3 }}
+              >
+                <CheckCircle className="w-10 h-10" />
+              </motion.div>
+              <span className="text-lg font-semibold text-center">
+                {successMessage}
+              </span>
+              <p className="text-sm text-green-100 text-center">
+                {successSubMessage}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Modal>
   );
 };
@@ -665,18 +663,16 @@ const Contacts: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // Fetch first two pages of contacts
       const { contacts: initialContacts, total_pages: contactTotalPages } = await fetchAllContacts(currentWorkspaceId, selectedGroup === 'all' ? undefined : selectedGroup, 1, 2);
       setContacts(initialContacts);
       setTotalPages(contactTotalPages);
       setCurrentPage(1);
 
-      // Fetch groups
       const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
       const updatedGroups = await Promise.all(
         groupsResponse.map(async (group) => {
-          const { contacts: groupContacts, total_pages: groupTotalPages } = await fetchAllContacts(currentWorkspaceId, group.group_id, 1, 2);
-          return { ...group, count: groupContacts.length, total_pages: groupTotalPages };
+          const { contacts: groupContacts } = await fetchAllContacts(currentWorkspaceId, group.group_id, 1, 2);
+          return { ...group, count: groupContacts.length };
         })
       );
 
@@ -685,7 +681,6 @@ const Contacts: React.FC = () => {
         name: 'All Contacts',
         workspace_id: currentWorkspaceId,
         count: initialContacts.length,
-        total_pages: contactTotalPages,
       };
 
       setGroups([allGroup, ...updatedGroups]);
@@ -706,7 +701,7 @@ const Contacts: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const pagesToFetch = page === 2 ? 2 : 1; // Fetch next two pages when navigating to second page
+      const pagesToFetch = page === 2 ? 2 : 1;
       const { contacts: newContacts, total_pages: newTotalPages } = await fetchAllContacts(currentWorkspaceId, selectedGroup === 'all' ? undefined : selectedGroup, page, pagesToFetch);
       setContacts(newContacts);
       setTotalPages(newTotalPages);
@@ -790,7 +785,7 @@ const Contacts: React.FC = () => {
         });
 
         if (contact.group_ids) {
-          const currentGroupIds = (await getContactGroups(currentWorkspaceId, contact.contact_id)).map(g => g.group_id);
+          const currentGroupIds = (await getGroupContacts(currentWorkspaceId, contact.contact_id)).map(g => g.group_id);
           const groupsToAdd = contact.group_ids.filter(id => !currentGroupIds.includes(id) && id !== 'all');
           await Promise.all(groupsToAdd.map(id => addContactsToGroup(id, [contact.contact_id])));
         }
@@ -867,74 +862,70 @@ const Contacts: React.FC = () => {
   );
 
   const handleImportSubmit = useCallback(
-  async (groupId: string, data: File | Contact[], sourceType: 'file' | 'text' | 'phonebook') => {
-    if (!currentWorkspaceId) {
-      setError('No workspace selected.');
-      return;
-    }
+    async (groupId: string, data: File | Contact[], sourceType: 'file' | 'text' | 'phonebook') => {
+      if (!currentWorkspaceId) {
+        setError('No workspace selected.');
+        return;
+      }
 
-    setIsLoading(true);
-    try {
-      let fileToUpload: File;
+      setIsLoading(true);
+      try {
+        let fileToUpload: File;
 
-      if (sourceType === 'file' && data instanceof File) {
-        fileToUpload = data;
-      } else if ((sourceType === 'text' || sourceType === 'phonebook') && Array.isArray(data)) {
-        const validContacts = data
-          .map((contact) => {
-            const parsedPhone = parsePhoneNumberFromString(contact.phone_number, 'TZ');
-            if (!parsedPhone || !parsedPhone.isValid() || !contact.name.trim()) {
-              return null;
-            }
-            return {
-              name: contact.name.trim(),
-              phone_number: parsedPhone.format('E.164'),
-              email: contact.email?.trim() || '',
-            };
-          })
-          .filter((contact): contact is { name: string; phone_number: string; email: string } => contact !== null);
+        if (sourceType === 'file' && data instanceof File) {
+          fileToUpload = data;
+        } else if ((sourceType === 'text' || sourceType === 'phonebook') && Array.isArray(data)) {
+          const validContacts = data
+            .map((contact) => {
+              const parsedPhone = parsePhoneNumberFromString(contact.phone_number, 'TZ');
+              if (!parsedPhone || !parsedPhone.isValid() || !contact.name.trim()) {
+                return null;
+              }
+              return {
+                name: contact.name.trim(),
+                phone_number: parsedPhone.format('E.164'),
+                email: contact.email?.trim() || '',
+              };
+            })
+            .filter((contact): contact is { name: string; phone_number: string; email: string } => contact !== null);
 
-        if (validContacts.length === 0) {
-          throw new Error('No valid contacts found after validation.');
+          if (validContacts.length === 0) {
+            throw new Error('No valid contacts found after validation.');
+          }
+
+          const csv = Papa.unparse(validContacts, {
+            header: true,
+            columns: ['name', 'phone_number', 'email'],
+          });
+          const blob = new Blob([csv], { type: 'text/csv' });
+          fileToUpload = new File([blob], 'contacts.csv', { type: 'text/csv' });
+        } else {
+          throw new Error('Invalid data type for upload.');
         }
 
-        const csv = Papa.unparse(validContacts, {
-          header: true,
-          columns: ['name', 'phone_number', 'email'],
-        });
-        const blob = new Blob([csv], { type: 'text/csv' });
-        fileToUpload = new File([blob], 'contacts.csv', { type: 'text/csv' });
-      } else {
-        throw new Error('Invalid data type for upload.');
+        const effectiveGroupId = groupId === 'all' && groups.length > 1 
+          ? groups.find(g => g.group_id !== 'all')?.group_id 
+          : groupId;
+        if (!effectiveGroupId || effectiveGroupId === 'all') {
+          throw new Error('Please select a valid group or create a new one.');
+        }
+
+        const response = await bulkUploadContacts(currentWorkspaceId, fileToUpload, effectiveGroupId);
+        if (!response.success) {
+          throw new Error(response.message || 'Bulk upload failed.');
+        }
+
+        await fetchContactsAndGroups();
+        setError(null);
+        setSelectedGroup(effectiveGroupId);
+      } catch (err: any) {
+        setError(err.message || 'Failed to import contacts.');
+      } finally {
+        setIsLoading(false);
       }
-
-      // Ensure groupId is a valid group ID, fallback to first group if 'all'
-      const effectiveGroupId = groupId === 'all' && groups.length > 1 
-        ? groups.find(g => g.group_id !== 'all')?.group_id 
-        : groupId;
-      if (!effectiveGroupId || effectiveGroupId === 'all') {
-        throw new Error('Please select a valid group or create a new one.');
-      }
-
-      console.log("Uploading to group_id:", effectiveGroupId); // Debug log
-      const response = await bulkUploadContacts(currentWorkspaceId, fileToUpload, effectiveGroupId);
-      if (!response.success) {
-        throw new Error(response.message || 'Bulk upload failed.');
-      }
-
-      await fetchContactsAndGroups();
-      setError(null);
-      setSelectedGroup(effectiveGroupId);
-      alert(`Successfully imported ${response.contacts?.length || 0} contacts.`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to import contacts.');
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  [currentWorkspaceId, fetchContactsAndGroups, groups]
-);
-
+    },
+    [currentWorkspaceId, fetchContactsAndGroups, groups]
+  );
 
   const downloadTemplate = useCallback(() => {
     const csv = Papa.unparse([{
@@ -953,18 +944,25 @@ const Contacts: React.FC = () => {
 
   const columns: TableColumn<Contact>[] = useMemo(
     () => [
-      { name: 'Name', selector: (row) => row.name, sortable: true },
-      { name: 'Phone', selector: (row) => row.phone_number, sortable: true },
+      { name: 'Name', selector: (row) => row.name, sortable: true, wrap: true },
+      { 
+        name: 'Phone', 
+        selector: (row) => row.phone_number, 
+        sortable: true,
+        wrap: true,
+        minWidth: '150px'
+      },
       {
         name: 'Email',
         selector: (row) => row.email || 'N/A',
         sortable: true,
-        omit: window.innerWidth < 640,
+        minWidth: '200px',
+        omit: window.innerWidth < 768,
       },
       {
         name: 'Actions',
         cell: (row: Contact) => (
-          <div className="flex justify-end gap-1 sm:gap-2">
+          <div className="flex justify-end gap-2">
             <button
               onClick={() => {
                 setEditContact({
@@ -979,19 +977,20 @@ const Contacts: React.FC = () => {
               }}
               className="p-2 rounded-full text-[#00333e] hover:bg-[#fddf0d] transition-colors duration-200"
             >
-              <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Edit2 className="w-5 h-5" />
             </button>
             <button
               onClick={() => handleDeleteContact(row.contact_id)}
               className="p-2 rounded-full text-red-500 hover:bg-red-100 transition-colors duration-200"
             >
-              <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Trash2 className="w-5 h-5" />
             </button>
           </div>
         ),
         ignoreRowClick: true,
         allowOverflow: true,
         button: true,
+        minWidth: '100px',
       },
     ],
     [handleDeleteContact]
@@ -1011,15 +1010,15 @@ const Contacts: React.FC = () => {
       style: {
         backgroundColor: '#f9fafb',
         fontWeight: '600',
-        padding: '8px 12px',
-        fontSize: window.innerWidth < 640 ? '12px' : '14px',
+        padding: '12px',
+        fontSize: '14px',
         color: '#00333e',
       },
     },
     cells: {
       style: {
-        padding: '8px 12px',
-        fontSize: window.innerWidth < 640 ? '12px' : '14px',
+        padding: '12px',
+        fontSize: '14px',
         color: '#374151',
       },
     },
@@ -1027,14 +1026,14 @@ const Contacts: React.FC = () => {
       style: {
         border: '1px solid #e5e7eb',
         borderRadius: '8px',
-        overflow: 'auto',
+        overflow: 'hidden',
       },
     },
     pagination: {
       style: {
         borderTop: '1px solid #e5e7eb',
-        padding: '8px 10px',
-        fontSize: window.innerWidth < 640 ? '12px' : '14px',
+        padding: '10px',
+        fontSize: '14px',
         color: '#00333e',
       },
     },
@@ -1051,56 +1050,21 @@ const Contacts: React.FC = () => {
     },
   };
 
-  const dropdownOptions = useMemo(
-    () => [
-      { value: 'all', label: 'All Contacts' },
-      ...groups
-        .filter((group) => group.group_id && group.group_id !== 'all')
-        .map((group) => ({
-          value: group.group_id,
-          label: `${group.name || `Group ${group.group_id}`} (${group.count})`,
-        })),
-    ],
-    [groups]
-  );
-
-  // Minimal CustomDropdown implementation
-  interface CustomDropdownProps {
-    value: string;
-    onChange: (value: string) => void;
-    options: { value: string; label: string }[];
-    className?: string;
-  }
-
-  const CustomDropdown: React.FC<CustomDropdownProps> = ({ value, onChange, options, className }) => (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className={`border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#fddf0d] ${className || ''}`}
-    >
-      {options.map(opt => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
-  );
-
   return (
     <ErrorBoundary>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="min-h-screen bg-gray-100"
+        className="min-h-screen bg-gray-100 p-4 md:p-6"
       >
-        <div className="p-4 sm:p-6">
-          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-4 sm:mb-6">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-[#00333e]" />
-                <h1 className="text-2xl sm:text-3xl font-bold text-[#00333e]">Contacts</h1>
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+              <div className="flex items-center gap-3">
+                <Users className="w-8 h-8 text-[#00333e]" />
+                <h1 className="text-2xl md:text-3xl font-bold text-[#00333e]">Contacts</h1>
               </div>
-              <div className="flex gap-2 sm:gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => {
                     setNewContact({
@@ -1112,83 +1076,113 @@ const Contacts: React.FC = () => {
                     });
                     setModalState((prev) => ({ ...prev, showAddContact: true }));
                   }}
-                  className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
+                  className="flex items-center gap-2 text-sm py-2 px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
                 >
-                  <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <UserPlus className="w-5 h-5" />
                   Add Contact
                 </button>
                 <button
                   onClick={() => setModalState((prev) => ({ ...prev, showImportModal: true }))}
-                  className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
+                  className="flex items-center gap-2 text-sm py-2 px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
                 >
-                  <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Upload className="w-5 h-5" />
                   Import Contacts
                 </button>
                 <button
                   onClick={downloadTemplate}
-                  className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+                  className="flex items-center gap-2 text-sm py-2 px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
                 >
-                  <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Download className="w-5 h-5" />
                   Template
                 </button>
               </div>
             </div>
 
-            <div className="relative mb-4 sm:mb-6">
-              <Search className="w-4 h-4 sm:w-5 sm:h-5 absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <div className="relative mb-6">
+              <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search contacts..."
-                className="w-full pl-8 sm:pl-10 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+                className="w-full pl-10 text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
-              <div className="bg-[#f9fafb] p-3 sm:p-4 rounded">
-                <h3 className="text-xs sm:text-sm font-medium text-gray-600">Total Contacts</h3>
-                <p className="text-lg sm:text-xl font-bold text-[#33333e]">{contacts.length}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              <div className="bg-[#f9fafb] p-4 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-600">Total Contacts</h3>
+                <p className="text-xl font-bold text-[#33333e]">{contacts.length}</p>
               </div>
-              <div className="bg-[#f9fafb] p-3 sm:p-4 rounded">
-                <h3 className="text-xs sm:text-sm font-medium text-gray-600">Groups</h3>
-                <p className="text-lg sm:text-xl font-bold text-[#33333e]">{groups.length - 1}</p>
+              <div className="bg-[#f9fafb] p-4 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-600">Groups</h3>
+                <p className="text-xl font-bold text-[#33333e]">{groups.length - 1}</p>
               </div>
-              <div className="bg-[#f9fafb] p-3 sm:p-4 rounded">
-                <h3 className="text-xs sm:text-sm font-medium text-gray-600">Selected Group</h3>
-                <p className="text-lg sm:text-xl font-bold text-[#33333e]">
+              <div className="bg-[#f9fafb] p-4 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-600">Selected Group</h3>
+                <p className="text-xl font-bold text-[#33333e]">
                   {groups.find((g) => g.group_id === selectedGroup)?.name || 'All Contacts'}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-4 sm:p-6 rounded shadow-md mb-4 sm:mb-6" style={{ maxWidth: 'none', width: '100%' }}>
-            <div className="flex flex-col sm:flex-row items-center justify-between mb-3 sm:mb-4 gap-2 sm:gap-4">
-              <h2 className="text-base sm:text-lg font-semibold text-[#33333e]">Selected Group</h2>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <CustomDropdown
-                  value={selectedGroup}
-                  onChange={setSelectedGroup}
-                  options={dropdownOptions}
-                  className="min-w-[200px]"
-                />
-                <button
-                  onClick={() => setModalState((prev) => ({ ...prev, showAddGroup: true }))}
-                  className="flex items-center gap-1 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#33333e] text-white rounded hover:bg-[#335a6e] transition-colors duration-200"
-                >
-                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Create New
-                </button>
-              </div>
+          <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+              <h2 className="text-lg font-semibold text-[#33333e]">Contact Groups</h2>
+              <button
+                onClick={() => setModalState((prev) => ({ ...prev, showAddGroup: true }))}
+                className="flex items-center gap-2 text-sm py-2 px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
+              >
+                <Plus className="w-5 h-5" />
+                Create New Group
+              </button>
             </div>
 
             {error && (
-              <div className="text-red-600 bg-red-50 p-3 sm:p-4 rounded mb-3 sm:mb-4 text-xs sm:text-sm">
+              <div className="text-red-600 bg-red-50 p-4 rounded-lg mb-4 text-sm">
                 <p className="font-semibold">Error:</p>
                 <p>{error}</p>
               </div>
             )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              <AnimatePresence>
+                {groups.map((group) => (
+                  <motion.div
+                    key={group.group_id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className={`p-4 rounded-lg border-2 ${
+                      selectedGroup === group.group_id
+                        ? 'border-[#fddf0d] bg-[#fddf0d]/10'
+                        : 'border-gray-200 bg-gray-50'
+                    } hover:bg-gray-100 transition-colors duration-200 cursor-pointer flex justify-between items-center`}
+                    onClick={() => setSelectedGroup(group.group_id)}
+                  >
+                    <div>
+                      <h3 className="text-sm font-medium text-[#00333e]">
+                        {group.name || `Group ${group.group_id}`}
+                      </h3>
+                      <p className="text-sm text-gray-600">{group.count || 0} contacts</p>
+                    </div>
+                    {group.group_id !== 'all' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteGroup(group.group_id);
+                        }}
+                        className="p-2 rounded-full text-red-500 hover:bg-red-100 transition-colors duration-200"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
 
             <StyledDataTable<Contact>
               columns={columns}
@@ -1204,12 +1198,12 @@ const Contacts: React.FC = () => {
               }}
               progressPending={isLoading}
               progressComponent={
-                <div className="p-3 sm:p-4 text-center text-gray-500 text-xs sm:text-sm">
+                <div className="p-4 text-center text-gray-500 text-sm">
                   Loading contacts...
                 </div>
               }
               noDataComponent={
-                <div className="p-3 sm:p-4 text-center text-gray-500 text-xs sm:text-sm">
+                <div className="p-4 text-center text-gray-500 text-sm">
                   No contacts found.
                 </div>
               }
@@ -1262,10 +1256,10 @@ const Contacts: React.FC = () => {
         submitText="Add Group"
       >
         <div>
-          <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Group Name</label>
+          <label className="block text-sm font-medium mb-1 text-gray-700">Group Name</label>
           <input
             type="text"
-            className="w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+            className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
           />

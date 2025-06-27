@@ -455,26 +455,54 @@ export const createContact = async (data: {
     handleApiError(error, "Failed to create contact");
   }
 };
-export const bulkUploadContacts = async (workspace_id: string, file: File, group_id: string): Promise<BulkUploadResponse> => {
+export const bulkUploadContacts = async (
+  workspace_id: string, 
+  file: File, 
+  group_id: string
+): Promise<BulkUploadResponse & { status: number }> => {
   try {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("group_id", group_id);
+    
     const response = await api.post(`/contacts/${workspace_id}/${group_id}/bulk-upload`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
       onUploadProgress: (progressEvent) => {
         const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-        // This would need to be passed back to the component (e.g., via a callback or context)
         console.log(`Upload progress: ${percentCompleted}%`);
       },
     });
+    
     console.log("bulkUploadContacts API response:", response.data);
-    return response.data as BulkUploadResponse;
+    console.log("HTTP Status Code:", response.status);
+    
+    // Return both the response data and status code
+    return {
+      ...response.data,
+      status: response.status
+    } as BulkUploadResponse & { status: number };
+    
   } catch (error: any) {
     console.error("bulkUploadContacts API error:", error.response?.data || error);
+    
+    // If it's a progress code, don't treat as error
+    if (error.response?.status && isProgressCode(error.response.status)) {
+      return {
+        ...error.response.data,
+        status: error.response.status,
+        success: false // Keep success false but status indicates progress
+      };
+    }
+    
     handleApiError(error, "Failed to bulk upload contacts");
     throw error;
   }
+};
+
+// Helper function (can be shared/imported)
+const isProgressCode = (statusCode: number): boolean => {
+  const progressCodes = [202, 206, 102];
+  return progressCodes.includes(statusCode);
 };
 
 export const updateContact = async (contactId: string, contact: Partial<Contact>): Promise<Contact> => {
