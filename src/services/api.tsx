@@ -568,9 +568,30 @@ export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> 
   try {
     const response = await api.get(`/workspaces/${workspaceId}/contact-groups`);
     console.log("getWorkspaceGroups API response:", response.data);
-    return Array.isArray(response.data) ? response.data : [];
+    
+    // Validate the response structure
+    if (!Array.isArray(response.data)) {
+      console.warn("Expected array response but received:", typeof response.data);
+      return [];
+    }
+    
+    // Optional: Validate each group object has required properties
+    const validGroups = response.data.filter((group: any) => 
+      group && 
+      typeof group.group_id === 'string' &&
+      typeof group.workspace_id === 'string' &&
+      typeof group.name === 'string'
+    );
+    
+    if (validGroups.length !== response.data.length) {
+      console.warn(`Filtered out ${response.data.length - validGroups.length} invalid group objects`);
+    }
+    
+    return validGroups;
   } catch (error: any) {
+    console.error(`Failed to fetch workspace groups:`, error);
     handleApiError(error, "Failed to fetch workspace groups");
+    return []; // Return empty array as fallback
   }
 };
 

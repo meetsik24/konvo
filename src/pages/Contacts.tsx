@@ -678,7 +678,7 @@ const Contacts: React.FC = () => {
       const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
       const updatedGroups = groupsResponse.map((group) => ({
         ...group,
-        count: group.contact_count ?? 0,
+        count: typeof group.contact_count === 'number' ? group.contact_count : 0,
       }));
 
       // Fetch contacts for the selected group or all contacts
