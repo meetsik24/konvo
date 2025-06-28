@@ -386,7 +386,7 @@ const SendSMS = () => {
               {sendMode === 'instant' && (
                 <div className="space-y-4">
                   <label className="block text-xs font-medium text-[#00333e]">Contacts</label>
-                  <div className="flex flex-col lg:flex-row gap-2">
+                  <div className="flex flex-col  gap-2">
                     <textarea
                       value={formData.manualContacts}
                       onChange={(e) => handleInputChange('manualContacts', e.target.value)}
@@ -461,7 +461,7 @@ const SendSMS = () => {
                       <select
                         value={selectedCampaignId}
                         onChange={(e) => setSelectedCampaignId(e.target.value)}
-                        className="w-full p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
+                        className="w-1/2 p-2 border border-gray-200 rounded text-[#00333e] text-sm bg-white"
                       >
                         <option value="">Select Existing Campaign</option>
                         {campaigns.map(campaign => (
@@ -641,6 +641,12 @@ const SendSMS = () => {
                           className="px-3 py-1 bg-gray-200 text-[#00333e] rounded text-xs hover:bg-gray-300"
                         >
                           Back
+                        </button>
+                        <button
+                          onClick={() => { setStep(2); }}
+                          className="px-3 py-1 bg-gray-200 text-[#00333e] rounded text-xs hover:bg-gray-300"
+                        >
+                          Next
                         </button>
                         <button
                           onClick={handleConfirmMapping}
