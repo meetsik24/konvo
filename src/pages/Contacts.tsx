@@ -624,30 +624,41 @@ const Contacts: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalContacts, setTotalContacts] = useState<number>(0);
   const perPage = 10;
 
   const fetchAllContacts = useCallback(
-    async (workspaceId: string, groupId?: string, page: number = 1, pagesToFetch: number = 2): Promise<ContactsResponse> => {
+    async (workspaceId: string, page: number = 1, pagesToFetch: number = 2): Promise<ContactsResponse> => {
       try {
         const startPage = page;
         const endPage = Math.min(page + pagesToFetch - 1, totalPages);
         let allContacts: Contact[] = [];
         let totalPagesCount = 0;
+        let totalCount = 0;
 
         const pageRequests = Array.from({ length: endPage - startPage + 1 }, (_, i) => {
           const targetPage = startPage + i;
-          return groupId
-            ? getGroupContacts(workspaceId, groupId, targetPage, perPage)
-            : getContacts(workspaceId, targetPage, perPage);
+          return getContacts(workspaceId, targetPage, perPage);
         });
 
-        const responses = await Promise.all(pageRequests);
+        const responses = await Promise.all(
+          pageRequests.map(async (request) => {
+            try {
+              return await request;
+            } catch (error) {
+              console.error(`Failed to fetch page:`, error);
+              return { contacts: [], total_count: 0, total_pages: 0, current_page: page };
+            }
+          })
+        );
+
         responses.forEach((res) => {
           allContacts = [...allContacts, ...res.contacts];
           totalPagesCount = Math.max(totalPagesCount, res.total_pages);
+          totalCount = res.total_count;
         });
 
-        return { contacts: allContacts, total_count: allContacts.length, total_pages: totalPagesCount, current_page: page };
+        return { contacts: allContacts, total_count: totalCount, total_pages: totalPagesCount, current_page: page };
       } catch (error: any) {
         throw new Error(`Failed to fetch contacts: ${error.message}`);
       }
@@ -663,24 +674,27 @@ const Contacts: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const { contacts: initialContacts, total_pages: contactTotalPages } = await fetchAllContacts(currentWorkspaceId, selectedGroup === 'all' ? undefined : selectedGroup, 1, 2);
-      setContacts(initialContacts);
-      setTotalPages(contactTotalPages);
-      setCurrentPage(1);
-
+      // Fetch groups with their contact counts first
       const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
-      const updatedGroups = await Promise.all(
-        groupsResponse.map(async (group) => {
-          const { contacts: groupContacts } = await fetchAllContacts(currentWorkspaceId, group.group_id, 1, 2);
-          return { ...group, count: groupContacts.length };
-        })
-      );
+      const updatedGroups = groupsResponse.map((group) => ({
+        ...group,
+        count: group.contact_count ?? 0,
+      }));
+
+      // Fetch contacts for the selected group or all contacts
+      const contactsResponse = selectedGroup === 'all'
+        ? await fetchAllContacts(currentWorkspaceId, 1, 2)
+        : await getGroupContacts(currentWorkspaceId, selectedGroup, 1, perPage);
+      setContacts(contactsResponse.contacts);
+      setTotalPages(contactsResponse.total_pages);
+      setCurrentPage(1);
+      setTotalContacts(contactsResponse.total_count);
 
       const allGroup = {
         group_id: 'all',
         name: 'All Contacts',
         workspace_id: currentWorkspaceId,
-        count: initialContacts.length,
+        count: contactsResponse.total_count,
       };
 
       setGroups([allGroup, ...updatedGroups]);
@@ -701,10 +715,11 @@ const Contacts: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const pagesToFetch = page === 2 ? 2 : 1;
-      const { contacts: newContacts, total_pages: newTotalPages } = await fetchAllContacts(currentWorkspaceId, selectedGroup === 'all' ? undefined : selectedGroup, page, pagesToFetch);
-      setContacts(newContacts);
-      setTotalPages(newTotalPages);
+      const response = selectedGroup === 'all'
+        ? await getContacts(currentWorkspaceId, page, perPage)
+        : await getGroupContacts(currentWorkspaceId, selectedGroup, page, perPage);
+      setContacts(response.contacts);
+      setTotalPages(response.total_pages);
       setCurrentPage(page);
     } catch (error: any) {
       setError(error.message || 'Failed to fetch contacts.');
@@ -785,7 +800,7 @@ const Contacts: React.FC = () => {
         });
 
         if (contact.group_ids) {
-          const currentGroupIds = (await getGroupContacts(currentWorkspaceId, contact.contact_id)).map(g => g.group_id);
+          const currentGroupIds = (await getContactGroups(currentWorkspaceId, contact.contact_id)).map(g => g.group_id);
           const groupsToAdd = contact.group_ids.filter(id => !currentGroupIds.includes(id) && id !== 'all');
           await Promise.all(groupsToAdd.map(id => addContactsToGroup(id, [contact.contact_id])));
         }
@@ -1112,7 +1127,7 @@ const Contacts: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
               <div className="bg-[#f9fafb] p-4 rounded-lg">
                 <h3 className="text-sm font-medium text-gray-600">Total Contacts</h3>
-                <p className="text-xl font-bold text-[#33333e]">{contacts.length}</p>
+                <p className="text-xl font-bold text-[#33333e]">{totalContacts || 0}</p>
               </div>
               <div className="bg-[#f9fafb] p-4 rounded-lg">
                 <h3 className="text-sm font-medium text-gray-600">Groups</h3>
@@ -1184,7 +1199,7 @@ const Contacts: React.FC = () => {
               </AnimatePresence>
             </div>
 
-            <StyledDataTable<Contact>
+            <StyledDataTable
               columns={columns}
               data={filteredContacts}
               pagination
@@ -1279,5 +1294,4 @@ const Contacts: React.FC = () => {
     </ErrorBoundary>
   );
 };
-
 export default Contacts;

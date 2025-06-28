@@ -85,10 +85,10 @@ interface ContactsResponse {
 
 interface Group {
   group_id: string;
-  name: string;
   workspace_id: string;
-  created_at?: string;
-  count?: number;
+  name: string;
+  created_at: string;
+  contact_count: number;
 }
 
 interface Workspace {
@@ -596,15 +596,9 @@ export const createGroup = async (data: { name: string; workspace_id: string }):
   }
 };
 
-export const getContactGroups = async (workspaceId: string, contactId: string): Promise<Group[]> => {
-  try {
-    const response = await api.get(`/workspaces/${workspaceId}/contacts/${contactId}/groups`);
-    console.log("Raw getContactGroups response:", response.data);
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (error: any) {
-    handleApiError(error, `Failed to fetch groups for contact ${contactId}`);
-  }
-};
+
+
+
 
 export const addContactsToGroup = async (groupId: string, contactIds: string[]): Promise<void> => {
   console.log("addContactsToGroup API call initiated for group:", groupId, "with contacts:", contactIds);
