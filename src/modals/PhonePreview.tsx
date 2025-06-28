@@ -19,7 +19,7 @@ const PhonePreview: React.FC<PhonePreviewProps> = ({ data }) => {
           <div className="absolute inset-2 bg-white rounded-[1.1rem] overflow-hidden">
             {/* Status Bar */}
             <div className="flex justify-between items-center px-4 py-1 bg-white relative z-10">
-              <div className="text-xs font-bold text-[#00333e]">01:19</div>
+              <div className="text-xs font-bold text-[#00333e]">{data.timestamp}</div>
               <div className="flex items-center gap-1">
                 <Signal size={12} className="text-[#00333e]" />
                 <Wifi size={12} className="text-[#00333e]" />
@@ -48,7 +48,7 @@ const PhonePreview: React.FC<PhonePreviewProps> = ({ data }) => {
               <div className="flex flex-col">
                 <div className="bg-[#fddf0d] rounded-lg rounded-tl-md px-3 py-2 max-w-[80%] break-words">
                   <p className="text-sm text-[#00333e] leading-relaxed font-medium">
-                    {data.message || 'You have received 50,000 TZs from BriqPay. Your new balance is 75,000. Keep Using Briq'}
+                    {data.message}
                   </p>
                 </div>
                 <div className="text-xs text-gray-500 mt-1 ml-2 flex items-center gap-1">
