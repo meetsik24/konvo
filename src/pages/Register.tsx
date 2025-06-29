@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserPlus, CheckCircle, X } from 'lucide-react';
+import { UserPlus, CheckCircle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { register, setSuccessMessage, clearSuccessMessage, setError } from '../store/slices/authSlice';
 import { AppDispatch, RootState } from '../store/store';
 
-// Placeholder for the logo and banner (replace with your actual assets)
-import Logo from '/assets/briq2.png';
-import loginBanner from '/assets/thumb3.jpg';
+// Placeholder for the logo (replace with your actual logo)
+import Logo from '/assets/briq2.png'; // Adjust the path to your logo file
 
 const Register: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -71,196 +70,253 @@ const Register: React.FC = () => {
     }));
   };
 
-  const [showModal, setShowModal] = useState(false);
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-      <div className="w-full max-w-3xl bg-white shadow-lg rounded-lg overflow-hidden">
-        {/* Centered Card with Two Segments */}
-        <div className="flex flex-col md:flex-row">
-          {/* Left Segment - Informational Image (hidden on mobile) */}
-          <div className="hidden md:block w-full md:w-1/2 p-0 order-2 md:order-1">
-            <img src={loginBanner} alt="Register Banner" className="w-full h-full object-cover" />
-          </div>
+    <div className="min-h-screen flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Gradient Background */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(to bottom right, #00333e, #111827)',
+        }}
+      />
 
-          {/* Right Segment - Registration Form (first on mobile) */}
-          <div className="w-full md:w-1/2 p-6 flex flex-col items-center order-1 md:order-2">
-            <div className="mb-4">
-              <img src={Logo} alt="Logo" className="h-16 w-auto" />
-            </div>
-            <h2 className="text-lg font-semibold text-[#00333e] mb-2">Create Your Account</h2>
-            <p className="text-center text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link to="/login" className="text-[#00333e] hover:underline">Sign in</Link>
-            </p>
+      {/* Animated Particle Texture */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.2) 1px, transparent 0),
+            radial-gradient(circle at 20px 20px, rgba(255, 255, 255, 0.15) 1px, transparent 0),
+            radial-gradient(circle at 40px 40px, rgba(255, 255, 255, 0.1) 1px, transparent 0),
+            radial-gradient(circle at 60px 60px, rgba(255, 255, 255, 0.15) 1px, transparent 0),
+            radial-gradient(circle at 80px 80px, rgba(255, 255, 255, 0.2) 1px, transparent 0)
+          `,
+          backgroundSize: '100px 100px',
+          backgroundBlendMode: 'overlay',
+          animation: 'drift 20s linear infinite',
+          opacity: 0.3,
+        }}
+      />
 
-            {error && (
-              <div className="bg-red-50 text-red-600 text-sm p-2 rounded mb-4 text-center">
-                {Array.isArray(error) ? error.map((msg, index) => <p key={index}>{msg}</p>) : error}
-              </div>
-            )}
+      {/* Register Form */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="max-w-md w-full bg-white rounded-xl shadow-lg p-6 sm:p-8 space-y-6 sm:space-y-8 relative z-10"
+      >
+        {/* Logo Section */}
+        <div className="flex justify-center">
+          <motion.img
+            src={Logo}
+            alt="Logo"
+            className="h-12 sm:h-16 w-auto"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          />
+        </div>
 
-            <AnimatePresence>
-              {successMessage && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.5, ease: "easeInOut" }}
-                  className="flex items-center justify-center gap-2 bg-green-100 text-green-700 p-3 rounded-lg shadow-lg border border-green-200 mb-4"
-                >
-                  <CheckCircle className="w-6 h-6 animate-bounce text-green-600" />
-                  <p className="text-sm font-semibold">{successMessage}</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+        {/* Heading and Subtext */}
+        <div>
+          <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-[#00333e]">
+            Create Your Account
+          </h2>
+          <p className="mt-2 text-center text-xs sm:text-sm text-gray-600">
+            Already have an account?{' '}
+            <Link to="/login" className="font-medium text-[#fddf0d] hover:text-[#00333e] transition duration-200">
+              Sign in
+            </Link>
+          </p>
+        </div>
 
-            <form className="space-y-4 w-full max-w-xs" onSubmit={handleSubmit}>
-              <div>
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  autoComplete="username"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                  placeholder="Username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  disabled={status === 'loading'}
-                />
-              </div>
-              <div>
-                <input
-                  id="fullName"
-                  name="fullName"
-                  type="text"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                  placeholder="Full name"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  disabled={status === 'loading'}
-                />
-              </div>
-              <div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                  placeholder="Email address"
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={status === 'loading'}
-                />
-              </div>
-              <div>
-                <input
-                  id="mobileNumber"
-                  name="mobileNumber"
-                  type="tel"
-                  autoComplete="tel"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                  placeholder="Mobile number (e.g., 0xxxxxxxxxx)"
-                  value={formData.mobileNumber}
-                  onChange={handleChange}
-                  disabled={status === 'loading'}
-                />
-              </div>
-              <div>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                  placeholder="Password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  disabled={status === 'loading'}
-                />
-              </div>
-              <div>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                  placeholder="Confirm password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  disabled={status === 'loading'}
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2 px-4 bg-[#00333e] text-white text-sm font-medium rounded-md hover:bg-[#002a36] focus:outline-none focus:ring-2 focus:ring-[#00333e] transition duration-200"
+        {/* Registration Form */}
+        <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md space-y-4 sm:space-y-5">
+            <div>
+              <label htmlFor="username" className="sr-only">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username" // Added to help Chrome identify the username field
+                required
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
+                placeholder="Username"
+                value={formData.username}
+                onChange={handleChange}
                 disabled={status === 'loading'}
-              >
-                {status === 'loading' ? (
-                  <span className="flex items-center justify-center">
-                    <svg
-                      className="animate-spin h-4 w-4 mr-2 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v8H4z"
-                      />
-                    </svg>
-                    Registering...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center">
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Create Account
-                  </span>
-                )}
-              </button>
-            </form>
+              />
+            </div>
+            <div>
+              <label htmlFor="fullName" className="sr-only">
+                Full name
+              </label>
+              <input
+                id="fullName"
+                name="fullName"
+                type="text"
+                required
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
+                placeholder="Full name"
+                value={formData.fullName}
+                onChange={handleChange}
+                disabled={status === 'loading'}
+              />
+            </div>
+            <div>
+              <label htmlFor="email" className="sr-only">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email" // Added to help Chrome identify the email field
+                required
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
+                placeholder="Email address"
+                value={formData.email}
+                onChange={handleChange}
+                disabled={status === 'loading'}
+              />
+            </div>
+            <div>
+              <label htmlFor="mobileNumber" className="sr-only">
+                Mobile number
+              </label>
+              <input
+                id="mobileNumber"
+                name="mobileNumber"
+                type="tel"
+                autoComplete="tel" // Added to help Chrome identify the phone number field
+                required
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
+                placeholder="Mobile number (e.g., 0xxxxxxxxxx)"
+                value={formData.mobileNumber}
+                onChange={handleChange}
+                disabled={status === 'loading'}
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="new-password" // Added to enable Chrome password suggestion
+                required
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleChange}
+                disabled={status === 'loading'}
+              />
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="sr-only">
+                Confirm password
+              </label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password" // Added to ensure Chrome treats this as part of the new password flow
+                required
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
+                placeholder="Confirm password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                disabled={status === 'loading'}
+              />
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Modal for Success/Error Handling (if needed in future) */}
-      {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white rounded-md shadow-md p-4 max-w-sm w-full mx-2 relative z-10"
-          >
+          {error && (
+            <div className="text-red-500 text-xs sm:text-sm text-center">
+              {Array.isArray(error) ? error.map((msg, index) => <p key={index}>{msg}</p>) : error}
+            </div>
+          )}
+
+          <AnimatePresence>
+            {successMessage && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="flex items-center justify-center gap-1 sm:gap-2 bg-green-100 text-green-700 p-2 sm:p-3 rounded-lg shadow-lg border border-green-200"
+              >
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 animate-bounce text-green-600" />
+                <p className="text-xs sm:text-sm font-semibold">{successMessage}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div>
             <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              type="submit"
+              className="group relative w-full flex justify-center items-center py-2 sm:py-3 px-4 border border-transparent text-sm sm:text-base font-medium rounded-lg text-white bg-[#00333e] hover:bg-[#002a36] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00333e] transition duration-200"
+              disabled={status === 'loading'}
             >
-              <X className="w-4 h-4" />
+              {status === 'loading' ? (
+                <span className="flex items-center">
+                  <svg
+                    className="animate-spin h-5 w-5 mr-2 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8H4z"
+                    />
+                  </svg>
+                  Registering...
+                </span>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                  Create Account
+                </>
+              )}
             </button>
-            {/* Placeholder for modal content */}
-          </motion.div>
-        </div>
-      )}
+          </div>
+        </form>
+      </motion.div>
+
+      {/* CSS for the Animated Texture */}
+      <style>
+        {`
+          @keyframes drift {
+            0% {
+              background-position: 0 0;
+            }
+            100% {
+              background-position: 100px 100px;
+            }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .animated-texture {
+              animation: none !important;
+            }
+          }
+        `}
+      </style>
     </div>
   );
 };
