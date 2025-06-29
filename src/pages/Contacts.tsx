@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, Component } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Upload, Trash2, Edit2, Search, UserPlus, FolderPlus, Download, X, ArrowLeft, Plus, ChevronDown, CheckCircle } from 'lucide-react';
+import { Users, Upload, Trash2, Edit2, Search, UserPlus, Download, X, ArrowLeft, Plus, CheckCircle } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
@@ -46,7 +46,7 @@ class ErrorBoundary extends Component<{ children: React.ReactNode }> {
             onClick={() => this.setState({ hasError: false })}
             className="mt-2 text-sm py-2 px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
           >
- spa            Try Again
+            Try Again
           </button>
         </div>
       );
@@ -89,11 +89,32 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  onSubmit?: () => void;
+  onSubmit?: () => void | Promise<string | null>;
   onBack?: () => void;
   submitText?: string;
   cancelText?: string;
   showBackButton?: boolean;
+}
+
+interface ContactModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (contact: Partial<Contact>) => void;
+  contact: Partial<Contact>;
+  setContact: (contact: Partial<Contact>) => void;
+  groups: Group[];
+  title: string;
+  isLoading?: boolean;
+}
+
+interface ImportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (groupId: string, data: File | Contact[], sourceType: 'file' | 'text' | 'phonebook') => void;
+  groups: Group[];
+  defaultGroupId?: string;
+  isLoading?: boolean;
+  onCreateGroup: (name: string, callback: (groupId: string) => void) => Promise<void>;
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -149,16 +170,6 @@ const Modal: React.FC<ModalProps> = ({
   );
 };
 
-interface ContactModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (contact: Partial<Contact>) => void;
-  contact: Partial<Contact>;
-  setContact: (contact: Partial<Contact>) => void;
-  groups: Group[];
-  title: string;
-}
-
 const ContactModal: React.FC<ContactModalProps> = ({
   isOpen,
   onClose,
@@ -167,87 +178,135 @@ const ContactModal: React.FC<ContactModalProps> = ({
   setContact,
   groups,
   title,
+  isLoading = false,
 }) => {
-  const handleSubmit = () => onSubmit(contact);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const validateInput = () => {
+    if (!contact.name?.trim()) {
+      setLocalError('Name is required.');
+      return false;
+    }
+    if (!contact.phone_number?.trim()) {
+      setLocalError('Phone number is required.');
+      return false;
+    }
+    if (contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim())) {
+      setLocalError('Please enter a valid email address.');
+      return false;
+    }
+    setLocalError(null);
+    return true;
+  };
+
+  const handleSubmit = () => {
+    if (validateInput()) {
+      onSubmit(contact);
+    }
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} onSubmit={handleSubmit} submitText={title}>
-      <div>
-        <label className="block text-sm font-medium mb-1 text-gray-700">Name</label>
-        <input
-          type="text"
-          className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-          value={contact.name || ''}
-          onChange={(e) => setContact({ ...contact, name: e.target.value })}
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-1 text-gray-700">Phone Number</label>
-        <input
-          type="tel"
-          className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-          value={contact.phone_number || ''}
-          onChange={(e) => setContact({ ...contact, phone_number: e.target.value })}
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-1 text-gray-700">Email (Optional)</label>
-        <input
-          type="email"
-          className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-          value={contact.email || ''}
-          onChange={(e) => setContact({ ...contact, email: e.target.value })}
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-1 text-gray-700">Assign to Groups</label>
-        <select
-          multiple
-          className="w-full min-h-[100px] text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
-          value={contact.group_ids || []}
-          onChange={(e) => {
-            const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
-            setContact({ ...contact, group_ids: selectedOptions });
-          }}
-        >
-          {groups
-            .filter((group) => group.group_id && group.group_id !== 'all')
-            .map((group) => (
-              <option key={group.group_id} value={group.group_id}>
-                {group.name || `Group ${group.group_id}`}
-              </option>
-            ))}
-        </select>
+    <Modal
+      isOpen={isOpen}
+      onClose={() => {
+        setLocalError(null);
+        onClose();
+      }}
+      title={title}
+      onSubmit={handleSubmit}
+      submitText={title.includes('Add') ? 'Add Contact' : 'Update Contact'}
+      cancelText="Cancel"
+    >
+      {localError && (
+        <div className="text-red-600 bg-red-50 p-4 rounded-lg mb-4 text-sm">
+          <p className="font-semibold">Error:</p>
+          <p>{localError}</p>
+        </div>
+      )}
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1 text-gray-700">Name</label>
+          <input
+            type="text"
+            className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+            value={contact.name || ''}
+            onChange={(e) => setContact({ ...contact, name: e.target.value })}
+            required
+            disabled={isLoading}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1 text-gray-700">Phone Number</label>
+          <input
+            type="tel"
+            className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+            value={contact.phone_number || ''}
+            onChange={(e) => setContact({ ...contact, phone_number: e.target.value })}
+            required
+            disabled={isLoading}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1 text-gray-700">Email (Optional)</label>
+          <input
+            type="email"
+            className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+            value={contact.email || ''}
+            onChange={(e) => setContact({ ...contact, email: e.target.value })}
+            disabled={isLoading}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1 text-gray-700">Assign to Groups</label>
+          <select
+            multiple
+            className="w-full min-h-[100px] text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
+            value={contact.group_ids || []}
+            onChange={(e) => {
+              const selectedOptions = Array.from(e.target.selectedOptions, (option) => option.value);
+              setContact({ ...contact, group_ids: selectedOptions });
+            }}
+            disabled={isLoading || !groups.length}
+          >
+            {groups
+              .filter((group) => group.group_id && group.group_id !== 'all')
+              .map((group) => (
+                <option key={group.group_id} value={group.group_id}>
+                  {group.name || `Group ${group.group_id}`}
+                </option>
+              ))}
+          </select>
+        </div>
       </div>
     </Modal>
   );
 };
 
-interface ImportModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (groupId: string, data: File, sourceType: 'file') => void;
-  groups: Group[];
-  setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
-}
-
-const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, groups, setGroups }) => {
+const ImportModal: React.FC<ImportModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  groups,
+  defaultGroupId,
+  isLoading = false,
+  onCreateGroup,
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(1);
   const [file, setFile] = useState<File | null>(null);
-  const [selectedGroup, setSelectedGroup] = useState<string>('all');
+  const [selectedGroup, setSelectedGroup] = useState<string>(defaultGroupId || 'all');
   const [error, setError] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
   const [previewData, setPreviewData] = useState<UploadedContact[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const { currentWorkspaceId } = useWorkspace();
-  const MAX_FILE_SIZE_MB = 10;
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [successSubMessage, setSuccessSubMessage] = useState('');
+  const { currentWorkspaceId } = useWorkspace();
+  const MAX_FILE_SIZE_MB = 10;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
@@ -280,30 +339,41 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
             return;
           }
 
-          const formattedData = parsed.data.map((row: any) => {
-            const name = row.name?.toString().trim() || '';
-            let phone_number = row.phone_number?.toString().trim() || '';
-            const email = row.email?.toString().trim() || '';
+          const invalidContacts: string[] = [];
+          const formattedData = parsed.data
+            .map((row: any, index: number) => {
+              const name = row.name?.toString().trim() || '';
+              let phone_number = row.phone_number?.toString().trim() || '';
+              const email = row.email?.toString().trim() || '';
 
-            if (!name) {
-              setError('One or more rows are missing a name. Please correct the CSV file.');
-              return null;
-            }
+              if (!name) {
+                invalidContacts.push(`Row ${index + 1}: Missing name`);
+                return null;
+              }
 
-            const parsedPhone = parsePhoneNumberFromString(phone_number, 'TZ');
-            if (!parsedPhone || !parsedPhone.isValid()) {
-              const fallbackParsed = parsePhoneNumberFromString(phone_number, 'US');
-              phone_number = fallbackParsed?.format('E.164') || phone_number;
-            } else {
-              phone_number = parsedPhone.format('E.164');
-            }
+              const parsedPhone = parsePhoneNumberFromString(phone_number, 'TZ');
+              if (!parsedPhone || !parsedPhone.isValid()) {
+                const fallbackParsed = parsePhoneNumberFromString(phone_number, 'US');
+                if (!fallbackParsed || !fallbackParsed.isValid()) {
+                  invalidContacts.push(`Row ${index + 1}: Invalid phone number (${phone_number})`);
+                  return null;
+                }
+                phone_number = fallbackParsed.format('E.164');
+              } else {
+                phone_number = parsedPhone.format('E.164');
+              }
 
-            return { name, phone_number, email };
-          }).filter((row): row is UploadedContact => row !== null);
+              return { name, phone_number, email };
+            })
+            .filter((row): row is UploadedContact => row !== null);
 
           if (formattedData.length === 0) {
-            setError('No valid contacts found after formatting. Please check the CSV file.');
+            setError(`No valid contacts found. Errors: ${invalidContacts.join('; ')}`);
             return;
+          }
+
+          if (invalidContacts.length > 0) {
+            setError(`Some contacts were invalid and skipped: ${invalidContacts.join('; ')}`);
           }
 
           setFile(uploadedFile);
@@ -327,15 +397,11 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
     }
 
     try {
-      const groupPayload = {
-        name: newGroupName.trim(),
-        workspace_id: currentWorkspaceId,
-      };
-      const newGroup = await createGroup(groupPayload);
-      setGroups((prev) => [...prev, { ...newGroup, count: 0 }]);
-      setSelectedGroup(newGroup.group_id);
-      setNewGroupName('');
-      setError(null);
+      await onCreateGroup(newGroupName.trim(), (newGroupId) => {
+        setSelectedGroup(newGroupId);
+        setNewGroupName('');
+        setError(null);
+      });
     } catch (error: any) {
       setError(`Failed to create group: ${error.message}. Please try again.`);
     }
@@ -343,10 +409,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
 
   const handleFinalImport = async () => {
     let interval: NodeJS.Timeout | null = null;
-    
+
     try {
-      if (!currentWorkspaceId) throw new Error('No workspace selected. Please select a workspace.');
-      if (!file) throw new Error('No file selected for upload. Please upload a CSV file.');
+      if (!currentWorkspaceId) throw new Error('No workspace selected.');
+      if (!file) throw new Error('No file selected for upload.');
       if (!selectedGroup || selectedGroup === 'all') throw new Error('Please select a valid group or create a new one.');
 
       setIsUploading(true);
@@ -365,7 +431,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       setUploadProgress(100);
 
       const isSuccessful = response.success || response.status === 202 || response.status === 206 || response.status === 102;
-      
+
       if (!isSuccessful) {
         throw new Error(`Bulk upload failed: ${response.message || 'Please check the file format and try again.'}`);
       }
@@ -379,16 +445,15 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       }
 
       setShowSuccessNotification(true);
-      
+
       setTimeout(() => {
         setShowSuccessNotification(false);
         setTimeout(() => {
           onClose();
         }, 300);
       }, 3000);
-      
     } catch (err: any) {
-      setError(`Import failed: ${err.message}. Please verify the file and try again.`);
+      setError(`Import failed: ${err.message}.`);
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -403,7 +468,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
     setError(null);
   };
 
-  const submitText = step === 1 ? 'Next' : 'Import';
+  if (!isOpen) return null;
 
   return (
     <Modal
@@ -411,7 +476,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       onClose={() => {
         setStep(1);
         setFile(null);
-        setSelectedGroup('all');
+        setSelectedGroup(defaultGroupId || 'all');
         setNewGroupName('');
         setPreviewData([]);
         setError(null);
@@ -422,7 +487,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
       title="Import Contacts"
       onSubmit={step === 1 ? () => setStep(2) : handleFinalImport}
       onBack={step > 1 ? handleBack : undefined}
-      submitText={submitText}
+      submitText={step === 1 ? 'Next' : 'Import'}
       cancelText="Cancel"
       showBackButton={step > 1}
     >
@@ -467,10 +532,13 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
               onChange={handleFileUpload}
               className="hidden"
               id="file-upload"
+              disabled={isLoading}
             />
             <label
               htmlFor="file-upload"
-              className="inline-block text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] cursor-pointer"
+              className={`inline-block text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] ${
+                isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+              }`}
             >
               Upload Files (CSV/Excel)
             </label>
@@ -486,18 +554,22 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
               <table className="w-full text-left text-gray-700">
                 <thead className="sticky top-0 bg-gray-100">
                   <tr>
-                    {previewData.length > 0 && Object.keys(previewData[0]).map((header) => (
-                      <th key={header} className="p-3 text-sm min-w-[120px]">
-                        {header}
-                      </th>
-                    ))}
+                    {previewData.length > 0 &&
+                      Object.keys(previewData[0]).map((header) => (
+                        <th key={header} className="p-3 text-sm min-w-[120px]">
+                          {header}
+                        </th>
+                      ))}
                   </tr>
                 </thead>
                 <tbody>
                   {previewData.map((row, index) => (
                     <tr key={index} className="border-b border-gray-200">
                       {Object.values(row).map((value, i) => (
-                        <td key={i} className="p-3 text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis">
+                        <td
+                          key={i}
+                          className="p-3 text-sm min-w-[120px] whitespace-nowrap overflow-hidden text-ellipsis"
+                        >
                           {value}
                         </td>
                       ))}
@@ -511,13 +583,12 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
                 </div>
               )}
             </div>
-            <label className="block text-sm font-medium mb-2 text-gray-700">
-              Select Group
-            </label>
+            <label className="block text-sm font-medium mb-2 text-gray-700">Select Group</label>
             <select
               value={selectedGroup}
               onChange={(e) => setSelectedGroup(e.target.value)}
               className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] mb-6"
+              disabled={isLoading || !groups.length}
             >
               {groups
                 .filter((group) => group.group_id && group.group_id !== 'all')
@@ -528,9 +599,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
                 ))}
             </select>
             <div className="mb-6">
-              <label className="block text-sm font-medium mb-2 text-gray-700">
-                Or Create New Group
-              </label>
+              <label className="block text-sm font-medium mb-2 text-gray-700">Or Create New Group</label>
               <div className="flex gap-3">
                 <input
                   type="text"
@@ -538,10 +607,14 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
                   onChange={(e) => setNewGroupName(e.target.value)}
                   className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
                   placeholder="Enter group name"
+                  disabled={isLoading}
                 />
                 <button
                   onClick={handleCreateGroup}
-                  className="text-sm py-2 px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
+                  className={`text-sm py-2 px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200 ${
+                    isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isLoading}
                 >
                   Create
                 </button>
@@ -579,12 +652,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
               >
                 <CheckCircle className="w-10 h-10" />
               </motion.div>
-              <span className="text-lg font-semibold text-center">
-                {successMessage}
-              </span>
-              <p className="text-sm text-green-100 text-center">
-                {successSubMessage}
-              </p>
+              <span className="text-lg font-semibold text-center">{successMessage}</span>
+              <p className="text-sm text-green-100 text-center">{successSubMessage}</p>
             </div>
           </motion.div>
         )}
@@ -597,7 +666,7 @@ const Contacts: React.FC = () => {
   const { currentWorkspaceId } = useWorkspace();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<string>('all'); // State for selected group ID
+  const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [modalState, setModalState] = useState({
     showAddContact: false,
     showEditContact: false,
@@ -622,22 +691,22 @@ const Contacts: React.FC = () => {
   const [newGroupName, setNewGroupName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGroupCreating, setIsGroupCreating] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalContacts, setTotalContacts] = useState<number>(0); // This will hold the grand total of all contacts
+  const [totalContacts, setTotalContacts] = useState<number>(0);
   const perPage = 10;
 
   const fetchAllContacts = useCallback(
     async (workspaceId: string, page: number = 1): Promise<ContactsResponse> => {
       try {
-        // This is now just fetching a single page for the 'All Contacts' view
         return await getContacts(workspaceId, page, perPage);
       } catch (error: any) {
-        console.error(`Failed to fetch all contacts for page ${page}:`, error);
+        console.error(`Failed to fetch contacts for page ${page}:`, error);
         throw new Error(`Failed to fetch contacts: ${error.message}`);
       }
     },
-    [perPage] // perPage is a constant, so this dependency is fine
+    [perPage]
   );
 
   const fetchContactsAndGroups = useCallback(async () => {
@@ -647,50 +716,43 @@ const Contacts: React.FC = () => {
     }
 
     setIsLoading(true);
-    setError(null); // Clear previous errors
+    setError(null);
     try {
-      // 1. Fetch all groups with their current contact counts from the backend
-      //    *** IMPORTANT: Your backend's getWorkspaceGroups MUST return accurate `contact_count` for each group here. ***
       const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
       const updatedGroups = groupsResponse.map((group) => ({
         ...group,
-        // Ensure your backend's getWorkspaceGroups provides accurate contact_count
         count: typeof group.contact_count === 'number' ? group.contact_count : 0,
       }));
 
-      // 2. Independently fetch the GRAND TOTAL count of ALL contacts in the workspace.
-      //    We fetch just 1 contact on page 1 to get the total_count without loading all data.
       const allContactsTotalResponse = await getContacts(currentWorkspaceId, 1, 1);
-      setTotalContacts(allContactsTotalResponse.total_count); // Set the grand total for the dashboard metric
+      setTotalContacts(allContactsTotalResponse.total_count);
 
-      // 3. Fetch contacts for the currently selected view (All or specific group) for the table data
       let contactsToDisplayResponse;
       if (selectedGroup === 'all') {
-        contactsToDisplayResponse = await fetchAllContacts(currentWorkspaceId, 1); // Fetch first page for 'All'
+        contactsToDisplayResponse = await fetchAllContacts(currentWorkspaceId, 1);
       } else {
-        contactsToDisplayResponse = await getGroupContacts(currentWorkspaceId, selectedGroup, 1, perPage); // Fetch first page for selected group
+        contactsToDisplayResponse = await getGroupContacts(currentWorkspaceId, selectedGroup, 1, perPage);
       }
 
       setContacts(contactsToDisplayResponse.contacts);
       setTotalPages(contactsToDisplayResponse.total_pages);
       setCurrentPage(1);
 
-      // 4. Construct the 'All Contacts' group card using the grand total
       const allGroup = {
         group_id: 'all',
         name: 'All Contacts',
         workspace_id: currentWorkspaceId,
-        count: allContactsTotalResponse.total_count, // Use the grand total for the 'All Contacts' card count
+        count: allContactsTotalResponse.total_count,
       };
 
-      setGroups([allGroup, ...updatedGroups]); // Set all groups, including the 'All Contacts' card
+      setGroups([allGroup, ...updatedGroups]);
     } catch (error: any) {
       console.error("Error fetching contacts or groups:", error);
-      setError(error.message || 'An unexpected error occurred while fetching data.');
+      setError(error.message || 'Failed to fetch data.');
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkspaceId, selectedGroup, perPage, fetchAllContacts]); // Add fetchAllContacts as dependency if it's external
+  }, [currentWorkspaceId, selectedGroup, perPage, fetchAllContacts]);
 
   useEffect(() => {
     fetchContactsAndGroups();
@@ -698,12 +760,12 @@ const Contacts: React.FC = () => {
 
   const handlePageChange = async (page: number) => {
     if (!currentWorkspaceId) {
-      setError('No workspace selected for pagination.');
+      setError('No workspace selected.');
       return;
     }
 
     setIsLoading(true);
-    setError(null); // Clear previous errors
+    setError(null);
     try {
       const response = selectedGroup === 'all'
         ? await getContacts(currentWorkspaceId, page, perPage)
@@ -714,7 +776,7 @@ const Contacts: React.FC = () => {
       setCurrentPage(page);
     } catch (error: any) {
       console.error("Error changing page:", error);
-      setError(error.message || 'Failed to fetch contacts for the selected page.');
+      setError(error.message || 'Failed to fetch contacts.');
     } finally {
       setIsLoading(false);
     }
@@ -728,7 +790,7 @@ const Contacts: React.FC = () => {
 
     if (!trimmedName || !trimmedPhone) return 'Name and phone number are required.';
     if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail))
-      return 'Please enter a valid email address.';
+      return 'Invalid email address.';
     return null;
   };
 
@@ -752,20 +814,16 @@ const Contacts: React.FC = () => {
           email: contact.email?.trim() || '',
           workspace_id: currentWorkspaceId,
         };
-        // Assuming createContact creates the contact but doesn't assign to groups directly
         const createdContact = await createContact(contactPayload);
 
-        // If group_ids are selected, add the new contact to those groups
         if (contact.group_ids && contact.group_ids.length > 0) {
-          const effectiveGroupIds = contact.group_ids.filter(id => id !== 'all'); // Exclude 'all' if present
+          const effectiveGroupIds = contact.group_ids.filter((id) => id !== 'all');
           await Promise.all(
-            effectiveGroupIds.map(groupId =>
-              addContactsToGroup(groupId, [createdContact.contact_id])
-            )
+            effectiveGroupIds.map((groupId) => addContactsToGroup(groupId, [createdContact.contact_id]))
           );
         }
 
-        await fetchContactsAndGroups(); // Re-fetch all data to update counts and table
+        await fetchContactsAndGroups();
         setModalState((prev) => ({ ...prev, showAddContact: false }));
         setNewContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
         setError(null);
@@ -780,7 +838,7 @@ const Contacts: React.FC = () => {
   const handleUpdateContact = useCallback(
     async (contact: Partial<Contact>) => {
       if (!currentWorkspaceId || !contact.contact_id) {
-        setError('No workspace or contact selected for update.');
+        setError('No workspace or contact selected.');
         return;
       }
 
@@ -798,28 +856,20 @@ const Contacts: React.FC = () => {
           workspace_id: currentWorkspaceId,
         });
 
-        // --- Group Management for Updates ---
         if (contact.group_ids) {
-          // Get the contact's current groups from the backend
           const currentContactGroups = await getContactGroups(currentWorkspaceId, contact.contact_id);
-          const currentGroupIds = currentContactGroups.map(g => g.group_id);
+          const currentGroupIds = currentContactGroups.map((g) => g.group_id);
+          const newGroupIds = contact.group_ids.filter((id) => id !== 'all');
+          const groupsToAdd = newGroupIds.filter((id) => !currentGroupIds.includes(id));
+          const groupsToRemove = currentGroupIds.filter((id) => !newGroupIds.includes(id));
 
-          // Filter out 'all' as it's not a real group for assignment
-          const newGroupIds = contact.group_ids.filter(id => id !== 'all');
-
-          // Determine groups to add to
-          const groupsToAdd = newGroupIds.filter(id => !currentGroupIds.includes(id));
-          // Determine groups to remove from
-          const groupsToRemove = currentGroupIds.filter(id => !newGroupIds.includes(id));
-
-          // Execute add operations
-          await Promise.all(groupsToAdd.map(id => addContactsToGroup(id, [contact.contact_id!])));
-          // Execute remove operations
-          // *** IMPORTANT: Ensure you have `removeContactsFromGroup` implemented in contactApi.ts ***
-          await Promise.all(groupsToRemove.map(id => removeContactsFromGroup(id, [contact.contact_id!])));
+          await Promise.all([
+            ...groupsToAdd.map((id) => addContactsToGroup(id, [contact.contact_id!])),
+            ...groupsToRemove.map((id) => removeContactsFromGroup(id, [contact.contact_id!])),
+          ]);
         }
 
-        await fetchContactsAndGroups(); // Re-fetch all data to update counts and table
+        await fetchContactsAndGroups();
         setModalState((prev) => ({ ...prev, showEditContact: false }));
         setEditContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
         setError(null);
@@ -841,7 +891,7 @@ const Contacts: React.FC = () => {
 
       try {
         await deleteContact(contactId);
-        await fetchContactsAndGroups(); // Re-fetch all data to update counts and table
+        await fetchContactsAndGroups();
         setError(null);
       } catch (error: any) {
         console.error("Error deleting contact:", error);
@@ -852,28 +902,36 @@ const Contacts: React.FC = () => {
   );
 
   const handleAddGroup = useCallback(
-    async () => {
-      if (!currentWorkspaceId || !newGroupName.trim()) {
+    async (name: string, callback?: (groupId: string) => void) => {
+      if (!currentWorkspaceId || !name.trim()) {
         setError('Group name is required.');
         return;
       }
 
+      setIsGroupCreating(true);
       try {
         const groupPayload = {
-          name: newGroupName.trim(),
+          name: name.trim(),
           workspace_id: currentWorkspaceId,
         };
-        await createGroup(groupPayload);
-        await fetchContactsAndGroups(); // Re-fetch all data to update counts and groups list
+        const createdGroup = await createGroup(groupPayload);
+        await fetchContactsAndGroups();
+        if (callback) {
+          callback(createdGroup.group_id);
+        } else {
+          setSelectedGroup(createdGroup.group_id);
+        }
         setModalState((prev) => ({ ...prev, showAddGroup: false }));
         setNewGroupName('');
         setError(null);
       } catch (error: any) {
         console.error("Error adding group:", error);
         setError(error.message || 'Failed to add group.');
+      } finally {
+        setIsGroupCreating(false);
       }
     },
-    [currentWorkspaceId, newGroupName, fetchContactsAndGroups]
+    [currentWorkspaceId, fetchContactsAndGroups]
   );
 
   const handleDeleteGroup = useCallback(
@@ -882,10 +940,9 @@ const Contacts: React.FC = () => {
 
       try {
         await deleteGroup(groupId);
-        // Optimistic update, then re-fetch for full consistency
         setGroups((prev) => prev.filter((g) => g.group_id !== groupId));
-        if (selectedGroup === groupId) setSelectedGroup('all'); // If deleted group was selected, switch to 'all'
-        await fetchContactsAndGroups(); // Re-fetch all data to update counts and groups list
+        if (selectedGroup === groupId) setSelectedGroup('all');
+        await fetchContactsAndGroups();
         setError(null);
       } catch (error: any) {
         console.error("Error deleting group:", error);
@@ -902,54 +959,60 @@ const Contacts: React.FC = () => {
         return;
       }
 
+      if (isGroupCreating) {
+        setError('Please wait until group creation is complete.');
+        return;
+      }
+
       setIsLoading(true);
-      setError(null); // Clear previous errors
+      setError(null);
       try {
         let fileToUpload: File;
+        let effectiveGroupId = groupId;
 
         if (sourceType === 'file' && data instanceof File) {
           fileToUpload = data;
         } else if ((sourceType === 'text' || sourceType === 'phonebook') && Array.isArray(data)) {
           const validContacts = data
             .map((contact) => {
-              // Ensure phone numbers are valid and formatted correctly
-              const parsedPhone = parsePhoneNumberFromString(contact.phone_number, 'TZ'); // Assuming 'TZ' (Tanzania) as default region
+              const parsedPhone = parsePhoneNumberFromString(contact.phone_number, 'TZ');
               if (!parsedPhone || !parsedPhone.isValid() || !contact.name.trim()) {
-                console.warn(`Skipping invalid contact during import: Name: ${contact.name}, Phone: ${contact.phone_number}`);
+                console.warn(`Skipping invalid contact: Name: ${contact.name}, Phone: ${contact.phone_number}`);
                 return null;
               }
               return {
                 name: contact.name.trim(),
-                phone_number: parsedPhone.format('E.164'), // E.164 format for consistency
+                phone_number: parsedPhone.format('E.164'),
                 email: contact.email?.trim() || '',
               };
             })
             .filter((contact): contact is { name: string; phone_number: string; email: string } => contact !== null);
 
           if (validContacts.length === 0) {
-            throw new Error('No valid contacts found after validation for import. Please check format.');
+            throw new Error('No valid contacts found.');
           }
 
           const csv = Papa.unparse(validContacts, {
             header: true,
             columns: ['name', 'phone_number', 'email'],
           });
-          const blob = new Blob([csv], { type: 'text/csv' });
-          fileToUpload = new File([blob], 'contacts.csv', { type: 'text/csv' });
+          fileToUpload = new File([new Blob([csv], { type: 'text/csv' })], 'contacts.csv', { type: 'text/csv' });
         } else {
           throw new Error('Invalid data type for upload.');
         }
 
-        // Determine the effective group to upload to.
-        // If 'all' is selected, find the first available non-'all' group,
-        // or throw an error if no real groups exist (forcing user to create one).
-        const nonAllGroups = groups.filter(g => g.group_id !== 'all');
-        const effectiveGroupId = groupId === 'all'
-          ? (nonAllGroups.length > 0 ? nonAllGroups[0].group_id : undefined)
-          : groupId;
-
-        if (!effectiveGroupId) {
-          throw new Error('Please select a specific group for import or create a new one. "All Contacts" cannot be directly imported into.');
+        if (groupId === 'all') {
+          const nonAllGroups = groups.filter((g) => g.group_id !== 'all');
+          if (nonAllGroups.length === 0) {
+            await handleAddGroup('Imported Contacts', (newGroupId) => {
+              effectiveGroupId = newGroupId;
+            });
+            if (!effectiveGroupId) {
+              throw new Error('Failed to create a default group.');
+            }
+          } else {
+            effectiveGroupId = nonAllGroups[0].group_id;
+          }
         }
 
         const response = await bulkUploadContacts(currentWorkspaceId, fileToUpload, effectiveGroupId);
@@ -957,10 +1020,10 @@ const Contacts: React.FC = () => {
           throw new Error(response.message || 'Bulk upload failed.');
         }
 
-        await fetchContactsAndGroups(); // Re-fetch all data to update counts and table
-        setError(null);
-        setSelectedGroup(effectiveGroupId); // Auto-select the group contacts were imported into
+        await fetchContactsAndGroups();
+        setSelectedGroup(effectiveGroupId);
         setModalState((prev) => ({ ...prev, showImportModal: false }));
+        setError(null);
       } catch (err: any) {
         console.error("Error importing contacts:", err);
         setError(err.message || 'Failed to import contacts.');
@@ -968,23 +1031,28 @@ const Contacts: React.FC = () => {
         setIsLoading(false);
       }
     },
-    [currentWorkspaceId, fetchContactsAndGroups, groups]
+    [currentWorkspaceId, fetchContactsAndGroups, groups, isGroupCreating, handleAddGroup]
   );
 
   const downloadTemplate = useCallback(() => {
-    const csv = Papa.unparse([{
-      name: 'John Doe',
-      phone_number: '+255712345678', // Example for Tanzania
-      email: 'john@example.com'
-    }], { header: true }); // Ensure header is included
+    const csv = Papa.unparse(
+      [
+        {
+          name: 'John Doe',
+          phone_number: '+255712345678',
+          email: 'john@example.com',
+        },
+      ],
+      { header: true }
+    );
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'contacts_template.csv';
-    document.body.appendChild(a); // Append to body to ensure it's clickable in all browsers
+    document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a); // Clean up
+    document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
   }, []);
 
@@ -996,14 +1064,14 @@ const Contacts: React.FC = () => {
         selector: (row) => row.phone_number,
         sortable: true,
         wrap: true,
-        minWidth: '150px'
+        minWidth: '150px',
       },
       {
         name: 'Email',
         selector: (row) => row.email || 'N/A',
         sortable: true,
         minWidth: '200px',
-        omit: window.innerWidth < 768, // Hide on small screens
+        omit: window.innerWidth < 768,
       },
       {
         name: 'Actions',
@@ -1017,7 +1085,7 @@ const Contacts: React.FC = () => {
                   phone_number: row.phone_number,
                   email: row.email,
                   workspace_id: row.workspace_id,
-                  group_ids: row.group_ids || [], // Ensure group_ids are passed for editing
+                  group_ids: row.group_ids || [],
                 });
                 setModalState((prev) => ({ ...prev, showEditContact: true }));
               }}
@@ -1164,7 +1232,7 @@ const Contacts: React.FC = () => {
               </div>
               <div className="bg-[#f9fafb] p-4 rounded-lg">
                 <h3 className="text-sm font-medium text-gray-600">Groups</h3>
-                <p className="text-xl font-bold text-[#33333e]">{groups.length > 0 ? groups.length - 1 : 0}</p> {/* Subtract 1 for 'All Contacts' group */}
+                <p className="text-xl font-bold text-[#33333e]">{groups.length > 0 ? groups.length - 1 : 0}</p>
               </div>
               <div className="bg-[#f9fafb] p-4 rounded-lg">
                 <h3 className="text-sm font-medium text-gray-600">Selected Group</h3>
@@ -1219,7 +1287,7 @@ const Contacts: React.FC = () => {
                     {group.group_id !== 'all' && (
                       <button
                         onClick={(e) => {
-                          e.stopPropagation(); // Prevent card onClick from firing
+                          e.stopPropagation();
                           handleDeleteGroup(group.group_id);
                         }}
                         className="p-2 rounded-full text-red-500 hover:bg-red-100 transition-colors duration-200"
@@ -1238,7 +1306,7 @@ const Contacts: React.FC = () => {
               data={filteredContacts}
               pagination
               paginationPerPage={perPage}
-              paginationTotalRows={totalContacts} // *** NOW USES THE GRAND TOTAL ***
+              paginationTotalRows={totalContacts}
               paginationServer
               onChangePage={handlePageChange}
               paginationComponentOptions={{
@@ -1277,6 +1345,7 @@ const Contacts: React.FC = () => {
         setContact={setNewContact}
         groups={groups}
         title="Add Contact"
+        isLoading={isLoading}
       />
 
       <ContactModal
@@ -1291,6 +1360,7 @@ const Contacts: React.FC = () => {
         setContact={setEditContact}
         groups={groups}
         title="Edit Contact"
+        isLoading={isLoading}
       />
 
       <Modal
@@ -1301,7 +1371,7 @@ const Contacts: React.FC = () => {
           setError(null);
         }}
         title="Add Group"
-        onSubmit={handleAddGroup}
+        onSubmit={() => handleAddGroup(newGroupName)}
         submitText="Add Group"
       >
         <div>
@@ -1313,6 +1383,7 @@ const Contacts: React.FC = () => {
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
             required
+            disabled={isGroupCreating}
           />
         </div>
       </Modal>
@@ -1325,9 +1396,13 @@ const Contacts: React.FC = () => {
         }}
         onSubmit={handleImportSubmit}
         groups={groups}
-        // setGroups={setGroups} // ImportModal shouldn't set groups directly; it should trigger a re-fetch
+        defaultGroupId={selectedGroup}
+        isLoading={isLoading || isGroupCreating}
+        onCreateGroup={handleAddGroup}
       />
     </ErrorBoundary>
   );
 };
+
 export default Contacts;
+export { ContactModal, ImportModal };
