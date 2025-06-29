@@ -233,7 +233,7 @@ interface ImportModalProps {
   setGroups: React.Dispatch<React.SetStateAction<Group[]>>;
 }
 
-const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, groups }) => {
+const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, groups, setGroups }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(1);
   const [file, setFile] = useState<File | null>(null);
@@ -332,10 +332,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSubmit, gr
         workspace_id: currentWorkspaceId,
       };
       const newGroup = await createGroup(groupPayload);
+      setGroups((prev) => [...prev, { ...newGroup, count: 0 }]);
       setSelectedGroup(newGroup.group_id);
       setNewGroupName('');
       setError(null);
-      onClose(); // Close modal to trigger parent re-fetch
     } catch (error: any) {
       setError(`Failed to create group: ${error.message}. Please try again.`);
     }
