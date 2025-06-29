@@ -580,7 +580,10 @@ export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> 
       group && 
       typeof group.group_id === 'string' &&
       typeof group.workspace_id === 'string' &&
-      typeof group.name === 'string'
+      typeof group.name === 'string' &&
+      typeof group.created_at === 'string' &&
+      typeof group.contact_count === 'number'
+      
     );
     
     if (validGroups.length !== response.data.length) {

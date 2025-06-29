@@ -597,7 +597,7 @@ const Contacts: React.FC = () => {
   const { currentWorkspaceId } = useWorkspace();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<string>('all');
+  const [selectedGroup, setSelectedGroup] = useState<string>('all'); // State for selected group ID
   const [modalState, setModalState] = useState({
     showAddContact: false,
     showEditContact: false,
@@ -624,46 +624,20 @@ const Contacts: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalContacts, setTotalContacts] = useState<number>(0);
+  const [totalContacts, setTotalContacts] = useState<number>(0); // This will hold the grand total of all contacts
   const perPage = 10;
 
   const fetchAllContacts = useCallback(
-    async (workspaceId: string, page: number = 1, pagesToFetch: number = 2): Promise<ContactsResponse> => {
+    async (workspaceId: string, page: number = 1): Promise<ContactsResponse> => {
       try {
-        const startPage = page;
-        const endPage = Math.min(page + pagesToFetch - 1, totalPages);
-        let allContacts: Contact[] = [];
-        let totalPagesCount = 0;
-        let totalCount = 0;
-
-        const pageRequests = Array.from({ length: endPage - startPage + 1 }, (_, i) => {
-          const targetPage = startPage + i;
-          return getContacts(workspaceId, targetPage, perPage);
-        });
-
-        const responses = await Promise.all(
-          pageRequests.map(async (request) => {
-            try {
-              return await request;
-            } catch (error) {
-              console.error(`Failed to fetch page:`, error);
-              return { contacts: [], total_count: 0, total_pages: 0, current_page: page };
-            }
-          })
-        );
-
-        responses.forEach((res) => {
-          allContacts = [...allContacts, ...res.contacts];
-          totalPagesCount = Math.max(totalPagesCount, res.total_pages);
-          totalCount = res.total_count;
-        });
-
-        return { contacts: allContacts, total_count: totalCount, total_pages: totalPagesCount, current_page: page };
+        // This is now just fetching a single page for the 'All Contacts' view
+        return await getContacts(workspaceId, page, perPage);
       } catch (error: any) {
+        console.error(`Failed to fetch all contacts for page ${page}:`, error);
         throw new Error(`Failed to fetch contacts: ${error.message}`);
       }
     },
-    [totalPages]
+    [perPage] // perPage is a constant, so this dependency is fine
   );
 
   const fetchContactsAndGroups = useCallback(async () => {
@@ -673,56 +647,74 @@ const Contacts: React.FC = () => {
     }
 
     setIsLoading(true);
+    setError(null); // Clear previous errors
     try {
-      // Fetch groups with their contact counts first
+      // 1. Fetch all groups with their current contact counts from the backend
+      //    *** IMPORTANT: Your backend's getWorkspaceGroups MUST return accurate `contact_count` for each group here. ***
       const groupsResponse = await getWorkspaceGroups(currentWorkspaceId);
       const updatedGroups = groupsResponse.map((group) => ({
         ...group,
+        // Ensure your backend's getWorkspaceGroups provides accurate contact_count
         count: typeof group.contact_count === 'number' ? group.contact_count : 0,
       }));
 
-      // Fetch contacts for the selected group or all contacts
-      const contactsResponse = selectedGroup === 'all'
-        ? await fetchAllContacts(currentWorkspaceId, 1, 2)
-        : await getGroupContacts(currentWorkspaceId, selectedGroup, 1, perPage);
-      setContacts(contactsResponse.contacts);
-      setTotalPages(contactsResponse.total_pages);
-      setCurrentPage(1);
-      setTotalContacts(contactsResponse.total_count);
+      // 2. Independently fetch the GRAND TOTAL count of ALL contacts in the workspace.
+      //    We fetch just 1 contact on page 1 to get the total_count without loading all data.
+      const allContactsTotalResponse = await getContacts(currentWorkspaceId, 1, 1);
+      setTotalContacts(allContactsTotalResponse.total_count); // Set the grand total for the dashboard metric
 
+      // 3. Fetch contacts for the currently selected view (All or specific group) for the table data
+      let contactsToDisplayResponse;
+      if (selectedGroup === 'all') {
+        contactsToDisplayResponse = await fetchAllContacts(currentWorkspaceId, 1); // Fetch first page for 'All'
+      } else {
+        contactsToDisplayResponse = await getGroupContacts(currentWorkspaceId, selectedGroup, 1, perPage); // Fetch first page for selected group
+      }
+
+      setContacts(contactsToDisplayResponse.contacts);
+      setTotalPages(contactsToDisplayResponse.total_pages);
+      setCurrentPage(1);
+
+      // 4. Construct the 'All Contacts' group card using the grand total
       const allGroup = {
         group_id: 'all',
         name: 'All Contacts',
         workspace_id: currentWorkspaceId,
-        count: contactsResponse.total_count,
+        count: allContactsTotalResponse.total_count, // Use the grand total for the 'All Contacts' card count
       };
 
-      setGroups([allGroup, ...updatedGroups]);
-      setError(null);
+      setGroups([allGroup, ...updatedGroups]); // Set all groups, including the 'All Contacts' card
     } catch (error: any) {
-      setError(error.message || 'An unexpected error occurred.');
+      console.error("Error fetching contacts or groups:", error);
+      setError(error.message || 'An unexpected error occurred while fetching data.');
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkspaceId, selectedGroup, fetchAllContacts]);
+  }, [currentWorkspaceId, selectedGroup, perPage, fetchAllContacts]); // Add fetchAllContacts as dependency if it's external
 
   useEffect(() => {
     fetchContactsAndGroups();
   }, [fetchContactsAndGroups]);
 
   const handlePageChange = async (page: number) => {
-    if (!currentWorkspaceId) return;
+    if (!currentWorkspaceId) {
+      setError('No workspace selected for pagination.');
+      return;
+    }
 
     setIsLoading(true);
+    setError(null); // Clear previous errors
     try {
       const response = selectedGroup === 'all'
         ? await getContacts(currentWorkspaceId, page, perPage)
         : await getGroupContacts(currentWorkspaceId, selectedGroup, page, perPage);
+
       setContacts(response.contacts);
       setTotalPages(response.total_pages);
       setCurrentPage(page);
     } catch (error: any) {
-      setError(error.message || 'Failed to fetch contacts.');
+      console.error("Error changing page:", error);
+      setError(error.message || 'Failed to fetch contacts for the selected page.');
     } finally {
       setIsLoading(false);
     }
@@ -759,19 +751,26 @@ const Contacts: React.FC = () => {
           phone_number: contact.phone_number!.trim(),
           email: contact.email?.trim() || '',
           workspace_id: currentWorkspaceId,
-          group_id: contact.group_ids?.[0] || undefined,
         };
+        // Assuming createContact creates the contact but doesn't assign to groups directly
         const createdContact = await createContact(contactPayload);
 
-        if (contact.group_ids?.length && contact.group_ids[0] !== 'all') {
-          await addContactsToGroup(contact.group_ids[0], [createdContact.contact_id]);
+        // If group_ids are selected, add the new contact to those groups
+        if (contact.group_ids && contact.group_ids.length > 0) {
+          const effectiveGroupIds = contact.group_ids.filter(id => id !== 'all'); // Exclude 'all' if present
+          await Promise.all(
+            effectiveGroupIds.map(groupId =>
+              addContactsToGroup(groupId, [createdContact.contact_id])
+            )
+          );
         }
 
-        await fetchContactsAndGroups();
+        await fetchContactsAndGroups(); // Re-fetch all data to update counts and table
         setModalState((prev) => ({ ...prev, showAddContact: false }));
         setNewContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
         setError(null);
       } catch (error: any) {
+        console.error("Error adding contact:", error);
         setError(error.message || 'Failed to add contact.');
       }
     },
@@ -781,7 +780,7 @@ const Contacts: React.FC = () => {
   const handleUpdateContact = useCallback(
     async (contact: Partial<Contact>) => {
       if (!currentWorkspaceId || !contact.contact_id) {
-        setError('No workspace or contact selected.');
+        setError('No workspace or contact selected for update.');
         return;
       }
 
@@ -799,17 +798,33 @@ const Contacts: React.FC = () => {
           workspace_id: currentWorkspaceId,
         });
 
+        // --- Group Management for Updates ---
         if (contact.group_ids) {
-          const currentGroupIds = (await getContactGroups(currentWorkspaceId, contact.contact_id)).map(g => g.group_id);
-          const groupsToAdd = contact.group_ids.filter(id => !currentGroupIds.includes(id) && id !== 'all');
-          await Promise.all(groupsToAdd.map(id => addContactsToGroup(id, [contact.contact_id])));
+          // Get the contact's current groups from the backend
+          const currentContactGroups = await getContactGroups(currentWorkspaceId, contact.contact_id);
+          const currentGroupIds = currentContactGroups.map(g => g.group_id);
+
+          // Filter out 'all' as it's not a real group for assignment
+          const newGroupIds = contact.group_ids.filter(id => id !== 'all');
+
+          // Determine groups to add to
+          const groupsToAdd = newGroupIds.filter(id => !currentGroupIds.includes(id));
+          // Determine groups to remove from
+          const groupsToRemove = currentGroupIds.filter(id => !newGroupIds.includes(id));
+
+          // Execute add operations
+          await Promise.all(groupsToAdd.map(id => addContactsToGroup(id, [contact.contact_id!])));
+          // Execute remove operations
+          // *** IMPORTANT: Ensure you have `removeContactsFromGroup` implemented in contactApi.ts ***
+          await Promise.all(groupsToRemove.map(id => removeContactsFromGroup(id, [contact.contact_id!])));
         }
 
-        await fetchContactsAndGroups();
+        await fetchContactsAndGroups(); // Re-fetch all data to update counts and table
         setModalState((prev) => ({ ...prev, showEditContact: false }));
         setEditContact({ name: '', phone_number: '', email: '', workspace_id: '', group_ids: [] });
         setError(null);
       } catch (error: any) {
+        console.error("Error updating contact:", error);
         setError(error.message || 'Failed to update contact.');
       }
     },
@@ -826,9 +841,10 @@ const Contacts: React.FC = () => {
 
       try {
         await deleteContact(contactId);
-        await fetchContactsAndGroups();
+        await fetchContactsAndGroups(); // Re-fetch all data to update counts and table
         setError(null);
       } catch (error: any) {
+        console.error("Error deleting contact:", error);
         setError(error.message || 'Failed to delete contact.');
       }
     },
@@ -848,11 +864,12 @@ const Contacts: React.FC = () => {
           workspace_id: currentWorkspaceId,
         };
         await createGroup(groupPayload);
-        await fetchContactsAndGroups();
+        await fetchContactsAndGroups(); // Re-fetch all data to update counts and groups list
         setModalState((prev) => ({ ...prev, showAddGroup: false }));
         setNewGroupName('');
         setError(null);
       } catch (error: any) {
+        console.error("Error adding group:", error);
         setError(error.message || 'Failed to add group.');
       }
     },
@@ -865,11 +882,13 @@ const Contacts: React.FC = () => {
 
       try {
         await deleteGroup(groupId);
+        // Optimistic update, then re-fetch for full consistency
         setGroups((prev) => prev.filter((g) => g.group_id !== groupId));
-        if (selectedGroup === groupId) setSelectedGroup('all');
-        await fetchContactsAndGroups();
+        if (selectedGroup === groupId) setSelectedGroup('all'); // If deleted group was selected, switch to 'all'
+        await fetchContactsAndGroups(); // Re-fetch all data to update counts and groups list
         setError(null);
       } catch (error: any) {
+        console.error("Error deleting group:", error);
         setError(error.message || 'Failed to delete group.');
       }
     },
@@ -884,6 +903,7 @@ const Contacts: React.FC = () => {
       }
 
       setIsLoading(true);
+      setError(null); // Clear previous errors
       try {
         let fileToUpload: File;
 
@@ -892,20 +912,22 @@ const Contacts: React.FC = () => {
         } else if ((sourceType === 'text' || sourceType === 'phonebook') && Array.isArray(data)) {
           const validContacts = data
             .map((contact) => {
-              const parsedPhone = parsePhoneNumberFromString(contact.phone_number, 'TZ');
+              // Ensure phone numbers are valid and formatted correctly
+              const parsedPhone = parsePhoneNumberFromString(contact.phone_number, 'TZ'); // Assuming 'TZ' (Tanzania) as default region
               if (!parsedPhone || !parsedPhone.isValid() || !contact.name.trim()) {
+                console.warn(`Skipping invalid contact during import: Name: ${contact.name}, Phone: ${contact.phone_number}`);
                 return null;
               }
               return {
                 name: contact.name.trim(),
-                phone_number: parsedPhone.format('E.164'),
+                phone_number: parsedPhone.format('E.164'), // E.164 format for consistency
                 email: contact.email?.trim() || '',
               };
             })
             .filter((contact): contact is { name: string; phone_number: string; email: string } => contact !== null);
 
           if (validContacts.length === 0) {
-            throw new Error('No valid contacts found after validation.');
+            throw new Error('No valid contacts found after validation for import. Please check format.');
           }
 
           const csv = Papa.unparse(validContacts, {
@@ -918,11 +940,16 @@ const Contacts: React.FC = () => {
           throw new Error('Invalid data type for upload.');
         }
 
-        const effectiveGroupId = groupId === 'all' && groups.length > 1 
-          ? groups.find(g => g.group_id !== 'all')?.group_id 
+        // Determine the effective group to upload to.
+        // If 'all' is selected, find the first available non-'all' group,
+        // or throw an error if no real groups exist (forcing user to create one).
+        const nonAllGroups = groups.filter(g => g.group_id !== 'all');
+        const effectiveGroupId = groupId === 'all'
+          ? (nonAllGroups.length > 0 ? nonAllGroups[0].group_id : undefined)
           : groupId;
-        if (!effectiveGroupId || effectiveGroupId === 'all') {
-          throw new Error('Please select a valid group or create a new one.');
+
+        if (!effectiveGroupId) {
+          throw new Error('Please select a specific group for import or create a new one. "All Contacts" cannot be directly imported into.');
         }
 
         const response = await bulkUploadContacts(currentWorkspaceId, fileToUpload, effectiveGroupId);
@@ -930,10 +957,12 @@ const Contacts: React.FC = () => {
           throw new Error(response.message || 'Bulk upload failed.');
         }
 
-        await fetchContactsAndGroups();
+        await fetchContactsAndGroups(); // Re-fetch all data to update counts and table
         setError(null);
-        setSelectedGroup(effectiveGroupId);
+        setSelectedGroup(effectiveGroupId); // Auto-select the group contacts were imported into
+        setModalState((prev) => ({ ...prev, showImportModal: false }));
       } catch (err: any) {
+        console.error("Error importing contacts:", err);
         setError(err.message || 'Failed to import contacts.');
       } finally {
         setIsLoading(false);
@@ -945,24 +974,26 @@ const Contacts: React.FC = () => {
   const downloadTemplate = useCallback(() => {
     const csv = Papa.unparse([{
       name: 'John Doe',
-      phone_number: '+255712345678',
+      phone_number: '+255712345678', // Example for Tanzania
       email: 'john@example.com'
-    }]);
+    }], { header: true }); // Ensure header is included
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'contacts_template.csv';
+    document.body.appendChild(a); // Append to body to ensure it's clickable in all browsers
     a.click();
+    document.body.removeChild(a); // Clean up
     window.URL.revokeObjectURL(url);
   }, []);
 
   const columns: TableColumn<Contact>[] = useMemo(
     () => [
       { name: 'Name', selector: (row) => row.name, sortable: true, wrap: true },
-      { 
-        name: 'Phone', 
-        selector: (row) => row.phone_number, 
+      {
+        name: 'Phone',
+        selector: (row) => row.phone_number,
         sortable: true,
         wrap: true,
         minWidth: '150px'
@@ -972,7 +1003,7 @@ const Contacts: React.FC = () => {
         selector: (row) => row.email || 'N/A',
         sortable: true,
         minWidth: '200px',
-        omit: window.innerWidth < 768,
+        omit: window.innerWidth < 768, // Hide on small screens
       },
       {
         name: 'Actions',
@@ -986,17 +1017,19 @@ const Contacts: React.FC = () => {
                   phone_number: row.phone_number,
                   email: row.email,
                   workspace_id: row.workspace_id,
-                  group_ids: row.group_ids || [],
+                  group_ids: row.group_ids || [], // Ensure group_ids are passed for editing
                 });
                 setModalState((prev) => ({ ...prev, showEditContact: true }));
               }}
               className="p-2 rounded-full text-[#00333e] hover:bg-[#fddf0d] transition-colors duration-200"
+              title="Edit Contact"
             >
               <Edit2 className="w-5 h-5" />
             </button>
             <button
               onClick={() => handleDeleteContact(row.contact_id)}
               className="p-2 rounded-full text-red-500 hover:bg-red-100 transition-colors duration-200"
+              title="Delete Contact"
             >
               <Trash2 className="w-5 h-5" />
             </button>
@@ -1127,11 +1160,11 @@ const Contacts: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
               <div className="bg-[#f9fafb] p-4 rounded-lg">
                 <h3 className="text-sm font-medium text-gray-600">Total Contacts</h3>
-                <p className="text-xl font-bold text-[#33333e]">{totalContacts || 0}</p>
+                <p className="text-xl font-bold text-[#33333e]">{totalContacts}</p>
               </div>
               <div className="bg-[#f9fafb] p-4 rounded-lg">
                 <h3 className="text-sm font-medium text-gray-600">Groups</h3>
-                <p className="text-xl font-bold text-[#33333e]">{groups.length - 1}</p>
+                <p className="text-xl font-bold text-[#33333e]">{groups.length > 0 ? groups.length - 1 : 0}</p> {/* Subtract 1 for 'All Contacts' group */}
               </div>
               <div className="bg-[#f9fafb] p-4 rounded-lg">
                 <h3 className="text-sm font-medium text-gray-600">Selected Group</h3>
@@ -1181,15 +1214,16 @@ const Contacts: React.FC = () => {
                       <h3 className="text-sm font-medium text-[#00333e]">
                         {group.name || `Group ${group.group_id}`}
                       </h3>
-                      <p className="text-sm text-gray-600">{group.count || 0} contacts</p>
+                      <p className="text-sm text-gray-600">{group.count} contacts</p>
                     </div>
                     {group.group_id !== 'all' && (
                       <button
                         onClick={(e) => {
-                          e.stopPropagation();
+                          e.stopPropagation(); // Prevent card onClick from firing
                           handleDeleteGroup(group.group_id);
                         }}
                         className="p-2 rounded-full text-red-500 hover:bg-red-100 transition-colors duration-200"
+                        title="Delete Group"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -1204,7 +1238,7 @@ const Contacts: React.FC = () => {
               data={filteredContacts}
               pagination
               paginationPerPage={perPage}
-              paginationTotalRows={totalPages * perPage}
+              paginationTotalRows={totalContacts} // *** NOW USES THE GRAND TOTAL ***
               paginationServer
               onChangePage={handlePageChange}
               paginationComponentOptions={{
@@ -1271,12 +1305,14 @@ const Contacts: React.FC = () => {
         submitText="Add Group"
       >
         <div>
-          <label className="block text-sm font-medium mb-1 text-gray-700">Group Name</label>
+          <label htmlFor="newGroupName" className="block text-sm font-medium mb-1 text-gray-700">Group Name</label>
           <input
+            id="newGroupName"
             type="text"
             className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
+            required
           />
         </div>
       </Modal>
@@ -1289,7 +1325,7 @@ const Contacts: React.FC = () => {
         }}
         onSubmit={handleImportSubmit}
         groups={groups}
-        setGroups={setGroups}
+        // setGroups={setGroups} // ImportModal shouldn't set groups directly; it should trigger a re-fetch
       />
     </ErrorBoundary>
   );
