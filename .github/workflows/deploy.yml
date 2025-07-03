@@ -46,6 +46,10 @@ jobs:
             docker stop briqpilot-frontend_frontend_1 || true
             docker rm briqpilot-frontend_frontend_1 || true
 
+            # Clean up unused Docker resources | Aggressive cleanup
+            echo "Cleaning up unused Docker resources..."
+            docker system prune -a -f
+
             # Pull the latest image from Docker Hub
             docker pull ${{ secrets.DOCKER_USERNAME }}/briqpilot-frontend:latest
 

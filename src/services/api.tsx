@@ -191,6 +191,8 @@ interface SenderId {
   status?: "pending" | "approved" | "rejected";
   requested_at?: string;
   reviewed_at?: string;
+  purpose?: string; 
+  use_cases?: string[]; // Array of use cases for the sender ID
 }
 
 interface Message {
@@ -683,7 +685,11 @@ export const getGroupContacts = async (
 
 
 // SENDER IDS
-export const requestSenderId = async (workspaceId: string, data: { sender_id: string }): Promise<SenderId> => {
+
+export const requestSenderId = async (
+  workspaceId: string,
+  data: { sender_id: string; purpose: string; use_cases: string }
+): Promise<SenderId> => {
   console.log("requestSenderId API call initiated for workspace:", workspaceId, "with data:", data);
   try {
     const response = await api.post("/sender-ids/request", { ...data, workspace_id: workspaceId });
