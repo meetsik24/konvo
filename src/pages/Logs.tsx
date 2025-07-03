@@ -52,7 +52,7 @@ const Logs: React.FC = () => {
             labels: pieLabels,
             datasets: [{
               data: pieData,
-              backgroundColor: ['#004d66', '#e76f51'],
+              backgroundColor: ['#004d66', '#FDD70D'],
             }],
           },
           options: {
@@ -92,8 +92,8 @@ const Logs: React.FC = () => {
             }, {
               label: 'Failed',
               data: [0, 10, 20, 25, selectedCampaign.failed],
-              borderColor: '#e76f51',
-              backgroundColor: 'rgba(231, 111, 81, 0.2)',
+              borderColor: '#FDD70D',
+              backgroundColor: 'rgba(253, 215, 13, 0.6)',
               fill: true,
               tension: 0.4,
             }],
