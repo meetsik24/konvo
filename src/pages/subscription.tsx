@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard, Check, X, MessageSquare, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { CreditCard, Check, X, MessageSquare, Loader2 } from 'lucide-react';
 import {
   getPlans,
   getUserPlan,
@@ -24,6 +24,7 @@ interface Plan {
   sms_unit_price: string;
   description: string;
   minimum_sms_purchase: number;
+  max_sms_purchase?: number;
 }
 
 interface SubscriptionUsage {
@@ -34,6 +35,7 @@ interface PaymentDetails {
   smsCount: number;
   totalAmount: number;
   planId: string;
+  planName: string;
 }
 
 const salesContacts: Contact[] = [
@@ -60,7 +62,6 @@ const Subscription: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [expandedPlans, setExpandedPlans] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     const fetchPlansAndCreditBalance = async () => {
@@ -69,69 +70,64 @@ const Subscription: React.FC = () => {
 
       try {
         const plansData = await getPlans();
-        console.log('Plan IDs:', plansData.map((plan: Plan) => plan.plan_id));
-        const planIds = plansData.map((plan: Plan) => plan.plan_id);
-        const uniquePlanIds = new Set(planIds);
-        if (uniquePlanIds.size !== planIds.length) {
-          console.warn('Duplicate plan_ids detected:', planIds);
+        console.log('Raw API Plans Response:', plansData);
+        if (!Array.isArray(plansData) || plansData.length === 0) {
+          throw new Error('No plans returned from API or invalid response format.');
         }
-        setPlans(plansData);
+
+        // Assign max_sms_purchase based on the next plan's minimum_sms_purchase
+        const sortedPlans = plansData
+          .map((plan: Plan, index: number) => {
+            const nextPlan = plansData[index + 1];
+            return {
+              ...plan,
+              max_sms_purchase: nextPlan ? nextPlan.minimum_sms_purchase - 1 : Infinity,
+              sms_unit_price: String(plan.sms_unit_price), // Ensure sms_unit_price is a string
+            };
+          })
+          .sort((a: Plan, b: Plan) => a.minimum_sms_purchase - b.minimum_sms_purchase);
+        console.log('Processed Plans:', sortedPlans);
+        setPlans(sortedPlans);
 
         let planId: string | null = null;
         try {
           const userPlanData = await getUserPlan();
+          console.log('User Plan:', userPlanData);
           setUserPlan(userPlanData);
           planId = userPlanData.plan_id;
         } catch (planErr: any) {
           console.error('Error fetching user plan:', planErr);
           try {
             const userProfile = await getProfile();
+            console.log('User Profile:', userProfile);
             if (userProfile.plan_id) {
               planId = userProfile.plan_id;
-              const matchingPlan = plansData.find((plan: Plan) => plan.plan_id === planId);
+              const matchingPlan = sortedPlans.find((plan: Plan) => plan.plan_id === planId);
               if (matchingPlan) {
                 setUserPlan(matchingPlan);
               } else {
-                console.warn('User plan_id found in profile but not in available plans:', userProfile.plan_id);
-                if (plansData.length > 0) {
-                  planId = plansData[0].plan_id;
-                  setUserPlan(plansData[0]);
-                  console.warn('Using default plan:', plansData[0].name);
-                } else {
-                  throw new Error('No plans available to use as a default.');
-                }
+                console.warn('User plan_id not found in plans:', userProfile.plan_id);
+                setError('Your plan is not recognized. Please contact support.');
               }
             } else {
-              if (plansData.length > 0) {
-                planId = plansData[0].plan_id;
-                setUserPlan(plansData[0]);
-                console.warn('User plan not found in profile. Using default plan:', plansData[0].name);
-              } else {
-                throw new Error('No plans available to use as a default.');
-              }
+              console.warn('No plan_id in user profile.');
+              setError('No plan assigned to your account. Please contact support.');
             }
           } catch (profileErr: any) {
             console.error('Error fetching user profile:', profileErr);
-            if (plansData.length > 0) {
-              planId = plansData[0].plan_id;
-              setUserPlan(plansData[0]);
-              console.warn('User profile fetch failed. Using default plan:', plansData[0].name);
-            } else {
-              throw new Error('No plans available and user profile fetch failed.');
-            }
+            setError('Failed to load user profile. Please contact support.');
           }
         }
 
         if (planId) {
           try {
             const creditBalanceData = await getSubscriptionUsage(planId);
+            console.log('Credit Balance:', creditBalanceData);
             setSubscriptionDetails(creditBalanceData);
           } catch (subErr: any) {
             console.error('Error fetching credit balance:', subErr);
             setError('Failed to fetch credit balance. Please try again later.');
           }
-        } else {
-          setError('Unable to determine your plan. Please contact support.');
         }
       } catch (err: any) {
         console.error('Error fetching plans:', err);
@@ -149,24 +145,47 @@ const Subscription: React.FC = () => {
   }, [token]);
 
   const calculateTotalAmount = (smsUnitPrice: string, smsCount: number): number => {
-    if (smsCount <= 0) return 0;
-    const pricePerSms = parseFloat(smsUnitPrice) || 0;
-    return Math.round(smsCount * pricePerSms);
+    if (smsCount <= 0 || !smsUnitPrice) {
+      console.warn('Invalid inputs for calculation:', { smsUnitPrice, smsCount });
+      return 0;
+    }
+    const pricePerSms = parseFloat(smsUnitPrice);
+    if (isNaN(pricePerSms)) {
+      console.warn('Invalid sms_unit_price:', smsUnitPrice);
+      return 0;
+    }
+    const total = smsCount * pricePerSms;
+    const roundedTotal = Math.round(total); // Round to whole TZS
+    console.log('Calculated Total:', { smsCount, pricePerSms, total, roundedTotal });
+    return roundedTotal;
   };
 
-  const handleInitiatePurchase = (smsUnitPrice: string) => {
+  const getPlanForSmsCount = (smsCount: number): Plan | null => {
+    console.log('Selecting plan for SMS count:', smsCount);
+    if (!plans.length) {
+      console.warn('No plans available for selection.');
+      return null;
+    }
+    const selectedPlan = plans.find((plan) => {
+      const maxPurchase = plan.max_sms_purchase || Infinity;
+      const isInRange = smsCount >= plan.minimum_sms_purchase && smsCount <= maxPurchase;
+      console.log(`Checking plan ${plan.name}: ${plan.minimum_sms_purchase.toLocaleString()}–${maxPurchase === Infinity ? '∞' : maxPurchase.toLocaleString()} | Price: ${plan.sms_unit_price} TZS/SMS | In range: ${isInRange}`);
+      return isInRange;
+    });
+    if (!selectedPlan) {
+      console.warn('No plan found for SMS count:', smsCount);
+    } else {
+      console.log('Selected plan:', selectedPlan);
+    }
+    return selectedPlan || null;
+  };
+
+  const handleInitiatePurchase = () => {
     setError(null);
     setSuccess(null);
     setPaymentDetails(null);
     setSmsCountInput('');
     setPaymentReference(null);
-
-    const selectedPlan = plans.find((plan: Plan) => plan.sms_unit_price === smsUnitPrice);
-    if (selectedPlan) {
-      setSmsCountInput(selectedPlan.minimum_sms_purchase.toString());
-      setPaymentDetails({ smsCount: 0, totalAmount: 0, planId: selectedPlan.plan_id });
-    }
-
     setShowSmsInputModal(true);
   };
 
@@ -177,24 +196,28 @@ const Subscription: React.FC = () => {
       return;
     }
 
-    if (!paymentDetails) {
-      setError('Payment details are missing. Please try again.');
-      return;
-    }
-
-    const selectedPlan = plans.find((plan: Plan) => plan.plan_id === paymentDetails.planId);
+    const selectedPlan = getPlanForSmsCount(smsCount);
     if (!selectedPlan) {
-      setError('Could not find the selected plan. Please try again.');
-      return;
-    }
-
-    if (smsCount < selectedPlan.minimum_sms_purchase) {
-      setError(`The number of SMS must be at least ${selectedPlan.minimum_sms_purchase.toLocaleString()} for this plan.`);
+      setError(
+        `The entered SMS count (${smsCount.toLocaleString()}) does not meet the requirements for any available plan. ` +
+        `Please enter a value between 1–5,999 for Kitonga (20 TZS/SMS), 6,000–54,999 for Bumbuli (18 TZS/SMS), ` +
+        `55,000–409,999 for Kibaigwa (16 TZS/SMS), 410,000–500,000 for Kilimahewa (14 TZS/SMS), or 500,001+ for Paradiso (13 TZS/SMS).`
+      );
       return;
     }
 
     const totalAmount = calculateTotalAmount(selectedPlan.sms_unit_price, smsCount);
-    setPaymentDetails({ ...paymentDetails, smsCount, totalAmount });
+    if (totalAmount === 0) {
+      setError('Failed to calculate total amount. Please check the SMS count and try again.');
+      return;
+    }
+
+    setPaymentDetails({
+      smsCount,
+      totalAmount,
+      planId: selectedPlan.plan_id,
+      planName: selectedPlan.name,
+    });
     setShowSmsInputModal(false);
     setShowPaymentModal(true);
   };
@@ -209,6 +232,8 @@ const Subscription: React.FC = () => {
       setError('Payment details are missing. Please try again.');
       return;
     }
+
+    console.log('Initiating purchase:', paymentDetails);
 
     setError(null);
     setSuccess(null);
@@ -278,13 +303,6 @@ const Subscription: React.FC = () => {
     }
   };
 
-  const togglePlan = (planId: string) => {
-    setExpandedPlans((prev) => ({
-      ...prev,
-      [planId]: !prev[planId],
-    }));
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -292,16 +310,16 @@ const Subscription: React.FC = () => {
       className="space-y-6 p-4 sm:p-6 lg:p-8"
     >
       <AnimatePresence>
-        {isLoading && !plans.length && (
+        {isLoading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
           >
-            <div className="bg-white rounded-lg p-6 shadow-md max-w-sm w-full text-center">
+            <div className="bg-white rounded-lg p-6 max-w-sm w-full text-center">
               <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#00333e]" />
-              <p className="text-[#6f888c] text-sm">Loading plans...</p>
+              <p className="text-[#6f888c] text-sm">Loading...</p>
             </div>
           </motion.div>
         )}
@@ -310,12 +328,12 @@ const Subscription: React.FC = () => {
       <AnimatePresence>
         {isPaymentProcessing && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
           >
-            <div className="bg-white rounded-lg p-6 shadow-md max-w-sm w-full text-center">
+            <div className="bg-white rounded-lg p-6 max-w-sm w-full text-center">
               <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#00333e]" />
               <h2 className="text-lg font-semibold text-[#00333e]">Processing Payment</h2>
               <p className="text-sm mt-2 text-[#6f888c]">
@@ -332,12 +350,12 @@ const Subscription: React.FC = () => {
       <AnimatePresence>
         {success && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
           >
-            <div className="bg-[#00333e] text-white rounded-lg p-6 shadow-md max-w-sm w-full text-center">
+            <div className="bg-[#00333e] text-white rounded-lg p-6 max-w-sm w-full text-center">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -361,12 +379,12 @@ const Subscription: React.FC = () => {
       <AnimatePresence>
         {error && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
           >
-            <div className="bg-red-500 text-white rounded-lg p-6 shadow-md max-w-sm w-full text-center">
+            <div className="bg-red-500 text-white rounded-lg p-6 max-w-sm w-full text-center">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -394,11 +412,11 @@ const Subscription: React.FC = () => {
         </p>
       </div>
 
-      {subscriptionDetails && (
+      {subscriptionDetails !== null ? (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white shadow-sm rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 max-w-md mx-auto w-full"
+          className="bg-white rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 max-w-md mx-auto w-full"
         >
           <div className="flex items-center justify-center space-x-3 sm:space-x-4">
             <MessageSquare className="w-8 h-8 sm:w-10 sm:h-10 text-[#00333e]" />
@@ -411,104 +429,28 @@ const Subscription: React.FC = () => {
             </div>
           </div>
         </motion.div>
-      )}
-
-      {plans.length > 0 ? (
-        <div className="grid gap-6 sm:gap-8 lg:grid-cols-3 lg:gap-x-6 mt-8 sm:mt-12 lg:mt-16">
-          {plans.map((plan: Plan, index: number) => {
-            const isExpanded = expandedPlans[plan.plan_id] || false;
-            return (
-              <motion.div
-                key={plan.plan_id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="relative rounded-2xl border ${
-                  plan.name.toLowerCase().includes('paradiso') ? 'border-[#fddf0d]' : 'border-gray-200'
-                } shadow-sm bg-white flex flex-col transition-all duration-200"
-              >
-                {plan.name.toLowerCase().includes('paradiso') && (
-                  <div className="absolute top-0 right-0 -mr-1 -mt-1 px-2 sm:px-3 py-1 bg-[#fddf0d] text-[#00333e] text-xs sm:text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
-                    Popular
-                  </div>
-                )}
-
-                <div className="p-4 sm:p-6 ${isExpanded ? 'pb-0 sm:pb-0' : ''}">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-xl sm:text-2xl font-semibold text-[#00333e]">{plan.name}</h3>
-                      <div className="mt-2 sm:mt-3">
-                        <span className="text-xl sm:text-2xl font-extrabold text-[#00333e]">{plan.sms_unit_price}</span>
-                        <span className="ml-1 sm:ml-2 text-sm sm:text-base text-[#6f888c]">TZS per SMS</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => togglePlan(plan.plan_id)}
-                      className="p-1 rounded-full hover:bg-[#fddf0d] hover:text-[#00333e] transition-colors duration-200"
-                    >
-                      {isExpanded ? (
-                        <ChevronUp className="w-5 h-5 text-[#00333e]" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-[#00333e]" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="p-4 sm:p-6 pt-0">
-                        <div className="mt-4 sm:mt-6">
-                          <h4 className="text-xs sm:text-sm font-medium text-[#00333e] mb-3 sm:mb-4">Features</h4>
-                          <ul className="space-y-2 sm:space-y-3">
-                            {plan.description.split(', ').map((feature: string, index: number) => (
-                              <li key={index} className="flex items-start">
-                                <Check className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] shrink-0" />
-                                <span className="ml-2 sm:ml-3 text-sm sm:text-base text-gray-700">{feature}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                        <div className="mt-4 sm:mt-6">
-                          <p className="text-xs sm:text-sm text-[#6f888c]">
-                            Minimum SMS Purchase: {plan.minimum_sms_purchase.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="p-4 sm:p-6 mt-auto">
-                        <button
-                          onClick={() => handleInitiatePurchase(plan.sms_unit_price)}
-                          className="w-full flex items-center justify-center space-x-1 sm:space-x-2 bg-[#00333e] text-white text-sm sm:text-base py-2 rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
-                          disabled={isLoading || isPaymentProcessing}
-                        >
-                          <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
-                          <span>Purchase Credits</span>
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            );
-          })}
-        </div>
-      ) : !isLoading && (
+      ) : (
         <div className="text-center py-8 sm:py-12">
-          <p className="text-base sm:text-lg text-[#6f888c]">No plans available at this time. Please check back later or contact support.</p>
+          <p className="text-base sm:text-lg text-[#6f888c]">
+            Unable to load SMS credits. Please refresh or contact support.
+          </p>
         </div>
       )}
+
+      <div className="text-center mt-8 sm:mt-12">
+        <button
+          onClick={handleInitiatePurchase}
+          className="bg-[#00333e] text-white text-sm sm:text-base py-2 px-4 rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
+          disabled={isLoading || isPaymentProcessing || plans.length === 0}
+        >
+          Purchase SMS Credits
+        </button>
+      </div>
 
       <div className="mt-8 sm:mt-12 text-center">
         <h2 className="text-xl sm:text-2xl font-semibold text-[#00333e]">Need a custom solution?</h2>
         <p className="mt-2 sm:mt-4 text-sm sm:text-base text-[#6f888c]">
-          Contact our sales team for tailored options beyond Paradiso.
+          Contact our sales team for tailored options.
         </p>
         <button
           className="mt-4 sm:mt-6 bg-[#00333e] text-white text-sm sm:text-base py-2 px-4 rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
@@ -519,13 +461,19 @@ const Subscription: React.FC = () => {
         </button>
       </div>
 
-      {showSmsInputModal && paymentDetails && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
-          <div className="bg-white p-6 sm:p-8 rounded-lg shadow-md w-full max-w-sm sm:max-w-md">
-            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-[#00333e]">Enter Number of SMS Credits</h2>
+      {showSmsInputModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0"
+        >
+          <div className="bg-white p-6 sm:p-8 rounded-lg w-full max-w-sm sm:max-w-md">
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-[#00333e]">
+              Enter Number of SMS Credits
+            </h2>
             <p className="text-xs sm:text-sm text-[#6f888c] mb-3 sm:mb-4">
-              You must purchase at least{' '}
-              <strong>{plans.find((plan: Plan) => plan.plan_id === paymentDetails.planId)?.minimum_sms_purchase.toLocaleString()}</strong> SMS credits.
+              Enter the number of SMS credits you wish to purchase. The appropriate plan will be selected based on your input (e.g., 1–5,999 for Kitonga, 6,000–54,999 for Bumbuli).
             </p>
             <input
               type="number"
@@ -534,6 +482,7 @@ const Subscription: React.FC = () => {
               onChange={(e) => setSmsCountInput(e.target.value)}
               placeholder="Enter number of SMS credits"
               step="1"
+              min="1"
               disabled={isPaymentProcessing}
             />
             <button
@@ -551,36 +500,46 @@ const Subscription: React.FC = () => {
               Cancel
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {showPaymentModal && paymentDetails && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
-          <div className="bg-white p-6 sm:p-8 rounded-lg shadow-md w-full max-w-sm sm:max-w-md">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0"
+        >
+          <div className="bg-white p-6 sm:p-8 rounded-lg w-full max-w-sm sm:max-w-md">
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-[#00333e]">Confirm Purchase</h2>
             <div className="space-y-4">
               <p className="text-sm sm:text-base text-[#6f888c]">
-                <strong>COST:</strong> {paymentDetails.totalAmount.toLocaleString()} TZS
+                <strong>Plan:</strong> {paymentDetails.planName}
               </p>
-              <input
-                type="number"
-                className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent mb-3 sm:mb-4"
-                value={paymentDetails.smsCount}
-                placeholder="Credits"
-                disabled
-              />
+              <p className="text-sm sm:text-base text-[#6f888c]">
+                <strong>Credits:</strong> {paymentDetails.smsCount.toLocaleString()} SMS
+              </p>
+              <p className="text-sm sm:text-base text-[#6f888c]">
+                <strong>Unit Price:</strong> {plans.find(p => p.plan_id === paymentDetails.planId)?.sms_unit_price} TZS/SMS
+              </p>
+              <p className="text-sm sm:text-base text-[#6f888c]">
+                <strong>Total Cost:</strong> {paymentDetails.totalAmount.toLocaleString()} TZS
+              </p>
               <input
                 type="text"
                 className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent mb-3 sm:mb-4"
                 value={mobileMoneyNumber}
                 onChange={(e) => setMobileMoneyNumber(e.target.value)}
-                placeholder="PHONE NUMBER"
+                placeholder="Mobile Money Number"
                 disabled={isPaymentProcessing}
               />
-              <p className="text-sm sm:text-base text-[#6f888c]">CREDIT DESCRIPTIONS: SMS credits for your plan</p>
+              <p className="text-sm sm:text-base text-[#6f888c]">
+                CREDIT DESCRIPTION: {paymentDetails.smsCount.toLocaleString()} SMS credits for {paymentDetails.planName}
+              </p>
               <button
                 className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
                 onClick={handlePurchase}
-                disabled={isPaymentProcessing}
+                disabled={isPaymentProcessing || !mobileMoneyNumber.trim()}
               >
                 PURCHASE
               </button>
@@ -593,12 +552,17 @@ const Subscription: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {showContactModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
-          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-md w-full max-w-sm sm:max-w-md">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0"
+        >
+          <div className="bg-white p-6 sm:p-8 rounded-lg w-full max-w-sm sm:max-w-md">
             <div className="flex justify-between items-center mb-4 sm:mb-6">
               <h2 className="text-lg sm:text-2xl font-bold text-[#00333e]">Contact Our Sales Team</h2>
               <button
@@ -609,7 +573,9 @@ const Subscription: React.FC = () => {
                 <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
-            <p className="text-xs sm:text-sm text-[#6f888c] mb-4 sm:mb-6">Reach out to our sales representatives for assistance.</p>
+            <p className="text-xs sm:text-sm text-[#6f888c] mb-4 sm:mb-6">
+              Reach out to our sales representatives for assistance.
+            </p>
             <div className="space-y-3 sm:space-y-4">
               {salesContacts.map((contact: Contact, index: number) => (
                 <div key={index} className="border-b border-gray-200 pb-3 sm:pb-4 last:border-b-0">
@@ -639,7 +605,7 @@ const Subscription: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
     </motion.div>
   );
