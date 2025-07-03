@@ -78,7 +78,6 @@ const SenderID: React.FC = () => {
             }))
           : [];
 
-        // Deduplicate by sender_id to avoid repetition of approved sender IDs
         const uniqueSenderIds = [...formattedApproved, ...formattedRequests].reduce((acc, current) => {
           if (!acc.find((item) => item.sender_id === current.sender_id)) {
             acc.push(current);
@@ -273,69 +272,89 @@ const SenderID: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen p-6 relative" style={{ paddingTop: '80px' }}>
-      <div className="absolute top-6 left-6 flex items-center gap-4">
-        <IdCard className="w-10 h-10 text-gray-800" />
-        <h1 className="text-3xl font-bold text-gray-800">Sender IDs</h1>
+    <div className="bg-[#f5f5f5] min-h-screen p-6 font-inter">
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <IdCard className="w-8 h-8 text-[#004d66]" />
+          <h1 className="text-2xl font-semibold text-[#004d66]">Sender IDs</h1>
+        </div>
         {isAdmin && (
           <button
             onClick={() => setIsAdminView(!isAdminView)}
-            className="ml-auto text-base py-2 px-4 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+            className="bg-gray-200 text-[#004d66] hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md px-4 py-2 text-sm font-medium"
           >
             {isAdminView ? 'User View' : 'Admin View'}
           </button>
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-8 justify-center items-start mt-20">
+      {error && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="bg-white p-8 rounded-xl w-full sm:w-1/4 max-w-md mx-auto sm:mx-0"
-          style={{ position: 'relative', zIndex: 10 }}
+          className="border border-red-200 bg-red-50 p-3 text-red-700 text-sm font-medium rounded-md mb-6"
         >
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">My Sender IDs</h2>
+          {error}
+        </motion.div>
+      )}
+
+      {successMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border border-green-200 bg-green-50 p-3 text-green-700 text-sm font-medium rounded-md mb-6"
+        >
+          {successMessage}
+        </motion.div>
+      )}
+
+      <div className="flex flex-col lg:flex-row gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white p-6 rounded-md border border-gray-200 w-full lg:w-1/3"
+        >
+          <h2 className="text-lg font-semibold text-[#004d66] mb-4">My Sender IDs</h2>
           {isLoading ? (
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-gray-500 mx-auto" />
-              <p className="text-gray-600 mt-3 text-base">Loading...</p>
+            <div className="flex justify-center items-center">
+              <svg className="animate-spin h-6 w-6 text-[#004d66]" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              <p className="ml-3 text-[#004d66] text-sm">Loading...</p>
             </div>
           ) : senderIds.length === 0 ? (
-            <p className="text-gray-500 text-base">No sender IDs available.</p>
+            <p className="text-gray-500 text-sm">No sender IDs available.</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {senderIds.map((senderId) => (
                 <div
                   key={senderId.request_id || senderId.sender_id}
-                  className="flex items-center justify-between p-3 border-b border-gray-200"
+                  className="flex items-center justify-between p-2 border-b border-gray-200"
                 >
-                  <span className="text-base text-gray-800 font-medium">{senderId.sender_id}</span>
-                  <div className="relative group">
-                    {senderId.status === 'approved' && <span className="text-green-700">✓</span>}
-                    {senderId.status === 'rejected' && <span className="text-red-700">✗</span>}
-                    {senderId.status === 'pending' && <Clock className="text-gray-700 w-5 h-5" />}
-                    <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 -left-2 whitespace-nowrap">
-                      {senderId.status === 'approved' ? 'Approved' :
-                       senderId.status === 'rejected' ? 'Rejected' : 'Pending'}
-                    </span>
+                  <span className="text-sm font-medium text-[#004d66]">{senderId.sender_id}</span>
+                  <div className="flex items-center gap-2">
+                    {senderId.status === 'approved' && <Check className="w-5 h-5 text-green-600" />}
+                    {senderId.status === 'rejected' && <XCircle className="w-5 h-5 text-red-600" />}
+                    {senderId.status === 'pending' && <Clock className="w-5 h-5 text-[#004d66]" />}
+                    {isAdminView && senderId.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => setReviewRequest({ request_id: senderId.request_id!, status: 'approved' })}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          <Check className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => setReviewRequest({ request_id: senderId.request_id!, status: 'rejected' })}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <XCircle className="w-5 h-5" />
+                        </button>
+                      </>
+                    )}
                   </div>
-                  {isAdminView && senderId.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => setReviewRequest({ request_id: senderId.request_id!, status: 'approved' })}
-                        className="ml-4 text-green-500 hover:text-green-700"
-                      >
-                        <Check className="w-6 h-6" />
-                      </button>
-                      <button
-                        onClick={() => setReviewRequest({ request_id: senderId.request_id!, status: 'rejected' })}
-                        className="ml-2 text-red-500 hover:text-red-700"
-                      >
-                        <XCircle className="w-6 h-6" />
-                      </button>
-                    </>
-                  )}
                 </div>
               ))}
             </div>
@@ -343,156 +362,131 @@ const SenderID: React.FC = () => {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-white p-8 rounded-xl w-full sm:w-3/4 max-w-2xl mx-auto sm:mx-0"
-          style={{ position: 'relative', zIndex: 10 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white p-6 rounded-md border border-gray-200 w-full lg:w-2/3"
         >
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Request New Sender ID</h2>
-          <AnimatePresence>
-            {(error || successMessage) && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className={`text-base p-3 rounded-lg mb-6 ${
-                  error ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                }`}
-              >
-                {error || successMessage}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {isLoading && (
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-gray-500 mx-auto" />
-              <p className="text-gray-600 mt-3 text-base">Loading...</p>
-            </div>
-          )}
-
-          {!isLoading && (
-            <div className="space-y-6">
-              <div>
-                <label className="text-base font-medium text-gray-700 mb-2 block">Sender ID</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    className="w-full text-base py-3 px-4 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
-                    placeholder="Enter sender ID (e.g., CompanyName)"
-                    value={newSenderId}
-                    onChange={(e) => handleInputChange(e.target.value)}
-                    maxLength={maxCharLimit}
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-base text-gray-500">
-                    {charCount}/{maxCharLimit}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-base font-medium text-gray-700 mb-2 block">Purpose</label>
-                <textarea
-                  className="w-full text-base py-3 px-4 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
-                  placeholder="Describe the purpose of the sender ID"
-                  value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
-                  rows={4}
+          <h2 className="text-lg font-semibold text-[#004d66] mb-4">Request New Sender ID</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-[#004d66] mb-1 block">Sender ID</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  className="w-full text-sm py-2 px-3 border border-gray-200 rounded-md text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+                  placeholder="Enter sender ID (e.g., CompanyName)"
+                  value={newSenderId}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  maxLength={maxCharLimit}
                 />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                  {charCount}/{maxCharLimit}
+                </span>
               </div>
-
-              <div>
-                <label className="text-base font-medium text-gray-700 mb-2 block">Use Cases</label>
-                <div className="flex gap-6">
-                  {availableUseCases.map((useCase) => (
-                    <label key={useCase} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={useCases.includes(useCase)}
-                        onChange={() => handleUseCaseChange(useCase)}
-                        className="w-5 h-5 text-gray-700 border-gray-700 focus:ring-[#fddf0d]"
-                      />
-                      <span className="text-base text-gray-800">{useCase}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-base font-medium text-gray-700 mb-2 block">Compliance Documents</label>
-                <div
-                  className={`border-2 border-dashed border-gray-700 rounded-xl p-6 text-center ${
-                    isDragging ? 'border-[#fddf0d] bg-[#fddf0d] bg-opacity-20' : ''
-                  }`}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                >
-                  <Upload className="w-8 h-8 text-gray-500 mx-auto mb-3" />
-                  <p className="text-base text-gray-600">Drag and drop files here or</p>
-                  <label className="text-base text-gray-700 underline cursor-pointer">
-                    browse
-                    <input
-                      type="file"
-                      multiple
-                      accept=".pdf,.doc,.docx"
-                      onChange={handleDocumentUpload}
-                      className="hidden"
-                    />
-                  </label>
-                  <p className="text-sm text-gray-500 mt-1">Accepted formats: PDF, DOC, DOCX</p>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    const link = document.createElement('a');
-                    link.href = 'data:application/pdf;base64,JVBERi-0xL...'; // Mock PDF
-                    link.download = 'LOA-Sample-Briq.pdf';
-                    link.click();
-                  }}
-                  className="mt-4 text-base text-gray-700 underline flex items-center gap-2"
-                >
-                  <FileText className="w-5 h-5" />
-                  Download LOA Sample
-                </button>
-                {documents.length > 0 && (
-                  <div className="mt-4">
-                    <ul className="space-y-2">
-                      {documents.map((doc, index) => (
-                        <li key={index} className="flex items-center justify-between text-base text-gray-700">
-                          <span>{doc.name}</span>
-                          <button
-                            onClick={() => handleRemoveDocument(index)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <XCircle className="w-5 h-5" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <p className="text-base text-gray-600">
-                Sender ID registration and approval may take up to 3 working days. You will receive a notification via email, Briq, or SMS.
-              </p>
-
-              <button
-                onClick={handleRequestSenderId}
-                disabled={charCount > maxCharLimit || charCount === 0 || !purpose.trim() || useCases.length === 0}
-                className={`flex items-center gap-2 text-base py-3 px-6 rounded-lg transition-colors duration-200 ${
-                  charCount > maxCharLimit || charCount === 0 || !purpose.trim() || useCases.length === 0
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-700 text-white hover:bg-blue-600'
-                }`}
-              >
-                <Plus className="w-5 h-5" />
-                Request Sender ID
-              </button>
             </div>
-          )}
+
+            <div>
+              <label className="text-sm font-medium text-[#004d66] mb-1 block">Purpose</label>
+              <textarea
+                className="w-full text-sm py-2 px-3 border border-gray-200 rounded-md text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
+                placeholder="Describe the purpose of the sender ID"
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                rows={4}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-[#004d66] mb-1 block">Use Cases</label>
+              <div className="flex flex-wrap gap-4">
+                {availableUseCases.map((useCase) => (
+                  <label key={useCase} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={useCases.includes(useCase)}
+                      onChange={() => handleUseCaseChange(useCase)}
+                      className="w-4 h-4 text-[#004d66] border-gray-200 focus:ring-[#FDD70D] rounded"
+                    />
+                    <span className="text-sm text-[#004d66]">{useCase}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-[#004d66] mb-1 block">Compliance Documents</label>
+              <div
+                className={`border-2 border-dashed border-gray-200 rounded-md p-4 text-center ${
+                  isDragging ? 'border-[#FDD70D] bg-[#FDD70D] bg-opacity-10' : ''
+                }`}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+              >
+                <Upload className="w-6 h-6 text-[#004d66] mx-auto mb-2" />
+                <p className="text-sm text-[#004d66]">Drag and drop files here or</p>
+                <label className="text-sm text-[#004d66] underline cursor-pointer">
+                  browse
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleDocumentUpload}
+                    className="hidden"
+                  />
+                </label>
+                <p className="text-xs text-gray-500 mt-1">Accepted formats: PDF, DOC, DOCX</p>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  const link = document.createElement('a');
+                  link.href = 'data:application/pdf;base64,JVBERi-0xL...';
+                  link.download = 'LOA-Sample-Briq.pdf';
+                  link.click();
+                }}
+                className="mt-2 text-sm text-[#004d66] underline flex items-center gap-1"
+              >
+                <FileText className="w-4 h-4" />
+                Download LOA Sample
+              </button>
+              {documents.length > 0 && (
+                <div className="mt-3">
+                  <ul className="space-y-2">
+                    {documents.map((doc, index) => (
+                      <li key={index} className="flex items-center justify-between text-sm text-[#004d66]">
+                        <span>{doc.name}</span>
+                        <button
+                          onClick={() => handleRemoveDocument(index)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <p className="text-sm text-gray-600">
+              Sender ID registration and approval may take up to 3 working days. You will receive a notification via email, Briq, or SMS.
+            </p>
+
+            <button
+              onClick={handleRequestSenderId}
+              disabled={charCount > maxCharLimit || charCount === 0 || !purpose.trim() || useCases.length === 0}
+              className={`flex items-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md font-medium ${
+                charCount > maxCharLimit || charCount === 0 || !purpose.trim() || useCases.length === 0
+                  ? 'opacity-50 cursor-not-allowed'
+                  : ''
+              }`}
+            >
+              <Plus className="w-4 h-4" />
+              Request Sender ID
+            </button>
+          </div>
         </motion.div>
       </div>
 
@@ -502,33 +496,36 @@ const SenderID: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 font-inter"
           >
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-white rounded-xl p-8 w-full max-w-2xl"
+              className="bg-white rounded-md p-6 w-full max-w-md"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-800">Confirm Review</h2>
-                <button onClick={() => setReviewRequest(null)} className="text-gray-500 hover:text-gray-700">
-                  <XCircle className="w-6 h-6" />
-                </button>
-              </div>
-              <p className="text-base text-gray-600 mb-6">
-                Are you sure you want to mark the sender ID "{senderIds.find((s) => s.request_id === reviewRequest.request_id)?.sender_id}" as {reviewRequest.status}?
-              </p>
-              <div className="flex justify-end gap-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-[#004d66]">Confirm Review</h2>
                 <button
                   onClick={() => setReviewRequest(null)}
-                  className="text-base py-2 px-6 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+                  className="text-[#004d66] hover:text-[#FDD70D]"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-[#004d66] mb-4">
+                Are you sure you want to mark the sender ID "{senderIds.find((s) => s.request_id === reviewRequest.request_id)?.sender_id}" as {reviewRequest.status}?
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setReviewRequest(null)}
+                  className="text-sm py-2 px-4 bg-gray-200 text-[#004d66] hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleReviewSenderId(reviewRequest.request_id, reviewRequest.status)}
-                  className="text-base py-2 px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200"
+                  className="text-sm py-2 px-4 bg-[#00333e] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md font-medium"
                 >
                   Confirm
                 </button>

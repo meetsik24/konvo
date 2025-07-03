@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, MessageSquare, XCircle, Megaphone, Folder, TrendingUp } from 'lucide-react';
+import { Chart } from 'chart.js/auto';
+import { Users, MessageSquare, XCircle, Megaphone, Folder, TrendingUp, CheckCircle, Clock } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import { getCampaigns, fetchLogs, getContactMetrics } from '../services/api';
 
@@ -10,8 +10,6 @@ interface Stat {
   value: string;
   icon: React.FC<React.SVGProps<SVGSVGElement>>;
   gradient: string;
-  titleLine1: string;
-  titleLine2: string;
 }
 
 interface DataPoint {
@@ -34,11 +32,11 @@ interface DashboardData {
 
 const initialDashboardData: DashboardData = {
   stats: [
-    { title: 'Messages Sent', value: '0', icon: MessageSquare, gradient: 'from-blue-500 to-blue-600', titleLine1: 'Messages', titleLine2: 'Sent' },
-    { title: 'Number of Campaigns', value: '0', icon: Megaphone, gradient: 'from-green-500 to-green-600', titleLine1: 'Number of', titleLine2: 'Campaigns' },
-    { title: 'Total Fails', value: '0', icon: XCircle, gradient: 'from-red-500 to-red-600', titleLine1: 'Total', titleLine2: 'Fails' },
-    { title: 'Total Contacts', value: '0', icon: Users, gradient: 'from-purple-500 to-purple-600', titleLine1: 'Total', titleLine2: 'Contacts' },
-    { title: 'Total Contact Groups', value: '0', icon: Folder, gradient: 'from-yellow-500 to-yellow-600', titleLine1: 'Total Contact', titleLine2: 'Groups' },
+    { title: 'Messages Sent', value: '0', icon: MessageSquare, gradient: 'from-blue-500 to-blue-600' },
+    { title: 'Number of Campaigns', value: '0', icon: Megaphone, gradient: 'from-green-500 to-green-600' },
+    { title: 'Total Fails', value: '0', icon: XCircle, gradient: 'from-red-500 to-red-600' },
+    { title: 'Total Contacts', value: '0', icon: Users, gradient: 'from-purple-500 to-purple-600' },
+    { title: 'Total Contact Groups', value: '0', icon: Folder, gradient: 'from-yellow-500 to-yellow-600' },
   ],
   data: [],
   campaigns: [],
@@ -50,6 +48,8 @@ const Dashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData>(initialDashboardData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const chartRefLine = useRef<HTMLCanvasElement>(null);
+  const [chartInstanceLine, setChartInstanceLine] = useState<Chart | null>(null);
 
   const fetchAllMessageLogs = useCallback(async () => {
     try {
@@ -143,31 +143,24 @@ const Dashboard: React.FC = () => {
           console.warn('Invalid timestamp in log:', log);
           return acc;
         }
-        const dateString = date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-        });
+        const dateString = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         acc[dateString] = (acc[dateString] || 0) + 1;
         return acc;
       }, {});
 
       const dataPoints = Object.entries(messageVolume)
         .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => {
-          const dateA = new Date(a.name);
-          const dateB = new Date(b.name);
-          return dateA.getTime() - dateB.getTime();
-        });
+        .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
 
       console.log('Processed data points for chart:', dataPoints);
 
       const newDashboardData: DashboardData = {
         stats: [
-          { title: 'Messages Sent', value: messagesSent.toString(), icon: MessageSquare, gradient: 'from-blue-500 to-blue-600', titleLine1: 'Messages', titleLine2: 'Sent' },
-          { title: 'Number of Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, gradient: 'from-green-500 to-green-600', titleLine1: 'Number of', titleLine2: 'Campaigns' },
-          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, gradient: 'from-red-500 to-red-600', titleLine1: 'Total', titleLine2: 'Fails' },
-          { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, gradient: 'from-purple-500 to-purple-600', titleLine1: 'Total', titleLine2: 'Contacts' },
-          { title: 'Total Contact Groups', value: totalContactGroups.toString(), icon: Folder, gradient: 'from-yellow-500 to-yellow-600', titleLine1: 'Total Contact', titleLine2: 'Groups' },
+          { title: 'SMS Sent', value: messagesSent.toString(), icon: MessageSquare, gradient: 'from-blue-500 to-blue-600' },
+          { title: 'Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, gradient: 'from-green-500 to-green-600' },
+          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, gradient: 'from-red-500 to-red-600' },
+          { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, gradient: 'from-purple-500 to-purple-600' },
+          { title: 'Total Groups', value: totalContactGroups.toString(), icon: Folder, gradient: 'from-yellow-500 to-yellow-600' },
         ],
         data: dataPoints,
         campaigns: Array.isArray(campaigns) ? campaigns : [],
@@ -190,113 +183,134 @@ const Dashboard: React.FC = () => {
     loadDashboardData();
   }, [loadDashboardData]);
 
+  useEffect(() => {
+    if (chartRefLine.current && dashboardData.data.length > 0) {
+      const ctxLine = chartRefLine.current.getContext('2d');
+      if (chartInstanceLine) {
+        chartInstanceLine.destroy();
+      }
+      try {
+        const newChartInstanceLine = new Chart(ctxLine, {
+          type: 'line',
+          data: {
+            labels: dashboardData.data.map((point) => point.name),
+            datasets: [{
+              label: 'Message Volume',
+              data: dashboardData.data.map((point) => point.value),
+              borderColor: '#fddf0d',
+              backgroundColor: 'rgba(253, 223, 13, 0.2)',
+              fill: true,
+              tension: 0.4,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#00333e' } },
+            },
+            scales: {
+              y: { 
+                beginAtZero: true, 
+                title: { display: true, text: 'Count', color: '#00333e' },
+                ticks: { color: '#00333e' }
+              },
+              x: { 
+                title: { display: true, text: 'Date', color: '#00333e' },
+                ticks: { color: '#00333e' }
+              },
+            },
+          },
+        });
+        setChartInstanceLine(newChartInstanceLine);
+      } catch (error) {
+        console.error('Error creating line chart:', error);
+      }
+    }
+
+    return () => {
+      if (chartInstanceLine) {
+        chartInstanceLine.destroy();
+      }
+    };
+  }, [dashboardData.data]);
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Active':
+        return <CheckCircle className="w-5 h-5 text-[#00333e]" />;
+      case 'Completed':
+        return <CheckCircle className="w-5 h-5 text-[#00333e]" />;
+      case 'Pending':
+        return <Clock className="w-5 h-5 text-[#fddf0d]" />;
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Loading State */}
+    <div className="max-w-7xl mx-auto p-6 bg-[#f5f5f5] min-h-screen font-inter">
       {isLoading && (
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#00333e]"></div>
-          <p className="ml-4 text-[#00333e] text-lg">Loading dashboard...</p>
+          <svg className="animate-spin h-6 w-6 text-[#00333e]" viewBox="0 0 24 24" aria-label="Loading">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+          <p className="ml-3 text-[#00333e] text-sm">Loading Dashboard Data</p>
         </div>
       )}
 
-      {/* Error State */}
       {error && !isLoading && (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg text-center">
+        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md text-center">
           {error}
         </div>
       )}
 
-      {/* Main Content */}
       {!isLoading && !error && (
-        <div className="space-y-6">
-          {/* Stats Cards */}
+        <div className="space-y-8">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <h1 className="text-2xl font-semibold text-[#00333e] mb-8">Dashboard</h1>
+          </motion.div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {dashboardData.stats.map((stat, index) => (
               <motion.div
                 key={stat.title}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.03 }}
-                className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100"
+                transition={{ delay: 0.1 + index * 0.05 }}
+                className="bg-white rounded-md p-4 border border-gray-200"
               >
-                <div className={`p-5 bg-gradient-to-r ${stat.gradient} flex items-center`}>
-                  <stat.icon className="w-8 h-8 text-white" />
-                  <div className="ml-4">
-                    <p className="text-sm text-white/80 leading-tight">
-                      {stat.titleLine1}<br />{stat.titleLine2}
-                    </p>
-                    <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
+                <div className="flex items-center">
+                  <div className={`p-2 rounded-md bg-gradient-to-r ${stat.gradient}`}>
+                    <stat.icon className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-gray-600">{stat.title}</p>
+                    <p className="text-lg font-medium text-[#00333e]">{stat.value}</p>
                   </div>
                 </div>
               </motion.div>
             ))}
           </div>
 
-          {/* Message Volume Chart */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-md p-6 border border-gray-200"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-[#00333e] flex items-center">
-                <TrendingUp className="w-6 h-6 mr-2 text-[#fddf0d]" />
-                Message Volume
-              </h2>
-              <div className="text-sm text-[#00333e]">
-                Last {dashboardData.data?.length || 0} days
-              </div>
-            </div>
-            <div className="h-80">
-              {dashboardData.data && dashboardData.data.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={dashboardData.data}
-                    margin={{ top: 10, right: 30, left: 0, bottom: 50 }}
-                  >
-                    <defs>
-                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#fddf0d" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#fddf0d" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 12, fill: '#00333e' }}
-                      interval={0}
-                      angle={-45}
-                      textAnchor="end"
-                      height={70}
-                      tickFormatter={(value) => value}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 12, fill: '#00333e' }}
-                      width={40}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#fff',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                        color: '#00333e',
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#fddf0d"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorValue)"
-                      activeDot={{ r: 6, fill: '#fddf0d', stroke: '#fff', strokeWidth: 2 }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+            <h2 className="text-lg font-medium text-[#00333e] mb-4 flex items-center">
+              <TrendingUp className="w-6 h-6 mr-2 text-[#fddf0d]" />
+              Message Volume
+            </h2>
+            <div className="h-64">
+              {dashboardData.data.length > 0 ? (
+                <canvas ref={chartRefLine} />
               ) : (
                 <div className="flex items-center justify-center h-full text-[#00333e]">
                   <MessageSquare className="w-8 h-8 mr-2 text-[#fddf0d]" />
@@ -306,43 +320,40 @@ const Dashboard: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* Recent Campaigns */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-md p-6 border border-gray-200"
           >
-            <h2 className="text-xl font-semibold text-[#00333e] mb-4">Recent Campaigns</h2>
+            <h2 className="text-lg font-medium text-[#00333e] mb-4">Recent Campaigns</h2>
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="min-w-full divide-y divide-gray-200">
                 <thead>
-                  <tr className="text-sm text-[#00333e] border-b border-gray-200">
-                    <th className="pb-2">Name</th>
-                    <th className="pb-2">Date</th>
-                    <th className="pb-2">Status</th>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-200">
                   {dashboardData.campaigns && dashboardData.campaigns.length > 0 ? (
                     dashboardData.campaigns.slice(0, 5).map((campaign) => (
-                      <tr key={campaign.campaign_id} className="border-b last:border-b-0 hover:bg-gray-50">
-                        <td className="py-3 text-[#00333e]">{campaign.name}</td>
-                        <td className="py-3 text-[#00333e]">
+                      <tr key={campaign.campaign_id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#00333e]">{campaign.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#00333e]">
                           {new Date(campaign.created_at).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric',
                           })}
                         </td>
-                        <td className="py-3">
-                          <span className="text-[#fddf0d] font-medium">{campaign.status}</span>
-                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">{getStatusIcon(campaign.status)}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={3} className="py-3 text-center text-[#00333e]">
+                      <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-sm text-[#00333e] text-center">
                         No recent campaigns available.
                       </td>
                     </tr>
