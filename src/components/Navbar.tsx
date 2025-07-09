@@ -516,11 +516,11 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
       </nav>
 
       {/* Desktop Navbar (hidden on mobile) */}
-      <nav className="bg-white shadow-md fixed top-0 left-64 w-[calc(100%-256px)] z-50 hidden sm:block">
+      <nav className="bg-white shadow-md fixed top-0 left-70 w-[calc(100%-200px)] z-50 hidden sm:block">
         <div className="px-4 sm:px-3">
-          <div className="flex justify-end items-center h-16">
+          <div className="flex justify-end items-center h-14 w-full">
             {/* Right Side: Actions */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 ml-auto">
               {/* Notifications */}
               <div className="relative">
                 <button
@@ -557,7 +557,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
               </Link>
 
               {/* Avatar */}
-              <div className="flex items-center gap-2 bg-[#fddf0d] px-3 py-2 rounded-full">
+              <div className="flex items-center gap-2  px-2 py-2 rounded-full">
                 <img
                   className="w-8 h-8 rounded-full border-2 border-green-500 hover:border-[#00333e] transition-all duration-300"
                   src={avatarUrl}
