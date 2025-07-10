@@ -214,6 +214,26 @@ interface ApiKey {
   expires_at: string;
 }
 
+export const validateMessage = async (
+  workspaceId: string,
+  data: {
+    recipients: string[];
+    content: string;
+    sender_id: string;
+  }
+): Promise<void> => {
+  try {
+    const response = await api.post(`/messages/validate`, {
+      workspace_id: workspaceId,
+      ...data,
+    });
+    if (!response.data.isValid) {
+      throw new Error(response.data.message || 'Message validation failed');
+    }
+  } catch (error: any) {
+    handleApiError(error, 'Failed to validate message');
+  }
+};
 
 // Utility function for consistent error handling
 const handleApiError = (error: any, defaultMessage: string): never => {
@@ -900,13 +920,36 @@ export const sendInstantMessage = async (
   }
 ): Promise<Message> => {
   try {
-    const response = await api.post("/messages/send-instant", {
+    const response = await api.post("/messages/validate", {
       workspace_id: workspaceId,
       ...data,
     });
     return response.data;
   } catch (error: any) {
-    handleApiError(error, "Failed to send instant message");
+    handleApiError(error, "Failed to validate instant message");
+  }
+};
+
+export const sendCampaignMessage = async (
+  workspaceId: string,
+  data: {
+    recipients: string[];
+    content: string;
+    sender_id: string;
+    group_id: string;
+    start_date: string;
+    end_date: string;
+    frequency: string;
+  }
+): Promise<Message> => {
+  try {
+    const response = await api.post("/messages/send-campaign", {
+      workspace_id: workspaceId,
+      ...data,
+    });
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to send campaign message");
   }
 };
 

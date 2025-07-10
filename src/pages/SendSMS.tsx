@@ -12,6 +12,8 @@ import {
   generateMessage,
   getWorkspaceGroups,
   getGroupContacts,
+  validateMessage,
+  sendCampaignMessage,
 } from '../services/api';
 
 interface Campaign { campaign_id: string; workspace_id: string; name: string; status: 'active' | 'completed'; }
@@ -115,10 +117,8 @@ const SendSMS = () => {
   const normalizePhone = (phone: string, defaultCountryCode: string = '+255'): string => {
     if (!phone || typeof phone !== 'string') return '';
 
-    // Clean the input (remove spaces, dashes, parentheses, etc.)
     let cleaned = phone.trim().replace(/[\s()-]/g, '');
 
-    // Handle common prefixes
     if (cleaned.startsWith('00')) {
       cleaned = '+' + cleaned.slice(2);
     } else if (cleaned.startsWith('255') && !cleaned.startsWith('+255')) {
@@ -131,7 +131,6 @@ const SendSMS = () => {
       return '';
     }
 
-    // Validate: must start with + followed by 9–15 digits
     if (!/^\+\d{9,15}$/.test(cleaned)) {
       console.warn(`Invalid phone number format: ${phone} → ${cleaned}`);
       return '';
@@ -153,7 +152,6 @@ const SendSMS = () => {
           reject(new Error('File is empty.'));
           return;
         }
-        // Try multiple delimiters
         const delimiters = [',', ';', '\t'];
         let headers: string[] = [];
         let rows: string[][] = [];
@@ -172,7 +170,6 @@ const SendSMS = () => {
           reject(new Error('CSV must have at least one column.'));
           return;
         }
-        // Find phone column dynamically
         const phoneColIndex = headers.findIndex(h => /phone|mobile|number/i.test(h));
         if (phoneColIndex === -1) {
           reject(new Error('No phone number column found (e.g., phone, mobile, phone_number).'));
@@ -313,6 +310,14 @@ const SendSMS = () => {
       if (!recipients.length) {
         throw new Error(`No valid recipients found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
       }
+
+      // Validate message before sending
+      await validateMessage(currentWorkspaceId!, {
+        recipients,
+        content: formData.message,
+        sender_id: formData.senderId,
+      });
+
       setRecipientCount(recipients.length);
       setMessagePreview(previewMessage);
       setIsConfirmModalOpen(true);
@@ -342,10 +347,24 @@ const SendSMS = () => {
           const groupPhones = await fetchRecipients(selectedGroups);
           recipients.push(...groupPhones.map(phone => normalizePhone(phone, defaultCountryCode)).filter(p => p));
         }
+        await sendInstantMessage(currentWorkspaceId, {
+          recipients,
+          content: formData.message,
+          sender_id: formData.senderId,
+        });
       } else if (sendMode === 'campaign') {
         const groups = campaignGroups[selectedCampaignId] || [];
         if (!groups.length) throw new Error('No groups assigned to campaign.');
         recipients = await fetchRecipients(groups.map(g => g.group_id));
+        await sendCampaignMessage(currentWorkspaceId, {
+          recipients,
+          content: formData.message,
+          sender_id: formData.senderId,
+          group_id: selectedCampaignId,
+          start_date: formData.startDate + 'T' + formData.startTime,
+          end_date: formData.endDate + 'T' + formData.endTime,
+          frequency: formData.frequency,
+        });
       } else if (sendMode === 'file') {
         recipients = uploadedData
           .map(row => normalizePhone(row[phoneColumn] || '', defaultCountryCode))
@@ -358,36 +377,29 @@ const SendSMS = () => {
             }))
             .filter(msg => msg.phone && recipients.includes(msg.phone));
         }
+        if (personalizedMessages.length) {
+          const errors: string[] = [];
+          await Promise.all(
+            personalizedMessages.map(async (msg, index) => {
+              try {
+                await sendInstantMessage(currentWorkspaceId, {
+                  recipients: [msg.phone],
+                  content: msg.content,
+                  sender_id: formData.senderId,
+                });
+              } catch (err: any) {
+                errors.push(`Failed to send to ${msg.phone}: ${err.message || 'Unknown error'}`);
+              }
+            })
+          );
+          if (errors.length) {
+            throw new Error(`Some messages failed to send: ${errors.join('; ')}`);
+          }
+        }
       }
 
       if (!recipients.length) {
         throw new Error(`No valid recipients found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
-      }
-
-      if (sendMode === 'file' && personalizedMessages.length) {
-        const errors: string[] = [];
-        await Promise.all(
-          personalizedMessages.map(async (msg, index) => {
-            try {
-              await sendInstantMessage(currentWorkspaceId, {
-                recipients: [msg.phone],
-                content: msg.content,
-                sender_id: formData.senderId,
-              });
-            } catch (err: any) {
-              errors.push(`Failed to send to ${msg.phone}: ${err.message || 'Unknown error'}`);
-            }
-          })
-        );
-        if (errors.length) {
-          throw new Error(`Some messages failed to send: ${errors.join('; ')}`);
-        }
-      } else {
-        await sendInstantMessage(currentWorkspaceId, {
-          recipients,
-          content: formData.message,
-          sender_id: formData.senderId,
-        });
       }
 
       setFormData({
@@ -1113,7 +1125,7 @@ const SendSMS = () => {
         </motion.div>
       </Modal>
 
-  <Modal
+      <Modal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         title="Confirm SMS Send"
