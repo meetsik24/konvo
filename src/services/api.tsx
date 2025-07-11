@@ -925,6 +925,15 @@ export const getMessageLogs = async (): Promise<Message[]> => {
   }
 };
 
+export const getMessageLogsV1 = async (): Promise<Message[]> => {
+  try {
+    const response = await api.get("/messages/logs/V1");
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch message logs V1");
+  }
+};
+
 export const getUserMessages = async (): Promise<Message[]> => {
   try {
     const response = await api.get("/messages/me");
