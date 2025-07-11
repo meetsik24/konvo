@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IdCard, Plus, Check, XCircle, FileText, Upload, Clock } from 'lucide-react';
+import { IdCard, Plus, Check, XCircle, Clock } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import {
   requestSenderId,
@@ -22,8 +22,7 @@ interface SenderId {
   requested_at?: string;
   reviewed_at?: string;
   purpose?: string;
-  use_cases?: string[];
-  documents?: Array<{ name: string; size: number }>;
+  use_cases?: string;
 }
 
 const SenderID: React.FC = () => {
@@ -33,14 +32,12 @@ const SenderID: React.FC = () => {
   const [newSenderId, setNewSenderId] = useState('');
   const [purpose, setPurpose] = useState('');
   const [useCases, setUseCases] = useState<string[]>([]);
-  const [documents, setDocuments] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [reviewRequest, setReviewRequest] = useState<{ request_id: string; status: 'approved' | 'rejected' } | null>(null);
   const [charCount, setCharCount] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
   const maxCharLimit = 11;
   const availableUseCases = ['OTP', 'Transactional SMS', 'Promotions'];
 
@@ -73,8 +70,7 @@ const SenderID: React.FC = () => {
               status: req.status || 'pending',
               is_approved: req.status === 'approved',
               purpose: req.purpose || 'Mocked purpose',
-              use_cases: req.use_cases || ['Transactional SMS'],
-              documents: req.documents || [],
+              use_cases: req.use_cases || 'Transactional SMS',
             }))
           : [];
 
@@ -123,45 +119,6 @@ const SenderID: React.FC = () => {
     );
   };
 
-  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files).filter((file) =>
-        ['.pdf', '.doc', '.docx'].some((ext) => file.name.toLowerCase().endsWith(ext))
-      );
-      if (newFiles.length !== e.target.files.length) {
-        setError('Only PDF, DOC, and DOCX files are allowed.');
-      }
-      setDocuments((prev) => [...prev, ...newFiles]);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files) {
-      const newFiles = Array.from(e.dataTransfer.files).filter((file) =>
-        ['.pdf', '.doc', '.docx'].some((ext) => file.name.toLowerCase().endsWith(ext))
-      );
-      if (newFiles.length !== e.dataTransfer.files.length) {
-        setError('Only PDF, DOC, and DOCX files are allowed.');
-      }
-      setDocuments((prev) => [...prev, ...newFiles]);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleRemoveDocument = (index: number) => {
-    setDocuments((prev) => prev.filter((_, i) => i !== index));
-  };
-
   const handleRequestSenderId = async () => {
     if (!newSenderId.trim()) {
       setError('Sender ID name cannot be empty.');
@@ -185,27 +142,11 @@ const SenderID: React.FC = () => {
     }
     setIsLoading(true);
     try {
-      let response;
-      try {
-        response = await requestSenderId(currentWorkspaceId, {
-          sender_id: newSenderId.trim(),
-          purpose,
-          use_cases: useCases,
-          documents,
-        });
-      } catch (error) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        response = {
-          request_id: `req_${(senderIds.length + 1).toString().padStart(3, '0')}`,
-          user_id: workspace?.user_id || 'user_001',
-          sender_id: newSenderId.trim(),
-          name: newSenderId.trim(),
-          status: 'pending',
-          purpose,
-          use_cases: useCases,
-          documents: documents.map((doc) => ({ name: doc.name, size: doc.size })),
-        };
-      }
+      const response = await requestSenderId(currentWorkspaceId, {
+        sender_id: newSenderId.trim(),
+        purpose,
+        use_cases: useCases.join(','),
+      });
       const newRequest: SenderId = {
         request_id: response.request_id,
         user_id: response.user_id || workspace?.user_id || 'user_001',
@@ -215,15 +156,13 @@ const SenderID: React.FC = () => {
         is_approved: false,
         requested_at: new Date().toISOString(),
         purpose,
-        use_cases: useCases,
-        documents: response.documents || documents.map((doc) => ({ name: doc.name, size: doc.size })),
+        use_cases: useCases.join(','),
       };
       const updatedSenderIds = [...senderIds, newRequest];
       setSenderIds(updatedSenderIds);
       setNewSenderId('');
       setPurpose('');
       setUseCases([]);
-      setDocuments([]);
       setCharCount(0);
       setError(null);
       setSuccessMessage(
@@ -231,12 +170,6 @@ const SenderID: React.FC = () => {
       );
       updateWorkspace(currentWorkspaceId, { senderIds: updatedSenderIds });
       setTimeout(() => setSuccessMessage(null), 3000);
-      setTimeout(() => {
-        setSuccessMessage(
-          `Notification: Sender ID "${newSenderId}" has been ${Math.random() > 0.3 ? 'approved' : 'rejected'}.`
-        );
-        setTimeout(() => setSuccessMessage(null), 3000);
-      }, 1000);
     } catch (error: any) {
       setError(error?.response?.data?.message || 'Failed to request sender ID.');
     } finally {
@@ -292,7 +225,7 @@ const SenderID: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="border border-red-200 bg-red-50 p-3 text-red-700 text-sm font-medium rounded-md mb-6"
+          className="border border-red-200 bg-red-50 pрати-3 text-red-700 text-sm font-medium rounded-md mb-6"
         >
           {error}
         </motion.div>
@@ -413,66 +346,6 @@ const SenderID: React.FC = () => {
                 ))}
               </div>
             </div>
-
-            <div>
-              <label className="text-sm font-medium text-[#004d66] mb-1 block">Compliance Documents</label>
-              <div
-                className={`border-2 border-dashed border-gray-200 rounded-md p-4 text-center ${
-                  isDragging ? 'border-[#FDD70D] bg-[#FDD70D] bg-opacity-10' : ''
-                }`}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-              >
-                <Upload className="w-6 h-6 text-[#004d66] mx-auto mb-2" />
-                <p className="text-sm text-[#004d66]">Drag and drop files here or</p>
-                <label className="text-sm text-[#004d66] underline cursor-pointer">
-                  browse
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleDocumentUpload}
-                    className="hidden"
-                  />
-                </label>
-                <p className="text-xs text-gray-500 mt-1">Accepted formats: PDF, DOC, DOCX</p>
-              </div>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  const link = document.createElement('a');
-                  link.href = 'data:application/pdf;base64,JVBERi-0xL...';
-                  link.download = 'LOA-Sample-Briq.pdf';
-                  link.click();
-                }}
-                className="mt-2 text-sm text-[#004d66] underline flex items-center gap-1"
-              >
-                <FileText className="w-4 h-4" />
-                Download LOA Sample
-              </button>
-              {documents.length > 0 && (
-                <div className="mt-3">
-                  <ul className="space-y-2">
-                    {documents.map((doc, index) => (
-                      <li key={index} className="flex items-center justify-between text-sm text-[#004d66]">
-                        <span>{doc.name}</span>
-                        <button
-                          onClick={() => handleRemoveDocument(index)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            <p className="text-sm text-gray-600">
-              Sender ID registration and approval may take up to 3 working days. You will receive a notification via email, Briq, or SMS.
-            </p>
 
             <button
               onClick={handleRequestSenderId}

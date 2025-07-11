@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Phone, Users, Calendar, MessageSquare, Send, Bot } from 'lucide-react';
+import { Users, Calendar, Send, Bot, CheckCircle } from 'lucide-react';
 import PhonePreview from '../modals/PhonePreview';
 import { useWorkspace } from './WorkspaceContext';
 import Modal from '../modals/Modal';
@@ -21,6 +21,20 @@ interface Group { group_id: string; name: string; }
 interface SenderId { sender_id: string; name: string; is_approved: boolean; }
 interface Contact { contact_id: string; phone_number: string; }
 interface UploadedRow { [key: string]: string; }
+
+interface ValidationResult {
+  status: string;
+  validation: {
+    is_valid: boolean;
+    content: { valid: boolean; message: string; stats: any };
+    recipients: { valid: boolean; message: string; stats: { invalid_count: number; invalid_numbers: string[] } };
+    sms_parts: number;
+    total_cost: number;
+    cost_per_sms: number;
+    destination_type: string;
+  };
+  general_validity: boolean;
+}
 
 const SendSMS = () => {
   const { currentWorkspaceId } = useWorkspace();
@@ -48,24 +62,28 @@ const SendSMS = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedData, setUploadedData] = useState<UploadedRow[]>([]);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
-  const [phoneColumn, setPhoneColumn] = useState<string>(''); // Phone column selection
-  const [defaultCountryCode, setDefaultCountryCode] = useState<string>('+255'); // Default country code
+  const [phoneColumn, setPhoneColumn] = useState<string>('');
+  const [defaultCountryCode, setDefaultCountryCode] = useState<string>('+255');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [keywords, setKeywords] = useState('');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [recipientCount, setRecipientCount] = useState(0);
   const [messagePreview, setMessagePreview] = useState('');
-  const [invalidPhones, setInvalidPhones] = useState<string[]>([]); // Track invalid phone numbers
+  const [invalidPhones, setInvalidPhones] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [modalState, setModalState] = useState({
     isAIModalOpen: false,
     isGroupModalOpen: false,
     isCreateCampaignOpen: false,
+    isSuccessModalOpen: false,
   });
+
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
 
   useEffect(() => {
     const count = formData.message.length;
@@ -78,12 +96,14 @@ const SendSMS = () => {
       setIsLoading(true);
       try {
         if (!currentWorkspaceId) throw new Error('No workspace selected.');
-        const senderResponse = await getApprovedSenderIds(currentWorkspaceId);
+        const [senderResponse, campaignsData, groupsData] = await Promise.all([
+          getApprovedSenderIds(currentWorkspaceId),
+          getCampaigns(),
+          getWorkspaceGroups(currentWorkspaceId),
+        ]);
         setSenderIds(senderResponse);
         if (senderResponse.length) setFormData(prev => ({ ...prev, senderId: senderResponse[0].sender_id }));
-        const campaignsData = await getCampaigns();
         setCampaigns(campaignsData);
-        const groupsData = await getWorkspaceGroups(currentWorkspaceId);
         setGroups(groupsData);
       } catch (err: any) {
         setError(err.message || 'Failed to load data.');
@@ -198,6 +218,7 @@ const SendSMS = () => {
           if (!normalized && phone) {
             invalidNumbers.push(phone);
           }
+          row[headers[phoneColIndex]] = normalized; // Update with normalized phone
           return normalized;
         });
         setInvalidPhones(invalidNumbers);
@@ -261,10 +282,16 @@ const SendSMS = () => {
 
   const isFormValid = () => {
     if (!formData.senderId || !formData.message.trim()) return false;
-    if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length) return false;
-    if (sendMode === 'campaign' && !selectedCampaignId) return false;
-    if (sendMode === 'file' && (!uploadedData.length || !phoneColumn)) return false;
-    return true;
+    switch (sendMode) {
+      case 'instant':
+        return (formData.manualContacts.trim() || selectedGroups.length > 0);
+      case 'campaign':
+        return !!selectedCampaignId;
+      case 'file':
+        return uploadedData.length > 0 && !!phoneColumn;
+      default:
+        return false;
+    }
   };
 
   const prepareSendSMS = async () => {
@@ -307,25 +334,46 @@ const SendSMS = () => {
         }
       }
 
-      if (!recipients.length) {
-        throw new Error(`No valid recipients found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
+      if (recipients.length === 0) {
+        throw new Error('No valid recipients found. Please add phone numbers or select groups.');
       }
 
-      // Validate message before sending
-      await validateMessage(currentWorkspaceId!, {
-        recipients,
-        content: formData.message,
-        sender_id: formData.senderId,
-      });
+      // Local validation
+      if (!formData.message.trim()) {
+        throw new Error('Message content cannot be empty.');
+      }
+      if (!formData.senderId || !senderIds.some(s => s.sender_id === formData.senderId)) {
+        throw new Error('Invalid or missing sender ID.');
+      }
 
+      // Prepare payload without workspace_id
+      const payload = {
+        content: formData.message,
+        recipients,
+        sender_id: formData.senderId,
+        campaign_id: sendMode === 'instant' ? "none" : selectedCampaignId || "none",
+        groups: sendMode === 'instant' || sendMode === 'file' ? ["none"] : (campaignGroups[selectedCampaignId] || []).map(g => g.group_id),
+      };
+      console.log('PrepareSendSMS Payload:', payload);
+
+      const validationResponse = await validateMessage(payload);
+      console.log('ValidateMessage Response:', validationResponse);
+
+      // Update invalidPhones based on API response
+      if (!validationResponse.validation.recipients.valid) {
+        setInvalidPhones(validationResponse.validation.recipients.stats.invalid_numbers || []);
+      }
+
+      setValidationResult(validationResponse);
       setRecipientCount(recipients.length);
       setMessagePreview(previewMessage);
       setIsConfirmModalOpen(true);
-      if (invalidPhones.length) {
-        setError(`Warning: ${invalidPhones.length} invalid phone numbers skipped (e.g., ${invalidPhones.slice(0, 3).join(', ')}).`);
+      if (invalidPhones.length > 0 || !validationResponse.validation.recipients.valid) {
+        setError(`Warning: ${validationResponse.validation.recipients.stats.invalid_count || 0} invalid phone numbers skipped (e.g., ${validationResponse.validation.recipients.stats.invalid_numbers?.slice(0, 3).join(', ') || 'N/A'}).`);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to prepare SMS.');
+      console.error('Validation Error:', err);
+      setError(`Failed to validate message: ${err.message}. Please ensure the backend server is running at ${API_BASE_URL}.`);
     }
   };
 
@@ -360,7 +408,7 @@ const SendSMS = () => {
           recipients,
           content: formData.message,
           sender_id: formData.senderId,
-          group_id: selectedCampaignId,
+          campaign_id: selectedCampaignId,
           start_date: formData.startDate + 'T' + formData.startTime,
           end_date: formData.endDate + 'T' + formData.endTime,
           frequency: formData.frequency,
@@ -421,6 +469,9 @@ const SendSMS = () => {
       setAvailableColumns([]);
       setPhoneColumn('');
       setInvalidPhones([]);
+      setValidationResult(null);
+      setSuccessMessage('SMS sent successfully!');
+      setModalState(prev => ({ ...prev, isSuccessModalOpen: true }));
     } catch (err: any) {
       setError(err.message || 'Failed to send SMS.');
     } finally {
@@ -438,7 +489,7 @@ const SendSMS = () => {
     try {
       const generatedMessage = await generateMessage(`Generate an SMS message based on: ${keywords}`);
       setFormData(prev => ({ ...prev, message: generatedMessage }));
-      setModal('isAIModalOpen', false);
+      setModalState(prev => ({ ...prev, isAIModalOpen: false }));
       setKeywords('');
     } catch (err: any) {
       setError(err.message || 'Failed to generate message.');
@@ -457,10 +508,10 @@ const SendSMS = () => {
       return;
     }
     try {
-      const newCampaign = { campaign_id: Date.now().toString(), workspace_id: currentWorkspaceId!, name: formData.campaignName, status: 'active' };
+      const newCampaign = { campaign_id: Date.now().toString(), workspace_id: currentWorkspaceId!, name: formData.campaignName, status: 'active' as const };
       setCampaigns(prev => [...prev, newCampaign]);
       setSelectedCampaignId(newCampaign.campaign_id);
-      setModal('isCreateCampaignOpen', false);
+      setModalState(prev => ({ ...prev, isCreateCampaignOpen: false }));
       setFormData(prev => ({ ...prev, campaignName: '' }));
       setSelectedGroups([]);
     } catch (err) {
@@ -478,19 +529,14 @@ const SendSMS = () => {
           .filter((p: string) => p);
         recipientPhones.push(...phones);
       } catch (err) {
-        console.error(`Failed to fetch contacts for group ${groupId}:`, err);
+        setError(`Failed to fetch contacts for group ${groupId}.`);
       }
     }
     return [...new Set(recipientPhones)];
   };
 
   const setModal = (modal: keyof typeof modalState, isOpen: boolean) => {
-    setModalState(prev => ({
-      isAIModalOpen: false,
-      isGroupModalOpen: false,
-      isCreateCampaignOpen: false,
-      [modal]: isOpen,
-    }));
+    setModalState(prev => ({ ...prev, [modal]: isOpen }));
   };
 
   if (isLoading) {
@@ -1130,11 +1176,11 @@ const SendSMS = () => {
         onClose={() => setIsConfirmModalOpen(false)}
         title="Confirm SMS Send"
         onSubmit={handleSendSMS}
-        submitText="Confirm Send"
+        submitText={isSending ? 'Sending...' : 'Confirm Send'}
         isLoading={isSending}
         className="font-inter"
-        titleClassName="text-[#00333e] text-lg font-semibold"
-        buttonClassName="bg-[#00333e] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md px-4 py-2 text-sm font-medium"
+        titleClassName="text-[#004d66] text-lg font-semibold"
+        buttonClassName="bg-[#004d66] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md px-4 py-2 text-sm font-medium"
         closeButtonClassName="text-[#004d66] hover:text-[#FDD70D]"
       >
         <motion.div
@@ -1150,7 +1196,36 @@ const SendSMS = () => {
             <p className="text-sm font-medium text-[#004d66]">Message Preview:</p>
             <p className="text-sm text-[#004d66] mt-2 break-words">{messagePreview}</p>
           </div>
+          {validationResult && (
+            <div className="bg-green-50 p-4 rounded-md border border-green-200 flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-green-800">Validation Status: {validationResult.status}</p>
+                <p className="text-sm text-green-800">Total Cost: {validationResult.validation.total_cost}</p>
+              </div>
+            </div>
+          )}
           <p className="text-sm">Please confirm to proceed with sending.</p>
+        </motion.div>
+      </Modal>
+
+      <Modal
+        isOpen={modalState.isSuccessModalOpen}
+        onClose={() => setModal('isSuccessModalOpen', false)}
+        title="SMS Sent Successfully"
+        className="font-inter"
+        titleClassName="text-[#004d66] text-lg font-semibold"
+        buttonClassName="bg-[#004d66] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md px-4 py-2 text-sm font-medium"
+        closeButtonClassName="text-[#004d66] hover:text-[#FDD70D]"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="space-y-4 text-[#004d66] flex flex-col items-center"
+        >
+          <CheckCircle className="w-12 h-12 text-green-600" />
+          <p className="text-sm text-center">{successMessage}</p>
         </motion.div>
       </Modal>
     </div>
@@ -1158,4 +1233,3 @@ const SendSMS = () => {
 };
 
 export default SendSMS;
-export { SendSMS };
