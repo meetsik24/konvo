@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Calendar, Send, Bot, CheckCircle } from 'lucide-react';
@@ -300,6 +301,7 @@ const SendSMS = () => {
       let recipients: string[] = [];
       let previewMessage = formData.message;
 
+      console.log('Preparing recipients for validation...');
       if (sendMode === 'instant') {
         if (formData.manualContacts.trim()) {
           const manualPhones = formData.manualContacts
@@ -329,16 +331,9 @@ const SendSMS = () => {
         }
       }
 
+      recipients = [...new Set(recipients)];
       if (recipients.length === 0) {
         throw new Error('No valid recipients found. Please add phone numbers or select groups.');
-      }
-
-      // Local validation
-      if (!formData.message.trim()) {
-        throw new Error('Message content cannot be empty.');
-      }
-      if (!formData.senderId || !senderIds.some(s => s.sender_id === formData.senderId)) {
-        throw new Error('Invalid or missing sender ID.');
       }
 
       // Server-side validation
@@ -346,18 +341,27 @@ const SendSMS = () => {
         content: formData.message,
         recipients,
         sender_id: formData.senderId,
-        campaign_id: sendMode === 'instant' ? "none" : selectedCampaignId || "none",
-        groups: sendMode === 'instant' || sendMode === 'file' ? ["none"] : (campaignGroups[selectedCampaignId] || []).map(g => g.group_id),
+        campaign_id: sendMode === 'campaign' ? selectedCampaignId : 'none',
+        groups: sendMode === 'instant' || sendMode === 'file' ? ['none'] : (campaignGroups[selectedCampaignId] || []).map(g => g.group_id),
       };
-      console.log('Validation Payload:', payload);
+      console.log('Validation Payload:', JSON.stringify(payload, null, 2));
       const validationResponse = await validateMessage(payload);
-      console.log('Validation Response:', validationResponse);
-      if (!validationResponse.validation.is_valid || !validationResponse.general_validity) {
-        throw new Error(`Validation failed: ${validationResponse.validation.content.message || validationResponse.validation.recipients.message || 'Invalid message or recipients.'}`);
+      console.log('Validation Response:', JSON.stringify(validationResponse, null, 2));
+
+      if (!validationResponse.validation?.is_valid || !validationResponse.general_validity) {
+        throw new Error(`Validation failed: ${validationResponse.validation?.content?.message || validationResponse.validation?.recipients?.message || 'Invalid message or recipients.'}`);
       }
 
-      // Update validated recipients based on server response
-      const validRecipients = recipients.filter(phone => !validationResponse.validation.recipients.stats.invalid_numbers.includes(phone));
+      // Use recipients from validation response if provided, else filter out invalid ones
+      const validRecipients = validationResponse.validation.recipients.stats.valid_numbers?.length
+        ? validationResponse.validation.recipients.stats.valid_numbers
+        : recipients.filter(phone => !validationResponse.validation.recipients.stats.invalid_numbers?.includes(phone));
+      console.log('Validated Recipients:', validRecipients);
+
+      if (!validRecipients.length) {
+        throw new Error('No valid recipients after validation.');
+      }
+
       setValidatedRecipients(validRecipients);
       setValidationResult(validationResponse);
       setRecipientCount(validRecipients.length);
@@ -369,17 +373,19 @@ const SendSMS = () => {
       }
     } catch (err: any) {
       console.error('Validation Error:', err);
-      setError(`Failed to validate message: ${err.message}. Please ensure the backend server is running and the validateMessage endpoint is accessible.`);
+      setError(`Failed to validate message: ${err.message}. Please check backend server logs or contact support.`);
     }
   };
 
   const handleSendSMS = async () => {
     setIsSending(true);
+    setError(null);
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected.');
       if (!validatedRecipients.length) throw new Error('No validated recipients available.');
+      if (!validationResult) throw new Error('Validation result missing.');
 
-      console.log('Sending with validated recipients:', validatedRecipients);
+      console.log('Starting SMS send with validated recipients:', validatedRecipients);
 
       if (sendMode === 'instant') {
         const payload = {
@@ -387,9 +393,9 @@ const SendSMS = () => {
           content: formData.message,
           sender_id: formData.senderId,
         };
-        console.log('sendInstantMessage Payload:', payload);
+        console.log('sendInstantMessage Payload:', JSON.stringify(payload, null, 2));
         const response = await sendInstantMessage(currentWorkspaceId, payload);
-        console.log('sendInstantMessage Response:', response);
+        console.log('sendInstantMessage Response:', JSON.stringify(response, null, 2));
       } else if (sendMode === 'campaign') {
         const payload = {
           recipients: validatedRecipients,
@@ -400,43 +406,54 @@ const SendSMS = () => {
           end_date: formData.endDate && formData.endTime ? `${formData.endDate}T${formData.endTime}:00` : undefined,
           frequency: formData.frequency || undefined,
         };
-        console.log('sendCampaignMessage Payload:', payload);
+        console.log('sendCampaignMessage Payload:', JSON.stringify(payload, null, 2));
         const response = await sendCampaignMessage(currentWorkspaceId, payload);
-        console.log('sendCampaignMessage Response:', response);
+        console.log('sendCampaignMessage Response:', JSON.stringify(response, null, 2));
       } else if (sendMode === 'file') {
-        const personalizedMessages = uploadedData
-          .map(row => ({
-            phone: normalizePhone(row[phoneColumn] || '', defaultCountryCode),
-            content: applyPlaceholders(formData.message, row),
-          }))
-          .filter(msg => msg.phone && validatedRecipients.includes(msg.phone));
-        if (!personalizedMessages.length) {
-          throw new Error('No valid personalized messages to send.');
-        }
-        const errors: string[] = [];
-        console.log('Sending personalized messages:', personalizedMessages);
-        await Promise.all(
-          personalizedMessages.map(async (msg, index) => {
-            try {
-              const payload = {
-                recipients: [msg.phone],
-                content: msg.content,
-                sender_id: formData.senderId,
-              };
-              console.log(`sendInstantMessage Payload [${index}]:`, payload);
-              const response = await sendInstantMessage(currentWorkspaceId, payload);
-              console.log(`sendInstantMessage Response [${index}]:`, response);
-            } catch (err: any) {
-              errors.push(`Failed to send to ${msg.phone}: ${err.message || 'Unknown error'}`);
-            }
-          })
-        );
-        if (errors.length) {
-          throw new Error(`Some messages failed to send: ${errors.join('; ')}`);
+        const hasPlaceholders = formData.message.includes('{');
+        if (hasPlaceholders) {
+          const personalizedMessages = uploadedData
+            .map(row => ({
+              phone: normalizePhone(row[phoneColumn] || '', defaultCountryCode),
+              content: applyPlaceholders(formData.message, row),
+            }))
+            .filter(msg => msg.phone && validatedRecipients.includes(msg.phone));
+          if (!personalizedMessages.length) {
+            throw new Error('No valid personalized messages to send.');
+          }
+          const errors: string[] = [];
+          await Promise.all(
+            personalizedMessages.map(async (msg, index) => {
+              try {
+                const payload = {
+                  recipients: [msg.phone],
+                  content: msg.content,
+                  sender_id: formData.senderId,
+                };
+                console.log(`sendInstantMessage Payload [${index}]:`, JSON.stringify(payload, null, 2));
+                const response = await sendInstantMessage(currentWorkspaceId, payload);
+                console.log(`sendInstantMessage Response [${index}]:`, JSON.stringify(response, null, 2));
+              } catch (err: any) {
+                errors.push(`Failed to send to ${msg.phone}: ${err.message || 'Unknown error'}`);
+              }
+            })
+          );
+          if (errors.length) {
+            throw new Error(`Some messages failed to send: ${errors.join('; ')}`);
+          }
+        } else {
+          const payload = {
+            recipients: validatedRecipients,
+            content: formData.message,
+            sender_id: formData.senderId,
+          };
+          console.log('sendInstantMessage Payload:', JSON.stringify(payload, null, 2));
+          const response = await sendInstantMessage(currentWorkspaceId, payload);
+          console.log('sendInstantMessage Response:', JSON.stringify(response, null, 2));
         }
       }
 
-      // Reset form and show success modal only on success
+      // Reset form and show success modal
       setFormData({
         senderId: senderIds[0]?.sender_id || '',
         message: '',
@@ -461,8 +478,8 @@ const SendSMS = () => {
       setSuccessMessage(sendMode === 'campaign' ? 'Campaign launched successfully!' : 'SMS sent successfully!');
       setModalState(prev => ({ ...prev, isSuccessModalOpen: true }));
     } catch (err: any) {
-      console.error('Send Error:', err);
-      setError(`Failed to send SMS: ${err.message || 'Unknown error'}. Please check the backend server logs and ensure the sendInstantMessage or sendCampaignMessage endpoints are operational.`);
+      console.error('Send SMS Error:', err);
+      setError(`Failed to send SMS: ${err.message || 'Unknown error'}. Check backend logs or contact support.`);
     } finally {
       setIsSending(false);
       setIsConfirmModalOpen(false);
