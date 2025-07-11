@@ -346,10 +346,34 @@ export const logoutUser = (): void => {
 // LOGS
 export const fetchLogs = async (): Promise<LogResponse> => {
   try {
-    const response = await api.get("/messages/logs");
-    return response.data;
+    const response = await api.get("/messages/logs/V1", {
+      headers: {
+        // Uncomment and configure if authentication is required
+        // 'Authorization': `Bearer ${yourToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data: LogResponse = response.data;
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response: Expected an object');
+    }
+
+    // Ensure messages is an array
+    if (!Array.isArray(data.messages)) {
+      console.warn('Messages array is missing or invalid, returning empty array');
+      data.messages = [];
+    }
+
+    // Ensure analytics is present
+    if (!data.analytics || typeof data.analytics !== 'object') {
+      console.warn('Analytics object is missing or invalid, returning default');
+      data.analytics = { total: 0, statuses: [] };
+    }
+
+    return data;
   } catch (error: any) {
-    handleApiError(error, "Failed to fetch logs");
+    handleApiError(error, 'Failed to fetch logs from /messages/logs/V1');
   }
 };
 
