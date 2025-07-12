@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { X } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.MODE === 'development'
   ? import.meta.env.VITE_DEVELOPMENT_API_URL
@@ -217,70 +216,6 @@ interface ApiKey {
   expires_at: string;
 }
 
-interface ValidationResult {
-  status: string;
-  validation: {
-    is_valid: boolean;
-    content: {
-      valid: boolean;
-      message: string;
-      stats: {
-        length: number;
-        prohibited_found: boolean;
-        encoding: string;
-        max_single_part: number;
-        max_multipart: number;
-      };
-      text: string;
-    };
-    recipients: {
-      valid: boolean;
-      message: string;
-      stats: {
-        error: string;
-        valid_count: number;
-        valid_numbers: string[];
-        invalid_count: number;
-        invalid_numbers: string[];
-      };
-    };
-    sms_parts: number;
-    total_cost: number;
-    cost_per_sms: number;
-    destination_type: string;
-  };
-  general_validity: boolean;
-}
-
-
-export const validateMessage = async (payload: {
-  content: string;
-  recipients: string[];
-  sender_id: string;
-  campaign_id: string;
-  groups: string[];
-}): Promise<ValidationResult> => {
-  try {
-    console.log('Sending to validateMessage:', payload);
-    const response = await api.post('/messages/validate', payload);
-    return response.data as ValidationResult;
-  } catch (error: any) {
-    console.error('ValidateMessage API Error:', error);
-    return {
-      status: 'error',
-      validation: {
-        is_valid: false,
-        content: { valid: false, message: error.message || 'Validation failed', stats: null },
-        recipients: { valid: false, message: error.message || 'Validation failed', stats: { invalid_count: 0, invalid_numbers: [] } },
-        sms_parts: 0,
-        total_cost: 0,
-        cost_per_sms: 0,
-        destination_type: 'unknown',
-      },
-      general_validity: false,
-    };
-  }
-};
 
 // Utility function for consistent error handling
 const handleApiError = (error: any, defaultMessage: string): never => {
@@ -1005,36 +940,13 @@ export const sendInstantMessage = async (
   }
 ): Promise<Message> => {
   try {
-    const response = await api.post("/messages/validate", {
+    const response = await api.post("/messages/send-instant", {
       workspace_id: workspaceId,
       ...data,
     });
     return response.data;
   } catch (error: any) {
-    handleApiError(error, "Failed to validate instant message");
-  }
-};
-
-export const sendCampaignMessage = async (
-  workspaceId: string,
-  data: {
-    recipients: string[];
-    content: string;
-    sender_id: string;
-    group_id: string;
-    start_date: string;
-    end_date: string;
-    frequency: string;
-  }
-): Promise<Message> => {
-  try {
-    const response = await api.post("/messages/send-campaign", {
-      workspace_id: workspaceId,
-      ...data,
-    });
-    return response.data;
-  } catch (error: any) {
-    handleApiError(error, "Failed to send campaign message");
+    handleApiError(error, "Failed to send instant message");
   }
 };
 
