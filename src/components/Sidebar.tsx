@@ -7,7 +7,7 @@ const navItems = [
   { to: 'Dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/send-sms', icon: MessageSquare, label: 'Send SMS' },
   { to: '/senderid', icon: IdCard, label: 'Sender ID' },
-  
+
   { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/logs', icon: Activity, label: 'Logs' },
   { to: '/subscription', icon: DollarSign, label: 'Subscription' },

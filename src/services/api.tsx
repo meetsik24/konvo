@@ -192,6 +192,8 @@ interface SenderId {
   status?: "pending" | "approved" | "rejected";
   requested_at?: string;
   reviewed_at?: string;
+  purpose?: string; 
+  use_cases?: string[]; // Array of use cases for the sender ID
 }
 
 interface Message {
@@ -413,6 +415,40 @@ export const fetchLogs = async (): Promise<LogResponse> => {
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to fetch logs");
+  }
+};
+
+
+export const visualizeLogs = async (): Promise<LogResponse> => {
+  try {
+    const response = await api.get("/messages/logs/V1", {
+      headers: {
+        // Uncomment and configure if authentication is required
+        // 'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data: LogResponse = response.data;
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response: Expected an object');
+    }
+
+    // Ensure messages is an array
+    if (!Array.isArray(data.messages)) {
+      console.warn('Messages array is missing or invalid, returning empty array');
+      data.messages = [];
+    }
+
+    // Ensure analytics is present
+    if (!data.analytics || typeof data.analytics !== 'object') {
+      console.warn('Analytics object is missing or invalid, returning default');
+      data.analytics = { total: 0, statuses: [] };
+    }
+
+    return data;
+  } catch (error: any) {
+    handleApiError(error, 'Failed to fetch logs from /messages/logs/V1');
   }
 };
 
@@ -748,7 +784,11 @@ export const getGroupContacts = async (
 
 
 // SENDER IDS
-export const requestSenderId = async (workspaceId: string, data: { sender_id: string }): Promise<SenderId> => {
+
+export const requestSenderId = async (
+  workspaceId: string,
+  data: { sender_id: string; purpose: string; use_cases: string }
+): Promise<SenderId> => {
   console.log("requestSenderId API call initiated for workspace:", workspaceId, "with data:", data);
   try {
     const response = await api.post("/sender-ids/request", { ...data, workspace_id: workspaceId });
@@ -1004,6 +1044,15 @@ export const getMessageLogs = async (): Promise<Message[]> => {
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch message logs");
+  }
+};
+
+export const getMessageLogsV1 = async (): Promise<Message[]> => {
+  try {
+    const response = await api.get("/messages/logs/V1");
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch message logs V1");
   }
 };
 
