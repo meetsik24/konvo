@@ -346,10 +346,20 @@ export const logoutUser = (): void => {
 // LOGS
 export const fetchLogs = async (): Promise<LogResponse> => {
   try {
+    const response = await api.get("/messages/logs");
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch logs");
+  }
+};
+
+
+export const visualizeLogs = async (): Promise<LogResponse> => {
+  try {
     const response = await api.get("/messages/logs/V1", {
       headers: {
         // Uncomment and configure if authentication is required
-        // 'Authorization': `Bearer ${yourToken}`,
+        // 'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
         'Content-Type': 'application/json',
       },
     });
