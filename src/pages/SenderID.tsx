@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { IdCard, Plus, Check, XCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { IdCard, Plus, Check, XCircle, Clock } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import {
   requestSenderId,
@@ -21,21 +21,26 @@ interface SenderId {
   status?: 'pending' | 'approved' | 'rejected';
   requested_at?: string;
   reviewed_at?: string;
+  purpose?: string;
+  use_cases?: string;
 }
 
 const SenderID: React.FC = () => {
   const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId, isAdmin } = useWorkspace();
   const workspace = getCurrentWorkspace();
-  const [senderIds, setSenderIds] = useState<SenderId[]>(workspace?.senderIds || []);
+  const [senderIds, setSenderIds] = useState<SenderId[]>([]);
   const [newSenderId, setNewSenderId] = useState('');
+  const [purpose, setPurpose] = useState('');
+  const [useCases, setUseCases] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [reviewRequest, setReviewRequest] = useState<{ request_id: string; status: 'approved' | 'rejected' } | null>(null);
   const [charCount, setCharCount] = useState(0);
   const maxCharLimit = 11;
+  const availableUseCases = ['OTP', 'Transactional SMS', 'Promotions'];
 
-  // Fetch sender IDs (approved and pending)
   useEffect(() => {
     const fetchSenderIds = async () => {
       if (!currentWorkspaceId) {
@@ -44,7 +49,6 @@ const SenderID: React.FC = () => {
       }
       setIsLoading(true);
       try {
-        // Fetch approved sender IDs
         const approvedResponse = await getApprovedSenderIds(currentWorkspaceId);
         const formattedApproved: SenderId[] = Array.isArray(approvedResponse)
           ? approvedResponse.map((item: SenderId) => ({
@@ -54,7 +58,6 @@ const SenderID: React.FC = () => {
             }))
           : [];
 
-        // Fetch pending requests based on user role and view
         const requestsResponse = isAdmin && isAdminView
           ? await getAdminSenderRequests(currentWorkspaceId)
           : await getUserSenderRequests(currentWorkspaceId);
@@ -66,25 +69,29 @@ const SenderID: React.FC = () => {
               name: req.name || req.sender_id || '',
               status: req.status || 'pending',
               is_approved: req.status === 'approved',
+              purpose: req.purpose || 'Mocked purpose',
+              use_cases: req.use_cases || 'Transactional SMS',
             }))
           : [];
 
-        // Combine approved sender IDs and pending requests, filter based on view
-        let allSenderIds = [...formattedApproved, ...formattedRequests];
+        const uniqueSenderIds = [...formattedApproved, ...formattedRequests].reduce((acc, current) => {
+          if (!acc.find((item) => item.sender_id === current.sender_id)) {
+            acc.push(current);
+          }
+          return acc;
+        }, [] as SenderId[]);
+
         if (isAdmin && isAdminView) {
-          allSenderIds = allSenderIds.filter((id) => id.status === 'pending');
+          setSenderIds(uniqueSenderIds.filter((id) => id.status === 'pending'));
         } else {
-          allSenderIds = allSenderIds.filter((id) => id.user_id === (workspace?.user_id || '') || id.status === 'approved');
+          setSenderIds(uniqueSenderIds.filter((id) => id.user_id === (workspace?.user_id || '') || id.status === 'approved'));
         }
 
-        // Update state with fetched sender IDs
-        setSenderIds(allSenderIds);
-        // Update workspace with the new sender IDs
-        updateWorkspace(currentWorkspaceId, { senderIds: allSenderIds });
+        updateWorkspace(currentWorkspaceId, { senderIds: uniqueSenderIds });
         setError(null);
       } catch (error: any) {
         console.error('Failed to fetch sender IDs:', error);
-        setError(error?.response?.data?.message || 'Opps!! You dont have any active sender id for now!');
+        setError(error?.response?.data?.message || 'No active sender IDs available.');
         setSenderIds([]);
       } finally {
         setIsLoading(false);
@@ -94,15 +101,22 @@ const SenderID: React.FC = () => {
   }, [currentWorkspaceId, isAdmin, isAdminView, workspace?.user_id, updateWorkspace]);
 
   const handleInputChange = (value: string) => {
-    const trimmedValue = value.trimStart(); // Prevent leading spaces
+    const trimmedValue = value.trimStart();
     setNewSenderId(trimmedValue);
     setCharCount(trimmedValue.length);
-    
     if (trimmedValue.length > maxCharLimit) {
       setError(`Sender ID exceeds ${maxCharLimit} character limit.`);
     } else if (trimmedValue.length > 0) {
       setError(null);
     }
+  };
+
+  const handleUseCaseChange = (useCase: string) => {
+    setUseCases((prev) =>
+      prev.includes(useCase)
+        ? prev.filter((item) => item !== useCase)
+        : [...prev, useCase]
+    );
   };
 
   const handleRequestSenderId = async () => {
@@ -114,30 +128,50 @@ const SenderID: React.FC = () => {
       setError(`Sender ID exceeds ${maxCharLimit} character limit.`);
       return;
     }
+    if (!purpose.trim()) {
+      setError('Purpose description cannot be empty.');
+      return;
+    }
+    if (useCases.length === 0) {
+      setError('At least one use case must be selected.');
+      return;
+    }
+    if (senderIds.some((id) => id.sender_id === newSenderId.trim() && id.status !== 'rejected')) {
+      setError('Sender ID already exists or is pending.');
+      return;
+    }
     setIsLoading(true);
     try {
-      if (!currentWorkspaceId) {
-        setError('No workspace selected.');
-        return;
-      }
-      const response = await requestSenderId(currentWorkspaceId, { sender_id: newSenderId.trim() });
+      const response = await requestSenderId(currentWorkspaceId, {
+        sender_id: newSenderId.trim(),
+        purpose,
+        use_cases: useCases.join(','),
+      });
       const newRequest: SenderId = {
-        request_id: response.request_id || Date.now().toString(),
-        user_id: response.user_id || workspace?.user_id || '',
+        request_id: response.request_id,
+        user_id: response.user_id || workspace?.user_id || 'user_001',
         sender_id: newSenderId.trim(),
         name: newSenderId.trim(),
         status: 'pending',
         is_approved: false,
+        requested_at: new Date().toISOString(),
+        purpose,
+        use_cases: useCases.join(','),
       };
       const updatedSenderIds = [...senderIds, newRequest];
       setSenderIds(updatedSenderIds);
       setNewSenderId('');
+      setPurpose('');
+      setUseCases([]);
       setCharCount(0);
       setError(null);
+      setSuccessMessage(
+        `Sender ID "${newSenderId}" requested successfully. Approval may take up to 3 working days.`
+      );
       updateWorkspace(currentWorkspaceId, { senderIds: updatedSenderIds });
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error: any) {
-      console.error('Error requesting sender ID:', error);
-      setError(error?.response?.data?.message || 'Failed to request sender ID. Please try again.');
+      setError(error?.response?.data?.message || 'Failed to request sender ID.');
     } finally {
       setIsLoading(false);
     }
@@ -164,7 +198,6 @@ const SenderID: React.FC = () => {
       setError(null);
       updateWorkspace(currentWorkspaceId, { senderIds: updatedSenderIds });
     } catch (error: any) {
-      console.error('Error reviewing sender ID request:', error);
       setError(error?.response?.data?.message || 'Failed to review sender ID request.');
     } finally {
       setIsLoading(false);
@@ -172,113 +205,85 @@ const SenderID: React.FC = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-4 sm:space-y-6 px-4 sm:px-6"
-    >
-      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-8">
-        <IdCard className="w-6 h-6 sm:w-8 sm:h-8 text-[#00333e]" />
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#00333e]">Sender IDs</h1>
+    <div className="bg-[#f5f5f5] min-h-screen p-6 font-inter">
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <IdCard className="w-8 h-8 text-[#004d66]" />
+          <h1 className="text-2xl font-semibold text-[#004d66]">Sender IDs</h1>
+        </div>
         {isAdmin && (
           <button
             onClick={() => setIsAdminView(!isAdminView)}
-            className="ml-auto text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#005a6e] text-white rounded-lg hover:bg-[#00333e] transition-colors duration-200"
+            className="bg-gray-200 text-[#004d66] hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md px-4 py-2 text-sm font-medium"
           >
             {isAdminView ? 'User View' : 'Admin View'}
           </button>
         )}
       </div>
 
-      {error && <div className="text-red-400 mb-3 sm:mb-4 text-xs sm:text-sm">{error}</div>}
-
-      {isLoading && (
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-[#fddf0d] mx-auto" />
-          <p className="text-gray-600 mt-1 sm:mt-2 text-xs sm:text-sm">Loading sender IDs...</p>
-        </div>
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border border-red-200 bg-red-50 pрати-3 text-red-700 text-sm font-medium rounded-md mb-6"
+        >
+          {error}
+        </motion.div>
       )}
 
-      {!isLoading && (
-        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md w-full">
-          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-[#00333e]">Request New Sender ID</h2>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                className={`w-full text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 border ${
-                  charCount > maxCharLimit ? 'border-red-400' : 'border-gray-300'
-                } rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent`}
-                placeholder="Enter sender ID name (e.g., CompanyName)"
-                value={newSenderId}
-                onChange={(e) => handleInputChange(e.target.value)}
-                maxLength={maxCharLimit}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs sm:text-sm text-gray-500">
-                {charCount}/{maxCharLimit}
-              </div>
+      {successMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border border-green-200 bg-green-50 p-3 text-green-700 text-sm font-medium rounded-md mb-6"
+        >
+          {successMessage}
+        </motion.div>
+      )}
+
+      <div className="flex flex-col lg:flex-row gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white p-6 rounded-md border border-gray-200 w-full lg:w-1/3"
+        >
+          <h2 className="text-lg font-semibold text-[#004d66] mb-4">My Sender IDs</h2>
+          {isLoading ? (
+            <div className="flex justify-center items-center">
+              <svg className="animate-spin h-6 w-6 text-[#004d66]" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              <p className="ml-3 text-[#004d66] text-sm">Loading...</p>
             </div>
-            <button
-              onClick={handleRequestSenderId}
-              disabled={charCount > maxCharLimit || charCount === 0}
-              className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-sm py-2 sm:py-3 px-3 sm:px-4 rounded-lg transition-colors duration-200 ${
-                charCount > maxCharLimit || charCount === 0
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-[#00333e] text-white hover:bg-[#005a6e]'
-              }`}
-            >
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-              Request
-            </button>
-          </div>
-          {charCount > 0 && charCount <= maxCharLimit && (
-            <p className="text-green-500 text-xs sm:text-sm mt-2">Sender ID is available (within {maxCharLimit} characters).</p>
-          )}
-          {charCount > maxCharLimit && (
-            <p className="text-red-500 text-xs sm:text-sm mt-2">
-              Sender ID is not available. It exceeds the {maxCharLimit} character limit.
-            </p>
-          )}
-        </div>
-      )}
-
-      {!isLoading && (
-        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md w-full">
-          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-[#00333e]">
-            {isAdminView ? 'Pending Sender ID Requests' : 'My Sender IDs'}
-          </h2>
-          {senderIds.length === 0 ? (
-            <p className="text-gray-500 text-xs sm:text-sm">No sender IDs or requests available.</p>
+          ) : senderIds.length === 0 ? (
+            <p className="text-gray-500 text-sm">No sender IDs available.</p>
           ) : (
-            <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-3">
               {senderIds.map((senderId) => (
                 <div
                   key={senderId.request_id || senderId.sender_id}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border border-gray-200 rounded-lg bg-gray-50"
+                  className="flex items-center justify-between p-2 border-b border-gray-200"
                 >
-                  <div className="mb-2 sm:mb-0">
-                    <h3 className="font-medium text-sm sm:text-base text-[#00333e]">{senderId.name}</h3>
-                    <p className="text-xs sm:text-sm text-gray-600">
-                      Sender ID: {senderId.sender_id}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 capitalize">
-                      Status: {senderId.status || 'approved'}
-                    </p>
-                  </div>
-                  <div className="flex gap-1 sm:gap-2">
+                  <span className="text-sm font-medium text-[#004d66]">{senderId.sender_id}</span>
+                  <div className="flex items-center gap-2">
+                    {senderId.status === 'approved' && <Check className="w-5 h-5 text-green-600" />}
+                    {senderId.status === 'rejected' && <XCircle className="w-5 h-5 text-red-600" />}
+                    {senderId.status === 'pending' && <Clock className="w-5 h-5 text-[#004d66]" />}
                     {isAdminView && senderId.status === 'pending' && (
                       <>
                         <button
                           onClick={() => setReviewRequest({ request_id: senderId.request_id!, status: 'approved' })}
-                          className="p-2 rounded-full text-green-500 hover:bg-green-100 transition-colors duration-200"
+                          className="text-green-600 hover:text-green-800"
                         >
-                          <Check className="w-4 h-4 sm:w-5 sm:h-5" />
+                          <Check className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => setReviewRequest({ request_id: senderId.request_id!, status: 'rejected' })}
-                          className="p-2 rounded-full text-red-500 hover:bg-red-100 transition-colors duration-200"
+                          className="text-red-600 hover:text-red-800"
                         >
-                          <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                          <XCircle className="w-5 h-5" />
                         </button>
                       </>
                     )}
@@ -287,40 +292,122 @@ const SenderID: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
-      )}
+        </motion.div>
 
-      {reviewRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-sm sm:max-w-md">
-            <div className="flex justify-between items-center mb-3 sm:mb-4">
-              <h2 className="text-lg sm:text-xl font-semibold text-[#00333e]">Confirm Review</h2>
-              <button onClick={() => setReviewRequest(null)} className="text-gray-500 hover:text-gray-700">
-                <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white p-6 rounded-md border border-gray-200 w-full lg:w-2/3"
+        >
+          <h2 className="text-lg font-semibold text-[#004d66] mb-4">Request New Sender ID</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-[#004d66] mb-1 block">Sender ID</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  className="w-full text-sm py-2 px-3 border border-gray-200 rounded-md text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+                  placeholder="Enter sender ID (e.g., CompanyName)"
+                  value={newSenderId}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  maxLength={maxCharLimit}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                  {charCount}/{maxCharLimit}
+                </span>
+              </div>
             </div>
-            <p className="text-xs sm:text-sm text-gray-600">
-              Are you sure you want to mark the sender ID "{senderIds.find((s) => s.request_id === reviewRequest.request_id)?.name}" as{' '}
-              {reviewRequest.status}?
-            </p>
-            <div className="flex justify-end gap-2 sm:gap-3 mt-3 sm:mt-4">
-              <button
-                onClick={() => setReviewRequest(null)}
-                className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleReviewSenderId(reviewRequest.request_id, reviewRequest.status)}
-                className="text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
-              >
-                Confirm
-              </button>
+
+            <div>
+              <label className="text-sm font-medium text-[#004d66] mb-1 block">Purpose</label>
+              <textarea
+                className="w-full text-sm py-2 px-3 border border-gray-200 rounded-md text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
+                placeholder="Describe the purpose of the sender ID"
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                rows={4}
+              />
             </div>
+
+            <div>
+              <label className="text-sm font-medium text-[#004d66] mb-1 block">Use Cases</label>
+              <div className="flex flex-wrap gap-4">
+                {availableUseCases.map((useCase) => (
+                  <label key={useCase} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={useCases.includes(useCase)}
+                      onChange={() => handleUseCaseChange(useCase)}
+                      className="w-4 h-4 text-[#004d66] border-gray-200 focus:ring-[#FDD70D] rounded"
+                    />
+                    <span className="text-sm text-[#004d66]">{useCase}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={handleRequestSenderId}
+              disabled={charCount > maxCharLimit || charCount === 0 || !purpose.trim() || useCases.length === 0}
+              className={`flex items-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md font-medium ${
+                charCount > maxCharLimit || charCount === 0 || !purpose.trim() || useCases.length === 0
+                  ? 'opacity-50 cursor-not-allowed'
+                  : ''
+              }`}
+            >
+              <Plus className="w-4 h-4" />
+              Request Sender ID
+            </button>
           </div>
-        </div>
-      )}
-    </motion.div>
+        </motion.div>
+      </div>
+
+      <AnimatePresence>
+        {reviewRequest && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 font-inter"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-white rounded-md p-6 w-full max-w-md"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-[#004d66]">Confirm Review</h2>
+                <button
+                  onClick={() => setReviewRequest(null)}
+                  className="text-[#004d66] hover:text-[#FDD70D]"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-[#004d66] mb-4">
+                Are you sure you want to mark the sender ID "{senderIds.find((s) => s.request_id === reviewRequest.request_id)?.sender_id}" as {reviewRequest.status}?
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setReviewRequest(null)}
+                  className="text-sm py-2 px-4 bg-gray-200 text-[#004d66] hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleReviewSenderId(reviewRequest.request_id, reviewRequest.status)}
+                  className="text-sm py-2 px-4 bg-[#00333e] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md font-medium"
+                >
+                  Confirm
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 
