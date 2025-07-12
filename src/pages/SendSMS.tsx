@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Calendar, Send, Bot, CheckCircle } from 'lucide-react';
+import { Phone, Users, Calendar, MessageSquare, Send, Bot } from 'lucide-react';
 import PhonePreview from '../modals/PhonePreview';
 import { useWorkspace } from './WorkspaceContext';
 import Modal from '../modals/Modal';
@@ -13,8 +12,6 @@ import {
   generateMessage,
   getWorkspaceGroups,
   getGroupContacts,
-  validateMessage,
-  sendCampaignMessage,
 } from '../services/api';
 
 interface Campaign { campaign_id: string; workspace_id: string; name: string; status: 'active' | 'completed'; }
@@ -22,19 +19,6 @@ interface Group { group_id: string; name: string; }
 interface SenderId { sender_id: string; name: string; is_approved: boolean; }
 interface Contact { contact_id: string; phone_number: string; }
 interface UploadedRow { [key: string]: string; }
-interface ValidationResult {
-  status: string;
-  validation: {
-    is_valid: boolean;
-    content: { valid: boolean; message: string; stats: any };
-    recipients: { valid: boolean; message: string; stats: { invalid_count: number; invalid_numbers: string[] } };
-    sms_parts: number;
-    total_cost: number;
-    cost_per_sms: number;
-    destination_type: string;
-  };
-  general_validity: boolean;
-}
 
 const SendSMS = () => {
   const { currentWorkspaceId } = useWorkspace();
@@ -62,27 +46,23 @@ const SendSMS = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedData, setUploadedData] = useState<UploadedRow[]>([]);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
-  const [phoneColumn, setPhoneColumn] = useState<string>('');
-  const [defaultCountryCode, setDefaultCountryCode] = useState<string>('+255');
+  const [phoneColumn, setPhoneColumn] = useState<string>(''); // Phone column selection
+  const [defaultCountryCode, setDefaultCountryCode] = useState<string>('+255'); // Default country code
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [keywords, setKeywords] = useState('');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [recipientCount, setRecipientCount] = useState(0);
   const [messagePreview, setMessagePreview] = useState('');
-  const [invalidPhones, setInvalidPhones] = useState<string[]>([]);
-  const [validatedRecipients, setValidatedRecipients] = useState<string[]>([]);
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [invalidPhones, setInvalidPhones] = useState<string[]>([]); // Track invalid phone numbers
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [modalState, setModalState] = useState({
     isAIModalOpen: false,
     isGroupModalOpen: false,
     isCreateCampaignOpen: false,
-    isSuccessModalOpen: false,
   });
 
   useEffect(() => {
@@ -96,14 +76,12 @@ const SendSMS = () => {
       setIsLoading(true);
       try {
         if (!currentWorkspaceId) throw new Error('No workspace selected.');
-        const [senderResponse, campaignsData, groupsData] = await Promise.all([
-          getApprovedSenderIds(currentWorkspaceId),
-          getCampaigns(),
-          getWorkspaceGroups(currentWorkspaceId),
-        ]);
+        const senderResponse = await getApprovedSenderIds(currentWorkspaceId);
         setSenderIds(senderResponse);
         if (senderResponse.length) setFormData(prev => ({ ...prev, senderId: senderResponse[0].sender_id }));
+        const campaignsData = await getCampaigns();
         setCampaigns(campaignsData);
+        const groupsData = await getWorkspaceGroups(currentWorkspaceId);
         setGroups(groupsData);
       } catch (err: any) {
         setError(err.message || 'Failed to load data.');
@@ -136,7 +114,11 @@ const SendSMS = () => {
 
   const normalizePhone = (phone: string, defaultCountryCode: string = '+255'): string => {
     if (!phone || typeof phone !== 'string') return '';
+
+    // Clean the input (remove spaces, dashes, parentheses, etc.)
     let cleaned = phone.trim().replace(/[\s()-]/g, '');
+
+    // Handle common prefixes
     if (cleaned.startsWith('00')) {
       cleaned = '+' + cleaned.slice(2);
     } else if (cleaned.startsWith('255') && !cleaned.startsWith('+255')) {
@@ -148,10 +130,13 @@ const SendSMS = () => {
     } else if (!cleaned.startsWith('+')) {
       return '';
     }
+
+    // Validate: must start with + followed by 9–15 digits
     if (!/^\+\d{9,15}$/.test(cleaned)) {
       console.warn(`Invalid phone number format: ${phone} → ${cleaned}`);
       return '';
     }
+
     return cleaned;
   };
 
@@ -168,6 +153,7 @@ const SendSMS = () => {
           reject(new Error('File is empty.'));
           return;
         }
+        // Try multiple delimiters
         const delimiters = [',', ';', '\t'];
         let headers: string[] = [];
         let rows: string[][] = [];
@@ -186,6 +172,7 @@ const SendSMS = () => {
           reject(new Error('CSV must have at least one column.'));
           return;
         }
+        // Find phone column dynamically
         const phoneColIndex = headers.findIndex(h => /phone|mobile|number/i.test(h));
         if (phoneColIndex === -1) {
           reject(new Error('No phone number column found (e.g., phone, mobile, phone_number).'));
@@ -214,7 +201,6 @@ const SendSMS = () => {
           if (!normalized && phone) {
             invalidNumbers.push(phone);
           }
-          row[headers[phoneColIndex]] = normalized;
           return normalized;
         });
         setInvalidPhones(invalidNumbers);
@@ -278,16 +264,10 @@ const SendSMS = () => {
 
   const isFormValid = () => {
     if (!formData.senderId || !formData.message.trim()) return false;
-    switch (sendMode) {
-      case 'instant':
-        return (formData.manualContacts.trim() || selectedGroups.length > 0);
-      case 'campaign':
-        return !!selectedCampaignId && formData.startDate && formData.startTime && formData.frequency;
-      case 'file':
-        return uploadedData.length > 0 && !!phoneColumn;
-      default:
-        return false;
-    }
+    if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length) return false;
+    if (sendMode === 'campaign' && !selectedCampaignId) return false;
+    if (sendMode === 'file' && (!uploadedData.length || !phoneColumn)) return false;
+    return true;
   };
 
   const prepareSendSMS = async () => {
@@ -301,7 +281,6 @@ const SendSMS = () => {
       let recipients: string[] = [];
       let previewMessage = formData.message;
 
-      console.log('prepareSendSMS: Preparing recipients...');
       if (sendMode === 'instant') {
         if (formData.manualContacts.trim()) {
           const manualPhones = formData.manualContacts
@@ -331,61 +310,27 @@ const SendSMS = () => {
         }
       }
 
-      recipients = [...new Set(recipients)];
-      if (recipients.length === 0) {
-        throw new Error('No valid recipients found. Please add phone numbers or select groups.');
+      if (!recipients.length) {
+        throw new Error(`No valid recipients found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
       }
-
-      // Server-side validation for modal display only
-      const payload = {
-        content: formData.message,
-        recipients,
-        sender_id: formData.senderId,
-        campaign_id: sendMode === 'campaign' ? selectedCampaignId : 'none',
-        groups: sendMode === 'instant' || sendMode === 'file' ? ['none'] : (campaignGroups[selectedCampaignId] || []).map(g => g.group_id),
-      };
-      console.log('Validation Payload:', JSON.stringify(payload, null, 2));
-      const validationResponse = await validateMessage(payload);
-      console.log('Validation Response:', JSON.stringify(validationResponse, null, 2));
-
-      if (!validationResponse.validation?.is_valid || !validationResponse.general_validity) {
-        throw new Error(`Validation failed: ${validationResponse.validation?.content?.message || validationResponse.validation?.recipients?.message || 'Invalid message or recipients.'}`);
-      }
-
-      // Store validated recipients for modal but don't rely on them for sending
-      const validRecipients = validationResponse.validation.recipients.stats.valid_numbers?.length
-        ? validationResponse.validation.recipients.stats.valid_numbers
-        : recipients.filter(phone => !validationResponse.validation.recipients.stats.invalid_numbers?.includes(phone));
-      console.log('Validated Recipients for Modal:', validRecipients);
-
-      if (!validRecipients.length) {
-        throw new Error('No valid recipients after validation.');
-      }
-
-      setValidatedRecipients(validRecipients);
-      setValidationResult(validationResponse);
-      setRecipientCount(validRecipients.length);
+      setRecipientCount(recipients.length);
       setMessagePreview(previewMessage);
       setIsConfirmModalOpen(true);
-      if (validationResponse.validation.recipients.stats.invalid_count > 0) {
-        setInvalidPhones(validationResponse.validation.recipients.stats.invalid_numbers || []);
-        setError(`Warning: ${validationResponse.validation.recipients.stats.invalid_count} invalid phone numbers skipped (e.g., ${validationResponse.validation.recipients.stats.invalid_numbers?.slice(0, 3).join(', ') || 'N/A'}).`);
+      if (invalidPhones.length) {
+        setError(`Warning: ${invalidPhones.length} invalid phone numbers skipped (e.g., ${invalidPhones.slice(0, 3).join(', ')}).`);
       }
     } catch (err: any) {
-      console.error('prepareSendSMS Error:', JSON.stringify(err, null, 2));
-      setError(`Failed to validate message: ${err.message}. Check backend server logs or contact support.`);
+      setError(err.message || 'Failed to prepare SMS.');
     }
   };
 
   const handleSendSMS = async () => {
     setIsSending(true);
-    setError(null);
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected.');
-      console.log('handleSendSMS: Starting with legacy sending logic');
-
-      // Collect raw recipients like legacy code, ignoring validatedRecipients
       let recipients: string[] = [];
+      let personalizedMessages: { phone: string; content: string }[] = [];
+
       if (sendMode === 'instant') {
         if (formData.manualContacts.trim()) {
           recipients = formData.manualContacts
@@ -405,80 +350,46 @@ const SendSMS = () => {
         recipients = uploadedData
           .map(row => normalizePhone(row[phoneColumn] || '', defaultCountryCode))
           .filter(phone => phone);
-      }
-      recipients = [...new Set(recipients)];
-      console.log('handleSendSMS: Raw recipients:', JSON.stringify(recipients, null, 2));
-      if (!recipients.length) throw new Error('No valid recipients available.');
-
-      if (sendMode === 'instant') {
-        const payload = {
-          recipients,
-          content: formData.message,
-          sender_id: formData.senderId,
-        };
-        console.log('sendInstantMessage Payload:', JSON.stringify(payload, null, 2));
-        const response = await sendInstantMessage(currentWorkspaceId, payload);
-        console.log('sendInstantMessage Response:', JSON.stringify(response, null, 2));
-      } else if (sendMode === 'campaign') {
-        const payload = {
-          recipients,
-          content: formData.message,
-          sender_id: formData.senderId,
-          campaign_id: selectedCampaignId,
-          start_date: formData.startDate && formData.startTime ? `${formData.startDate}T${formData.startTime}:00` : undefined,
-          end_date: formData.endDate && formData.endTime ? `${formData.endDate}T${formData.endTime}:00` : undefined,
-          frequency: formData.frequency || undefined,
-        };
-        console.log('sendCampaignMessage Payload:', JSON.stringify(payload, null, 2));
-        const response = await sendCampaignMessage(currentWorkspaceId, payload);
-        console.log('sendCampaignMessage Response:', JSON.stringify(response, null, 2));
-      } else if (sendMode === 'file') {
-        const hasPlaceholders = formData.message.includes('{');
-        if (hasPlaceholders) {
-          const personalizedMessages = uploadedData
+        if (recipients.length) {
+          personalizedMessages = uploadedData
             .map(row => ({
               phone: normalizePhone(row[phoneColumn] || '', defaultCountryCode),
               content: applyPlaceholders(formData.message, row),
             }))
             .filter(msg => msg.phone && recipients.includes(msg.phone));
-          console.log('handleSendSMS: Personalized messages:', JSON.stringify(personalizedMessages, null, 2));
-          if (!personalizedMessages.length) {
-            throw new Error('No valid personalized messages to send.');
-          }
-          const errors: string[] = [];
-          await Promise.all(
-            personalizedMessages.map(async (msg, index) => {
-              try {
-                const payload = {
-                  recipients: [msg.phone],
-                  content: msg.content,
-                  sender_id: formData.senderId,
-                };
-                console.log(`sendInstantMessage Payload [${index}]:`, JSON.stringify(payload, null, 2));
-                const response = await sendInstantMessage(currentWorkspaceId, payload);
-                console.log(`sendInstantMessage Response [${index}]:`, JSON.stringify(response, null, 2));
-              } catch (err: any) {
-                console.error(`sendInstantMessage Error [${index}]:`, JSON.stringify(err, null, 2));
-                errors.push(`Failed to send to ${msg.phone}: ${err.message || 'Unknown error'}`);
-              }
-            })
-          );
-          if (errors.length) {
-            throw new Error(`Some messages failed to send: ${errors.join('; ')}`);
-          }
-        } else {
-          const payload = {
-            recipients,
-            content: formData.message,
-            sender_id: formData.senderId,
-          };
-          console.log('sendInstantMessage Payload:', JSON.stringify(payload, null, 2));
-          const response = await sendInstantMessage(currentWorkspaceId, payload);
-          console.log('sendInstantMessage Response:', JSON.stringify(response, null, 2));
         }
       }
 
-      // Reset form and show success modal
+      if (!recipients.length) {
+        throw new Error(`No valid recipients found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
+      }
+
+      if (sendMode === 'file' && personalizedMessages.length) {
+        const errors: string[] = [];
+        await Promise.all(
+          personalizedMessages.map(async (msg, index) => {
+            try {
+              await sendInstantMessage(currentWorkspaceId, {
+                recipients: [msg.phone],
+                content: msg.content,
+                sender_id: formData.senderId,
+              });
+            } catch (err: any) {
+              errors.push(`Failed to send to ${msg.phone}: ${err.message || 'Unknown error'}`);
+            }
+          })
+        );
+        if (errors.length) {
+          throw new Error(`Some messages failed to send: ${errors.join('; ')}`);
+        }
+      } else {
+        await sendInstantMessage(currentWorkspaceId, {
+          recipients,
+          content: formData.message,
+          sender_id: formData.senderId,
+        });
+      }
+
       setFormData({
         senderId: senderIds[0]?.sender_id || '',
         message: '',
@@ -498,13 +409,8 @@ const SendSMS = () => {
       setAvailableColumns([]);
       setPhoneColumn('');
       setInvalidPhones([]);
-      setValidatedRecipients([]);
-      setValidationResult(null);
-      setSuccessMessage(sendMode === 'campaign' ? 'Campaign launched successfully!' : 'SMS sent successfully!');
-      setModalState(prev => ({ ...prev, isSuccessModalOpen: true }));
     } catch (err: any) {
-      console.error('handleSendSMS Error:', JSON.stringify(err, null, 2));
-      setError(`Failed to send SMS: ${err.message || 'Unknown error'}. Check backend logs or contact support.`);
+      setError(err.message || 'Failed to send SMS.');
     } finally {
       setIsSending(false);
       setIsConfirmModalOpen(false);
@@ -520,7 +426,7 @@ const SendSMS = () => {
     try {
       const generatedMessage = await generateMessage(`Generate an SMS message based on: ${keywords}`);
       setFormData(prev => ({ ...prev, message: generatedMessage }));
-      setModalState(prev => ({ ...prev, isAIModalOpen: false }));
+      setModal('isAIModalOpen', false);
       setKeywords('');
     } catch (err: any) {
       setError(err.message || 'Failed to generate message.');
@@ -539,10 +445,10 @@ const SendSMS = () => {
       return;
     }
     try {
-      const newCampaign = { campaign_id: Date.now().toString(), workspace_id: currentWorkspaceId!, name: formData.campaignName, status: 'active' as const };
+      const newCampaign = { campaign_id: Date.now().toString(), workspace_id: currentWorkspaceId!, name: formData.campaignName, status: 'active' };
       setCampaigns(prev => [...prev, newCampaign]);
       setSelectedCampaignId(newCampaign.campaign_id);
-      setModalState(prev => ({ ...prev, isCreateCampaignOpen: false }));
+      setModal('isCreateCampaignOpen', false);
       setFormData(prev => ({ ...prev, campaignName: '' }));
       setSelectedGroups([]);
     } catch (err) {
@@ -560,14 +466,19 @@ const SendSMS = () => {
           .filter((p: string) => p);
         recipientPhones.push(...phones);
       } catch (err) {
-        setError(`Failed to fetch contacts for group ${groupId}.`);
+        console.error(`Failed to fetch contacts for group ${groupId}:`, err);
       }
     }
     return [...new Set(recipientPhones)];
   };
 
   const setModal = (modal: keyof typeof modalState, isOpen: boolean) => {
-    setModalState(prev => ({ ...prev, [modal]: isOpen }));
+    setModalState(prev => ({
+      isAIModalOpen: false,
+      isGroupModalOpen: false,
+      isCreateCampaignOpen: false,
+      [modal]: isOpen,
+    }));
   };
 
   if (isLoading) {
@@ -1202,16 +1113,16 @@ const SendSMS = () => {
         </motion.div>
       </Modal>
 
-      <Modal
+  <Modal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         title="Confirm SMS Send"
         onSubmit={handleSendSMS}
-        submitText={isSending ? 'Sending...' : 'Confirm Send'}
+        submitText="Confirm Send"
         isLoading={isSending}
         className="font-inter"
-        titleClassName="text-[#004d66] text-lg font-semibold"
-        buttonClassName="bg-[#004d66] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md px-4 py-2 text-sm font-medium"
+        titleClassName="text-[#00333e] text-lg font-semibold"
+        buttonClassName="bg-[#00333e] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md px-4 py-2 text-sm font-medium"
         closeButtonClassName="text-[#004d66] hover:text-[#FDD70D]"
       >
         <motion.div
@@ -1227,36 +1138,7 @@ const SendSMS = () => {
             <p className="text-sm font-medium text-[#004d66]">Message Preview:</p>
             <p className="text-sm text-[#004d66] mt-2 break-words">{messagePreview}</p>
           </div>
-          {validationResult && (
-            <div className="bg-green-50 p-4 rounded-md border border-green-200 flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              <div>
-                <p className="text-sm font-medium text-green-800">Validation Status: {validationResult.status}</p>
-                <p className="text-sm text-green-800">Total Cost: {validationResult.validation.total_cost}</p>
-              </div>
-            </div>
-          )}
           <p className="text-sm">Please confirm to proceed with sending.</p>
-        </motion.div>
-      </Modal>
-
-      <Modal
-        isOpen={modalState.isSuccessModalOpen}
-        onClose={() => setModal('isSuccessModalOpen', false)}
-        title="SMS Sent Successfully"
-        className="font-inter"
-        titleClassName="text-[#004d66] text-lg font-semibold"
-        buttonClassName="bg-[#004d66] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md px-4 py-2 text-sm font-medium"
-        closeButtonClassName="text-[#004d66] hover:text-[#FDD70D]"
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="space-y-4 text-[#004d66] flex flex-col items-center"
-        >
-          <CheckCircle className="w-12 h-12 text-green-600" />
-          <p className="text-sm text-center">{successMessage}</p>
         </motion.div>
       </Modal>
     </div>
@@ -1264,3 +1146,4 @@ const SendSMS = () => {
 };
 
 export default SendSMS;
+export { SendSMS };
