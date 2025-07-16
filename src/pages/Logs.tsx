@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Chart } from 'chart.js/auto';
 import { CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { getMessageLogsV1 } from '../services/api';
-import { MessageLogResponse, Message, Analytics } from '../types/messageLogs';
+
 
 interface Campaign {
   id: string;
@@ -738,7 +738,17 @@ const Logs: React.FC = () => {
     );
   };
 
-  if (isLoading) return <div className="text-center p-6">Loading...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <svg className="animate-spin h-6 w-6 text-[#00333e]" viewBox="0 0 24 24" aria-label="Loading">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+        <p className="ml-3 text-[#00333e] text-sm">Loading Analytical Data</p>
+      </div>
+    );
+  } 
   if (error) return <div className="text-red-500 text-center p-6">{error}</div>;
 
   return (

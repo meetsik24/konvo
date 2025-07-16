@@ -1201,23 +1201,15 @@ export const getCallLogs = async (
   return undefined; // Ensure all code paths return a value
 };
 
+//Logs endpoints
 
-
-
-
-
-
-
-// services/api.ts
-
-export const getMessageLogsV1 = async (page: number = 1, limit: number = 100): Promise<MessageLogResponse> => {
-  console.log(`getMessageLogsV1 API call initiated (page: ${page}, limit: ${limit})`);
+export const getMessageLogsV1 = async (): Promise<MessageLogResponse> => {
+  console.log("getMessageLogsV1 API call initiated");
   try {
-    const response = await api.get("/messages/logs/V1", {
-      params: { page, limit }, // Adjust param names based on API
-    });
+    const response = await api.get("/messages/logs/V1");
     console.log("getMessageLogsV1 API response:", JSON.stringify(response.data, null, 2));
 
+    // Basic response validation
     const data = response.data as MessageLogResponse;
     if (!data || !data.analytics || !Array.isArray(data.messages)) {
       console.warn("Invalid response structure from /messages/logs/V1, returning default");
@@ -1231,6 +1223,8 @@ export const getMessageLogsV1 = async (page: number = 1, limit: number = 100): P
     throw new Error(message);
   }
 };
+
+
 
 
 
