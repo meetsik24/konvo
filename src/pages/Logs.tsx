@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Chart } from 'chart.js/auto';
 import { CheckCircle, AlertCircle, Clock } from 'lucide-react';
-import { visualizeLogs } from '../services/api';
+import { getMessageLogsV1 } from '../services/api';
+import { MessageLogResponse, Message, Analytics } from '../types/messageLogs';
 
 interface Campaign {
   id: string;
@@ -19,20 +19,12 @@ interface Campaign {
   contactGroup: string;
 }
 
-interface Message {
-  sent_at: string;
-  status: string;
-  sender_id: string;
-  message: string;
-  recipient: string;
-  campaign_name: string | null;
-}
-
 const Logs: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaigns' | 'messages'>('campaigns');
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(25);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,36 +37,52 @@ const Logs: React.FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+
       try {
-        setIsLoading(true);
-        const logs = await visualizeLogs();
-        console.log('Processed API Response:', JSON.stringify(logs, null, 2));
+        const logs: MessageLogResponse = await getMessageLogsV1();
+        console.log('Fetched from /messages/logs/V1:', JSON.stringify(logs, null, 2));
+        console.log('All messages before filtering:', JSON.stringify(logs.messages, null, 2));
+        console.log('Unique campaign_name values:', [...new Set(logs.messages.map(log => log.campaign_name))]);
 
-        // Map API response to Campaign and Message structures
-        const analytics = logs.analytics;
-        const totalRecipients = analytics.total || 0;
-        const delivered = analytics.statuses?.[0]?.counts || 0;
-        const failed = totalRecipients - delivered;
+        // Process analytics data
+        const totalRecipients = logs.analytics?.total || 0;
+        const delivered = logs.analytics?.statuses?.find(s => s.status.toLowerCase() === 'sent')?.counts || 0;
+        const failed = logs.analytics?.statuses?.find(s => s.status.toLowerCase() === 'failed')?.counts || 0;
+        const pending = logs.analytics?.statuses?.find(s => s.status.toLowerCase() === 'pending')?.counts || 0;
 
+        setAnalytics({
+          total: totalRecipients,
+          statuses: logs.analytics?.statuses || [],
+        });
+
+        // Map to Campaign
         const campaignData: Campaign[] = logs.messages
-          .filter(log => log.campaign_name)
-          .map(log => ({
-            id: log.sender_id || `camp-${Math.random().toString(36).substr(2, 9)}`,
-            name: log.campaign_name || 'Unnamed Campaign',
-            startDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
-            endDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
-            status: log.status || 'Unknown',
-            recipients: totalRecipients,
-            delivered: delivered,
-            failed: failed,
-            createDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
-            deliveredDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
-            contactGroup: 'Dynamic Group',
-          }));
+          .filter(log => log.campaign_name && log.campaign_name !== '') // Exclude null, undefined, and empty string
+          .reduce((acc: Campaign[], log) => {
+            const existingCampaign = acc.find(c => c.name === log.campaign_name);
+            if (!existingCampaign) {
+              acc.push({
+                id: log.sender_id || `camp-${Math.random().toString(36).substr(2, 9)}`,
+                name: log.campaign_name || 'Unnamed Campaign',
+                startDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
+                endDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
+                status: log.status || 'Unknown',
+                recipients: totalRecipients,
+                delivered,
+                failed: failed + pending,
+                createDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
+                deliveredDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
+                contactGroup: 'Dynamic Group',
+              });
+            }
+            return acc;
+          }, []);
 
-        // Store non-campaign messages
+        // Map to Messages (non-campaign messages)
         const messageData: Message[] = logs.messages
-          .filter(log => !log.campaign_name)
+          .filter(log => !log.campaign_name || log.campaign_name === '') // Include null, undefined, or empty string
           .map(log => ({
             sent_at: log.sent_at || 'N/A',
             status: log.status || 'Unknown',
@@ -83,6 +91,11 @@ const Logs: React.FC = () => {
             recipient: log.recipient || 'Unknown',
             campaign_name: null,
           }));
+
+        console.log('Processed campaigns:', JSON.stringify(campaignData, null, 2));
+        console.log('Processed messages:', JSON.stringify(messageData, null, 2));
+        console.log('Non-campaign message count:', messageData.length);
+        console.log('Campaign count:', campaignData.length);
 
         setCampaigns(campaignData);
         setMessages(messageData);
@@ -93,6 +106,7 @@ const Logs: React.FC = () => {
         setIsLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
@@ -111,7 +125,7 @@ const Logs: React.FC = () => {
           const totalDelivered = campaigns.reduce((sum, c) => sum + c.delivered, 0);
           const totalFailed = campaigns.reduce((sum, c) => sum + c.failed, 0);
           pieLabels = ['Delivered', 'Failed'];
-          pieData = [totalDelivered, totalFailed];
+          pieData = campaigns.length ? [totalDelivered, totalFailed] : [0, 0]; // Show 0 for empty campaigns
         } else {
           pieLabels = ['Delivered', 'Failed'];
           pieData = [selectedCampaign.delivered, selectedCampaign.failed];
@@ -130,6 +144,15 @@ const Logs: React.FC = () => {
             maintainAspectRatio: false,
             plugins: {
               legend: { position: 'bottom' },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.label || '';
+                    const value = context.raw as number;
+                    return campaigns.length || selectedCampaign ? `${label}: ${value}` : `${label}: No data`;
+                  },
+                },
+              },
             },
           },
         });
@@ -140,7 +163,7 @@ const Logs: React.FC = () => {
       }
     }
 
-    if (chartRefLine.current && activeTab === 'campaigns' && selectedCampaign) {
+    if (chartRefLine.current && activeTab === 'campaigns') {
       const ctxLine = chartRefLine.current.getContext('2d');
       console.log('Line chart context obtained:', ctxLine);
       if (chartInstanceLine) {
@@ -148,31 +171,73 @@ const Logs: React.FC = () => {
         chartInstanceLine.destroy();
       }
       try {
+        let dates, deliveredData, failedData;
+        if (selectedCampaign) {
+          dates = [selectedCampaign.startDate];
+          deliveredData = [selectedCampaign.delivered];
+          failedData = [selectedCampaign.failed];
+        } else {
+          dates = campaigns
+            .map(c => c.startDate)
+            .filter((date, index, self) => self.indexOf(date) === index)
+            .sort()
+            .slice(-5);
+          deliveredData = dates.map(date =>
+            campaigns
+              .filter(c => c.startDate === date)
+              .reduce((sum, c) => sum + c.delivered, 0)
+          );
+          failedData = dates.map(date =>
+            campaigns
+              .filter(c => c.startDate === date)
+              .reduce((sum, c) => sum + c.failed, 0)
+          );
+        }
+
+        // Use fallback for empty campaigns
+        if (!dates.length) {
+          dates = ['No Data'];
+          deliveredData = [0];
+          failedData = [0];
+        }
+
         const newChartInstanceLine = new Chart(ctxLine!, {
           type: 'line',
           data: {
-            labels: ['06-15', '06-20', '06-25', '07-01', '07-05'],
-            datasets: [{
-              label: 'Delivered',
-              data: [0, 50, 80, 100, selectedCampaign.delivered],
-              borderColor: '#004d66',
-              backgroundColor: 'rgba(0, 77, 102, 0.2)',
-              fill: true,
-              tension: 0.4,
-            }, {
-              label: 'Failed',
-              data: [0, 10, 20, 25, selectedCampaign.failed],
-              borderColor: '#FDD70D',
-              backgroundColor: 'rgba(253, 215, 13, 0.6)',
-              fill: true,
-              tension: 0.4,
-            }],
+            labels: dates,
+            datasets: [
+              {
+                label: 'Delivered',
+                data: deliveredData,
+                borderColor: '#004d66',
+                backgroundColor: 'rgba(0, 77, 102, 0.2)',
+                fill: true,
+                tension: 0.4,
+              },
+              {
+                label: 'Failed',
+                data: failedData,
+                borderColor: '#FDD70D',
+                backgroundColor: 'rgba(253, 215, 13, 0.6)',
+                fill: true,
+                tension: 0.4,
+              },
+            ],
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
               legend: { position: 'bottom' },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const label = context.dataset.label || '';
+                    const value = context.raw as number;
+                    return campaigns.length || selectedCampaign ? `${label}: ${value}` : `${label}: No data`;
+                  },
+                },
+              },
             },
             scales: {
               y: { beginAtZero: true, title: { display: true, text: 'Count' } },
@@ -184,13 +249,6 @@ const Logs: React.FC = () => {
         setChartInstanceLine(newChartInstanceLine);
       } catch (error) {
         console.error('Error creating line chart:', error);
-      }
-    } else if (chartRefLine.current && activeTab === 'campaigns' && !selectedCampaign) {
-      const ctxLine = chartRefLine.current.getContext('2d');
-      console.log('Line chart context obtained for overview:', ctxLine);
-      if (chartInstanceLine) {
-        console.log('Destroying existing line chart instance');
-        chartInstanceLine.destroy();
       }
     }
 
@@ -208,20 +266,19 @@ const Logs: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     console.log('Getting status icon for:', status);
-    switch (status) {
-      case 'Active':
+    switch (status.toLowerCase()) {
+      case 'active':
         return <CheckCircle className="w-5 h-5 text-[#004d66]" />;
-      case 'Completed':
-      case 'delivered':
+      case 'completed':
+      case 'sent':
         return <CheckCircle className="w-5 h-5 text-green-600" />;
-      case 'Pending':
+      case 'pending':
         return <Clock className="w-5 h-5 text-[#f4a261]" />;
       default:
         return <AlertCircle className="w-5 h-5 text-red-600" />;
     }
   };
 
-  // Pagination logic
   const indexOfLastMessage = currentPage * itemsPerPage;
   const indexOfFirstMessage = indexOfLastMessage - itemsPerPage;
   const currentMessages = messages.slice(indexOfFirstMessage, indexOfLastMessage);
@@ -232,11 +289,11 @@ const Logs: React.FC = () => {
   };
 
   const renderCampaignsOverview = () => {
-    console.log('Rendering Campaigns Overview');
+    console.log('Rendering Campaigns Overview, campaigns:', JSON.stringify(campaigns, null, 2));
     const totalCampaigns = campaigns.length;
-    const totalRecipients = campaigns.reduce((sum, c) => sum + c.recipients, 0);
-    const totalDelivered = campaigns.reduce((sum, c) => sum + c.delivered, 0);
-    const totalFailed = campaigns.reduce((sum, c) => sum + c.failed, 0);
+    const totalRecipients = campaigns.length ? campaigns.reduce((sum, c) => sum + c.recipients, 0) : 0;
+    const totalDelivered = campaigns.length ? campaigns.reduce((sum, c) => sum + c.delivered, 0) : 0;
+    const totalFailed = campaigns.length ? campaigns.reduce((sum, c) => sum + c.failed, 0) : 0;
 
     return (
       <div className="space-y-8">
@@ -332,29 +389,37 @@ const Logs: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {campaigns.map((campaign) => (
-                  <tr
-                    key={campaign.id}
-                    className="hover:bg-gray-50 transition-colors"
-                    onClick={() => setSelectedCampaign(campaign)}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{campaign.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{campaign.startDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{campaign.endDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{getStatusIcon(campaign.status)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedCampaign(campaign);
-                        }}
-                        className="text-[#004d66] hover:text-[#f4a261] font-medium"
-                      >
-                        View Details
-                      </button>
+                {campaigns.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-600">
+                      No campaigns available.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  campaigns.map((campaign) => (
+                    <tr
+                      key={campaign.id}
+                      className="hover:bg-gray-50 transition-colors"
+                      onClick={() => setSelectedCampaign(campaign)}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{campaign.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{campaign.startDate}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{campaign.endDate}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{getStatusIcon(campaign.status)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCampaign(campaign);
+                          }}
+                          className="text-[#004d66] hover:text-[#f4a261] font-medium"
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -512,11 +577,14 @@ const Logs: React.FC = () => {
   };
 
   const renderMessages = () => {
-    console.log('Rendering Messages');
-    const totalMessages = messages.length;
-    const totalRecipients = messages.reduce((sum, msg) => sum + 1, 0); // Each message has one recipient
-    const totalDelivered = messages.reduce((sum, msg) => sum + (msg.status === 'delivered' ? 1 : 0), 0);
-    const totalFailed = messages.reduce((sum, msg) => sum + (msg.status !== 'delivered' ? 1 : 0), 0);
+    console.log('Rendering Messages, messages:', JSON.stringify(messages, null, 2));
+    console.log('Analytics data:', JSON.stringify(analytics, null, 2));
+
+    const totalMessages = analytics?.total || 0;
+    const totalRecipients = analytics?.total || 0;
+    const totalDelivered = analytics?.statuses.find(s => s.status.toLowerCase() === 'sent')?.counts || 0;
+    const totalFailed = (analytics?.statuses.find(s => s.status.toLowerCase() === 'failed')?.counts || 0) +
+                        (analytics?.statuses.find(s => s.status.toLowerCase() === 'pending')?.counts || 0);
 
     return (
       <div className="space-y-8">
@@ -600,30 +668,34 @@ const Logs: React.FC = () => {
           className="bg-white rounded-md p-6 border border-gray-200"
         >
           <h2 className="text-lg font-medium text-[#004d66] mb-4">Messages Table</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent At</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sender ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recipient</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {currentMessages.map((msg, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{msg.sent_at}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{getStatusIcon(msg.status)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{msg.sender_id}</td>
-                    <td className="px-6 py-4 text-sm text-[#004d66]">{msg.message}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{msg.recipient}</td>
+          {messages.length === 0 ? (
+            <p className="text-gray-600">No non-campaign messages available. Try checking the Campaigns tab for campaign-related messages.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent At</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sender ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recipient</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {currentMessages.map((msg, index) => (
+                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{msg.sent_at}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{getStatusIcon(msg.status)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{msg.sender_id}</td>
+                      <td className="px-6 py-4 text-sm text-[#004d66]">{msg.message}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{msg.recipient}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           {totalPages > 1 && (
             <div className="mt-4 flex justify-between items-center">
               <button
@@ -684,7 +756,7 @@ const Logs: React.FC = () => {
           onClick={() => {
             setActiveTab('messages');
             setSelectedCampaign(null);
-            setCurrentPage(1); // Reset to first page when switching tabs
+            setCurrentPage(1);
           }}
         >
           Messages

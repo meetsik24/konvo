@@ -59,6 +59,42 @@ interface User {
   avatar?: string;
 }
 
+//interface for Logs
+interface LogResponse {
+  analytics: Analytics;
+  messages: Message[];
+}
+
+interface Status {
+  status: string;
+  counts: number;
+}
+
+
+export interface Analytics {
+  total: number;
+  statuses: Array<{
+    status: string;
+    counts: number;
+  }>;
+}
+
+export interface Message {
+  message: string;
+  sent_at: string;
+  recipient: string;
+  campaign_name: string | null;
+  sender_id: string;
+  status: string;
+}
+
+export interface MessageLogResponse {
+  analytics: Analytics;
+  messages: Message[];
+}
+
+
+
 interface Contact {
   contact_id: string;
   workspace_id: string;
@@ -288,6 +324,12 @@ export const registerUser = async (
   }
 };
 
+
+const isValidISODate = (dateStr: string): boolean => {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(dateStr);
+};
+
+
 export const loginUser = async (identifier: string, password: string): Promise<{ token: string; user: User }> => {
   try {
     const formData = new FormData();
@@ -353,37 +395,53 @@ export const fetchLogs = async (): Promise<LogResponse> => {
   }
 };
 
+//logs and sms status
 
-export const visualizeLogs = async (): Promise<LogResponse> => {
+export const getMessageLogsV = async (): Promise<MessageLogResponse> => {
+  console.log("getMessageLogsV1 API call initiated");
   try {
-    const response = await api.get("/messages/logs/V1", {
-      headers: {
-        // Uncomment and configure if authentication is required
-        // 'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await api.get("/messages/logs/V1");
+    console.log("getMessageLogsV1 API response:", JSON.stringify(response.data, null, 2));
 
-    const data: LogResponse = response.data;
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid response: Expected an object');
+    // Validate response structure
+    if (!response.data || typeof response.data !== 'object') {
+      console.warn("Invalid response structure from /messages/logs/V1, returning default");
+      return { analytics: { total: 0, statuses: [] }, messages: [] };
     }
 
-    // Ensure messages is an array
-    if (!Array.isArray(data.messages)) {
-      console.warn('Messages array is missing or invalid, returning empty array');
-      data.messages = [];
-    }
+    const data = response.data as MessageLogResponse;
 
-    // Ensure analytics is present
-    if (!data.analytics || typeof data.analytics !== 'object') {
-      console.warn('Analytics object is missing or invalid, returning default');
+    // Validate analytics
+    if (!data.analytics || typeof data.analytics.total !== 'number' || !Array.isArray(data.analytics.statuses)) {
+      console.warn("Invalid analytics structure, setting default");
       data.analytics = { total: 0, statuses: [] };
     }
 
+    // Validate messages
+    if (!Array.isArray(data.messages)) {
+      console.warn("Invalid messages array, setting empty array");
+      data.messages = [];
+    } else {
+      data.messages = data.messages.filter((msg): msg is Message => {
+        const isValid =
+          typeof msg === 'object' &&
+          typeof msg.message === 'string' &&
+          typeof msg.sent_at === 'string' &&
+          isValidISODate(msg.sent_at) &&
+          typeof msg.recipient === 'string' &&
+          (typeof msg.campaign_name === 'string' || msg.campaign_name === null) && // Allow null
+          typeof msg.sender_id === 'string' &&
+          typeof msg.status === 'string';
+        if (!isValid) console.warn("Invalid message object:", msg);
+        return isValid;
+      });
+    }
+
+    console.log("Processed messages:", JSON.stringify(data.messages, null, 2));
     return data;
   } catch (error: any) {
-    handleApiError(error, 'Failed to fetch logs from /messages/logs/V1');
+    handleApiError(error, "Failed to fetch message logs V1");
+    return { analytics: { total: 0, statuses: [] }, messages: [] };
   }
 };
 
@@ -959,14 +1017,6 @@ export const getMessageLogs = async (): Promise<Message[]> => {
   }
 };
 
-export const getMessageLogsV1 = async (): Promise<Message[]> => {
-  try {
-    const response = await api.get("/messages/logs/V1");
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (error: any) {
-    handleApiError(error, "Failed to fetch message logs V1");
-  }
-};
 
 export const getUserMessages = async (): Promise<Message[]> => {
   try {
@@ -1150,6 +1200,41 @@ export const getCallLogs = async (
   }
   return undefined; // Ensure all code paths return a value
 };
+
+
+
+
+
+
+
+
+// services/api.ts
+
+export const getMessageLogsV1 = async (page: number = 1, limit: number = 100): Promise<MessageLogResponse> => {
+  console.log(`getMessageLogsV1 API call initiated (page: ${page}, limit: ${limit})`);
+  try {
+    const response = await api.get("/messages/logs/V1", {
+      params: { page, limit }, // Adjust param names based on API
+    });
+    console.log("getMessageLogsV1 API response:", JSON.stringify(response.data, null, 2));
+
+    const data = response.data as MessageLogResponse;
+    if (!data || !data.analytics || !Array.isArray(data.messages)) {
+      console.warn("Invalid response structure from /messages/logs/V1, returning default");
+      return { analytics: { total: 0, statuses: [] }, messages: [] };
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error("Failed to fetch message logs V1:", error);
+    const message = error.response?.data?.message || error.message || "Failed to fetch message logs";
+    throw new Error(message);
+  }
+};
+
+
+
+
 
 
 
