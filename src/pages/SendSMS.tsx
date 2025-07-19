@@ -9,6 +9,7 @@ import {
   getCampaigns,
   getCampaignGroups,
   sendInstantMessage,
+  validateMessage,
   generateMessage,
   getWorkspaceGroups,
 } from '../services/api';
@@ -45,15 +46,16 @@ const SendSMS = () => {
   const [uploadedData, setUploadedData] = useState<UploadedRow[]>([]);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [phoneColumn, setPhoneColumn] = useState<string>(''); // Phone column selection
-  const [defaultCountryCode, setDefaultCountryCode] = useState<string>('+255'); // Default country code
+  const [defaultCountryCode, setDefaultCountryCode] = useState<string>('255'); // Default country code without +
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isPreparingContacts, setIsPreparingContacts] = useState(false); // New state for file mode processing
+  const [isPreparingContacts, setIsPreparingContacts] = useState(false); // Used for validation
   const [error, setError] = useState<string | null>(null);
   const [keywords, setKeywords] = useState('');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [recipientCount, setRecipientCount] = useState(0);
+  const [totalSmsCount, setTotalSmsCount] = useState(0); // Total SMS count (smsCount * recipientCount)
   const [messagePreview, setMessagePreview] = useState('');
   const [invalidPhones, setInvalidPhones] = useState<string[]>([]); // Track invalid phone numbers
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -83,7 +85,7 @@ const SendSMS = () => {
         const groupsData = await getWorkspaceGroups(currentWorkspaceId);
         setGroups(groupsData);
       } catch (err: any) {
-        setError(err.message || 'Failed to load data.');
+        setError(err.response?.data?.message || err.message || 'Failed to load data.');
       } finally {
         setIsLoading(false);
       }
@@ -100,8 +102,8 @@ const SendSMS = () => {
       try {
         const groupsData = await getCampaignGroups(selectedCampaignId);
         setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: groupsData }));
-      } catch (err) {
-        setError('Failed to fetch campaign groups.');
+      } catch (err: any) {
+        setError(err.response?.data?.message || err.message || 'Failed to fetch campaign groups.');
       }
     };
     fetchCampaignGroups();
@@ -111,24 +113,24 @@ const SendSMS = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const normalizePhone = (phone: string, defaultCountryCode: string = '+255'): string => {
+  const normalizePhone = (phone: string, defaultCountryCode: string = '255'): string => {
     if (!phone || typeof phone !== 'string') return '';
 
     let cleaned = phone.trim().replace(/[\s()-]/g, '');
 
-    if (cleaned.startsWith('00')) {
-      cleaned = '+' + cleaned.slice(2);
-    } else if (cleaned.startsWith('255') && !cleaned.startsWith('+255')) {
-      cleaned = '+255' + cleaned.slice(3);
+    // Handle various input formats
+    if (cleaned.startsWith('+')) {
+      cleaned = cleaned.slice(1); // Remove + prefix to match server format
+    } else if (cleaned.startsWith('00')) {
+      cleaned = cleaned.slice(2); // Remove 00 prefix
     } else if (cleaned.startsWith('0')) {
-      cleaned = defaultCountryCode + cleaned.slice(1);
-    } else if (/^\d{9,14}$/.test(cleaned)) {
-      cleaned = defaultCountryCode + cleaned;
-    } else if (!cleaned.startsWith('+')) {
-      return '';
+      cleaned = defaultCountryCode + cleaned.slice(1); // Replace 0 with country code
+    } else if (/^\d{9,12}$/.test(cleaned)) {
+      cleaned = defaultCountryCode + cleaned; // Prepend country code for 9-12 digit numbers
     }
 
-    if (!/^\+\d{9,15}$/.test(cleaned)) {
+    // Validate: must be 12 digits (e.g., 255788344348) and start with country code
+    if (!/^\d{12}$/.test(cleaned) || !cleaned.startsWith(defaultCountryCode)) {
       console.warn(`Invalid phone number format: ${phone} → ${cleaned}`);
       return '';
     }
@@ -269,9 +271,7 @@ const SendSMS = () => {
       setError('Please fill in all required fields.');
       return;
     }
-    if (sendMode === 'file') {
-      setIsPreparingContacts(true); // Show loading for file mode
-    }
+    setIsPreparingContacts(true); // Show loading modal for validation
     try {
       let recipients: string[] = [];
       let groups: string[] = [];
@@ -308,19 +308,40 @@ const SendSMS = () => {
         throw new Error(`No valid recipients or groups found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
       }
 
-      // Estimate recipient count for confirmation modal (approximate, as actual count is server-side for groups)
-      setRecipientCount(recipients.length || groups.length); // Simplified count
+      // Validate message to get recipient count and SMS count
+      const validationPayload = {
+        recipients: recipients.length ? recipients : undefined,
+        groups: groups.length ? groups : undefined,
+        content: sendMode === 'file' && recipients.length ? applyPlaceholders(formData.message, uploadedData[0]) : formData.message,
+        sender_id: formData.senderId,
+        campaign_id: sendMode === 'campaign' ? selectedCampaignId : undefined,
+      };
+      console.log("Validation payload:", validationPayload);
+      const validationResult = await validateMessage(validationPayload);
+
+      if (!validationResult.is_valid || !validationResult.validation?.recipients?.valid) {
+        const invalidNumbers = validationResult.validation?.recipients?.stats?.invalid_numbers || [];
+        throw new Error(
+          `Validation failed: ${validationResult.validation?.recipients?.message || 'Invalid recipients.'} ` +
+          (invalidNumbers.length ? `Invalid numbers: ${invalidNumbers.slice(0, 3).join(', ')}` : '')
+        );
+      }
+
+      setRecipientCount(validationResult.validation?.recipients?.stats?.valid_count || 0);
+      setTotalSmsCount(
+        (validationResult.validation?.content?.stats?.length
+          ? Math.ceil(validationResult.validation.content.stats.length / 160)
+          : smsCount) * (validationResult.validation?.recipients?.stats?.valid_count || 0)
+      );
       setMessagePreview(previewMessage);
       setIsConfirmModalOpen(true);
       if (invalidPhones.length) {
         setError(`Warning: ${invalidPhones.length} invalid phone numbers skipped (e.g., ${invalidPhones.slice(0, 3).join(', ')}).`);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to prepare SMS.');
+      setError(err.response?.data?.message || err.message || 'Failed to validate SMS.');
     } finally {
-      if (sendMode === 'file') {
-        setIsPreparingContacts(false); // Hide loading for file mode
-      }
+      setIsPreparingContacts(false); // Hide loading modal
     }
   };
 
@@ -375,7 +396,7 @@ const SendSMS = () => {
                 sender_id: formData.senderId,
               });
             } catch (err: any) {
-              errors.push(`Failed to send to ${msg.phone}: ${err.message || 'Unknown error'}`);
+              errors.push(`Failed to send to ${msg.phone}: ${err.response?.data?.message || err.message || 'Unknown error'}`);
             }
           })
         );
@@ -412,7 +433,7 @@ const SendSMS = () => {
       setPhoneColumn('');
       setInvalidPhones([]);
     } catch (err: any) {
-      setError(err.message || 'Failed to send SMS.');
+      setError(err.response?.data?.message || err.message || 'Failed to send SMS.');
     } finally {
       setIsSending(false);
       setIsConfirmModalOpen(false);
@@ -431,7 +452,7 @@ const SendSMS = () => {
       setModal('isAIModalOpen', false);
       setKeywords('');
     } catch (err: any) {
-      setError(err.message || 'Failed to generate message.');
+      setError(err.response?.data?.message || err.message || 'Failed to generate message.');
     } finally {
       setIsGenerating(false);
     }
@@ -453,8 +474,8 @@ const SendSMS = () => {
       setModal('isCreateCampaignOpen', false);
       setFormData(prev => ({ ...prev, campaignName: '' }));
       setSelectedGroups([]);
-    } catch (err) {
-      setError('Failed to create campaign.');
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Failed to create campaign.');
     }
   };
 
@@ -567,8 +588,8 @@ const SendSMS = () => {
                   <input
                     type="text"
                     value={defaultCountryCode}
-                    onChange={(e) => setDefaultCountryCode(e.target.value)}
-                    placeholder="e.g., +255"
+                    onChange={(e) => setDefaultCountryCode(e.target.value.replace(/^\+/, ''))}
+                    placeholder="e.g., 255"
                     className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
                   />
                 </div>
@@ -843,8 +864,8 @@ const SendSMS = () => {
                       <input
                         type="text"
                         value={defaultCountryCode}
-                        onChange={(e) => setDefaultCountryCode(e.target.value)}
-                        placeholder="e.g., +255"
+                        onChange={(e) => setDefaultCountryCode(e.target.value.replace(/^\+/, ''))}
+                        placeholder="e.g., 255"
                         className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
                       />
                     </div>
@@ -926,7 +947,7 @@ const SendSMS = () => {
                 required
               />
               <div className="flex justify-end gap-3 text-sm text-[#004d66]">
-                <span>{smsCount} SMS</span>
+                <span>{smsCount} SMS per recipient</span>
                 <span>{charCount}/160</span>
               </div>
             </motion.div>
@@ -1117,7 +1138,7 @@ const SendSMS = () => {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
           </svg>
-          <p className="text-sm">Preparing contacts to send...</p>
+          <p className="text-sm">Validating recipients...</p>
         </motion.div>
       </Modal>
 
@@ -1140,11 +1161,8 @@ const SendSMS = () => {
           className="space-y-4 text-[#004d66]"
         >
           <p className="text-sm">
-            You are about to send SMS messages to{' '}
-            <strong>
-              {sendMode === 'file' ? recipientCount : 'selected groups and/or contacts'}
-            </strong>{' '}
-            recipients.
+            You are about to send <strong>{totalSmsCount}</strong> SMS messages to <strong>{recipientCount}</strong> recipients.
+            {sendMode !== 'file' && ' (Based on groups and/or contacts selected)'}
           </p>
           <div className="bg-gray-100 p-4 rounded-md border border-gray-200">
             <p className="text-sm font-medium text-[#004d66]">Message Preview:</p>
