@@ -11,13 +11,11 @@ import {
   sendInstantMessage,
   generateMessage,
   getWorkspaceGroups,
-  getGroupContacts,
 } from '../services/api';
 
 interface Campaign { campaign_id: string; workspace_id: string; name: string; status: 'active' | 'completed'; }
 interface Group { group_id: string; name: string; }
 interface SenderId { sender_id: string; name: string; is_approved: boolean; }
-interface Contact { contact_id: string; phone_number: string; }
 interface UploadedRow { [key: string]: string; }
 
 const SendSMS = () => {
@@ -51,6 +49,7 @@ const SendSMS = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreparingContacts, setIsPreparingContacts] = useState(false); // New state for file mode processing
   const [error, setError] = useState<string | null>(null);
   const [keywords, setKeywords] = useState('');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -115,10 +114,8 @@ const SendSMS = () => {
   const normalizePhone = (phone: string, defaultCountryCode: string = '+255'): string => {
     if (!phone || typeof phone !== 'string') return '';
 
-    // Clean the input (remove spaces, dashes, parentheses, etc.)
     let cleaned = phone.trim().replace(/[\s()-]/g, '');
 
-    // Handle common prefixes
     if (cleaned.startsWith('00')) {
       cleaned = '+' + cleaned.slice(2);
     } else if (cleaned.startsWith('255') && !cleaned.startsWith('+255')) {
@@ -131,7 +128,6 @@ const SendSMS = () => {
       return '';
     }
 
-    // Validate: must start with + followed by 9–15 digits
     if (!/^\+\d{9,15}$/.test(cleaned)) {
       console.warn(`Invalid phone number format: ${phone} → ${cleaned}`);
       return '';
@@ -153,17 +149,14 @@ const SendSMS = () => {
           reject(new Error('File is empty.'));
           return;
         }
-        // Try multiple delimiters
         const delimiters = [',', ';', '\t'];
         let headers: string[] = [];
         let rows: string[][] = [];
-        let validDelimiter = '';
         for (const delimiter of delimiters) {
           const lines = text.split('\n').filter(line => line.trim());
           const testHeaders = lines[0].split(delimiter).map(h => h.trim());
           if (testHeaders.length >= 1) {
             headers = testHeaders;
-            validDelimiter = delimiter;
             rows = lines.slice(1).map(row => row.split(delimiter).map(col => col.trim()));
             break;
           }
@@ -172,7 +165,6 @@ const SendSMS = () => {
           reject(new Error('CSV must have at least one column.'));
           return;
         }
-        // Find phone column dynamically
         const phoneColIndex = headers.findIndex(h => /phone|mobile|number/i.test(h));
         if (phoneColIndex === -1) {
           reject(new Error('No phone number column found (e.g., phone, mobile, phone_number).'));
@@ -277,30 +269,32 @@ const SendSMS = () => {
       setError('Please fill in all required fields.');
       return;
     }
+    if (sendMode === 'file') {
+      setIsPreparingContacts(true); // Show loading for file mode
+    }
     try {
       let recipients: string[] = [];
+      let groups: string[] = [];
       let previewMessage = formData.message;
 
       if (sendMode === 'instant') {
         if (formData.manualContacts.trim()) {
-          const manualPhones = formData.manualContacts
+          recipients = formData.manualContacts
             .split(/[\n,]+/)
             .map(phone => normalizePhone(phone, defaultCountryCode))
             .filter(p => p);
           const invalid = formData.manualContacts
             .split(/[\n,]+/)
-            .filter((phone, i) => phone.trim() && !manualPhones.includes(normalizePhone(phone, defaultCountryCode)));
+            .filter((phone, i) => phone.trim() && !recipients.includes(normalizePhone(phone, defaultCountryCode)));
           if (invalid.length) setInvalidPhones(invalid);
-          recipients = manualPhones;
         }
         if (selectedGroups.length) {
-          const groupPhones = await fetchRecipients(selectedGroups);
-          recipients.push(...groupPhones.map(phone => normalizePhone(phone, defaultCountryCode)).filter(p => p));
+          groups = selectedGroups;
         }
       } else if (sendMode === 'campaign') {
-        const groups = campaignGroups[selectedCampaignId] || [];
-        if (!groups.length) throw new Error('No groups assigned to campaign.');
-        recipients = await fetchRecipients(groups.map(g => g.group_id));
+        const campaignGroupsList = campaignGroups[selectedCampaignId] || [];
+        if (!campaignGroupsList.length) throw new Error('No groups assigned to campaign.');
+        groups = campaignGroupsList.map(g => g.group_id);
       } else if (sendMode === 'file') {
         recipients = uploadedData
           .map(row => normalizePhone(row[phoneColumn] || '', defaultCountryCode))
@@ -310,10 +304,12 @@ const SendSMS = () => {
         }
       }
 
-      if (!recipients.length) {
-        throw new Error(`No valid recipients found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
+      if (!recipients.length && !groups.length) {
+        throw new Error(`No valid recipients or groups found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
       }
-      setRecipientCount(recipients.length);
+
+      // Estimate recipient count for confirmation modal (approximate, as actual count is server-side for groups)
+      setRecipientCount(recipients.length || groups.length); // Simplified count
       setMessagePreview(previewMessage);
       setIsConfirmModalOpen(true);
       if (invalidPhones.length) {
@@ -321,6 +317,10 @@ const SendSMS = () => {
       }
     } catch (err: any) {
       setError(err.message || 'Failed to prepare SMS.');
+    } finally {
+      if (sendMode === 'file') {
+        setIsPreparingContacts(false); // Hide loading for file mode
+      }
     }
   };
 
@@ -329,6 +329,7 @@ const SendSMS = () => {
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected.');
       let recipients: string[] = [];
+      let groups: string[] = [];
       let personalizedMessages: { phone: string; content: string }[] = [];
 
       if (sendMode === 'instant') {
@@ -339,13 +340,12 @@ const SendSMS = () => {
             .filter(p => p);
         }
         if (selectedGroups.length) {
-          const groupPhones = await fetchRecipients(selectedGroups);
-          recipients.push(...groupPhones.map(phone => normalizePhone(phone, defaultCountryCode)).filter(p => p));
+          groups = selectedGroups;
         }
       } else if (sendMode === 'campaign') {
-        const groups = campaignGroups[selectedCampaignId] || [];
-        if (!groups.length) throw new Error('No groups assigned to campaign.');
-        recipients = await fetchRecipients(groups.map(g => g.group_id));
+        const campaignGroupsList = campaignGroups[selectedCampaignId] || [];
+        if (!campaignGroupsList.length) throw new Error('No groups assigned to campaign.');
+        groups = campaignGroupsList.map(g => g.group_id);
       } else if (sendMode === 'file') {
         recipients = uploadedData
           .map(row => normalizePhone(row[phoneColumn] || '', defaultCountryCode))
@@ -360,14 +360,14 @@ const SendSMS = () => {
         }
       }
 
-      if (!recipients.length) {
-        throw new Error(`No valid recipients found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
+      if (!recipients.length && !groups.length) {
+        throw new Error(`No valid recipients or groups found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
       }
 
       if (sendMode === 'file' && personalizedMessages.length) {
         const errors: string[] = [];
         await Promise.all(
-          personalizedMessages.map(async (msg, index) => {
+          personalizedMessages.map(async (msg) => {
             try {
               await sendInstantMessage(currentWorkspaceId, {
                 recipients: [msg.phone],
@@ -384,9 +384,11 @@ const SendSMS = () => {
         }
       } else {
         await sendInstantMessage(currentWorkspaceId, {
-          recipients,
+          recipients: recipients.length ? recipients : undefined,
+          groups: groups.length ? groups : undefined,
           content: formData.message,
           sender_id: formData.senderId,
+          campaign_id: sendMode === 'campaign' ? selectedCampaignId : undefined,
         });
       }
 
@@ -454,22 +456,6 @@ const SendSMS = () => {
     } catch (err) {
       setError('Failed to create campaign.');
     }
-  };
-
-  const fetchRecipients = async (groupIds: string[]): Promise<string[]> => {
-    const recipientPhones: string[] = [];
-    for (const groupId of groupIds) {
-      try {
-        const contacts = await getGroupContacts(currentWorkspaceId!, groupId, 1, 50);
-        const phones = (contacts?.contacts || [])
-          .map((c: Contact) => normalizePhone(c.phone_number, defaultCountryCode))
-          .filter((p: string) => p);
-        recipientPhones.push(...phones);
-      } catch (err) {
-        console.error(`Failed to fetch contacts for group ${groupId}:`, err);
-      }
-    }
-    return [...new Set(recipientPhones)];
   };
 
   const setModal = (modal: keyof typeof modalState, isOpen: boolean) => {
@@ -953,7 +939,7 @@ const SendSMS = () => {
             >
               <button
                 type="button"
-                disabled={isSending || !isFormValid()}
+                disabled={isSending || isPreparingContacts || !isFormValid()}
                 onClick={prepareSendSMS}
                 className="w-full py-3 px-4 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md text-sm font-medium hover:bg-[#FDD70D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
@@ -1113,7 +1099,29 @@ const SendSMS = () => {
         </motion.div>
       </Modal>
 
-  <Modal
+      <Modal
+        isOpen={isPreparingContacts}
+        onClose={() => {}} // No close action since this is a loading modal
+        title="Preparing Contacts"
+        className="font-inter"
+        titleClassName="text-[#004d66] text-lg font-semibold"
+        closeButtonClassName="text-[#004d66] hover:text-[#FDD70D]"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex items-center justify-center gap-3 text-[#004d66]"
+        >
+          <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+          <p className="text-sm">Preparing contacts to send...</p>
+        </motion.div>
+      </Modal>
+
+      <Modal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         title="Confirm SMS Send"
@@ -1121,8 +1129,8 @@ const SendSMS = () => {
         submitText="Confirm Send"
         isLoading={isSending}
         className="font-inter"
-        titleClassName="text-[#00333e] text-lg font-semibold"
-        buttonClassName="bg-[#00333e] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md px-4 py-2 text-sm font-medium"
+        titleClassName="text-[#004d66] text-lg font-semibold"
+        buttonClassName="bg-[#004d66] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md px-4 py-2 text-sm font-medium"
         closeButtonClassName="text-[#004d66] hover:text-[#FDD70D]"
       >
         <motion.div
@@ -1132,7 +1140,11 @@ const SendSMS = () => {
           className="space-y-4 text-[#004d66]"
         >
           <p className="text-sm">
-            You are about to send <strong>{smsCount * recipientCount}</strong> SMS messages to <strong>{recipientCount}</strong> recipients.
+            You are about to send SMS messages to{' '}
+            <strong>
+              {sendMode === 'file' ? recipientCount : 'selected groups and/or contacts'}
+            </strong>{' '}
+            recipients.
           </p>
           <div className="bg-gray-100 p-4 rounded-md border border-gray-200">
             <p className="text-sm font-medium text-[#004d66]">Message Preview:</p>

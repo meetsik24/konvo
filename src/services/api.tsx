@@ -992,15 +992,21 @@ export const checkPaymentStatus = async (
 export const sendInstantMessage = async (
   workspaceId: string,
   data: {
-    recipients: string[];
+    recipients?: string[];
+    groups?: string[];
     content: string;
     sender_id: string;
+    campaign_id?: string;
   }
 ): Promise<Message> => {
   try {
     const response = await api.post("/messages/send-instant", {
       workspace_id: workspaceId,
-      ...data,
+      content: data.content,
+      sender_id: data.sender_id,
+      ...(data.recipients && data.recipients.length > 0 && { recipients: data.recipients }),
+      ...(data.groups && data.groups.length > 0 && { groups: data.groups }),
+      ...(data.campaign_id && { campaign_id: data.campaign_id }),
     });
     return response.data;
   } catch (error: any) {
