@@ -50,7 +50,6 @@ jobs:
             echo "Cleaning up unused Docker resources..."
             docker system prune -a -f
 
-
             # Pull the latest image from Docker Hub
             docker pull ${{ secrets.DOCKER_USERNAME }}/briqpilot-frontend:latest
 
