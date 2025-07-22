@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { Chart } from 'chart.js/auto';
 import { Users, MessageSquare, XCircle, Megaphone, Folder, TrendingUp, CheckCircle, Clock } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
-import { getCampaigns, fetchLogs, getContactMetrics } from '../services/api';
+import { getMetricsV1 } from '../services/api';
+import { MetricsResponse, SmsStatus, ContactsCount, LogsCount, DailyCount } from '../services/metricsInterfaces';
 
 interface Stat {
   title: string;
@@ -15,6 +16,7 @@ interface Stat {
 interface DataPoint {
   name: string;
   value: number;
+  instanceDates: string[]; // Store all dates contributing to this data point
 }
 
 interface Campaign {
@@ -33,14 +35,25 @@ interface DashboardData {
 const initialDashboardData: DashboardData = {
   stats: [
     { title: 'Messages Sent', value: '0', icon: MessageSquare, gradient: 'from-blue-500 to-blue-600' },
-    { title: 'Number of Campaigns', value: '0', icon: Megaphone, gradient: 'from-green-500 to-green-600' },
+    { title: 'Campaigns', value: '0', icon: Megaphone, gradient: 'from-green-500 to-green-600' },
     { title: 'Total Fails', value: '0', icon: XCircle, gradient: 'from-red-500 to-red-600' },
     { title: 'Total Contacts', value: '0', icon: Users, gradient: 'from-purple-500 to-purple-600' },
-    { title: 'Total Contact Groups', value: '0', icon: Folder, gradient: 'from-yellow-500 to-yellow-600' },
+    { title: 'Contact Groups', value: '0', icon: Folder, gradient: 'from-yellow-500 to-yellow-600' },
   ],
   data: [],
   campaigns: [],
 };
+
+const timeRangeOptions = [
+  { value: 'today' as const, label: 'Today' },
+  { value: 'this_week' as const, label: 'This Week' },
+  { value: 'this_month' as const, label: 'This Month' },
+  { value: 'past_3_months' as const, label: 'Past 3 Months' },
+  { value: 'past_6_months' as const, label: 'Past 6 Months' },
+  { value: 'past_9_months' as const, label: 'Past 9 Months' },
+  { value: 'last_year' as const, label: 'Last Year' },
+  { value: 'all_time' as const, label: 'All Time' },
+];
 
 const Dashboard: React.FC = () => {
   const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId } = useWorkspace();
@@ -50,27 +63,110 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const chartRefLine = useRef<HTMLCanvasElement>(null);
   const [chartInstanceLine, setChartInstanceLine] = useState<Chart | null>(null);
+  const [dateRange, setDateRange] = useState<'today' | 'this_week' | 'this_month' | 'past_3_months' | 'past_6_months' | 'past_9_months' | 'last_year' | 'all_time'>('all_time');
 
-  const fetchAllMessageLogs = useCallback(async () => {
+  const fetchMetricsData = useCallback(async () => {
     try {
-      const response = await fetchLogs();
-      const logs = response?.logs || [];
-      console.log('fetchLogs response:', response);
-      console.log(`Total message logs: ${logs.length}`);
-      if (!Array.isArray(logs)) {
-        console.error('Logs is not an array:', logs);
-        throw new Error('Invalid logs data: expected an array');
-      }
-      return logs;
+      const response = await getMetricsV1(dateRange);
+      console.log('getMetricsV1 response:', response);
+      return response;
     } catch (error: any) {
-      console.error('Error fetching logs:', error.message);
-      throw new Error(error.message || 'Failed to fetch message logs');
+      console.error('Error fetching metrics:', error.message);
+      throw new Error(error.message || 'Failed to fetch metrics data');
     }
-  }, []);
+  }, [dateRange]);
+
+  const aggregateDataPoints = (dailyCounts: Record<string, DailyCount>, range: typeof dateRange): DataPoint[] => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Normalize to start of day
+    const dataPoints: DataPoint[] = [];
+    const countsByRange: Record<string, { value: number; instanceDates: string[] }> = {};
+
+    // Define date boundaries
+    let startDate: Date | null = null;
+    let endDate = new Date(now);
+    if (range === 'today') {
+      startDate = new Date(now);
+    } else if (range === 'this_week') {
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
+    } else if (range === 'this_month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (range === 'past_3_months') {
+      startDate = new Date(now);
+      startDate.setMonth(now.getMonth() - 3);
+      startDate.setDate(1);
+    } else if (range === 'past_6_months') {
+      startDate = new Date(now);
+      startDate.setMonth(now.getMonth() - 6);
+      startDate.setDate(1);
+    } else if (range === 'past_9_months') {
+      startDate = new Date(now);
+      startDate.setMonth(now.getMonth() - 9);
+      startDate.setDate(1);
+    } else if (range === 'last_year') {
+      startDate = new Date(now.getFullYear() - 1, 0, 1);
+    } // No startDate for 'all_time'
+
+    Object.entries(dailyCounts).forEach(([date, counts]: [string, DailyCount]) => {
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) {
+        console.warn('Invalid date in daily_counts:', date);
+        return;
+      }
+
+      // Filter by date range
+      if (!startDate || (dateObj >= startDate && dateObj <= endDate)) {
+        let key: string;
+        if (range === 'today') {
+          key = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } else if (range === 'this_week') {
+          key = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+        } else if (range === 'this_month' || range === 'past_3_months' || range === 'past_6_months' || range === 'past_9_months') {
+          const year = dateObj.getFullYear();
+          const month = dateObj.getMonth();
+          const weekOfMonth = Math.floor((dateObj.getDate() - 1) / 7) + 1;
+          key = `${year}-${month + 1}-W${weekOfMonth}`;
+        } else {
+          key = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+        }
+
+        if (!countsByRange[key]) {
+          countsByRange[key] = { value: 0, instanceDates: [] };
+        }
+        countsByRange[key].value += counts.sent;
+        countsByRange[key].instanceDates.push(date);
+      }
+    });
+
+    // Format labels for display
+    Object.entries(countsByRange).forEach(([key, data]) => {
+      let displayName = key;
+      if (range === 'this_month' || range === 'past_3_months' || range === 'past_6_months' || range === 'past_9_months') {
+        const [, month, week] = key.split('-');
+        displayName = `Week ${week.slice(1)}`;
+      }
+      dataPoints.push({ name: displayName, value: data.value, instanceDates: data.instanceDates });
+    });
+
+    // Sort data points chronologically
+    return dataPoints.sort((a, b) => {
+      if (range === 'this_month' || range === 'past_3_months' || range === 'past_6_months' || range === 'past_9_months') {
+        return parseInt(a.name.replace('Week ', '')) - parseInt(b.name.replace('Week ', ''));
+      } else if (range === 'last_year' || range === 'all_time') {
+        return new Date(a.instanceDates[0]).getTime() - new Date(b.instanceDates[0]).getTime();
+      }
+      return new Date(a.instanceDates[0]).getTime() - new Date(b.instanceDates[0]).getTime();
+    });
+  };
 
   useEffect(() => {
     const storedDashboardData = workspace?.dashboardData;
-    if (storedDashboardData?.stats?.length || storedDashboardData?.data?.length || storedDashboardData?.campaigns?.length) {
+    if (
+      storedDashboardData?.stats?.length ||
+      storedDashboardData?.data?.length ||
+      storedDashboardData?.campaigns?.length
+    ) {
       setDashboardData({
         stats: storedDashboardData.stats || initialDashboardData.stats,
         data: storedDashboardData.data || initialDashboardData.data,
@@ -92,82 +188,37 @@ const Dashboard: React.FC = () => {
       workspace?.dashboardData?.stats?.some((stat) => stat.value !== '0') ||
       workspace?.dashboardData?.data?.length > 0 ||
       workspace?.dashboardData?.campaigns?.length > 0;
-    if (hasValidData) {
+    if (hasValidData && workspace?.dashboardData?.dateRange === dateRange) {
       return;
     }
 
     setIsLoading(true);
     setError(null);
     try {
-      let campaigns = [], contactsMetrics = { total_contacts: 0, total_contact_groups: 0 }, logs = [];
-      
-      try {
-        campaigns = await getCampaigns() || [];
-      } catch (err) {
-        console.error('Error fetching campaigns:', err);
-        campaigns = [];
-      }
-      
-      try {
-        contactsMetrics = await getContactMetrics() || { total_contacts: 0, total_contact_groups: 0 };
-      } catch (err) {
-        console.error('Error fetching contact metrics:', err);
-        contactsMetrics = { total_contacts: 0, total_contact_groups: 0 };
-      }
-      
-      try {
-        logs = await fetchAllMessageLogs() || [];
-      } catch (err) {
-        console.error('Error fetching logs:', err);
-        logs = [];
-      }
+      const metrics = await fetchMetricsData();
 
-      const messagesSent = logs.filter(
-        (log: any) => log?.status === 'sent' && log?.response_group_name === 'PENDING'
-      ).length;
-      const numberOfCampaigns = Array.isArray(campaigns) ? campaigns.length : 0;
-      const totalFails = logs.filter(
-        (log: any) => log?.response_group_name === 'REJECTED'
-      ).length;
-      const totalContacts = contactsMetrics?.total_contacts || 0;
-      const totalContactGroups = contactsMetrics?.total_contact_groups || 0;
+      const messagesSent = metrics.sms_status.find((s: SmsStatus) => s.status.toLowerCase() === 'sent')?.count || 0;
+      const totalFails = metrics.sms_status.find((s: SmsStatus) => s.status.toLowerCase() === 'failed')?.count || 0;
+      const totalContacts = metrics.contacts_count.total_contacts || 0;
+      const totalContactGroups = metrics.contacts_count.total_groups || 0;
+      const numberOfCampaigns = 0; // No campaign data in /v1/metrics
 
-      const messageVolume = logs.reduce((acc: { [key: string]: number }, log: any) => {
-        const timestamp = log?.timestamp;
-        if (!timestamp) {
-          console.warn('Missing timestamp in log:', log);
-          return acc;
-        }
-        const date = new Date(timestamp);
-        if (isNaN(date.getTime())) {
-          console.warn('Invalid timestamp in log:', log);
-          return acc;
-        }
-        const dateString = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        acc[dateString] = (acc[dateString] || 0) + 1;
-        return acc;
-      }, {});
-
-      const dataPoints = Object.entries(messageVolume)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
-
-      console.log('Processed data points for chart:', dataPoints);
+      const dataPoints = aggregateDataPoints(metrics.logs_count.daily_counts, dateRange);
 
       const newDashboardData: DashboardData = {
         stats: [
-          { title: 'SMS Sent', value: messagesSent.toString(), icon: MessageSquare, gradient: 'from-blue-500 to-blue-600' },
+          { title: 'Messages Sent', value: messagesSent.toString(), icon: MessageSquare, gradient: 'from-blue-500 to-blue-600' },
           { title: 'Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, gradient: 'from-green-500 to-green-600' },
           { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, gradient: 'from-red-500 to-red-600' },
           { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, gradient: 'from-purple-500 to-purple-600' },
-          { title: 'Total Groups', value: totalContactGroups.toString(), icon: Folder, gradient: 'from-yellow-500 to-yellow-600' },
+          { title: 'Contact Groups', value: totalContactGroups.toString(), icon: Folder, gradient: 'from-yellow-500 to-yellow-600' },
         ],
         data: dataPoints,
-        campaigns: Array.isArray(campaigns) ? campaigns : [],
+        campaigns: [],
       };
 
       setDashboardData(newDashboardData);
-      updateWorkspace(currentWorkspaceId, { dashboardData: newDashboardData });
+      updateWorkspace(currentWorkspaceId, { dashboardData: { ...newDashboardData, dateRange } });
       setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unable to load dashboard data. Please try again.';
@@ -177,7 +228,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkspaceId, updateWorkspace, workspace?.dashboardData, fetchAllMessageLogs]);
+  }, [currentWorkspaceId, updateWorkspace, workspace?.dashboardData, fetchMetricsData, dateRange]);
 
   useEffect(() => {
     loadDashboardData();
@@ -190,7 +241,7 @@ const Dashboard: React.FC = () => {
         chartInstanceLine.destroy();
       }
       try {
-        const newChartInstanceLine = new Chart(ctxLine, {
+        const newChartInstanceLine = new Chart(ctxLine!, {
           type: 'line',
           data: {
             labels: dashboardData.data.map((point) => point.name),
@@ -208,16 +259,81 @@ const Dashboard: React.FC = () => {
             maintainAspectRatio: false,
             plugins: {
               legend: { position: 'bottom', labels: { color: '#00333e' } },
+              tooltip: {
+                callbacks: {
+                  title: (tooltipItems) => {
+                    const dataPoint = dashboardData.data[tooltipItems[0].dataIndex];
+                    const instanceDates = dataPoint.instanceDates;
+                    if (instanceDates.length === 0) return dataPoint.name;
+
+                    // Format all instance dates
+                    const formattedDates = instanceDates
+                      .map((date) =>
+                        new Date(date).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      )
+                      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+                    if (dateRange === 'today' || dateRange === 'this_week') {
+                      return formattedDates[0]; // Single date for non-aggregated ranges
+                    } else if (dateRange === 'this_month' || dateRange === 'past_3_months' || dateRange === 'past_6_months' || dateRange === 'past_9_months') {
+                      // Calculate week range from the first instance date
+                      const firstDate = new Date(instanceDates[0]);
+                      const [year, month, week] = dataPoint.name.includes('Week')
+                        ? dataPoint.name.split('-').length === 3
+                          ? dataPoint.name.split('-')
+                          : ['', firstDate.getMonth() + 1, dataPoint.name.replace('Week ', '')]
+                        : ['', firstDate.getMonth() + 1, '1'];
+                      const weekNum = parseInt(week.slice(1) || '1');
+                      const startDate = new Date(year || firstDate.getFullYear(), month - 1, (weekNum - 1) * 7 + 1);
+                      const endDate = new Date(startDate);
+                      endDate.setDate(startDate.getDate() + 6);
+                      const weekRange = `Week of ${startDate.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })} - ${endDate.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}`;
+                      return [weekRange, ...formattedDates].join('\n');
+                    } else {
+                      // For 'last_year' or 'all_time', show month and all instance dates
+                      const monthYear = new Date(instanceDates[0]).toLocaleDateString('en-US', {
+                        month: 'long',
+                        year: 'numeric',
+                      });
+                      return [monthYear, ...formattedDates].join('\n');
+                    }
+                  },
+                  label: (tooltipItem) => `Messages Sent: ${tooltipItem.raw}`,
+                },
+              },
             },
             scales: {
               y: { 
                 beginAtZero: true, 
-                title: { display: true, text: 'Count', color: '#00333e' },
-                ticks: { color: '#00333e' }
+                title: { display: true, text: 'Message Count', color: '#00333e' },
+                ticks: { color: '#00333e' },
               },
               x: { 
-                title: { display: true, text: 'Date', color: '#00333e' },
-                ticks: { color: '#00333e' }
+                title: { 
+                  display: true, 
+                  text: timeRangeOptions.find((opt) => opt.value === dateRange)?.label || 'Time', 
+                  color: '#00333e' 
+                },
+                ticks: { 
+                  color: '#00333e',
+                  maxRotation: 45,
+                  minRotation: 45,
+                  autoSkip: true,
+                  maxTicksLimit: 10,
+                },
               },
             },
           },
@@ -233,7 +349,7 @@ const Dashboard: React.FC = () => {
         chartInstanceLine.destroy();
       }
     };
-  }, [dashboardData.data]);
+  }, [dashboardData.data, dateRange]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -249,7 +365,7 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6 bg-[#f5f5f5] min-h-screen font-inter">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 bg-[#f5f5f5] min-h-screen font-inter">
       {isLoading && (
         <div className="flex justify-center items-center h-64">
           <svg className="animate-spin h-6 w-6 text-[#00333e]" viewBox="0 0 24 24" aria-label="Loading">
@@ -267,31 +383,31 @@ const Dashboard: React.FC = () => {
       )}
 
       {!isLoading && !error && (
-        <div className="space-y-8">
+        <div className="space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <h1 className="text-2xl font-semibold text-[#00333e] mb-8">Dashboard</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold text-[#00333e] mb-4">Dashboard</h1>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
             {dashboardData.stats.map((stat, index) => (
               <motion.div
                 key={stat.title}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + index * 0.05 }}
-                className="bg-white rounded-md p-4 border border-gray-200"
+                className="min-w-[150px] max-w-[200px] w-full bg-white rounded-md p-3 border border-gray-200 shadow-sm"
               >
                 <div className="flex items-center">
                   <div className={`p-2 rounded-md bg-gradient-to-r ${stat.gradient}`}>
                     <stat.icon className="w-6 h-6 text-white" />
                   </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-gray-600">{stat.title}</p>
-                    <p className="text-lg font-medium text-[#00333e]">{stat.value}</p>
+                  <div className="ml-2">
+                    <p className="text-xs font-medium text-gray-600">{stat.title}</p>
+                    <p className="text-base font-semibold text-[#00333e]">{stat.value}</p>
                   </div>
                 </div>
               </motion.div>
@@ -302,13 +418,30 @@ const Dashboard: React.FC = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-md p-6 border border-gray-200"
+            className="bg-white rounded-md p-4 sm:p-6 border border-gray-200 shadow-sm"
           >
-            <h2 className="text-lg font-medium text-[#00333e] mb-4 flex items-center">
-              <TrendingUp className="w-6 h-6 mr-2 text-[#fddf0d]" />
-              Message Volume
-            </h2>
-            <div className="h-64">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-medium text-[#00333e] flex items-center">
+                <TrendingUp className="w-6 h-6 mr-2 text-[#fddf0d]" />
+                Message Volume
+              </h2>
+              <div>
+                <label htmlFor="dateRange" className="sr-only">Filter by:</label>
+                <select
+                  id="dateRange"
+                  value={dateRange}
+                  onChange={(e) => setDateRange(e.target.value as typeof dateRange)}
+                  className="p-2 border border-gray-300 rounded-md text-sm text-[#00333e] focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
+                >
+                  {timeRangeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="relative h-[300px] sm:h-[350px]">
               {dashboardData.data.length > 0 ? (
                 <canvas ref={chartRefLine} />
               ) : (
@@ -324,36 +457,36 @@ const Dashboard: React.FC = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-md p-6 border border-gray-200"
+            className="bg-white rounded-md p-4 sm:p-6 border border-gray-200 shadow-sm"
           >
             <h2 className="text-lg font-medium text-[#00333e] mb-4">Recent Campaigns</h2>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {dashboardData.campaigns && dashboardData.campaigns.length > 0 ? (
                     dashboardData.campaigns.slice(0, 5).map((campaign) => (
                       <tr key={campaign.campaign_id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#00333e]">{campaign.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#00333e]">
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-[#00333e]">{campaign.name}</td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-[#00333e]">
                           {new Date(campaign.created_at).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric',
                           })}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{getStatusIcon(campaign.status)}</td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm">{getStatusIcon(campaign.status)}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-sm text-[#00333e] text-center">
+                      <td colSpan={3} className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-[#00333e] text-center">
                         No recent campaigns available.
                       </td>
                     </tr>

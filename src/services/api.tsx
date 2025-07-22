@@ -79,6 +79,41 @@ export interface Analytics {
   }>;
 }
 
+export interface SmsStatus {
+  count: number;
+  status: string;
+}
+
+export interface Group {
+  group_id: string;
+  group_name: string;
+  count: number;
+}
+
+export interface ContactsCount {
+  total_contacts: number;
+  total_groups: number;
+  groups: Group[];
+}
+
+export interface DailyCount {
+  pending: number;
+  sent: number;
+  failed: number;
+}
+
+export interface LogsCount {
+  total_sms: number;
+  status_counts: Record<string, number>;
+  daily_counts: Record<string, DailyCount>;
+}
+
+export interface MetricsResponse {
+  sms_status: SmsStatus[];
+  contacts_count: ContactsCount;
+  logs_count: LogsCount;
+}
+
 export interface Message {
   message: string;
   sent_at: string;
@@ -1264,6 +1299,45 @@ export const validateMessage = async (
 };
 
 
+export const getMetricsV1 = async (dateRange?: 'today' | 'this_week' | 'this_month' | 'past_3_months' | 'last_year'): Promise<{
+  sms_status: { count: number; status: string }[];
+  contacts_count: { total_contacts: number; total_groups: number; groups: { group_id: string; group_name: string; count: number }[] };
+  logs_count: { total_sms: number; status_counts: Record<string, number>; daily_counts: Record<string, { pending: number; sent: number; failed: number }> };
+}> => {
+  console.log(`getMetricsV1 API call initiated with dateRange: ${dateRange || 'all'}`);
+  try {
+    const query = dateRange ? `?dateRange=${dateRange}` : '';
+    const response = await api.get(`/v1/metrics${query}`);
+    console.log("getMetricsV1 API response:", JSON.stringify(response.data, null, 2));
+
+    // Basic response validation
+    const data = response.data as {
+      sms_status: { count: number; status: string }[];
+      contacts_count: { total_contacts: number; total_groups: number; groups: { group_id: string; group_name: string; count: number }[] };
+      logs_count: { total_sms: number; status_counts: Record<string, number>; daily_counts: Record<string, { pending: number; sent: number; failed: number }> };
+    };
+    if (
+      !data ||
+      !data.sms_status ||
+      !Array.isArray(data.sms_status) ||
+      !data.contacts_count ||
+      !data.logs_count
+    ) {
+      console.warn("Invalid response structure from /v1/metrics, returning default");
+      return {
+        sms_status: [],
+        contacts_count: { total_contacts: 0, total_groups: 0, groups: [] },
+        logs_count: { total_sms: 0, status_counts: {}, daily_counts: {} },
+      };
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error("Failed to fetch metrics V1:", error);
+    const message = error.response?.data?.message || error.message || "Failed to fetch metrics";
+    throw new Error(message);
+  }
+};
 
 
 
