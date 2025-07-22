@@ -60,4 +60,4 @@ jobs:
               -p 5173:5173 \
               ${{ secrets.DOCKER_USERNAME }}/briqpilot-frontend:latest
 
-            echo "Deployment complete!"
+            echo "Deployment Complete!"
