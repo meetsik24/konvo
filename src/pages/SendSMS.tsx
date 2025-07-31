@@ -1131,6 +1131,7 @@ const SendSMS = () => {
           transition={{ delay: 0.1 }}
           className="space-y-4 text-[#004d66]"
         >
+          {/* Confirmation Message: the recipient count should meet the threshold criteria */}
           <p className="text-sm">
             You are about to send <strong>{smsCount * recipientCount}</strong> SMS messages to <strong>{recipientCount}</strong> recipients.
           </p>
