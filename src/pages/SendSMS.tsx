@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Phone, Users, Calendar, MessageSquare, Send, Bot } from 'lucide-react';
+import { Users, Calendar, Send, Bot } from 'lucide-react';
 import PhonePreview from '../modals/PhonePreview';
 import { useWorkspace } from './WorkspaceContext';
 import Modal from '../modals/Modal';
@@ -11,13 +11,23 @@ import {
   sendInstantMessage,
   generateMessage,
   getWorkspaceGroups,
-  getGroupContacts,
 } from '../services/api';
 
 interface Campaign { campaign_id: string; workspace_id: string; name: string; status: 'active' | 'completed'; }
 interface Group { group_id: string; name: string; }
 interface SenderId { sender_id: string; name: string; is_approved: boolean; }
-interface Contact { contact_id: string; phone_number: string; }
+
+interface SMSPayload {
+  sender_id: string;
+  content: string;
+  country_code: string;
+  recipients?: string[];
+  group_ids?: string[];
+  campaign_id?: string;
+  file_data?: { phone: string; data: UploadedRow }[];
+  phone_column?: string;
+  available_columns?: string[];
+}
 interface UploadedRow { [key: string]: string; }
 
 const SendSMS = () => {
@@ -56,7 +66,6 @@ const SendSMS = () => {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [recipientCount, setRecipientCount] = useState(0);
   const [messagePreview, setMessagePreview] = useState('');
-  const [invalidPhones, setInvalidPhones] = useState<string[]>([]); // Track invalid phone numbers
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [modalState, setModalState] = useState({
@@ -80,11 +89,12 @@ const SendSMS = () => {
         setSenderIds(senderResponse);
         if (senderResponse.length) setFormData(prev => ({ ...prev, senderId: senderResponse[0].sender_id }));
         const campaignsData = await getCampaigns();
-        setCampaigns(campaignsData);
+        setCampaigns(campaignsData as unknown as Campaign[]);
         const groupsData = await getWorkspaceGroups(currentWorkspaceId);
         setGroups(groupsData);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load data.');
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load data.';
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -101,7 +111,7 @@ const SendSMS = () => {
       try {
         const groupsData = await getCampaignGroups(selectedCampaignId);
         setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: groupsData }));
-      } catch (err) {
+      } catch {
         setError('Failed to fetch campaign groups.');
       }
     };
@@ -110,34 +120,6 @@ const SendSMS = () => {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const normalizePhone = (phone: string, defaultCountryCode: string = '+255'): string => {
-    if (!phone || typeof phone !== 'string') return '';
-
-    // Clean the input (remove spaces, dashes, parentheses, etc.)
-    let cleaned = phone.trim().replace(/[\s()-]/g, '');
-
-    // Handle common prefixes
-    if (cleaned.startsWith('00')) {
-      cleaned = '+' + cleaned.slice(2);
-    } else if (cleaned.startsWith('255') && !cleaned.startsWith('+255')) {
-      cleaned = '+255' + cleaned.slice(3);
-    } else if (cleaned.startsWith('0')) {
-      cleaned = defaultCountryCode + cleaned.slice(1);
-    } else if (/^\d{9,14}$/.test(cleaned)) {
-      cleaned = defaultCountryCode + cleaned;
-    } else if (!cleaned.startsWith('+')) {
-      return '';
-    }
-
-    // Validate: must start with + followed by 9–15 digits
-    if (!/^\+\d{9,15}$/.test(cleaned)) {
-      console.warn(`Invalid phone number format: ${phone} → ${cleaned}`);
-      return '';
-    }
-
-    return cleaned;
   };
 
   const parseFileRecipients = (file: File): Promise<UploadedRow[]> => {
@@ -157,13 +139,11 @@ const SendSMS = () => {
         const delimiters = [',', ';', '\t'];
         let headers: string[] = [];
         let rows: string[][] = [];
-        let validDelimiter = '';
         for (const delimiter of delimiters) {
           const lines = text.split('\n').filter(line => line.trim());
           const testHeaders = lines[0].split(delimiter).map(h => h.trim());
           if (testHeaders.length >= 1) {
             headers = testHeaders;
-            validDelimiter = delimiter;
             rows = lines.slice(1).map(row => row.split(delimiter).map(col => col.trim()));
             break;
           }
@@ -194,22 +174,10 @@ const SendSMS = () => {
           reject(new Error('No valid data found in file.'));
           return;
         }
-        const invalidNumbers: string[] = [];
-        const validRows = parsedRows.filter(row => {
-          const phone = row[headers[phoneColIndex]];
-          const normalized = normalizePhone(phone, defaultCountryCode);
-          if (!normalized && phone) {
-            invalidNumbers.push(phone);
-          }
-          return normalized;
-        });
-        setInvalidPhones(invalidNumbers);
-        if (!validRows.length) {
-          reject(new Error(`No valid phone numbers found in the ${headers[phoneColIndex]} column. Invalid numbers: ${invalidNumbers.join(', ')}`));
-          return;
-        }
+        
+        // Skip heavy phone validation - let backend handle it
         setAvailableColumns(headers);
-        resolve(validRows);
+        resolve(parsedRows);
       };
       reader.onerror = () => reject(new Error('Failed to read file.'));
       reader.readAsText(file);
@@ -218,7 +186,6 @@ const SendSMS = () => {
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
-    setInvalidPhones([]);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.type === 'text/csv' || file.name.endsWith('.txt')) {
@@ -226,11 +193,10 @@ const SendSMS = () => {
         try {
           const data = await parseFileRecipients(file);
           setUploadedData(data);
-          if (invalidPhones.length) {
-            setError(`Warning: ${invalidPhones.length} invalid phone numbers skipped (e.g., ${invalidPhones.slice(0, 3).join(', ')}).`);
-          }
-        } catch (err: any) {
-          setError(err.message || 'Failed to parse file.');
+          // No need to show validation warnings - backend will handle validation
+        } catch (err: unknown) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to parse file.';
+          setError(errorMessage);
         }
       } else {
         setError('Please upload a CSV or TXT file.');
@@ -272,55 +238,61 @@ const SendSMS = () => {
 
   const prepareSendSMS = async () => {
     setError(null);
-    setInvalidPhones([]);
     if (!isFormValid()) {
       setError('Please fill in all required fields.');
       return;
     }
     try {
       let recipients: string[] = [];
+      let recipientCount = 0;
       let previewMessage = formData.message;
 
       if (sendMode === 'instant') {
         if (formData.manualContacts.trim()) {
+          // Simple split and trim - let backend handle validation
           const manualPhones = formData.manualContacts
             .split(/[\n,]+/)
-            .map(phone => normalizePhone(phone, defaultCountryCode))
-            .filter(p => p);
-          const invalid = formData.manualContacts
-            .split(/[\n,]+/)
-            .filter((phone, i) => phone.trim() && !manualPhones.includes(normalizePhone(phone, defaultCountryCode)));
-          if (invalid.length) setInvalidPhones(invalid);
+            .map(phone => phone.trim())
+            .filter(phone => phone);
           recipients = manualPhones;
+          recipientCount += manualPhones.length;
         }
         if (selectedGroups.length) {
-          const groupPhones = await fetchRecipients(selectedGroups);
-          recipients.push(...groupPhones.map(phone => normalizePhone(phone, defaultCountryCode)).filter(p => p));
+          // Get approximate count from groups instead of fetching all contacts
+          const groupContacts = selectedGroups.reduce((total, groupId) => {
+            const group = groups.find(g => g.group_id === groupId);
+            return total + (group ? 1 : 0); // Simplified count estimation
+          }, 0);
+          recipientCount += groupContacts * 10; // Rough estimate
         }
       } else if (sendMode === 'campaign') {
-        const groups = campaignGroups[selectedCampaignId] || [];
-        if (!groups.length) throw new Error('No groups assigned to campaign.');
-        recipients = await fetchRecipients(groups.map(g => g.group_id));
+        const campaignGroupsList = campaignGroups[selectedCampaignId] || [];
+        if (!campaignGroupsList.length) throw new Error('No groups assigned to campaign.');
+        recipientCount = campaignGroupsList.length * 10; // Rough estimate
       } else if (sendMode === 'file') {
+        // Simple extraction without validation
         recipients = uploadedData
-          .map(row => normalizePhone(row[phoneColumn] || '', defaultCountryCode))
-          .filter(phone => phone);
+          .map(row => row[phoneColumn] || '')
+          .filter(phone => phone.trim());
+        recipientCount = recipients.length;
         if (recipients.length && uploadedData.length) {
           previewMessage = applyPlaceholders(formData.message, uploadedData[0]);
         }
       }
 
-      if (!recipients.length) {
-        throw new Error(`No valid recipients found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
+      if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length) {
+        throw new Error('Please add recipients or select groups.');
       }
-      setRecipientCount(recipients.length);
+      if (sendMode === 'file' && !recipients.length) {
+        throw new Error(`No phone numbers found in "${phoneColumn}" column.`);
+      }
+
+      setRecipientCount(recipientCount);
       setMessagePreview(previewMessage);
       setIsConfirmModalOpen(true);
-      if (invalidPhones.length) {
-        setError(`Warning: ${invalidPhones.length} invalid phone numbers skipped (e.g., ${invalidPhones.slice(0, 3).join(', ')}).`);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to prepare SMS.');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to prepare SMS.';
+      setError(errorMessage);
     }
   };
 
@@ -328,68 +300,64 @@ const SendSMS = () => {
     setIsSending(true);
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected.');
-      let recipients: string[] = [];
-      let personalizedMessages: { phone: string; content: string }[] = [];
+
+      // Prepare simplified payload for backend
+      const smsPayload: SMSPayload = {
+        sender_id: formData.senderId,
+        content: formData.message,
+        country_code: defaultCountryCode, // Let backend handle normalization
+      };
 
       if (sendMode === 'instant') {
+        const recipients: string[] = [];
+        
+        // Add manual contacts (raw phone numbers)
         if (formData.manualContacts.trim()) {
-          recipients = formData.manualContacts
+          const manualPhones = formData.manualContacts
             .split(/[\n,]+/)
-            .map(phone => normalizePhone(phone, defaultCountryCode))
-            .filter(p => p);
+            .map(phone => phone.trim())
+            .filter(phone => phone);
+          recipients.push(...manualPhones);
         }
+        
+        // Add group IDs instead of fetching all contacts
         if (selectedGroups.length) {
-          const groupPhones = await fetchRecipients(selectedGroups);
-          recipients.push(...groupPhones.map(phone => normalizePhone(phone, defaultCountryCode)).filter(p => p));
+          smsPayload.group_ids = selectedGroups;
         }
+        
+        if (recipients.length) {
+          smsPayload.recipients = recipients;
+        }
+        
+        await sendInstantMessage(currentWorkspaceId, smsPayload);
+        
       } else if (sendMode === 'campaign') {
         const groups = campaignGroups[selectedCampaignId] || [];
         if (!groups.length) throw new Error('No groups assigned to campaign.');
-        recipients = await fetchRecipients(groups.map(g => g.group_id));
+        
+        // Send campaign with group IDs
+        smsPayload.group_ids = groups.map(g => g.group_id);
+        await sendInstantMessage(currentWorkspaceId, smsPayload);
+        
       } else if (sendMode === 'file') {
-        recipients = uploadedData
-          .map(row => normalizePhone(row[phoneColumn] || '', defaultCountryCode))
-          .filter(phone => phone);
-        if (recipients.length) {
-          personalizedMessages = uploadedData
-            .map(row => ({
-              phone: normalizePhone(row[phoneColumn] || '', defaultCountryCode),
-              content: applyPlaceholders(formData.message, row),
-            }))
-            .filter(msg => msg.phone && recipients.includes(msg.phone));
+        // Send file data with minimal processing
+        const fileData = uploadedData.map(row => ({
+          phone: row[phoneColumn] || '',
+          data: row, // Send all row data for personalization
+        })).filter(item => item.phone.trim());
+        
+        if (!fileData.length) {
+          throw new Error(`No valid phone numbers found in "${phoneColumn}" column.`);
         }
+        
+        smsPayload.file_data = fileData;
+        smsPayload.phone_column = phoneColumn;
+        smsPayload.available_columns = availableColumns;
+        
+        await sendInstantMessage(currentWorkspaceId, smsPayload);
       }
 
-      if (!recipients.length) {
-        throw new Error(`No valid recipients found in ${sendMode === 'file' ? `"${phoneColumn}" column` : 'selected groups or contacts'}. ${invalidPhones.length ? `Invalid numbers: ${invalidPhones.slice(0, 3).join(', ')}` : ''}`);
-      }
-
-      if (sendMode === 'file' && personalizedMessages.length) {
-        const errors: string[] = [];
-        await Promise.all(
-          personalizedMessages.map(async (msg, index) => {
-            try {
-              await sendInstantMessage(currentWorkspaceId, {
-                recipients: [msg.phone],
-                content: msg.content,
-                sender_id: formData.senderId,
-              });
-            } catch (err: any) {
-              errors.push(`Failed to send to ${msg.phone}: ${err.message || 'Unknown error'}`);
-            }
-          })
-        );
-        if (errors.length) {
-          throw new Error(`Some messages failed to send: ${errors.join('; ')}`);
-        }
-      } else {
-        await sendInstantMessage(currentWorkspaceId, {
-          recipients,
-          content: formData.message,
-          sender_id: formData.senderId,
-        });
-      }
-
+      // Reset form after successful send
       setFormData({
         senderId: senderIds[0]?.sender_id || '',
         message: '',
@@ -408,9 +376,10 @@ const SendSMS = () => {
       setUploadedData([]);
       setAvailableColumns([]);
       setPhoneColumn('');
-      setInvalidPhones([]);
-    } catch (err: any) {
-      setError(err.message || 'Failed to send SMS.');
+      
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send SMS.';
+      setError(errorMessage);
     } finally {
       setIsSending(false);
       setIsConfirmModalOpen(false);
@@ -428,8 +397,9 @@ const SendSMS = () => {
       setFormData(prev => ({ ...prev, message: generatedMessage }));
       setModal('isAIModalOpen', false);
       setKeywords('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to generate message.');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate message.';
+      setError(errorMessage);
     } finally {
       setIsGenerating(false);
     }
@@ -445,35 +415,24 @@ const SendSMS = () => {
       return;
     }
     try {
-      const newCampaign = { campaign_id: Date.now().toString(), workspace_id: currentWorkspaceId!, name: formData.campaignName, status: 'active' };
+      const newCampaign: Campaign = { 
+        campaign_id: Date.now().toString(), 
+        workspace_id: currentWorkspaceId!, 
+        name: formData.campaignName, 
+        status: 'active' as const 
+      };
       setCampaigns(prev => [...prev, newCampaign]);
       setSelectedCampaignId(newCampaign.campaign_id);
       setModal('isCreateCampaignOpen', false);
       setFormData(prev => ({ ...prev, campaignName: '' }));
       setSelectedGroups([]);
-    } catch (err) {
+    } catch {
       setError('Failed to create campaign.');
     }
   };
 
-  const fetchRecipients = async (groupIds: string[]): Promise<string[]> => {
-    const recipientPhones: string[] = [];
-    for (const groupId of groupIds) {
-      try {
-        const contacts = await getGroupContacts(currentWorkspaceId!, groupId, 1, 50);
-        const phones = (contacts?.contacts || [])
-          .map((c: Contact) => normalizePhone(c.phone_number, defaultCountryCode))
-          .filter((p: string) => p);
-        recipientPhones.push(...phones);
-      } catch (err) {
-        console.error(`Failed to fetch contacts for group ${groupId}:`, err);
-      }
-    }
-    return [...new Set(recipientPhones)];
-  };
-
   const setModal = (modal: keyof typeof modalState, isOpen: boolean) => {
-    setModalState(prev => ({
+    setModalState(() => ({
       isAIModalOpen: false,
       isGroupModalOpen: false,
       isCreateCampaignOpen: false,
@@ -999,10 +958,6 @@ const SendSMS = () => {
         onSubmit={generateAIMessage}
         submitText={isGenerating ? 'Generating...' : 'Generate'}
         isLoading={isGenerating}
-        className="font-inter"
-        titleClassName="text-[#004d66] text-lg font-semibold"
-        buttonClassName="bg-[#004d66] text-white hover:bg-[#FDD70D] transition-colors rounded-md px-4 py-2 text-sm font-medium"
-        closeButtonClassName="text-[#004d66] hover:text-[#FDD70D]"
       >
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -1025,10 +980,6 @@ const SendSMS = () => {
         isOpen={modalState.isGroupModalOpen}
         onClose={() => setModal('isGroupModalOpen', false)}
         title="Select Groups"
-        className="font-inter"
-        titleClassName="text-[#004d66] text-lg font-semibold"
-        buttonClassName="bg-[#004d66] text-white hover:bg-[#FDD70D] transition-colors rounded-md px-4 py-2 text-sm font-medium"
-        closeButtonClassName="text-[#004d66] hover:text-[#FDD70D]"
       >
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -1066,10 +1017,6 @@ const SendSMS = () => {
         title="Create Campaign"
         onSubmit={handleCreateCampaign}
         submitText="Create"
-        className="font-inter"
-        titleClassName="text-[#004d66] text-lg font-semibold"
-        buttonClassName="bg-[#004d66] text-white hover:bg-[#FDD70D] transition-colors rounded-md px-4 py-2 text-sm font-medium"
-        closeButtonClassName="text-[#004d66] hover:text-[#FDD70D]"
       >
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -1120,10 +1067,6 @@ const SendSMS = () => {
         onSubmit={handleSendSMS}
         submitText="Confirm Send"
         isLoading={isSending}
-        className="font-inter"
-        titleClassName="text-[#00333e] text-lg font-semibold"
-        buttonClassName="bg-[#00333e] text-white hover:bg-[#FDD70D] hover:text-[#004d66] transition-colors rounded-md px-4 py-2 text-sm font-medium"
-        closeButtonClassName="text-[#004d66] hover:text-[#FDD70D]"
       >
         <motion.div
           initial={{ opacity: 0, y: 10 }}
