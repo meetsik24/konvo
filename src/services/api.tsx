@@ -289,17 +289,64 @@ interface ApiKey {
 
 
 // Utility function for consistent error handling
-const handleApiError = (error: any, defaultMessage: string): never => {
-  const message =
-    error.response?.data?.message ||
-    error.response?.data?.detail ||
-    error.message ||
-    defaultMessage;
-  console.error(`${defaultMessage}:`, {
-    message,
-    status: error.response?.status,
-    data: error.response?.data,
-  });
+const handleApiError = (error: unknown, defaultMessage: string): never => {
+  let message = defaultMessage;
+  
+  // Log the full error for debugging
+  console.error(`${defaultMessage}:`, error);
+  
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosError = error as { response?: { data?: unknown; status?: number } };
+    const data = axiosError.response?.data;
+    
+    console.error('Response data:', data);
+    console.error('Response status:', axiosError.response?.status);
+    
+    if (data && typeof data === 'object') {
+      // Handle different error formats
+      if ('detail' in data) {
+        const detail = (data as { detail: unknown }).detail;
+        if (Array.isArray(detail)) {
+          message = detail.map((err: unknown) => {
+            if (typeof err === 'object' && err && 'msg' in err) {
+              return (err as { msg: string }).msg;
+            }
+            return String(err);
+          }).join(', ');
+        } else {
+          message = String(detail);
+        }
+      } else if ('message' in data) {
+        const dataMessage = (data as { message: unknown }).message;
+        if (Array.isArray(dataMessage)) {
+          message = dataMessage.map(String).join(', ');
+        } else {
+          message = String(dataMessage);
+        }
+      } else if ('errors' in data) {
+        // Laravel style errors
+        const errors = (data as { errors: unknown }).errors;
+        if (errors && typeof errors === 'object') {
+          message = Object.values(errors).flat().map(String).join(', ');
+        }
+      }
+    } else if (Array.isArray(data)) {
+      // Array of error messages
+      message = data.map((err: unknown) => {
+        if (typeof err === 'object' && err && 'msg' in err) {
+          return (err as { msg: string }).msg;
+        } else if (typeof err === 'object' && err && 'message' in err) {
+          return (err as { message: string }).message;
+        }
+        return String(err);
+      }).join(', ');
+    } else if (typeof data === 'string') {
+      message = data;
+    }
+  } else if (error instanceof Error) {
+    message = error.message;
+  }
+  
   throw new Error(message);
 };
 
@@ -1034,17 +1081,41 @@ export const sendInstantMessage = async (
     campaign_id?: string;
   }
 ): Promise<Message> => {
+  const payload = {
+    workspace_id: workspaceId,
+    content: data.content,
+    sender_id: data.sender_id,
+    recipients: data.recipients || [], // Always include recipients array, even if empty
+    ...(data.groups && data.groups.length > 0 && { groups: data.groups }),
+    ...(data.campaign_id && { campaign_id: data.campaign_id }),
+  };
+  
+  console.log("sendInstantMessage - payload being sent:", JSON.stringify(payload, null, 2));
+  console.log("sendInstantMessage - workspace ID:", workspaceId);
+  console.log("sendInstantMessage - original data:", JSON.stringify(data, null, 2));
+  
   try {
-    const response = await api.post("/messages/send-instant", {
-      workspace_id: workspaceId,
-      content: data.content,
-      sender_id: data.sender_id,
-      ...(data.recipients && data.recipients.length > 0 && { recipients: data.recipients }),
-      ...(data.groups && data.groups.length > 0 && { groups: data.groups }),
-      ...(data.campaign_id && { campaign_id: data.campaign_id }),
-    });
+    const response = await api.post("/messages/send-instant", payload);
+    console.log("sendInstantMessage - success response:", response.data);
     return response.data;
   } catch (error: any) {
+    console.error("sendInstantMessage - full error object:", error);
+    console.error("sendInstantMessage - error response data:", error.response?.data);
+    console.error("sendInstantMessage - error response status:", error.response?.status);
+    
+    // Log validation details if available
+    if (error.response?.data?.detail && Array.isArray(error.response.data.detail)) {
+      console.error("sendInstantMessage - validation errors:", error.response.data.detail);
+      error.response.data.detail.forEach((validationError: any, index: number) => {
+        console.error(`Validation Error ${index + 1}:`, {
+          type: validationError.type,
+          location: validationError.loc,
+          message: validationError.msg,
+          input: validationError.input
+        });
+      });
+    }
+    
     handleApiError(error, "Failed to send instant message");
   }
 };

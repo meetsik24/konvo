@@ -11,23 +11,21 @@ import {
   sendInstantMessage,
   generateMessage,
   getWorkspaceGroups,
+  createCampaign,
+  assignGroupToCampaign,
 } from '../services/api';
 
-interface Campaign { campaign_id: string; workspace_id: string; name: string; status: 'active' | 'completed'; }
+interface Campaign { 
+  campaign_id: string; 
+  workspace_id: string; 
+  name: string; 
+  description?: string;
+  launch_date?: string;
+  created_at: string;
+}
 interface Group { group_id: string; name: string; }
 interface SenderId { sender_id: string; name: string; is_approved: boolean; }
 
-interface SMSPayload {
-  sender_id: string;
-  content: string;
-  country_code: string;
-  recipients?: string[];
-  group_ids?: string[];
-  campaign_id?: string;
-  file_data?: { phone: string; data: UploadedRow }[];
-  phone_column?: string;
-  available_columns?: string[];
-}
 interface UploadedRow { [key: string]: string; }
 
 const SendSMS = () => {
@@ -105,18 +103,25 @@ const SendSMS = () => {
   useEffect(() => {
     const fetchCampaignGroups = async () => {
       if (!selectedCampaignId) {
-        setCampaignGroups({});
+        setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: [] }));
         return;
       }
       try {
+        console.log('Fetching groups for campaign:', selectedCampaignId);
         const groupsData = await getCampaignGroups(selectedCampaignId);
-        setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: groupsData }));
-      } catch {
-        setError('Failed to fetch campaign groups.');
+        console.log('Received groups data:', groupsData);
+        setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: groupsData || [] }));
+      } catch (error) {
+        console.error('Error fetching campaign groups:', error);
+        // If no groups are assigned, set empty array instead of showing error
+        setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: [] }));
       }
     };
-    fetchCampaignGroups();
-  }, [selectedCampaignId]);
+    
+    if (selectedCampaignId) {
+      fetchCampaignGroups();
+    }
+  }, [selectedCampaignId, campaigns]); // Add campaigns as dependency
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -258,17 +263,21 @@ const SendSMS = () => {
           recipientCount += manualPhones.length;
         }
         if (selectedGroups.length) {
-          // Get approximate count from groups instead of fetching all contacts
+          // Use actual contact_count for each selected group
           const groupContacts = selectedGroups.reduce((total, groupId) => {
             const group = groups.find(g => g.group_id === groupId);
-            return total + (group ? 1 : 0); // Simplified count estimation
+            return total + (group ? group.contact_count : 0);
           }, 0);
-          recipientCount += groupContacts * 10; // Rough estimate
+          recipientCount += groupContacts;
         }
       } else if (sendMode === 'campaign') {
         const campaignGroupsList = campaignGroups[selectedCampaignId] || [];
-        if (!campaignGroupsList.length) throw new Error('No groups assigned to campaign.');
-        recipientCount = campaignGroupsList.length * 10; // Rough estimate
+        if (!campaignGroupsList.length) {
+          // If no groups are assigned, show a more helpful error
+          throw new Error('This campaign has no groups assigned. Please assign groups to the campaign first or create a new campaign with groups.');
+        }
+        // Use actual contact_count for each group in the campaign
+        recipientCount = campaignGroupsList.reduce((total, group) => total + (group.contact_count || 0), 0);
       } else if (sendMode === 'file') {
         // Simple extraction without validation
         recipients = uploadedData
@@ -298,18 +307,23 @@ const SendSMS = () => {
 
   const handleSendSMS = async () => {
     setIsSending(true);
+    setError(null); // Clear any existing errors
+    
+    console.log('=== handleSendSMS START ===');
+    console.log('Send mode:', sendMode);
+    console.log('Current workspace ID:', currentWorkspaceId);
+    console.log('Form data:', formData);
+    console.log('Selected groups:', selectedGroups);
+    console.log('Selected campaign ID:', selectedCampaignId);
+    
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected.');
 
-      // Prepare simplified payload for backend
-      const smsPayload: SMSPayload = {
-        sender_id: formData.senderId,
-        content: formData.message,
-        country_code: defaultCountryCode, // Let backend handle normalization
-      };
-
       if (sendMode === 'instant') {
         const recipients: string[] = [];
+        const groups: string[] = [];
+        
+        console.log('=== INSTANT MODE PROCESSING ===');
         
         // Add manual contacts (raw phone numbers)
         if (formData.manualContacts.trim()) {
@@ -318,44 +332,77 @@ const SendSMS = () => {
             .map(phone => phone.trim())
             .filter(phone => phone);
           recipients.push(...manualPhones);
+          console.log('Manual contacts processed:', manualPhones);
         }
         
-        // Add group IDs instead of fetching all contacts
+        // Add group IDs
         if (selectedGroups.length) {
-          smsPayload.group_ids = selectedGroups;
+          groups.push(...selectedGroups);
+          console.log('Groups to send to:', groups);
         }
         
-        if (recipients.length) {
-          smsPayload.recipients = recipients;
-        }
+        const instantMessageData = {
+          sender_id: formData.senderId,
+          content: formData.message,
+          recipients: recipients, // Always include recipients array
+          ...(groups.length > 0 && { groups }),
+        };
         
-        await sendInstantMessage(currentWorkspaceId, smsPayload);
+        console.log('About to call sendInstantMessage with data:', instantMessageData);
+        
+        await sendInstantMessage(currentWorkspaceId, instantMessageData);
         
       } else if (sendMode === 'campaign') {
-        const groups = campaignGroups[selectedCampaignId] || [];
-        if (!groups.length) throw new Error('No groups assigned to campaign.');
+        console.log('=== CAMPAIGN MODE PROCESSING ===');
+        const campaignGroupsList = campaignGroups[selectedCampaignId] || [];
+        console.log('Campaign groups list:', campaignGroupsList);
         
-        // Send campaign with group IDs
-        smsPayload.group_ids = groups.map(g => g.group_id);
-        await sendInstantMessage(currentWorkspaceId, smsPayload);
+        if (!campaignGroupsList.length) {
+          throw new Error('This campaign has no groups assigned. Please assign groups to the campaign first or create a new campaign with groups.');
+        }
+        
+        const campaignMessageData = {
+          sender_id: formData.senderId,
+          content: formData.message,
+          recipients: [], // Add empty recipients array for campaign mode
+          groups: campaignGroupsList.map(g => g.group_id),
+          campaign_id: selectedCampaignId,
+        };
+        
+        console.log('About to call sendInstantMessage with campaign data:', campaignMessageData);
+        
+        // Send campaign with group IDs and campaign ID
+        await sendInstantMessage(currentWorkspaceId, campaignMessageData);
         
       } else if (sendMode === 'file') {
-        // Send file data with minimal processing
-        const fileData = uploadedData.map(row => ({
-          phone: row[phoneColumn] || '',
-          data: row, // Send all row data for personalization
-        })).filter(item => item.phone.trim());
+        console.log('=== FILE MODE PROCESSING ===');
+        // For file mode, we need to use a different approach
+        // The current API doesn't support file data directly, so we'll extract phone numbers
+        const recipients = uploadedData
+          .map(row => row[phoneColumn] || '')
+          .filter(phone => phone.trim());
         
-        if (!fileData.length) {
+        console.log('File recipients extracted:', recipients);
+        console.log('Phone column used:', phoneColumn);
+        console.log('Uploaded data length:', uploadedData.length);
+        
+        if (!recipients.length) {
           throw new Error(`No valid phone numbers found in "${phoneColumn}" column.`);
         }
         
-        smsPayload.file_data = fileData;
-        smsPayload.phone_column = phoneColumn;
-        smsPayload.available_columns = availableColumns;
+        const fileMessageData = {
+          sender_id: formData.senderId,
+          content: formData.message,
+          recipients: recipients,
+        };
         
-        await sendInstantMessage(currentWorkspaceId, smsPayload);
+        console.log('About to call sendInstantMessage with file data:', fileMessageData);
+        
+        // For now, send as recipients (backend should handle phone validation and personalization)
+        await sendInstantMessage(currentWorkspaceId, fileMessageData);
       }
+
+      console.log('=== SMS SENT SUCCESSFULLY ===');
 
       // Reset form after successful send
       setFormData({
@@ -378,11 +425,20 @@ const SendSMS = () => {
       setPhoneColumn('');
       
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to send SMS.';
+      console.error('=== handleSendSMS ERROR ===');
+      console.error('Error object:', err);
+      
+      let errorMessage = 'Failed to send SMS.';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
+      console.error('Final error message:', errorMessage);
       setError(errorMessage);
     } finally {
       setIsSending(false);
       setIsConfirmModalOpen(false);
+      console.log('=== handleSendSMS END ===');
     }
   };
 
@@ -410,24 +466,111 @@ const SendSMS = () => {
   };
 
   const handleCreateCampaign = async () => {
-    if (!formData.campaignName || !selectedGroups.length) {
-      setError('Please enter a campaign name and select at least one group.');
+    // Clear any existing errors
+    setError(null);
+    
+    // Validate inputs
+    if (!formData.campaignName?.trim()) {
+      setError('Please enter a campaign name.');
       return;
     }
+    
+    if (!selectedGroups.length) {
+      setError('Please select at least one group.');
+      return;
+    }
+    
+    if (!currentWorkspaceId) {
+      setError('No workspace selected.');
+      return;
+    }
+    
     try {
-      const newCampaign: Campaign = { 
-        campaign_id: Date.now().toString(), 
-        workspace_id: currentWorkspaceId!, 
-        name: formData.campaignName, 
-        status: 'active' as const 
+      console.log('Creating campaign with:', {
+        name: formData.campaignName,
+        selectedGroups,
+        workspaceId: currentWorkspaceId
+      });
+      
+      // Create the campaign via API
+      const campaignData = {
+        name: formData.campaignName.trim(),
+        description: `Campaign with ${selectedGroups.length} group(s)`,
+        workspace_id: currentWorkspaceId,
+        launch_date: new Date().toISOString() // Add required launch_date field
       };
+      
+      console.log('Sending campaign data to API:', campaignData);
+      console.log('Current workspace ID:', currentWorkspaceId);
+      console.log('Campaign name:', formData.campaignName);
+      console.log('Selected groups:', selectedGroups);
+      
+      const newCampaign = await createCampaign(campaignData);
+      console.log('Created campaign:', newCampaign);
+
+      // Assign selected groups to the campaign
+      for (const groupId of selectedGroups) {
+        console.log('Assigning group', groupId, 'to campaign', newCampaign.campaign_id);
+        await assignGroupToCampaign(groupId, newCampaign.campaign_id);
+      }
+
+      // Update local state
       setCampaigns(prev => [...prev, newCampaign]);
       setSelectedCampaignId(newCampaign.campaign_id);
+      
+      // Update campaign groups cache with the selected groups
+      const campaignGroupsData = groups.filter(group => selectedGroups.includes(group.group_id));
+      setCampaignGroups(prev => ({ ...prev, [newCampaign.campaign_id]: campaignGroupsData }));
+
+      // Close modal and reset form
       setModal('isCreateCampaignOpen', false);
       setFormData(prev => ({ ...prev, campaignName: '' }));
       setSelectedGroups([]);
-    } catch {
-      setError('Failed to create campaign.');
+      
+      console.log('Campaign created successfully');
+      
+    } catch (err: unknown) {
+      console.error('Error creating campaign:', err);
+      
+      // Enhanced error handling
+      let errorMessage = 'Failed to create campaign.';
+      
+      // Type guard for axios error
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { 
+          response?: { 
+            data?: { detail?: string; message?: string } | string; 
+            status?: number; 
+          } 
+        };
+        
+        // Server responded with error status
+        console.error('API Error Response:', axiosError.response?.data);
+        console.error('API Error Status:', axiosError.response?.status);
+        
+        if (axiosError.response?.data && typeof axiosError.response.data === 'object') {
+          if ('detail' in axiosError.response.data && axiosError.response.data.detail) {
+            errorMessage = axiosError.response.data.detail;
+          } else if ('message' in axiosError.response.data && axiosError.response.data.message) {
+            errorMessage = axiosError.response.data.message;
+          }
+        } else if (typeof axiosError.response?.data === 'string') {
+          errorMessage = axiosError.response.data;
+        } else if (axiosError.response?.status === 400) {
+          errorMessage = 'Invalid campaign data. Please check your inputs.';
+        } else if (axiosError.response?.status === 401) {
+          errorMessage = 'Unauthorized. Please log in again.';
+        } else if (axiosError.response?.status === 403) {
+          errorMessage = 'Permission denied. You may not have access to create campaigns.';
+        } else if (axiosError.response?.status === 500) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+      } else if (err instanceof Error && err.message !== '[object Object]') {
+        // Network error or other client-side error
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     }
   };
 
@@ -612,7 +755,13 @@ const SendSMS = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4 }}
                       type="button"
-                      onClick={() => setModal('isCreateCampaignOpen', true)}
+                      onClick={() => {
+                        // Reset form when opening create campaign modal
+                        setFormData(prev => ({ ...prev, campaignName: '' }));
+                        setSelectedGroups([]);
+                        setError(null);
+                        setModal('isCreateCampaignOpen', true);
+                      }}
                       className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] text-sm font-medium transition-colors"
                     >
                       Create New Campaign
@@ -629,13 +778,13 @@ const SendSMS = () => {
                           value={campaign.campaign_id}
                           className="text-[#004d66]"
                         >
-                          {campaign.name} ({campaign.status})
+                          {campaign.name}
                         </option>
                       ))}
                     </select>
                   </div>
                 </div>
-                {selectedCampaignId && campaignGroups[selectedCampaignId] && (
+                {selectedCampaignId && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -643,17 +792,31 @@ const SendSMS = () => {
                     className="space-y-2"
                   >
                     <label className="text-sm font-medium text-gray-600">Target Groups</label>
-                    <div className="flex flex-wrap gap-2">
-                      {campaignGroups[selectedCampaignId].map(group => (
-                        <span
-                          key={group.group_id}
-                          className="inline-flex items-center px-3 py-1 bg-gray-100 text-[#004d66] rounded-full text-sm font-medium"
-                        >
-                          <Users className="w-5 h-5 mr-1" />
-                          {group.name}
-                        </span>
-                      ))}
-                    </div>
+                    {campaignGroups[selectedCampaignId] && campaignGroups[selectedCampaignId].length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {campaignGroups[selectedCampaignId].map(group => (
+                          <span
+                            key={group.group_id}
+                            className="inline-flex items-center px-3 py-1 bg-gray-100 text-[#004d66] rounded-full text-sm font-medium"
+                          >
+                            <Users className="w-5 h-5 mr-1" />
+                            {group.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                        <div className="flex items-center gap-2 text-yellow-700">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-sm font-medium">No groups assigned to this campaign</span>
+                        </div>
+                        <p className="text-sm text-yellow-600 mt-1">
+                          Please create a new campaign with groups or assign groups to this campaign through the Campaigns page.
+                        </p>
+                      </div>
+                    )}
                   </motion.div>
                 )}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -1038,24 +1201,35 @@ const SendSMS = () => {
           <div className="space-y-2">
             <label className="text-sm font-medium text-[#004d66]">Select Groups</label>
             <div className="space-y-2 max-h-32 overflow-y-auto">
-              {groups.map((group, index) => (
-                <motion.label
-                  key={group.group_id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 * (index + 1) }}
-                  className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-md text-[#004d66] text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedGroups.includes(group.group_id)}
-                    onChange={() => toggleGroupSelection(group.group_id)}
-                    className="w-4 h-4 text-[#004d66] rounded border-gray-200 focus:ring-[#FDD70D]"
-                  />
-                  <span>{group.name}</span>
-                </motion.label>
-              ))}
+              {groups.length > 0 ? (
+                groups.map((group, index) => (
+                  <motion.label
+                    key={group.group_id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 * (index + 1) }}
+                    className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-md text-[#004d66] text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedGroups.includes(group.group_id)}
+                      onChange={() => toggleGroupSelection(group.group_id)}
+                      className="w-4 h-4 text-[#004d66] rounded border-gray-200 focus:ring-[#FDD70D]"
+                    />
+                    <span>{group.name}</span>
+                  </motion.label>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500 text-sm">
+                  No groups available. Please create groups first.
+                </div>
+              )}
             </div>
+            {selectedGroups.length > 0 && (
+              <div className="mt-2 text-sm text-green-600">
+                {selectedGroups.length} group(s) selected
+              </div>
+            )}
           </div>
         </motion.div>
       </Modal>
