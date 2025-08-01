@@ -44,7 +44,7 @@
     "styled-components": "^6.1.15",
     "tailwind-merge": "^3.2.0",
     "tinyglobby": "^0.2.14",
-    "vite": "^4.5.14",
+    "vite": "^7.0.6",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

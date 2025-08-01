@@ -516,7 +516,7 @@ const Navbar: React.FC<NavbarProps> = ({ isSidebarOpen, toggleSidebar }) => {
       </nav>
 
       {/* Desktop Navbar (hidden on mobile) */}
-      <nav className="bg-white shadow-md fixed top-0 left-64 w-[calc(100%-256px)] z-50 hidden sm:block">
+      <nav className="bg-white shadow-md fixed top-0 left-47 w-[calc(100%-192px)] z-50 hidden sm:block"> {/* Adjust width for navbar */}
         <div className="px-4 sm:px-3">
           <div className="flex justify-end items-center h-16">
             {/* Right Side: Actions */}
