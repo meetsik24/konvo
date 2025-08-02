@@ -1072,7 +1072,7 @@ export const checkPaymentStatus = async (
 
 // MESSAGES
 export const sendInstantMessage = async (
-  workspaceId: string,
+  workspaceId: string, // Keep this parameter for function call compatibility
   data: {
     recipients?: string[];
     groups?: string[];
@@ -1082,7 +1082,7 @@ export const sendInstantMessage = async (
   }
 ): Promise<Message> => {
   const payload = {
-    workspace_id: workspaceId,
+    // Remove workspace_id as per Swagger documentation
     content: data.content,
     sender_id: data.sender_id,
     recipients: data.recipients || [], // Always include recipients array, even if empty
@@ -1091,13 +1091,23 @@ export const sendInstantMessage = async (
   };
   
   console.log("sendInstantMessage - payload being sent:", JSON.stringify(payload, null, 2));
-  console.log("sendInstantMessage - workspace ID:", workspaceId);
+  // Still log workspaceId for debugging purposes even though it's not in the payload
+  console.log("sendInstantMessage - workspace ID (not in payload):", workspaceId);
   console.log("sendInstantMessage - original data:", JSON.stringify(data, null, 2));
   
   try {
     const response = await api.post("/messages/send-instant", payload);
     console.log("sendInstantMessage - success response:", response.data);
-    return response.data;
+    
+    // Return a properly formatted Message object including the content
+    // This ensures the content is available in the response for UI display
+    return {
+      ...response.data,
+      content: data.content, // Ensure content is included in the returned object
+      sender_id: data.sender_id,
+      recipients: response.data.recipients || data.recipients || [],
+      // Preserve other message properties from the response
+    };
   } catch (error: any) {
     console.error("sendInstantMessage - full error object:", error);
     console.error("sendInstantMessage - error response data:", error.response?.data);

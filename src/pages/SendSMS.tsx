@@ -64,6 +64,7 @@ const SendSMS = () => {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [recipientCount, setRecipientCount] = useState(0);
   const [messagePreview, setMessagePreview] = useState('');
+  const [lastSentMessage, setLastSentMessage] = useState<string | null>(null); // Keep track of the last sent message
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [modalState, setModalState] = useState({
@@ -403,6 +404,9 @@ const SendSMS = () => {
       }
 
       console.log('=== SMS SENT SUCCESSFULLY ===');
+
+      // Save the last sent message before resetting the form
+      setLastSentMessage(formData.message);
 
       // Reset form after successful send
       setFormData({
@@ -1106,7 +1110,7 @@ const SendSMS = () => {
             <div className="w-full h-full bg-white pt-8 pb-4 px-4">
               <PhonePreview data={{
                 senderName: formData.senderId || 'Briq Solutions',
-                message: sendMode === 'file' && uploadedData.length ? applyPlaceholders(formData.message, uploadedData[0]) : formData.message,
+                message: lastSentMessage || (sendMode === 'file' && uploadedData.length ? applyPlaceholders(formData.message, uploadedData[0]) : formData.message),
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               }} />
             </div>
