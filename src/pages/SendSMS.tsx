@@ -236,9 +236,20 @@ const SendSMS = () => {
 
   const isFormValid = () => {
     if (!formData.senderId || !formData.message.trim()) return false;
+    
     if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length) return false;
-    if (sendMode === 'campaign' && !selectedCampaignId) return false;
+    
+    if (sendMode === 'campaign') {
+      if (!selectedCampaignId) return false;
+      
+      // Check schedule data validity if frequency is provided
+      if (formData.frequency && formData.frequency !== 'once') {
+        if (!formData.startDate || !formData.startTime) return false;
+      }
+    }
+    
     if (sendMode === 'file' && (!uploadedData.length || !phoneColumn)) return false;
+    
     return true;
   };
 
@@ -362,12 +373,23 @@ const SendSMS = () => {
           throw new Error('This campaign has no groups assigned. Please assign groups to the campaign first or create a new campaign with groups.');
         }
         
+        // Prepare schedule data if provided
+        const hasScheduleData = formData.startDate && formData.startTime;
+        const scheduleData = hasScheduleData ? {
+          start_date: formData.startDate,
+          start_time: formData.startTime,
+          end_date: formData.endDate || null,
+          end_time: formData.endTime || null,
+          frequency: formData.frequency || 'once',
+        } : null;
+        
         const campaignMessageData = {
           sender_id: formData.senderId,
           content: formData.message,
           recipients: [], // Add empty recipients array for campaign mode
           groups: campaignGroupsList.map(g => g.group_id),
           campaign_id: selectedCampaignId,
+          ...(scheduleData && { schedule: scheduleData }),
         };
         
         console.log('About to call sendInstantMessage with campaign data:', campaignMessageData);
@@ -1260,6 +1282,32 @@ const SendSMS = () => {
             <p className="text-sm font-medium text-[#004d66]">Message Preview:</p>
             <p className="text-sm text-[#004d66] mt-2 break-words">{messagePreview}</p>
           </div>
+          
+          {/* Show scheduling information for campaign mode */}
+          {sendMode === 'campaign' && formData.startDate && formData.startTime && (
+            <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
+              <p className="text-sm font-medium text-[#004d66]">Scheduling Information:</p>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div>
+                  <p className="text-xs text-gray-600">Start:</p>
+                  <p className="text-sm text-[#004d66]">{formData.startDate} at {formData.startTime}</p>
+                </div>
+                {formData.endDate && formData.endTime && (
+                  <div>
+                    <p className="text-xs text-gray-600">End:</p>
+                    <p className="text-sm text-[#004d66]">{formData.endDate} at {formData.endTime}</p>
+                  </div>
+                )}
+                {formData.frequency && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-600">Frequency:</p>
+                    <p className="text-sm text-[#004d66] capitalize">{formData.frequency}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
           <p className="text-sm">Please confirm to proceed with sending.</p>
         </motion.div>
       </Modal>
