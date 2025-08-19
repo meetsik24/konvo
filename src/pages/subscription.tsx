@@ -43,6 +43,12 @@ const dummyPackages: Package[] = [
   },
 ];
 
+const dummyCurrentPackage = {
+  name: "Business Pack",
+  allocation: { sms: 500, whatsapp: 1500, avr: 100 },
+  usage: { sms: 120, whatsapp: 400, avr: 20 },
+};
+
 const Subscription: React.FC = () => {
   const [wallet, setWallet] = useState(dummyWallet);
   const [transactions, setTransactions] = useState<
@@ -68,6 +74,9 @@ const Subscription: React.FC = () => {
     ]);
   };
 
+  const calcUsagePercent = (used: number, total: number) =>
+    total === 0 ? 0 : Math.min(100, Math.round((used / total) * 100));
+
   return (
     <div className="max-w-7xl mx-auto p-6 min-h-screen space-y-8">
       {/* Wallet Overview */}
@@ -90,6 +99,38 @@ const Subscription: React.FC = () => {
         <button className="px-4 py-2 bg-[#00333e] text-white rounded-md text-sm hover:bg-[#00262f]">
           Top Up
         </button>
+      </motion.div>
+
+            <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
+      >
+        <h3 className="text-xl font-medium text-[#00333e] mb-4">
+          Current Package – {dummyCurrentPackage.name}
+        </h3>
+        <div className="space-y-4">
+          {Object.entries(dummyCurrentPackage.allocation).map(([key, total]) => {
+            const used = dummyCurrentPackage.usage[key as keyof typeof dummyCurrentPackage.usage];
+            const percent = calcUsagePercent(used, total);
+            return (
+              <div key={key}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-600 capitalize">{key}</span>
+                  <span className="text-[#00333e] font-medium">
+                    {used}/{total}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-md h-2">
+                  <div
+                    className="bg-[#00333e] h-2 rounded-md"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </motion.div>
 
       {/* Packages */}
