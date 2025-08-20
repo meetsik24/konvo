@@ -1079,6 +1079,13 @@ export const sendInstantMessage = async (
     content: string;
     sender_id: string;
     campaign_id?: string;
+    schedule?: {
+      start_date: string;
+      start_time: string;
+      end_date?: string | null;
+      end_time?: string | null;
+      frequency: string;
+    };
   }
 ): Promise<Message> => {
   const payload = {
@@ -1088,6 +1095,7 @@ export const sendInstantMessage = async (
     recipients: data.recipients || [], // Always include recipients array, even if empty
     ...(data.groups && data.groups.length > 0 && { groups: data.groups }),
     ...(data.campaign_id && { campaign_id: data.campaign_id }),
+    ...(data.schedule && { schedule: data.schedule }),
   };
   
   console.log("sendInstantMessage - payload being sent:", JSON.stringify(payload, null, 2));
@@ -1127,6 +1135,70 @@ export const sendInstantMessage = async (
     }
     
     handleApiError(error, "Failed to send instant message");
+  }
+};
+
+// New function for bulk SMS file upload
+export const sendBulkSMSFile = async (
+  workspaceId: string,
+  data: {
+    file: File;
+    sender_id: string;
+    content: string;
+    phone_column?: string;
+    default_country_code?: string;
+  }
+): Promise<Message> => {
+  try {
+    const formData = new FormData();
+    formData.append("file", data.file);
+    formData.append("sender_id", data.sender_id);
+    formData.append("content", data.content);
+    if (data.phone_column) formData.append("phone_column", data.phone_column);
+    if (data.default_country_code) formData.append("default_country_code", data.default_country_code);
+    
+    console.log("sendBulkSMSFile - form data being sent:");
+    console.log("- file:", data.file.name);
+    console.log("- sender_id:", data.sender_id);
+    console.log("- content:", data.content);
+    console.log("- phone_column:", data.phone_column);
+    console.log("- default_country_code:", data.default_country_code);
+    console.log("- workspace ID:", workspaceId);
+    
+    const response = await api.post(`/messages/send-bulk-file/${workspaceId}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+        console.log(`SMS file upload progress: ${percentCompleted}%`);
+      },
+    });
+    
+    console.log("sendBulkSMSFile - success response:", response.data);
+    
+    return {
+      ...response.data,
+      content: data.content,
+      sender_id: data.sender_id,
+    };
+  } catch (error: any) {
+    console.error("sendBulkSMSFile - full error object:", error);
+    console.error("sendBulkSMSFile - error response data:", error.response?.data);
+    console.error("sendBulkSMSFile - error response status:", error.response?.status);
+    
+    // Log validation details if available
+    if (error.response?.data?.detail && Array.isArray(error.response.data.detail)) {
+      console.error("sendBulkSMSFile - validation errors:", error.response.data.detail);
+      error.response.data.detail.forEach((validationError: any, index: number) => {
+        console.error(`Validation Error ${index + 1}:`, {
+          type: validationError.type,
+          location: validationError.loc,
+          message: validationError.msg,
+          input: validationError.input
+        });
+      });
+    }
+    
+    handleApiError(error, "Failed to send bulk SMS from file");
   }
 };
 

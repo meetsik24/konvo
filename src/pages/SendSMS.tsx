@@ -9,6 +9,7 @@ import {
   getCampaigns,
   getCampaignGroups,
   sendInstantMessage,
+  sendBulkSMSFile,
   generateMessage,
   getWorkspaceGroups,
   createCampaign,
@@ -59,6 +60,8 @@ const SendSMS = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [keywords, setKeywords] = useState('');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -248,7 +251,7 @@ const SendSMS = () => {
       }
     }
     
-    if (sendMode === 'file' && (!uploadedData.length || !phoneColumn)) return false;
+    if (sendMode === 'file' && (!uploadedFile || !phoneColumn)) return false;
     
     return true;
   };
@@ -260,7 +263,6 @@ const SendSMS = () => {
       return;
     }
     try {
-      let recipients: string[] = [];
       let recipientCount = 0;
       let previewMessage = formData.message;
 
@@ -271,7 +273,6 @@ const SendSMS = () => {
             .split(/[\n,]+/)
             .map(phone => phone.trim())
             .filter(phone => phone);
-          recipients = manualPhones;
           recipientCount += manualPhones.length;
         }
         if (selectedGroups.length) {
@@ -291,21 +292,31 @@ const SendSMS = () => {
         // Use actual contact_count for each group in the campaign
         recipientCount = campaignGroupsList.reduce((total, group) => total + (group.contact_count || 0), 0);
       } else if (sendMode === 'file') {
-        // Simple extraction without validation
-        recipients = uploadedData
-          .map(row => row[phoneColumn] || '')
-          .filter(phone => phone.trim());
-        recipientCount = recipients.length;
-        if (recipients.length && uploadedData.length) {
-          previewMessage = applyPlaceholders(formData.message, uploadedData[0]);
+        // For file mode, we'll show an estimate based on uploaded data
+        // The actual validation will happen on the backend
+        if (uploadedData.length && phoneColumn) {
+          const validPhones = uploadedData
+            .map(row => row[phoneColumn] || '')
+            .filter(phone => phone.trim());
+          recipientCount = validPhones.length;
+          if (validPhones.length && uploadedData.length) {
+            previewMessage = applyPlaceholders(formData.message, uploadedData[0]);
+          }
+        } else {
+          // If no data parsed yet, show file info
+          recipientCount = uploadedFile ? 1 : 0; // Placeholder count
+          previewMessage = formData.message;
         }
       }
 
       if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length) {
         throw new Error('Please add recipients or select groups.');
       }
-      if (sendMode === 'file' && !recipients.length) {
-        throw new Error(`No phone numbers found in "${phoneColumn}" column.`);
+      if (sendMode === 'file' && !uploadedFile) {
+        throw new Error('Please upload a file.');
+      }
+      if (sendMode === 'file' && !phoneColumn) {
+        throw new Error('Please select the phone number column.');
       }
 
       setRecipientCount(recipientCount);
@@ -399,30 +410,35 @@ const SendSMS = () => {
         
       } else if (sendMode === 'file') {
         console.log('=== FILE MODE PROCESSING ===');
-        // For file mode, we need to use a different approach
-        // The current API doesn't support file data directly, so we'll extract phone numbers
-        const recipients = uploadedData
-          .map(row => row[phoneColumn] || '')
-          .filter(phone => phone.trim());
         
-        console.log('File recipients extracted:', recipients);
-        console.log('Phone column used:', phoneColumn);
-        console.log('Uploaded data length:', uploadedData.length);
-        
-        if (!recipients.length) {
-          throw new Error(`No valid phone numbers found in "${phoneColumn}" column.`);
+        if (!uploadedFile) {
+          throw new Error('No file uploaded. Please select a file first.');
         }
         
+        if (!phoneColumn) {
+          throw new Error('Please select the phone number column.');
+        }
+        
+        console.log('Using bulk SMS file upload API');
+        console.log('File:', uploadedFile.name);
+        console.log('Phone column:', phoneColumn);
+        console.log('Default country code:', defaultCountryCode);
+        
         const fileMessageData = {
+          file: uploadedFile,
           sender_id: formData.senderId,
           content: formData.message,
-          recipients: recipients,
+          phone_column: phoneColumn,
+          default_country_code: defaultCountryCode,
         };
         
-        console.log('About to call sendInstantMessage with file data:', fileMessageData);
+        console.log('About to call sendBulkSMSFile with data:', {
+          ...fileMessageData,
+          file: `${uploadedFile.name} (${uploadedFile.size} bytes)`
+        });
         
-        // For now, send as recipients (backend should handle phone validation and personalization)
-        await sendInstantMessage(currentWorkspaceId, fileMessageData);
+        // Use the new bulk SMS file upload API
+        await sendBulkSMSFile(currentWorkspaceId, fileMessageData);
       }
 
       console.log('=== SMS SENT SUCCESSFULLY ===');
