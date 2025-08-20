@@ -1138,7 +1138,7 @@ export const sendInstantMessage = async (
   }
 };
 
-// New function for bulk SMS file upload
+// Send bulk SMS by parsing file content and using instant message API
 export const sendBulkSMSFile = async (
   workspaceId: string,
   data: {
@@ -1150,54 +1150,68 @@ export const sendBulkSMSFile = async (
   }
 ): Promise<Message> => {
   try {
-    const formData = new FormData();
-    formData.append("file", data.file);
-    formData.append("sender_id", data.sender_id);
-    formData.append("content", data.content);
-    if (data.phone_column) formData.append("phone_column", data.phone_column);
-    if (data.default_country_code) formData.append("default_country_code", data.default_country_code);
+    console.log('=== sendBulkSMSFile called ===');
+    console.log('WorkspaceId:', workspaceId);
+    console.log('File:', data.file?.name, 'Size:', data.file?.size);
+    console.log('Phone column:', data.phone_column);
+
+    // Parse the CSV file to extract phone numbers
+    const fileContent = await data.file.text();
+    const lines = fileContent.split('\n').filter(line => line.trim());
     
-    console.log("sendBulkSMSFile - form data being sent:");
-    console.log("- file:", data.file.name);
-    console.log("- sender_id:", data.sender_id);
-    console.log("- content:", data.content);
-    console.log("- phone_column:", data.phone_column);
-    console.log("- default_country_code:", data.default_country_code);
-    console.log("- workspace ID:", workspaceId);
-    
-    const response = await api.post(`/messages/send-bulk-file/${workspaceId}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-      onUploadProgress: (progressEvent) => {
-        const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-        console.log(`SMS file upload progress: ${percentCompleted}%`);
-      },
-    });
-    
-    console.log("sendBulkSMSFile - success response:", response.data);
-    
-    return {
-      ...response.data,
-      content: data.content,
-      sender_id: data.sender_id,
-    };
-  } catch (error: any) {
-    console.error("sendBulkSMSFile - full error object:", error);
-    console.error("sendBulkSMSFile - error response data:", error.response?.data);
-    console.error("sendBulkSMSFile - error response status:", error.response?.status);
-    
-    // Log validation details if available
-    if (error.response?.data?.detail && Array.isArray(error.response.data.detail)) {
-      console.error("sendBulkSMSFile - validation errors:", error.response.data.detail);
-      error.response.data.detail.forEach((validationError: any, index: number) => {
-        console.error(`Validation Error ${index + 1}:`, {
-          type: validationError.type,
-          location: validationError.loc,
-          message: validationError.msg,
-          input: validationError.input
-        });
-      });
+    if (lines.length === 0) {
+      throw new Error('File is empty or invalid');
     }
+
+    // Get headers from first line
+    const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
+    console.log('CSV Headers:', headers);
+
+    // Find the phone column index
+    const phoneColumnIndex = headers.findIndex(h => 
+      h.toLowerCase() === data.phone_column?.toLowerCase()
+    );
+
+    if (phoneColumnIndex === -1) {
+      throw new Error(`Phone column "${data.phone_column}" not found in file headers: ${headers.join(', ')}`);
+    }
+
+    // Extract phone numbers from data rows
+    const recipients: string[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].split(',').map(c => c.trim().replace(/['"]/g, ''));
+      if (row[phoneColumnIndex] && row[phoneColumnIndex].trim()) {
+        let phoneNumber = row[phoneColumnIndex].trim();
+        
+        // Add default country code if needed
+        if (data.default_country_code && !phoneNumber.startsWith('+') && !phoneNumber.startsWith('255')) {
+          phoneNumber = data.default_country_code + phoneNumber;
+        }
+        
+        recipients.push(phoneNumber);
+      }
+    }
+
+    console.log('Extracted recipients:', recipients.length);
+    console.log('Sample recipients:', recipients.slice(0, 5));
+
+    if (recipients.length === 0) {
+      throw new Error('No valid phone numbers found in the file');
+    }
+
+    // Use the standard instant message API with the extracted recipients
+    const messageData = {
+      sender_id: data.sender_id,
+      content: data.content,
+      recipients: recipients,
+    };
+
+    console.log('Sending via instant message API with', recipients.length, 'recipients');
+    return await sendInstantMessage(workspaceId, messageData);
     
+  } catch (error: unknown) {
+    console.error('=== sendBulkSMSFile error ===');
+    console.error('Error details:', error);
     handleApiError(error, "Failed to send bulk SMS from file");
   }
 };

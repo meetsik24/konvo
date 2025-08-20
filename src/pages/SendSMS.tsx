@@ -419,7 +419,7 @@ const SendSMS = () => {
           throw new Error('Please select the phone number column.');
         }
         
-        console.log('Using bulk SMS file upload API');
+        console.log('Using file parsing for bulk SMS');
         console.log('File:', uploadedFile.name);
         console.log('Phone column:', phoneColumn);
         console.log('Default country code:', defaultCountryCode);
@@ -437,7 +437,7 @@ const SendSMS = () => {
           file: `${uploadedFile.name} (${uploadedFile.size} bytes)`
         });
         
-        // Use the new bulk SMS file upload API
+        // Parse file and send via instant message API
         await sendBulkSMSFile(currentWorkspaceId, fileMessageData);
       }
 
