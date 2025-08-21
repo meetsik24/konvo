@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Wallet, ShoppingBag, Package } from "lucide-react";
+import { Wallet, ShoppingBag, Package, Loader2 } from "lucide-react";
+import { getAccountBalance } from "../services/api";
 
 interface Package {
   id: string;
@@ -13,11 +14,6 @@ interface Package {
     avr: number;
   };
 }
-
-const dummyWallet = {
-  user_id: "u123",
-  total_units: 50000, // starting balance
-};
 
 const dummyPackages: Package[] = [
   {
@@ -50,20 +46,50 @@ const dummyCurrentPackage = {
 };
 
 const Subscription: React.FC = () => {
-  const [wallet, setWallet] = useState(dummyWallet);
+  const [wallet, setWallet] = useState<{
+    balance_id: string;
+    user_id: string;
+    units: number;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<
     { type: string; units: number; desc: string }[]
   >([]);
 
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const balance = await getAccountBalance();
+        setWallet({
+          balance_id: balance.balance_id,
+          user_id: balance.user_id,
+          units: balance.units,
+        });
+      } catch (err) {
+        setError("Failed to load wallet balance");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBalance();
+  }, []);
+
   const handlePurchase = (pkg: Package) => {
-    if (wallet.total_units < pkg.units) {
+    if (!wallet || wallet.units < pkg.units) {
       alert("Not enough credits in wallet to purchase this package.");
       return;
     }
-    setWallet((prev) => ({
-      ...prev,
-      total_units: prev.total_units - pkg.units,
-    }));
+    setWallet((prev) =>
+      prev
+        ? {
+            ...prev,
+            units: prev.units - pkg.units,
+          }
+        : null
+    );
     setTransactions((prev) => [
       ...prev,
       {
@@ -91,17 +117,29 @@ const Subscription: React.FC = () => {
             <h2 className="text-lg font-semibold text-[#00333e]">
               Wallet Balance
             </h2>
-            <p className="text-2xl font-bold text-[#00333e]">
-              {wallet.total_units.toLocaleString()} Units
-            </p>
+            {isLoading ? (
+              <div className="flex items-center space-x-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Loading balance...</span>
+              </div>
+            ) : error ? (
+              <p className="text-red-500 text-sm">{error}</p>
+            ) : (
+              <p className="text-2xl font-bold text-[#00333e]">
+                {wallet?.units.toLocaleString()} Units
+              </p>
+            )}
           </div>
         </div>
-        <button className="px-4 py-2 bg-[#00333e] text-white rounded-md text-sm hover:bg-[#00262f]">
+        <button
+          className="px-4 py-2 bg-[#00333e] text-white rounded-md text-sm hover:bg-[#00262f]"
+          disabled={isLoading}
+        >
           Top Up
         </button>
       </motion.div>
 
-            <motion.div
+      <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
@@ -110,29 +148,32 @@ const Subscription: React.FC = () => {
           Current Package – {dummyCurrentPackage.name}
         </h3>
         <div className="space-y-4">
-          {Object.entries(dummyCurrentPackage.allocation).map(([key, total]) => {
-            const used = dummyCurrentPackage.usage[key as keyof typeof dummyCurrentPackage.usage];
-            const percent = calcUsagePercent(used, total);
-            return (
-              <div key={key}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600 capitalize">{key}</span>
-                  <span className="text-[#00333e] font-medium">
-                    {used}/{total}
-                  </span>
+          {Object.entries(dummyCurrentPackage.allocation).map(
+            ([key, total]) => {
+              const used = dummyCurrentPackage.usage[
+                key as keyof typeof dummyCurrentPackage.usage
+              ];
+              const percent = calcUsagePercent(used, total);
+              return (
+                <div key={key}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600 capitalize">{key}</span>
+                    <span className="text-[#00333e] font-medium">
+                      {used}/{total}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-md h-2">
+                    <div
+                      className="bg-[#00333e] h-2 rounded-md"
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-md h-2">
-                  <div
-                    className="bg-[#00333e] h-2 rounded-md"
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+              );
+            }
+          )}
         </div>
       </motion.div>
-
       {/* Packages */}
       <div>
         <h3 className="text-xl font-medium text-[#00333e] mb-4 flex items-center gap-2">

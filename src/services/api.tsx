@@ -287,6 +287,13 @@ interface ApiKey {
   expires_at: string;
 }
 
+interface AccountBalance {
+  balance_id: string;
+  user_id: string;
+  units: number;
+  last_updated: string;
+}
+
 
 // Utility function for consistent error handling
 const handleApiError = (error: unknown, defaultMessage: string): never => {
@@ -511,7 +518,7 @@ export const getMessageLogsV = async (): Promise<MessageLogResponse> => {
           typeof msg.sent_at === 'string' &&
           isValidISODate(msg.sent_at) &&
           typeof msg.recipient === 'string' &&
-          (typeof msg.campaign_name === 'string' || msg.campaign_name === null) && // Allow null
+          (typeof msg.campaign_name === 'string' || msg.campaign_name === null) // Allow null
           typeof msg.sender_id === 'string' &&
           typeof msg.status === 'string';
         if (!isValid) console.warn("Invalid message object:", msg);
@@ -1205,8 +1212,6 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
   }
 };
 
-
-
 // New function to generate an SMS message using the /draft_generate_message endpoint
 export const generateMessage = async (prompt: string): Promise<string> => {
   try {
@@ -1420,6 +1425,16 @@ export const getMetricsV1 = async (dateRange?: 'today' | 'this_week' | 'this_mon
   }
 };
 
+export const getAccountBalance = async (): Promise<AccountBalance> => {
+  console.log("getAccountBalance API call initiated");
+  try {
+    const response = await api.get("/account-balance/account");
+    console.log("getAccountBalance API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch account balance");
+  }
+};
 
 
 export default api;
