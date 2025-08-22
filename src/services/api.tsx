@@ -1436,5 +1436,41 @@ export const getAccountBalance = async (): Promise<AccountBalance> => {
   }
 };
 
+// Add these interfaces with the other interfaces
+export enum ServiceName {
+  SMS = "SMS",
+  VOICE = "VOICE",
+  WHATSAPP = "WHATSAPP"
+}
+
+export enum SourceType {
+  ALLOCATION = "ALLOCATION",
+  PURCHASE = "PURCHASE"
+}
+
+export interface UsageLog {
+  usage_id: string;
+  service_id: string;
+  service_name: ServiceName;
+  units_used: number;
+  quantity: number;
+  source_type: SourceType;
+  usage_date: string;
+  message_id: string | null;
+  transaction_id: string | null;
+  usage_description: string;
+}
+
+// Add this function before export default api
+export const getUsageLogs = async (): Promise<UsageLog[]> => {
+  console.log("getUsageLogs API call initiated");
+  try {
+    const response = await api.get("/usage-logs/all-logs");
+    console.log("getUsageLogs API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch usage logs");
+  }
+};
 
 export default api;

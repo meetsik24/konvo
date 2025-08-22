@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Wallet, ShoppingBag, Package, Loader2 } from "lucide-react";
-import { getAccountBalance } from "../services/api";
+import { getAccountBalance, getUsageLogs, ServiceName } from "../services/api";
 
 interface Package {
   id: string;
@@ -39,11 +39,19 @@ const dummyPackages: Package[] = [
   },
 ];
 
-const dummyCurrentPackage = {
-  name: "Business Pack",
-  allocation: { sms: 500, whatsapp: 1500, avr: 100 },
-  usage: { sms: 120, whatsapp: 400, avr: 20 },
-};
+interface UsageData {
+  name: string;
+  allocation: {
+    sms: number;
+    whatsapp: number;
+    avr: number;
+  };
+  usage: {
+    sms: number;
+    whatsapp: number;
+    avr: number;
+  };
+}
 
 const Subscription: React.FC = () => {
   const [wallet, setWallet] = useState<{
@@ -53,6 +61,11 @@ const Subscription: React.FC = () => {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPackage, setCurrentPackage] = useState<UsageData>({
+    name: "Your Package",
+    allocation: { sms: 0, whatsapp: 0, avr: 0 },
+    usage: { sms: 0, whatsapp: 0, avr: 0 },
+  });
   const [transactions, setTransactions] = useState<
     { type: string; units: number; desc: string }[]
   >([]);
@@ -75,6 +88,43 @@ const Subscription: React.FC = () => {
     };
 
     fetchBalance();
+  }, []);
+
+  useEffect(() => {
+    const fetchUsageData = async () => {
+      try {
+        const logs = await getUsageLogs();
+
+        // Aggregate usage by service type
+        const usage = logs.reduce(
+          (acc, log) => {
+            switch (log.service_name) {
+              case ServiceName.SMS:
+                acc.sms += log.units_used;
+                break;
+              case ServiceName.WHATSAPP:
+                acc.whatsapp += log.units_used;
+                break;
+              case ServiceName.VOICE:
+                acc.avr += log.units_used;
+                break;
+            }
+            return acc;
+          },
+          { sms: 0, whatsapp: 0, avr: 0 }
+        );
+
+        setCurrentPackage((prev) => ({
+          ...prev,
+          usage: usage,
+        }));
+      } catch (err) {
+        console.error("Failed to fetch usage logs:", err);
+        setError("Failed to load usage data");
+      }
+    };
+
+    fetchUsageData();
   }, []);
 
   const handlePurchase = (pkg: Package) => {
@@ -145,35 +195,34 @@ const Subscription: React.FC = () => {
         className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
       >
         <h3 className="text-xl font-medium text-[#00333e] mb-4">
-          Current Package – {dummyCurrentPackage.name}
+          Current Usage
         </h3>
         <div className="space-y-4">
-          {Object.entries(dummyCurrentPackage.allocation).map(
-            ([key, total]) => {
-              const used = dummyCurrentPackage.usage[
-                key as keyof typeof dummyCurrentPackage.usage
-              ];
-              const percent = calcUsagePercent(used, total);
-              return (
-                <div key={key}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600 capitalize">{key}</span>
-                    <span className="text-[#00333e] font-medium">
-                      {used}/{total}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-md h-2">
-                    <div
-                      className="bg-[#00333e] h-2 rounded-md"
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
+          {Object.entries(currentPackage.allocation).map(([key, total]) => {
+            const used = currentPackage.usage[
+              key as keyof typeof currentPackage.usage
+            ];
+            const percent = calcUsagePercent(used, total);
+            return (
+              <div key={key}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-600 capitalize">{key}</span>
+                  <span className="text-[#00333e] font-medium">
+                    {used} units used
+                  </span>
                 </div>
-              );
-            }
-          )}
+                <div className="w-full bg-gray-200 rounded-md h-2">
+                  <div
+                    className="bg-[#00333e] h-2 rounded-md"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </motion.div>
+
       {/* Packages */}
       <div>
         <h3 className="text-xl font-medium text-[#00333e] mb-4 flex items-center gap-2">
