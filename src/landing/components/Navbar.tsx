@@ -129,11 +129,9 @@ function Navbar() {
             Pricing
           </a>
           <a
-            href="/documentation"
-            onClick={(e) => {
-              e.preventDefault();
-              handleDocumentationClick();
-            }}
+            href="https://docs.briq.tz"
+            target="_blank"
+            rel="noreferrer"
             className="text-white hover:text-[#fddf0d] text-xs sm:text-sm uppercase transition-colors duration-300"
           >
             KARIBU-API
@@ -201,11 +199,9 @@ function Navbar() {
             Pricing
           </a>
           <a
-            href="/documentation"
-            onClick={(e) => {
-              e.preventDefault();
-              handleDocumentationClick();
-            }}
+            href="https://docs.briq.tz"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-white hover:text-[#fddf0d] text-sm uppercase transition-colors duration-300"
           >
             KARIBU-API
