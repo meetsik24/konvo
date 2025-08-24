@@ -18,17 +18,17 @@ import { Footer } from './landing/components/Footer';
 import BlogSection from  './landing/pages/blog';
 
 // Documentation Pages
-import DocumentationHome from './Karibu/pages/Home';
-import OtherEndpoints from './Karibu/pages/OtherEndpoints';
-import SendSMSAPI from './Karibu/pages/SendSMS';
+// import DocumentationHome from './Karibu/pages/Home';
+// import OtherEndpoints from './Karibu/pages/OtherEndpoints';
+// import SendSMSAPI from './Karibu/pages/SendSMS';
 
-// Documentation Components
-import CodeEditor from './Karibu/components/CodeEditor';
-import JsonView from './Karibu/components/JsonView';
-import EndpointCard from './Karibu/components/EndpointCard';
-import DocumentationLayout from './Karibu/components/Layout';
-import DocumentationNavbar from './Karibu/components/Navbar';
-import DocSidebar from './Karibu/components/Sidebar';
+// // Documentation Components
+// import CodeEditor from './Karibu/components/CodeEditor';
+// import JsonView from './Karibu/components/JsonView';
+// import EndpointCard from './Karibu/components/EndpointCard';
+// import DocumentationLayout from './Karibu/components/Layout';
+// import DocumentationNavbar from './Karibu/components/Navbar';
+// import DocSidebar from './Karibu/components/Sidebar';
 
 // Dashboard Components
 import Layout from './components/Layout';
@@ -105,28 +105,25 @@ const Landing = () => {
   );
 };
 
-// New Documentation Component for API Documentation Pages
-const Documentation = () => {
-  const location = useLocation();
-  const showSidebar = !location.pathname.endsWith('/home'); // Hide sidebar on /documentation/home
+// // New Documentation Component for API Documentation Pages
+// const Documentation = () => {
+//   const location = useLocation();
+//   const showSidebar = !location.pathname.endsWith('/home'); // Hide sidebar on /documentation/home
 
-  return (
-    <DocumentationLayout>
-      <DocumentationNavbar />
-      <div className="flex min-h-[calc(100vh-80px)] transition-all duration-300">
-        {showSidebar && <DocSidebar />}
-        <div className={`flex-1 ${showSidebar ? 'p-4 sm:p-6' : ''}`}>
-          <Routes>
-            <Route path="home" element={<DocumentationHome />} />
-            <Route path="otherendpoints" element={<OtherEndpoints />} />
-            <Route path="sendsms" element={<SendSMSAPI />} />
-            <Route path="/" element={<Navigate to="home" replace />} />
-          </Routes>
-        </div>
-      </div>
-    </DocumentationLayout>
-  );
-};
+//   return (
+//     <DocumentationLayout>
+//       <DocumentationNavbar />
+//       <div className="flex min-h-[calc(100vh-80px)] transition-all duration-300">
+//         {showSidebar && <DocSidebar />}
+//         <div className={`flex-1 ${showSidebar ? 'p-4 sm:p-6' : ''}`}>
+//           <Routes>
+//             <Route path="/" element={<Navigate to="https://docs.briq.tz/" replace />} />
+//           </Routes>
+//         </div>
+//       </div>
+//     </DocumentationLayout>
+//   );
+// };
 
 // Protected Route for Dashboard Pages
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -167,7 +164,7 @@ function App() {
                   <Route path="/" element={<Landing />} />
 
                   {/* Documentation Routes */}
-                  <Route path="/documentation/*" element={<Documentation />} />
+                  {/* <Route path="/documentation/*" element={<Documentation />} /> */}
 
                   {/* Terms of Service and Privacy Policy Routes */}
                   <Route path="/terms" element={<TermsOfService />} />

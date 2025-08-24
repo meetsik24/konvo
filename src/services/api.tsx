@@ -1079,6 +1079,13 @@ export const sendInstantMessage = async (
     content: string;
     sender_id: string;
     campaign_id?: string;
+    schedule?: {
+      start_date: string;
+      start_time: string;
+      end_date?: string | null;
+      end_time?: string | null;
+      frequency: string;
+    };
   }
 ): Promise<Message> => {
   const payload = {
@@ -1088,6 +1095,7 @@ export const sendInstantMessage = async (
     recipients: data.recipients || [], // Always include recipients array, even if empty
     ...(data.groups && data.groups.length > 0 && { groups: data.groups }),
     ...(data.campaign_id && { campaign_id: data.campaign_id }),
+    ...(data.schedule && { schedule: data.schedule }),
   };
   
   console.log("sendInstantMessage - payload being sent:", JSON.stringify(payload, null, 2));
@@ -1127,6 +1135,84 @@ export const sendInstantMessage = async (
     }
     
     handleApiError(error, "Failed to send instant message");
+  }
+};
+
+// Send bulk SMS by parsing file content and using instant message API
+export const sendBulkSMSFile = async (
+  workspaceId: string,
+  data: {
+    file: File;
+    sender_id: string;
+    content: string;
+    phone_column?: string;
+    default_country_code?: string;
+  }
+): Promise<Message> => {
+  try {
+    console.log('=== sendBulkSMSFile called ===');
+    console.log('WorkspaceId:', workspaceId);
+    console.log('File:', data.file?.name, 'Size:', data.file?.size);
+    console.log('Phone column:', data.phone_column);
+
+    // Parse the CSV file to extract phone numbers
+    const fileContent = await data.file.text();
+    const lines = fileContent.split('\n').filter(line => line.trim());
+    
+    if (lines.length === 0) {
+      throw new Error('File is empty or invalid');
+    }
+
+    // Get headers from first line
+    const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
+    console.log('CSV Headers:', headers);
+
+    // Find the phone column index
+    const phoneColumnIndex = headers.findIndex(h => 
+      h.toLowerCase() === data.phone_column?.toLowerCase()
+    );
+
+    if (phoneColumnIndex === -1) {
+      throw new Error(`Phone column "${data.phone_column}" not found in file headers: ${headers.join(', ')}`);
+    }
+
+    // Extract phone numbers from data rows
+    const recipients: string[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].split(',').map(c => c.trim().replace(/['"]/g, ''));
+      if (row[phoneColumnIndex] && row[phoneColumnIndex].trim()) {
+        let phoneNumber = row[phoneColumnIndex].trim();
+        
+        // Add default country code if needed
+        if (data.default_country_code && !phoneNumber.startsWith('+') && !phoneNumber.startsWith('255')) {
+          phoneNumber = data.default_country_code + phoneNumber;
+        }
+        
+        recipients.push(phoneNumber);
+      }
+    }
+
+    console.log('Extracted recipients:', recipients.length);
+    console.log('Sample recipients:', recipients.slice(0, 5));
+
+    if (recipients.length === 0) {
+      throw new Error('No valid phone numbers found in the file');
+    }
+
+    // Use the standard instant message API with the extracted recipients
+    const messageData = {
+      sender_id: data.sender_id,
+      content: data.content,
+      recipients: recipients,
+    };
+
+    console.log('Sending via instant message API with', recipients.length, 'recipients');
+    return await sendInstantMessage(workspaceId, messageData);
+    
+  } catch (error: unknown) {
+    console.error('=== sendBulkSMSFile error ===');
+    console.error('Error details:', error);
+    handleApiError(error, "Failed to send bulk SMS from file");
   }
 };
 
