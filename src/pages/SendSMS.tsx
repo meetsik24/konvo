@@ -330,7 +330,7 @@ const SendSMS = () => {
 
   const generatePersonalizedMessage = (row: UploadedRow, template: string) => {
   let message = template
-    .replace(/{name}/gi, row['name'] || '')
+    .replace(/{names}/gi, row['names'] || '')
     .replace(/{subscription}/gi, row['subscription'] || '');
   const balance = Number(row['subscription']);
   if (!isNaN(balance) && balance >= 0 && balance <= 100) {
