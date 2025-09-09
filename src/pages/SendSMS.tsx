@@ -328,6 +328,17 @@ const SendSMS = () => {
     }
   };
 
+  const generatePersonalizedMessage = (row: UploadedRow, template: string) => {
+  let message = template
+    .replace(/{names}/gi, row['names'] || '')
+    .replace(/{subscription}/gi, row['subscription'] || '');
+  const balance = Number(row['subscription']);
+  if (!isNaN(balance) && balance >= 0 && balance <= 100) {
+    message += ' Please recharge to continue using our service.';
+  }
+  return message;
+  };
+
   const handleSendSMS = async () => {
     setIsSending(true);
     setError(null); // Clear any existing errors
@@ -419,26 +430,19 @@ const SendSMS = () => {
           throw new Error('Please select the phone number column.');
         }
         
-        console.log('Using file parsing for bulk SMS');
-        console.log('File:', uploadedFile.name);
-        console.log('Phone column:', phoneColumn);
-        console.log('Default country code:', defaultCountryCode);
-        
-        const fileMessageData = {
-          file: uploadedFile,
-          sender_id: formData.senderId,
-          content: formData.message,
-          phone_column: phoneColumn,
-          default_country_code: defaultCountryCode,
-        };
-        
-        console.log('About to call sendBulkSMSFile with data:', {
-          ...fileMessageData,
-          file: `${uploadedFile.name} (${uploadedFile.size} bytes)`
-        });
-        
-        // Parse file and send via instant message API
-        await sendBulkSMSFile(currentWorkspaceId, fileMessageData);
+        // for each row, generate and send personalised message
+        for (const row of uploadedData) {
+          const phone = row[phoneColumn];
+          if (!phone) continue;
+          const personalizedMessage = generatePersonalizedMessage(row, formData.message);
+          const fileMessageData = {
+            sender_id: formData.senderId,
+            content: personalizedMessage,
+            recipients: [phone],
+            default_country_code: defaultCountryCode,
+          };
+          await sendInstantMessage(currentWorkspaceId, fileMessageData);
+        }
       }
 
       console.log('=== SMS SENT SUCCESSFULLY ===');
