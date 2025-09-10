@@ -9,7 +9,7 @@ import {
   getCampaigns,
   getCampaignGroups,
   sendInstantMessage,
-  sendBulkSMSFile,
+  // sendBulkSMSFile,
   generateMessage,
   getWorkspaceGroups,
   createCampaign,
@@ -328,15 +328,47 @@ const SendSMS = () => {
     }
   };
 
-  const generatePersonalizedMessage = (row: UploadedRow, template: string) => {
-  let message = template
-    .replace(/{names}/gi, row['names'] || '')
-    .replace(/{subscription}/gi, row['subscription'] || '');
-  const balance = Number(row['subscription']);
-  if (!isNaN(balance) && balance >= 0 && balance <= 100) {
-    message += ' Please recharge to continue using our service.';
-  }
-  return message;
+  const generatePersonalizedMessage = (row: UploadedRow, template: string, feature: 'name' | 'subscription' | 'scheduled_time' | 'custom' = 'name') => {
+    let message = template;
+    switch (feature) {
+      // case 'name': {
+      //   if (row['names']) {
+      //     message = `Hello ${row['names']}, ` + message.replace(/{names}/gi, row['names']);
+      //   } else {
+      //     message = message.replace(/{names}/gi, '');
+      //   }
+      //   break;
+      // }
+      case 'subscription': {
+        message = message.replace(/{subscription}/gi, row['subscription'] || '');
+        const balance = Number(row['subscription']);
+        if (!isNaN(balance) && balance >= 0 && balance <= 100) {
+          message += ' Please recharge to continue using our service.';
+        }
+        break;
+      }
+      case 'scheduled_time': {
+        message = message.replace(/{scheduled_time}/gi, row['scheduled_time'] || '');
+        if (row['scheduled_time']) {
+          message += ` (Scheduled for: ${row['scheduled_time']})`;
+        }
+        break;
+      }
+      case 'custom': {
+        message = message.replace(/{custom}/gi, row['custom'] || '');
+        break;
+      }
+      default: {
+        // Replace all placeholders as fallback
+        message = message
+          .replace(/{names}/gi, row['names'] || '')
+          .replace(/{subscription}/gi, row['subscription'] || '')
+          .replace(/{scheduled_time}/gi, row['scheduled_time'] || '')
+          .replace(/{custom}/gi, row['custom'] || '');
+        break;
+      }
+    }
+    return message;
   };
 
   const handleSendSMS = async () => {
