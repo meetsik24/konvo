@@ -48,6 +48,7 @@ import Subscription from './pages/subscription';
 import SenderID from './pages/SenderID';
 import Contacts from './pages/Contacts';
 import ApiKeys from './pages/apikeys';
+import WhatsApp from './pages/WhatsApp';
 
 
 
@@ -195,6 +196,7 @@ function App() {
                     <Route path="/senderid" element={<SenderID />} />
                     <Route path="/contacts" element={<Contacts />} />
                     <Route path="/apikeys" element={<ApiKeys />} />
+                    <Route path="/whatsapp" element={<WhatsApp />} />
                   </Route>
 
                   {/* Catch-All 404 Page */}
