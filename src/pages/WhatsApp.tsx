@@ -378,7 +378,7 @@ const WhatsApp: React.FC = () => {
                     ) : (
           <>
             {activeTab === 'messaging' && (
-              <MessagingTab conversations={conversations} setConversations={setConversations} />
+              <MessagingTab conversations={conversations} setConversations={setConversations} templates={templates} setTemplates={setTemplates} />
             )}
             {activeTab === 'templates' && (
               <TemplatesTab templates={templates} setTemplates={setTemplates} />

@@ -25,9 +25,11 @@ import ModalButton from './ModalButton';
 interface MessagingTabProps {
   conversations: ChatConversation[];
   setConversations: (conversations: ChatConversation[]) => void;
+  templates: WhatsAppTemplate[];
+  setTemplates: (templates: WhatsAppTemplate[]) => void;
 }
 
-const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversations }) => {
+const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversations, templates, setTemplates }) => {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [newMessage, setNewMessage] = useState('');
@@ -46,47 +48,14 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
   const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const [newTemplate, setNewTemplate] = useState({
     name: '',
+    category: 'transactional' as const,
     content: '',
-    category: 'transactional' as 'transactional' | 'marketing' | 'otp' | 'notification',
-    variables: [] as string[]
+    language: 'en'
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
-  // Sample templates
-  const templates: WhatsAppTemplate[] = [
-    {
-      id: '1',
-      name: 'Welcome Message',
-      content: 'Hello {{name}}, welcome to our service! We\'re excited to have you on board.',
-      category: 'transactional',
-      status: 'approved',
-      language: 'en',
-      variables: ['name'],
-      created_at: '2024-01-15T10:00:00Z'
-    },
-    {
-      id: '2',
-      name: 'Order Confirmation',
-      content: 'Hi {{name}}, your order #{{order_id}} has been confirmed and will be delivered soon.',
-      category: 'transactional',
-      status: 'approved',
-      language: 'en',
-      variables: ['name', 'order_id'],
-      created_at: '2024-01-15T10:00:00Z'
-    },
-    {
-      id: '3',
-      name: 'Promotional Offer',
-      content: '🎉 Special offer for {{name}}! Get 20% off on your next purchase. Use code: SAVE20',
-      category: 'marketing',
-      status: 'approved',
-      language: 'en',
-      variables: ['name'],
-      created_at: '2024-01-15T10:00:00Z'
-    }
-  ];
 
   // Sample agents for assignment
   const agents = ['Agent 1', 'Agent 2', 'Agent 3', 'Unassigned'];
@@ -135,7 +104,7 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
     setConversations(conversations.map(conv => 
       conv.id === selectedConversation 
         ? {
-            ...conv,
+            ...     conv,
             messages: [...(conv.messages || []), newMsg],
             last_message: newMessage,
             last_message_time: 'Just now',
@@ -337,50 +306,31 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
     setMessageType('text');
   };
 
+  const extractVariables = (content: string): string[] => {
+    const variableRegex = /\{\{(\w+)\}\}/g;
+    const matches = content.match(variableRegex);
+    return matches ? matches.map(match => match.replace(/\{\{|\}\}/g, '')) : [];
+  };
+
   const handleCreateTemplate = () => {
     if (!newTemplate.name.trim() || !newTemplate.content.trim()) return;
-
-    // Extract variables from content (look for {{variable}} pattern)
-    const variableMatches = newTemplate.content.match(/\{\{([^}]+)\}\}/g);
-    const extractedVariables = variableMatches ? variableMatches.map(v => v.replace(/[{}]/g, '')) : [];
 
     const template: WhatsAppTemplate = {
       id: Date.now().toString(),
       name: newTemplate.name,
-      content: newTemplate.content,
       category: newTemplate.category,
       status: 'pending',
-      variables: extractedVariables,
-      created_at: new Date().toISOString()
+      content: newTemplate.content,
+      variables: extractVariables(newTemplate.content),
+      created_at: new Date().toISOString(),
+      language: newTemplate.language
     };
 
-    // Add template to the templates list (this would normally update a parent state)
-    console.log('New template created:', template);
-    setNewTemplate({
-      name: '',
-      content: '',
-      category: 'transactional',
-      variables: []
-    });
+    setTemplates([...templates, template]);
+    setNewTemplate({ name: '', category: 'transactional', content: '', language: 'en' });
     setShowCreateTemplate(false);
   };
 
-  const handleAddVariable = () => {
-    const variable = prompt('Enter variable name (without {{}}):');
-    if (variable && !newTemplate.variables.includes(variable)) {
-      setNewTemplate(prev => ({
-        ...prev,
-        variables: [...prev.variables, variable]
-      }));
-    }
-  };
-
-  const handleRemoveVariable = (variable: string) => {
-    setNewTemplate(prev => ({
-      ...prev,
-      variables: prev.variables.filter(v => v !== variable)
-    }));
-  };
 
   return (
     <div className="h-full flex bg-[#ECE5DD] rounded-lg overflow-hidden font-sans">
@@ -1164,75 +1114,74 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-600">Design a message template for your broadcasts</p>
-          <div>
-            <label className="block text-sm font-medium text-[#004d66] mb-2">Template Name</label>
-            <input
-              type="text"
-              value={newTemplate.name}
-              onChange={(e) => setNewTemplate(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Enter template name"
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-[#004d66] mb-1">Template Name</label>
+              <input
+                type="text"
+                value={newTemplate.name}
+                onChange={(e) => setNewTemplate({...newTemplate, name: e.target.value})}
+                placeholder="e.g., Welcome Message"
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#004d66] mb-1">Category</label>
+              <select
+                value={newTemplate.category}
+                onChange={(e) => setNewTemplate({...newTemplate, category: e.target.value as any})}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
+              >
+                <option value="transactional">Transactional</option>
+                <option value="marketing">Marketing</option>
+                <option value="otp">OTP</option>
+                <option value="notification">Notification</option>
+              </select>
+            </div>
           </div>
-          
           <div>
-            <label className="block text-sm font-medium text-[#004d66] mb-2">Category</label>
+            <label className="block text-sm font-medium text-[#004d66] mb-1">Language</label>
             <select
-              value={newTemplate.category}
-              onChange={(e) => setNewTemplate(prev => ({ ...prev, category: e.target.value as any }))}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+              value={newTemplate.language}
+              onChange={(e) => setNewTemplate({...newTemplate, language: e.target.value})}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
             >
-              <option value="transactional">Transactional</option>
-              <option value="marketing">Marketing</option>
-              <option value="otp">OTP</option>
-              <option value="notification">Notification</option>
+              <option value="en">English</option>
+              <option value="sw">Swahili</option>
+              <option value="fr">French</option>
+              <option value="es">Spanish</option>
             </select>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-[#004d66] mb-2">Template Content</label>
+            <label className="block text-sm font-medium text-[#004d66] mb-1">Content</label>
             <textarea
               value={newTemplate.content}
-              onChange={(e) => setNewTemplate(prev => ({ ...prev, content: e.target.value }))}
-              placeholder="Enter your template content. Use {{variable}} for dynamic content (e.g., {{name}}, {{amount}})."
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent h-32 resize-none"
+              onChange={(e) => setNewTemplate({...newTemplate, content: e.target.value})}
+              rows={4}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
+              placeholder="Enter your template content here... Use {{variable_name}} for dynamic content"
             />
-            <p className="text-xs text-gray-500 mt-1">Use {'{{variable}}'} for dynamic content (e.g., {'{{name}}'}, {'{{amount}}'})</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Use {'{{variable}}'} for dynamic content (e.g., {'{{name}}'}, {'{{amount}}'})
+            </p>
           </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-[#004d66]">Variables</label>
-              <ModalButton
-                onClick={handleAddVariable}
-                variant="primary"
-                size="sm"
-              >
-                Add Variable
-              </ModalButton>
+          {newTemplate.content && extractVariables(newTemplate.content).length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-[#004d66] mb-1">Detected Variables</label>
+              <div className="flex flex-wrap gap-1">
+                {extractVariables(newTemplate.content).map((variable, index) => (
+                  <span key={index} className="px-2 py-1 bg-[#25D366] text-white rounded text-xs">
+                    {variable}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {newTemplate.variables.map((variable, index) => (
-                <div key={index} className="flex items-center gap-1 bg-[#F0F2F5] px-3 py-1 rounded-full">
-                  <span className="text-sm text-gray-700">{variable}</span>
-                  <button
-                    onClick={() => handleRemoveVariable(variable)}
-                    className="text-gray-400 hover:text-red-500 transition-colors"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
+          )}
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
             <ModalButton
               onClick={() => setShowCreateTemplate(false)}
               variant="secondary"
-              size="md"
+              size="sm"
             >
               Cancel
             </ModalButton>
@@ -1240,7 +1189,7 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
               onClick={handleCreateTemplate}
               disabled={!newTemplate.name.trim() || !newTemplate.content.trim()}
               variant="primary"
-              size="md"
+              size="sm"
             >
               Create Template
             </ModalButton>
