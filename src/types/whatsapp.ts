@@ -84,6 +84,16 @@ export interface ChatMessage {
   timestamp: string;
   media_url?: string;
   template_id?: string;
+  file?: {
+    name: string;
+    size: number;
+    type: string;
+  };
+  location?: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
   metadata?: Record<string, any>;
 }
 
