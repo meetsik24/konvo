@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import EmojiPicker from 'emoji-picker-react';
 import { 
   MessageSquare, 
   Search, 
@@ -18,6 +19,8 @@ import {
   Users
 } from 'lucide-react';
 import { ChatConversation, ChatMessage, WhatsAppTemplate } from '../../types/whatsapp';
+import StandardModal from './StandardModal';
+import ModalButton from './ModalButton';
 
 interface MessagingTabProps {
   conversations: ChatConversation[];
@@ -37,7 +40,9 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [messageType, setMessageType] = useState<'text' | 'image' | 'document' | 'location'>('text');
+  const [messageType, setMessageType] = useState<'text' | 'image' | 'document' | 'location' | 'interactive' | 'contacts'>('text');
+  const [showInteractiveBuilder, setShowInteractiveBuilder] = useState(false);
+  const [interactiveType, setInteractiveType] = useState<'button' | 'list' | 'product' | 'product_list'>('button');
   const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const [newTemplate, setNewTemplate] = useState({
     name: '',
@@ -48,8 +53,6 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Emoji picker data
-  const emojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'];
 
   // Sample templates
   const templates: WhatsAppTemplate[] = [
@@ -216,8 +219,8 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
     setContactSearch('');
   };
 
-  const handleEmojiSelect = (emoji: string) => {
-    setNewMessage(prev => prev + emoji);
+  const handleEmojiSelect = (emoji: any) => {
+    setNewMessage(prev => prev + emoji.emoji);
     setShowEmojiPicker(false);
   };
 
@@ -226,6 +229,13 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
       fileInputRef.current.accept = type === 'image' ? 'image/*' : '.pdf,.doc,.docx,.txt,.xlsx,.xls';
       fileInputRef.current.click();
     }
+    setShowAttachmentMenu(false);
+  };
+
+  const handleInteractiveSelect = (type: 'button' | 'list' | 'product' | 'product_list') => {
+    setInteractiveType(type);
+    setMessageType('interactive');
+    setShowInteractiveBuilder(true);
     setShowAttachmentMenu(false);
   };
 
@@ -374,47 +384,47 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
 
   return (
     <div className="h-full flex bg-[#ECE5DD] rounded-lg overflow-hidden font-sans">
-      {/* Sidebar - Conversations List */}
-      <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
-        {/* Header */}
-        <div className="bg-[#F0F2F5] p-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#004d66] rounded-full flex items-center justify-center">
-              <User className="w-6 h-6 text-white" />
+      {/* Sidebar - Conversations List - Mobile Responsive */}
+      <div className={`${selectedConversation ? 'hidden sm:flex' : 'flex'} w-full sm:w-1/3 bg-white border-r border-gray-200 flex-col`}>
+        {/* Header - Mobile Responsive */}
+        <div className="bg-[#F0F2F5] p-2 sm:p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#004d66] rounded-lg flex items-center justify-center flex-shrink-0">
+              <User className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-[#004d66]">WhatsApp Business</h2>
-              <p className="text-xs text-gray-600">Online</p>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xs sm:text-sm font-semibold text-[#004d66] truncate">WhatsApp Business</h2>
+              <p className="text-xs text-gray-600 hidden sm:block">Online</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button 
               onClick={() => setShowContactPicker(true)} 
-              className="p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors"
+              className="p-1 sm:p-1.5 text-[#004d66] hover:bg-gray-200 rounded transition-colors"
               title="New Chat"
             >
-              <MessageSquare className="w-5 h-5" />
+              <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
             <button 
               onClick={() => setShowBulkMessaging(true)}
-              className="p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors"
+              className="p-1 sm:p-1.5 text-[#004d66] hover:bg-gray-200 rounded transition-colors"
               title="Broadcast"
             >
-              <Megaphone className="w-5 h-5" />
+              <Megaphone className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
 
-        {/* Search */}
-        <div className="p-3 border-b border-gray-200">
+        {/* Search - Mobile Responsive */}
+        <div className="p-2 sm:p-3 border-b border-gray-200">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3" />
             <input
               type="text"
               placeholder="Search chats"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-[#F0F2F5] rounded-full text-sm focus:ring-2 focus:ring-[#25D366] focus:border-transparent focus:bg-white"
+              className="w-full pl-6 sm:pl-8 pr-2 sm:pr-3 py-1.5 sm:py-2 bg-[#F0F2F5] rounded text-xs sm:text-sm focus:ring-1 focus:ring-[#25D366] focus:border-transparent focus:bg-white"
             />
           </div>
         </div>
@@ -478,42 +488,48 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
          </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-[#ECE5DD]">
+      {/* Main Chat Area - Mobile Responsive */}
+      <div className={`${selectedConversation ? 'flex' : 'hidden sm:flex'} flex-1 flex-col bg-[#ECE5DD]`}>
         {selectedConversation && selectedConv ? (
           <>
-             {/* Chat Header */}
-             <div className="bg-[#F0F2F5] p-3 border-b border-gray-200 flex items-center justify-between">
-               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 bg-[#004d66] rounded-full flex items-center justify-center">
-                   <User className="w-5 h-5 text-white" />
+             {/* Chat Header - Mobile Responsive */}
+             <div className="bg-[#F0F2F5] p-2 sm:p-3 border-b border-gray-200 flex items-center justify-between">
+               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                 <button 
+                   onClick={() => setSelectedConversation(null)}
+                   className="sm:hidden p-1 text-[#004d66] hover:bg-gray-200 rounded transition-colors mr-1"
+                 >
+                   <XCircle className="w-4 h-4" />
+                 </button>
+                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#004d66] rounded-full flex items-center justify-center flex-shrink-0">
+                   <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                  </div>
-                 <div>
-                   <h3 className="font-medium text-[#004d66]">{selectedConv.customer_name}</h3>
-                   <p className="text-xs text-gray-600">{selectedConv.customer_phone}</p>
+                 <div className="min-w-0 flex-1">
+                   <h3 className="font-medium text-[#004d66] text-sm sm:text-base truncate">{selectedConv.customer_name}</h3>
+                   <p className="text-xs text-gray-600 truncate">{selectedConv.customer_phone}</p>
                  </div>
                </div>
-               <div className="flex items-center gap-1">
-                 <button className="p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors" title="Voice Call">
-                   <Phone className="w-5 h-5" />
+               <div className="flex items-center gap-1 flex-shrink-0">
+                 <button className="p-1.5 sm:p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors" title="Voice Call">
+                   <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
                  </button>
                  <select
                    value={selectedConv.assigned_agent || 'Unassigned'}
                    onChange={(e) => handleAssignAgent(selectedConv.id, e.target.value)}
-                   className="p-2 text-xs text-[#004d66] bg-transparent border-none focus:ring-0 rounded hover:bg-gray-200"
+                   className="p-1.5 sm:p-2 text-xs text-[#004d66] bg-transparent border-none focus:ring-0 rounded hover:bg-gray-200 hidden sm:block"
                  >
                    {agents.map(agent => (
                      <option key={agent} value={agent}>{agent}</option>
                    ))}
                  </select>
-                 <button className="p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors" title="More options">
-                   <MoreVertical className="w-5 h-5" />
+                 <button className="p-1.5 sm:p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors" title="More options">
+                   <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5" />
                  </button>
                </div>
              </div>
 
-             {/* Messages Area */}
-             <div className="flex-1 p-4 space-y-2 overflow-y-auto bg-[#ECE5DD] relative">
+             {/* Messages Area - Mobile Responsive */}
+             <div className="flex-1 p-2 sm:p-4 space-y-2 overflow-y-auto bg-[#ECE5DD] relative">
                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIwIDQwQzMxLjA0NTcgNDAgNDAgMzEuMDQ1NyA0MCAyMEM0MCA4Ljk1NDMgMzEuMDQ1NyAwIDIwIDBDOC45NTQzIDAgMCA4Ljk1NDMgMCAyMEMwIDMxLjA0NTcgOC45NTQzIDQwIDIwIDQwWiIgZmlsbD0iI0ZGRkZGRiIgZmlsbC1vcGFjaXR5PSIwLjEiLz4KPC9zdmc+')] opacity-30"></div>
                <div className="relative z-10">
                  {selectedConv.messages && selectedConv.messages.length > 0 ? (
@@ -576,30 +592,29 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
                </div>
              </div>
 
-             {/* Message Input */}
-             <div className="p-3 bg-[#F0F2F5] flex items-center gap-2">
+             {/* Message Input - Mobile Responsive */}
+             <div className="p-2 sm:p-3 bg-[#F0F2F5] flex items-center gap-1 sm:gap-2">
                {/* Emoji Picker */}
                <div className="relative emoji-picker">
                  <button 
                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                   className="p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors" 
+                   className="p-1.5 sm:p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors" 
                    title="Emoji"
                  >
-                   <Smile className="w-5 h-5" />
+                   <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
                  </button>
                  {showEmojiPicker && (
-                   <div className="absolute bottom-12 left-0 bg-white rounded-lg shadow-lg p-3 z-20 w-64 h-48 overflow-y-auto">
-                     <div className="grid grid-cols-8 gap-1">
-                       {emojis.map((emoji, index) => (
-                         <button
-                           key={index}
-                           onClick={() => handleEmojiSelect(emoji)}
-                           className="p-2 hover:bg-gray-100 rounded text-lg"
-                         >
-                           {emoji}
-                         </button>
-                       ))}
-                     </div>
+                   <div className="absolute bottom-12 left-0 z-20 w-72 sm:w-80">
+                     <EmojiPicker
+                       onEmojiClick={handleEmojiSelect}
+                       width="100%"
+                       height={300}
+                       searchDisabled={false}
+                       skinTonesDisabled={false}
+                       previewConfig={{
+                         showPreview: false
+                       }}
+                     />
                    </div>
                  )}
                </div>
@@ -608,13 +623,14 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
                <div className="relative attachment-menu">
                  <button 
                    onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-                   className="p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors" 
+                   className="p-1.5 sm:p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors" 
                    title="Attach"
                  >
-                   <Paperclip className="w-5 h-5" />
+                   <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
                  </button>
                  {showAttachmentMenu && (
-                   <div className="absolute bottom-12 left-0 flex flex-col bg-white rounded-lg shadow-lg p-2 z-20 min-w-[140px]">
+                   <div className="absolute bottom-12 left-0 flex flex-col bg-white rounded-lg shadow-lg p-2 z-20 min-w-[160px] sm:min-w-[180px]">
+                     <div className="text-xs font-medium text-gray-500 px-3 py-2 border-b border-gray-100">Media</div>
                      <button 
                        onClick={() => handleFileSelect('image')}
                        className="flex items-center gap-3 p-3 hover:bg-gray-100 rounded text-sm w-full text-left"
@@ -635,6 +651,35 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
                      >
                        <MapPin className="w-4 h-4 flex-shrink-0" /> 
                        <span>Location</span>
+                     </button>
+                     
+                     <div className="text-xs font-medium text-gray-500 px-3 py-2 border-b border-gray-100 mt-2">Interactive</div>
+                     <button 
+                       onClick={() => handleInteractiveSelect('button')}
+                       className="flex items-center gap-3 p-3 hover:bg-gray-100 rounded text-sm w-full text-left"
+                     >
+                       <div className="w-4 h-4 bg-[#25D366] rounded flex items-center justify-center flex-shrink-0">
+                         <span className="text-white text-xs font-bold">B</span>
+                       </div>
+                       <span>Quick Reply Buttons</span>
+                     </button>
+                     <button 
+                       onClick={() => handleInteractiveSelect('list')}
+                       className="flex items-center gap-3 p-3 hover:bg-gray-100 rounded text-sm w-full text-left"
+                     >
+                       <div className="w-4 h-4 bg-[#25D366] rounded flex items-center justify-center flex-shrink-0">
+                         <span className="text-white text-xs font-bold">L</span>
+                       </div>
+                       <span>List Message</span>
+                     </button>
+                     <button 
+                       onClick={() => handleInteractiveSelect('product')}
+                       className="flex items-center gap-3 p-3 hover:bg-gray-100 rounded text-sm w-full text-left"
+                     >
+                       <div className="w-4 h-4 bg-[#25D366] rounded flex items-center justify-center flex-shrink-0">
+                         <span className="text-white text-xs font-bold">P</span>
+                       </div>
+                       <span>Product Message</span>
                      </button>
                    </div>
                  )}
@@ -680,36 +725,37 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
                  )}
                </div>
 
-               {/* Send Button */}
+               {/* Send Button - Mobile Responsive */}
                {(newMessage.trim() || selectedFile) ? (
                  <button 
                    onClick={selectedFile ? handleSendRichMessage : handleSendMessage}
-                   className="p-2 bg-[#25D366] text-white rounded-full hover:bg-[#1DA851] transition-colors"
+                   className="p-1.5 sm:p-2 bg-[#25D366] text-white rounded-full hover:bg-[#1DA851] transition-colors"
                    title="Send message"
                  >
-                   <Send className="w-5 h-5" />
+                   <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                  </button>
                ) : (
-                 <button className="p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors" title="Voice message">
-                   <Mic className="w-5 h-5" />
+                 <button className="p-1.5 sm:p-2 text-[#004d66] hover:bg-gray-200 rounded-full transition-colors" title="Voice message">
+                   <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
                  </button>
                )}
              </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-[#ECE5DD]">
-            <div className="text-center">
-              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
-                <MessageSquare className="w-10 h-10 text-gray-400" />
+          <div className="flex-1 flex items-center justify-center bg-[#ECE5DD] p-4">
+            <div className="text-center max-w-md mx-auto">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-sm">
+                <MessageSquare className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">WhatsApp Business</h3>
-              <p className="text-gray-500 mb-4">Select a chat to start messaging</p>
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-700 mb-2">WhatsApp Business</h3>
+              <p className="text-sm sm:text-base text-gray-500 mb-4">Select a chat to start messaging</p>
               <button 
                 onClick={() => setShowContactPicker(true)}
-                className="px-6 py-3 bg-[#25D366] text-white rounded-full hover:bg-[#1DA851] transition-colors flex items-center gap-2 mx-auto"
+                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-700 text-white rounded-full hover:bg-[#1DA851] transition-colors flex items-center gap-2 mx-auto text-sm sm:text-base"
               >
-                <MessageSquare className="w-5 h-5" />
-                Start New Chat
+                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Start New Chat</span>
+                <span className="sm:hidden">New Chat</span>
               </button>
             </div>
           </div>
@@ -717,46 +763,28 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
       </div>
 
       {/* Bulk Messaging Modal */}
-      {showBulkMessaging && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-        >
-          <div className="bg-white rounded-xl w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#004d66] rounded-full flex items-center justify-center">
-                  <Megaphone className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-[#004d66]">New Broadcast</h3>
-                  <p className="text-sm text-gray-600">Send a message to multiple contacts</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowBulkMessaging(false)}
-                className="p-2 text-gray-400 hover:bg-gray-200 rounded-full transition-colors"
+      <StandardModal
+        isOpen={showBulkMessaging}
+        onClose={() => setShowBulkMessaging(false)}
+        title="New Broadcast"
+        size="lg"
+      >
+        <div className="space-y-6">
+          <p className="text-sm text-gray-600">Send a message to multiple contacts</p>
+          
+          {/* Template Selection */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-[#004d66]">Choose Template</label>
+              <ModalButton
+                onClick={() => setShowCreateTemplate(true)}
+                variant="primary"
+                size="sm"
               >
-                <XCircle className="w-5 h-5" />
-              </button>
+                Create Template
+              </ModalButton>
             </div>
-            <div className="p-6 space-y-6">
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="block text-sm font-medium text-[#004d66]">Choose Template</label>
-                    <button
-                      onClick={() => setShowCreateTemplate(true)}
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs bg-[#004d66] text-white rounded-lg hover:bg-[#003d52] transition-colors"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Create Template
-                    </button>
-                  </div>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
+            <div className="space-y-2 max-h-48 overflow-y-auto">
                     {templates.map((template) => (
                       <div
                         key={template.id}
@@ -813,321 +841,412 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
                         </div>
                       </div>
                     ))}
-                  </div>
+            </div>
+          </div>
+          
+          {/* Message Content */}
+          <div>
+            <label className="block text-sm font-medium text-[#004d66] mb-3">Message Content</label>
+            <div className="relative">
+              <textarea
+                value={bulkMessage}
+                onChange={(e) => setBulkMessage(e.target.value)}
+                placeholder="Type your message here..."
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent h-32 resize-none bg-white"
+              />
+              <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                <span className="text-xs text-gray-400">{bulkMessage.length}</span>
+                <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+              </div>
+            </div>
+            {selectedTemplate && (
+              <div className="mt-3 p-3 bg-[#F0F2F5] rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-4 h-4 text-[#004d66]" />
+                  <span className="text-sm font-medium text-[#004d66]">Template Preview</span>
                 </div>
-              <div>
-                <label className="block text-sm font-medium text-[#004d66] mb-3">Message Content</label>
-                <div className="relative">
-                  <textarea
-                    value={bulkMessage}
-                    onChange={(e) => setBulkMessage(e.target.value)}
-                    placeholder="Type your message here..."
-                    className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent h-32 resize-none bg-white"
-                  />
-                  <div className="absolute bottom-3 right-3 flex items-center gap-2">
-                    <span className="text-xs text-gray-400">{bulkMessage.length}</span>
-                    <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+                <p className="text-sm text-gray-700 leading-relaxed">{selectedTemplate.content}</p>
+                {selectedTemplate.variables.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedTemplate.variables.map((variable, index) => (
+                      <span key={index} className="text-xs bg-[#25D366] text-white px-2 py-1 rounded">
+                        {variable}
+                      </span>
+                    ))}
                   </div>
-                </div>
-                {selectedTemplate && (
-                  <div className="mt-3 p-3 bg-[#F0F2F5] rounded-lg border border-gray-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="w-4 h-4 text-[#004d66]" />
-                      <span className="text-sm font-medium text-[#004d66]">Template Preview</span>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Recipients Selection */}
+          <div>
+            <label className="block text-sm font-medium text-[#004d66] mb-3">
+              Select Recipients ({selectedAudience.length} selected)
+            </label>
+            <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+              {conversations.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  className="flex items-center gap-3 p-3 hover:bg-[#F0F2F5] cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                  onClick={() => handleAudienceToggle(conversation.id)}
+                >
+                  <div className="flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={selectedAudience.includes(conversation.id)}
+                      onChange={() => {}}
+                      className="w-4 h-4 text-[#25D366] border-gray-300 rounded focus:ring-[#25D366]"
+                    />
+                  </div>
+                  <div className="w-10 h-10 bg-[#004d66] rounded-full flex items-center justify-center flex-shrink-0">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">{conversation.customer_name}</p>
+                      {conversation.status === 'active' && (
+                        <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-700 leading-relaxed">{selectedTemplate.content}</p>
-                    {selectedTemplate.variables.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {selectedTemplate.variables.map((variable, index) => (
-                          <span key={index} className="text-xs bg-[#25D366] text-white px-2 py-1 rounded">
-                            {variable}
+                    <p className="text-xs text-gray-600 truncate">{conversation.customer_phone}</p>
+                    {conversation.tags.length > 0 && (
+                      <div className="flex items-center gap-1 mt-1">
+                        {conversation.tags.slice(0, 2).map((tag, index) => (
+                          <span key={index} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                            #{tag}
                           </span>
                         ))}
+                        {conversation.tags.length > 2 && (
+                          <span className="text-xs text-gray-400">+{conversation.tags.length - 2} more</span>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#004d66] mb-3">
-                  Select Recipients ({selectedAudience.length} selected)
-                </label>
-                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white">
-                  {conversations.map((conversation) => (
-                     <div
-                       key={conversation.id}
-                       className="flex items-center gap-3 p-3 hover:bg-[#F0F2F5] cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
-                       onClick={() => handleAudienceToggle(conversation.id)}
-                     >
-                       <div className="flex-shrink-0">
-                         <input
-                           type="checkbox"
-                           checked={selectedAudience.includes(conversation.id)}
-                           onChange={() => {}}
-                           className="w-4 h-4 text-[#25D366] border-gray-300 rounded focus:ring-[#25D366]"
-                         />
-                       </div>
-                       <div className="w-10 h-10 bg-[#004d66] rounded-full flex items-center justify-center flex-shrink-0">
-                         <User className="w-5 h-5 text-white" />
-                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-medium text-gray-900 truncate">{conversation.customer_name}</p>
-                          {conversation.status === 'active' && (
-                            <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-600 truncate">{conversation.customer_phone}</p>
-                        {conversation.tags.length > 0 && (
-                          <div className="flex items-center gap-1 mt-1">
-                            {conversation.tags.slice(0, 2).map((tag, index) => (
-                              <span key={index} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                                #{tag}
-                              </span>
-                            ))}
-                            {conversation.tags.length > 2 && (
-                              <span className="text-xs text-gray-400">+{conversation.tags.length - 2} more</span>
-                            )}
-                          </div>
-                        )}
+                  {selectedAudience.includes(conversation.id) && (
+                    <div className="flex-shrink-0">
+                      <div className="w-5 h-5 bg-[#25D366] rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
                       </div>
-                      {selectedAudience.includes(conversation.id) && (
-                        <div className="flex-shrink-0">
-                          <div className="w-5 h-5 bg-[#25D366] rounded-full flex items-center justify-center">
-                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-              <div className="flex justify-between items-center pt-4 border-t border-gray-200 bg-[#F0F2F5] -mx-6 px-6 py-4 rounded-b-xl">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-[#004d66] rounded-full flex items-center justify-center">
-                    <Users className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-[#004d66]">{selectedAudience.length} contacts selected</p>
-                    <p className="text-xs text-gray-600">Ready to send broadcast</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowBulkMessaging(false)}
-                    className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleBulkSend}
-                    disabled={!bulkMessage.trim() || selectedAudience.length === 0}
-                    className="px-6 py-2 bg-[#25D366] text-white rounded-lg hover:bg-[#1DA851] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 font-medium"
-                  >
-                    <Send className="w-4 h-4" />
-                    Send to {selectedAudience.length} contacts
-                  </button>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
-        </motion.div>
-      )}
+          
+          {/* Footer */}
+          <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-[#004d66] rounded-full flex items-center justify-center">
+                <Users className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[#004d66]">{selectedAudience.length} contacts selected</p>
+                <p className="text-xs text-gray-600">Ready to send broadcast</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <ModalButton
+                onClick={() => setShowBulkMessaging(false)}
+                variant="secondary"
+                size="md"
+              >
+                Cancel
+              </ModalButton>
+              <ModalButton
+                onClick={handleBulkSend}
+                disabled={!bulkMessage.trim() || selectedAudience.length === 0}
+                variant="primary"
+                size="md"
+                icon={Send}
+              >
+                Send to {selectedAudience.length} contacts
+              </ModalButton>
+            </div>
+          </div>
+        </div>
+      </StandardModal>
 
       {/* Contact Picker Modal */}
-      {showContactPicker && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-        >
-          <div className="bg-white rounded-xl w-full max-w-lg max-h-[80vh] overflow-y-auto shadow-2xl">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#004d66] rounded-full flex items-center justify-center">
-                  <Users className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-[#004d66]">New Chat</h3>
-                  <p className="text-sm text-gray-600">Select a contact to start messaging</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowContactPicker(false)}
-                className="p-2 text-gray-400 hover:bg-gray-200 rounded-full transition-colors"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="relative mb-6">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search contacts..."
-                  value={contactSearch}
-                  onChange={(e) => setContactSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-[#F0F2F5] rounded-full text-sm focus:ring-2 focus:ring-[#25D366] focus:bg-white transition-colors"
-                />
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {conversations
-                  .filter(conv => 
-                    conv.customer_name.toLowerCase().includes(contactSearch.toLowerCase()) ||
-                    conv.customer_phone.includes(contactSearch)
-                  )
-                  .map((conversation) => (
-                     <div
-                       key={conversation.id}
-                       className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer rounded-lg transition-colors"
-                       onClick={() => handleStartNewChat(conversation.id)}
-                     >
-                       <div className="w-10 h-10 bg-[#004d66] rounded-full flex items-center justify-center">
-                         <User className="w-5 h-5 text-white" />
-                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{conversation.customer_name}</p>
-                        <p className="text-xs text-gray-600">{conversation.customer_phone}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {conversation.status === 'active' && (
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        )}
-                        <MessageSquare className="w-4 h-4 text-gray-400" />
-                      </div>
-                    </div>
-                  ))}
-                {conversations.filter(conv => 
-                  conv.customer_name.toLowerCase().includes(contactSearch.toLowerCase()) ||
-                  conv.customer_phone.includes(contactSearch)
-                ).length === 0 && (
-                  <div className="text-center py-8">
-                    <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">No contacts found</p>
-                    <p className="text-gray-400 text-xs">Try a different search term</p>
+      <StandardModal
+        isOpen={showContactPicker}
+        onClose={() => setShowContactPicker(false)}
+        title="New Chat"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Select a contact to start messaging</p>
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search contacts..."
+              value={contactSearch}
+              onChange={(e) => setContactSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-[#F0F2F5] rounded-lg text-sm focus:ring-2 focus:ring-[#25D366] focus:bg-white transition-colors"
+            />
+          </div>
+          <div className="max-h-80 overflow-y-auto">
+            {conversations
+              .filter(conv => 
+                conv.customer_name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                conv.customer_phone.includes(contactSearch)
+              )
+              .map((conversation) => (
+                <div
+                  key={conversation.id}
+                  className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer rounded-lg transition-colors"
+                  onClick={() => handleStartNewChat(conversation.id)}
+                >
+                  <div className="w-10 h-10 bg-[#004d66] rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
                   </div>
-                )}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">{conversation.customer_name}</p>
+                    <p className="text-xs text-gray-600">{conversation.customer_phone}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {conversation.status === 'active' && (
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    )}
+                    <MessageSquare className="w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+              ))}
+            {conversations.filter(conv => 
+              conv.customer_name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+              conv.customer_phone.includes(contactSearch)
+            ).length === 0 && (
+              <div className="text-center py-8">
+                <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm">No contacts found</p>
+                <p className="text-gray-400 text-xs">Try a different search term</p>
               </div>
+            )}
+          </div>
+        </div>
+      </StandardModal>
+
+      {/* Interactive Message Builder Modal */}
+      <StandardModal
+        isOpen={showInteractiveBuilder}
+        onClose={() => setShowInteractiveBuilder(false)}
+        title="Interactive Message Builder"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 bg-[#25D366] rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-bold">
+                {interactiveType === 'button' ? 'B' : interactiveType === 'list' ? 'L' : 'P'}
+              </span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-[#004d66]">
+                {interactiveType === 'button' ? 'Quick Reply Buttons' : 
+                 interactiveType === 'list' ? 'List Message' : 'Product Message'}
+              </h3>
+              <p className="text-xs text-gray-600">Create interactive message</p>
             </div>
           </div>
-        </motion.div>
-      )}
-
-      {/* Create Template Modal */}
-      {showCreateTemplate && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-        >
-          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#004d66] rounded-full flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-[#004d66]">Create New Template</h3>
-                  <p className="text-sm text-gray-600">Design a message template for your broadcasts</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowCreateTemplate(false)}
-                className="p-2 text-gray-400 hover:bg-gray-200 rounded-full transition-colors"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-6">
               <div>
-                <label className="block text-sm font-medium text-[#004d66] mb-2">Template Name</label>
+                <label className="block text-sm font-medium text-[#004d66] mb-1">Header Text (Optional)</label>
                 <input
                   type="text"
-                  value={newTemplate.name}
-                  onChange={(e) => setNewTemplate(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter template name"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+                  placeholder="Enter header text"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-[#004d66] mb-2">Category</label>
-                <select
-                  value={newTemplate.category}
-                  onChange={(e) => setNewTemplate(prev => ({ ...prev, category: e.target.value as any }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
-                >
-                  <option value="transactional">Transactional</option>
-                  <option value="marketing">Marketing</option>
-                  <option value="otp">OTP</option>
-                  <option value="notification">Notification</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#004d66] mb-2">Template Content</label>
+                <label className="block text-sm font-medium text-[#004d66] mb-1">Body Text *</label>
                 <textarea
-                  value={newTemplate.content}
-                  onChange={(e) => setNewTemplate(prev => ({ ...prev, content: e.target.value }))}
-                  placeholder="Enter your template content. Use {{variable}} for dynamic content (e.g., {{name}}, {{amount}})."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent h-32 resize-none"
+                  rows={3}
+                  placeholder="Enter your message body"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
                 />
-                <p className="text-xs text-gray-500 mt-1">Use {'{{variable}}'} for dynamic content (e.g., {'{{name}}'}, {'{{amount}}'})</p>
               </div>
-
+              
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-[#004d66]">Variables</label>
+                <label className="block text-sm font-medium text-[#004d66] mb-1">Footer Text (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="Enter footer text"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
+                />
+              </div>
+              
+              {interactiveType === 'button' && (
+                <div>
+                  <label className="block text-sm font-medium text-[#004d66] mb-1">Buttons (Max 3)</label>
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder={`Button ${i} text`}
+                          className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
+                        />
+                        <select className="p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm">
+                          <option value="reply">Reply</option>
+                          <option value="url">URL</option>
+                          <option value="phone">Phone</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {interactiveType === 'list' && (
+                <div>
+                  <label className="block text-sm font-medium text-[#004d66] mb-1">List Sections</label>
+                  <div className="space-y-3">
+                    <div className="border border-gray-200 rounded-lg p-3">
+                      <input
+                        type="text"
+                        placeholder="Section title"
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm mb-2"
+                      />
+                      <div className="space-y-2">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder={`Option ${i} title`}
+                              className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder={`Option ${i} description`}
+                              className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <ModalButton
+              onClick={() => setShowInteractiveBuilder(false)}
+              variant="secondary"
+              size="sm"
+            >
+              Cancel
+            </ModalButton>
+            <ModalButton
+              onClick={() => {
+                // Handle interactive message creation
+                setShowInteractiveBuilder(false);
+                setMessageType('text');
+              }}
+              variant="primary"
+              size="sm"
+            >
+              Create Message
+            </ModalButton>
+          </div>
+        </div>
+      </StandardModal>
+
+      {/* Create Template Modal */}
+      <StandardModal
+        isOpen={showCreateTemplate}
+        onClose={() => setShowCreateTemplate(false)}
+        title="Create New Template"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Design a message template for your broadcasts</p>
+          <div>
+            <label className="block text-sm font-medium text-[#004d66] mb-2">Template Name</label>
+            <input
+              type="text"
+              value={newTemplate.name}
+              onChange={(e) => setNewTemplate(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Enter template name"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-[#004d66] mb-2">Category</label>
+            <select
+              value={newTemplate.category}
+              onChange={(e) => setNewTemplate(prev => ({ ...prev, category: e.target.value as any }))}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+            >
+              <option value="transactional">Transactional</option>
+              <option value="marketing">Marketing</option>
+              <option value="otp">OTP</option>
+              <option value="notification">Notification</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#004d66] mb-2">Template Content</label>
+            <textarea
+              value={newTemplate.content}
+              onChange={(e) => setNewTemplate(prev => ({ ...prev, content: e.target.value }))}
+              placeholder="Enter your template content. Use {{variable}} for dynamic content (e.g., {{name}}, {{amount}})."
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent h-32 resize-none"
+            />
+            <p className="text-xs text-gray-500 mt-1">Use {'{{variable}}'} for dynamic content (e.g., {'{{name}}'}, {'{{amount}}'})</p>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-[#004d66]">Variables</label>
+              <ModalButton
+                onClick={handleAddVariable}
+                variant="primary"
+                size="sm"
+              >
+                Add Variable
+              </ModalButton>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {newTemplate.variables.map((variable, index) => (
+                <div key={index} className="flex items-center gap-1 bg-[#F0F2F5] px-3 py-1 rounded-full">
+                  <span className="text-sm text-gray-700">{variable}</span>
                   <button
-                    onClick={handleAddVariable}
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-[#25D366] text-white rounded hover:bg-[#1DA851] transition-colors"
+                    onClick={() => handleRemoveVariable(variable)}
+                    className="text-gray-400 hover:text-red-500 transition-colors"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    Add Variable
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {newTemplate.variables.map((variable, index) => (
-                    <div key={index} className="flex items-center gap-1 bg-[#F0F2F5] px-3 py-1 rounded-full">
-                      <span className="text-sm text-gray-700">{variable}</span>
-                      <button
-                        onClick={() => handleRemoveVariable(variable)}
-                        className="text-gray-400 hover:text-red-500 transition-colors"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => setShowCreateTemplate(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateTemplate}
-                  disabled={!newTemplate.name.trim() || !newTemplate.content.trim()}
-                  className="px-6 py-2 bg-[#25D366] text-white rounded-lg hover:bg-[#1DA851] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                >
-                  Create Template
-                </button>
-              </div>
+              ))}
             </div>
           </div>
-        </motion.div>
-      )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <ModalButton
+              onClick={() => setShowCreateTemplate(false)}
+              variant="secondary"
+              size="md"
+            >
+              Cancel
+            </ModalButton>
+            <ModalButton
+              onClick={handleCreateTemplate}
+              disabled={!newTemplate.name.trim() || !newTemplate.content.trim()}
+              variant="primary"
+              size="md"
+            >
+              Create Template
+            </ModalButton>
+          </div>
+        </div>
+      </StandardModal>
     </div>
   );
 };

@@ -135,83 +135,90 @@ const AutomationTab: React.FC<AutomationTabProps> = ({ flows, setFlows }) => {
     { 
       id: 'welcome', 
       name: 'Welcome Messages', 
-      description: 'Auto-reply to new conversations',
+      // description: 'Auto-reply to new conversations',
       icon: MessageSquare,
       color: 'text-blue-500'
     },
     { 
       id: 'keyword', 
       name: 'Keyword Responses', 
-      description: 'Respond to specific keywords',
+      // description: 'Respond to specific keywords',
       icon: Zap,
       color: 'text-purple-500'
     },
     { 
       id: 'time_based', 
       name: 'Time-based', 
-      description: 'Scheduled automated messages',
+      // description: 'Scheduled automated messages',
       icon: Clock,
       color: 'text-orange-500'
     },
     { 
       id: 'event', 
       name: 'Event Triggers', 
-      description: 'Triggered by specific events',
+      // description: 'Triggered by specific events',
       icon: Circle,
       color: 'text-green-500'
     }
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-4">
+      {/* Header - Mobile Responsive */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Bot className="w-6 h-6 text-[#25D366]" />
-          <h2 className="text-xl font-semibold text-[#004d66]">Automation & Flows</h2>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#004d66] rounded-lg flex items-center justify-center flex-shrink-0">
+            <Bot className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm sm:text-lg font-semibold text-[#004d66] truncate">Automation & Flows</h2>
+            <p className="text-xs text-gray-600 hidden sm:block">Create and manage automated workflows</p>
+          </div>
         </div>
         <button
           onClick={() => setShowCreateForm(true)}
-          className="px-4 py-2 bg-[#25D366] text-white rounded-md hover:bg-[#1DA851] flex items-center gap-2"
+          className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#004d66] text-white rounded hover:bg-[#003d52] flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-medium transition-colors flex-shrink-0"
         >
-          <Plus className="w-4 h-4" />
-          Create Flow
+          <Plus className="w-3 h-3" />
+          <span className="hidden sm:inline">Create Flow</span>
+          <span className="sm:hidden">Create</span>
         </button>
       </div>
 
-      {/* Flow Types */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Flow Types - Mobile Responsive */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {flowTypes.map((type, index) => (
           <motion.div
             key={type.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-white p-4 rounded-lg border border-gray-200 text-center hover:shadow-md transition-shadow cursor-pointer"
+            className="bg-white p-2 sm:p-4 rounded-lg border border-gray-200 text-center hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => setNewFlow({...newFlow, trigger: type.id as any})}
           >
-            <type.icon className={`w-8 h-8 ${type.color} mx-auto mb-2`} />
-            <h3 className="font-medium text-[#004d66]">{type.name}</h3>
-            <p className="text-sm text-gray-600">{type.description}</p>
+            <type.icon className={`w-6 h-6 sm:w-8 sm:h-8 ${type.color} mx-auto mb-1 sm:mb-2`} />
+            <h3 className="font-medium text-[#004d66] text-sm sm:text-base">{type.name}</h3>
+            <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">{type.description}</p>
           </motion.div>
         ))}
       </div>
 
-      {/* Search and Filter */}
-      <div className="flex gap-4">
+      {/* Search and Filter - Mobile Responsive */}
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
           <input
             type="text"
             placeholder="Search flows..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+            className="w-full pl-6 sm:pl-10 pr-2 sm:pr-4 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
           />
         </div>
         <select
           value={filterTrigger}
           onChange={(e) => setFilterTrigger(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+          className="px-2 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
         >
           <option value="all">All Triggers</option>
           <option value="welcome">Welcome</option>
@@ -222,13 +229,13 @@ const AutomationTab: React.FC<AutomationTabProps> = ({ flows, setFlows }) => {
         </select>
       </div>
 
-      {/* Flows List */}
-      <div className="space-y-4">
+      {/* Flows List - Mobile Responsive */}
+      <div className="space-y-3 sm:space-y-4">
         {filteredFlows.length === 0 ? (
-          <div className="text-center py-12">
-            <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No automation flows created yet</p>
-            <p className="text-sm text-gray-500">Create flows to automate your customer interactions</p>
+          <div className="text-center py-8 sm:py-12">
+            <Bot className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
+            <p className="text-sm sm:text-base text-gray-600">No automation flows created yet</p>
+            <p className="text-xs sm:text-sm text-gray-500">Create flows to automate your customer interactions</p>
           </div>
         ) : (
           filteredFlows.map((flow, index) => (
@@ -237,29 +244,29 @@ const AutomationTab: React.FC<AutomationTabProps> = ({ flows, setFlows }) => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
+              className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
             >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <div className="flex items-center gap-2">
                     {getTriggerIcon(flow.trigger)}
-                    <h3 className="font-medium text-[#004d66]">{flow.name}</h3>
+                    <h3 className="font-medium text-[#004d66] text-sm sm:text-base">{flow.name}</h3>
                   </div>
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                  <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
                     {flow.trigger}
                   </span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(flow.status)}`}>
+                  <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium ${getStatusColor(flow.status)}`}>
                     {flow.status}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   {getStatusIcon(flow.status)}
                   <button 
                     onClick={() => setShowFlowBuilder(flow.id)}
                     className="p-1 text-gray-600 hover:text-[#25D366]"
                     title="Edit Flow"
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
                   <button 
                     onClick={() => handleStatusToggle(flow.id)}
@@ -268,36 +275,37 @@ const AutomationTab: React.FC<AutomationTabProps> = ({ flows, setFlows }) => {
                     }`}
                     title={flow.status === 'active' ? 'Deactivate' : 'Activate'}
                   >
-                    {flow.status === 'active' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    {flow.status === 'active' ? <Pause className="w-3 h-3 sm:w-4 sm:h-4" /> : <Play className="w-3 h-3 sm:w-4 sm:h-4" />}
                   </button>
                   <button 
                     onClick={() => handleDeleteFlow(flow.id)}
                     className="p-1 text-gray-600 hover:text-red-500"
                     title="Delete"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
                 </div>
               </div>
               
-              {/* Flow Steps Preview */}
+              {/* Flow Steps Preview - Mobile Responsive */}
               <div className="mb-3">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                   <span>Steps: {flow.steps.length}</span>
                   <span>•</span>
                   <span>Created: {new Date(flow.created_at).toLocaleDateString()}</span>
                 </div>
                 
                 {flow.steps.length > 0 && (
-                  <div className="mt-2 flex items-center gap-2 overflow-x-auto">
+                  <div className="mt-2 flex items-center gap-1 sm:gap-2 overflow-x-auto">
                     {flow.steps.slice(0, 5).map((step, stepIndex) => (
                       <div key={step.id} className="flex items-center gap-1">
-                        <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs">
+                        <div className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-100 rounded text-xs">
                           {getStepIcon(step.type)}
-                          <span>{step.type}</span>
+                          <span className="hidden sm:inline">{step.type}</span>
+                          <span className="sm:hidden">{step.type.charAt(0)}</span>
                         </div>
                         {stepIndex < flow.steps.length - 1 && stepIndex < 4 && (
-                          <ArrowRight className="w-3 h-3 text-gray-400" />
+                          <ArrowRight className="w-2 h-2 sm:w-3 sm:h-3 text-gray-400" />
                         )}
                       </div>
                     ))}

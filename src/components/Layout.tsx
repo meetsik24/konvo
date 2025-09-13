@@ -36,7 +36,7 @@ const Layout: React.FC = () => {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto pt-14 sm:pt-16">
           <div className="flex justify-center items-start px-4 sm:px-6 py-6 h-full">
-            <div className="w-full max-w-5xl">
+            <div className="w-full max-w-7xl">
               <Outlet />
             </div>
           </div>

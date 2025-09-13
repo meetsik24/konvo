@@ -265,33 +265,42 @@ const WhatsApp: React.FC = () => {
         transition={{ delay: 0.1 }}
         className="h-full flex flex-col"
       >
-        <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
-          <h1 className="text-xl font-semibold text-[#004d66]">WhatsApp Business</h1>
-          {/* Status Indicator */}
+        {/* Header - Mobile Responsive */}
+        <div className="flex items-center justify-between p-3 sm:p-4 bg-white border-b border-gray-200">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {/* <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#25D366] rounded-lg flex items-center justify-center flex-shrink-0">
+              <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+            </div> */}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-sm sm:text-lg font-semibold text-[#004d66] truncate">WhatsApp Business</h1>
+              <p className="text-xs text-gray-600 hidden sm:block">Manage your WhatsApp Business communications</p>
+            </div>
+          </div>
+          {/* Status Indicator - Mobile Responsive */}
           {wabaStatus.status !== 'not_connected' && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               {wabaStatus.status === 'verified' ? (
-                <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                  <CheckCircle className="w-4 h-4" />
-                  Verified
+                <div className="flex items-center gap-1 px-1.5 sm:px-2 py-1 bg-green-50 text-green-700 rounded text-xs font-medium">
+                  <CheckCircle className="w-3 h-3" />
+                  <span className="hidden sm:inline">Verified</span>
                 </div>
               ) : wabaStatus.status === 'pending' ? (
-                <div className="flex items-center gap-2 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
-                  <Clock className="w-4 h-4" />
-                  Pending Verification
+                <div className="flex items-center gap-1 px-1.5 sm:px-2 py-1 bg-yellow-50 text-yellow-700 rounded text-xs font-medium">
+                  <Clock className="w-3 h-3" />
+                  <span className="hidden sm:inline">Pending</span>
                 </div>
               ) : wabaStatus.status === 'rejected' ? (
-                <div className="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-                  <XCircle className="w-4 h-4" />
-                  Verification Rejected
+                <div className="flex items-center gap-1 px-1.5 sm:px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">
+                  <XCircle className="w-3 h-3" />
+                  <span className="hidden sm:inline">Rejected</span>
                 </div>
               ) : null}
               
               <button
                 onClick={handleOpenOnboarding}
-                className="px-3 py-1 text-sm text-[#25D366] hover:bg-gray-100 rounded-md transition-colors"
+                className="p-1 sm:p-1.5 text-[#25D366] hover:bg-gray-50 rounded transition-colors"
               >
-                <Shield className="w-4 h-4" />
+                <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             </div>
           )}
@@ -309,18 +318,20 @@ const WhatsApp: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Tab Navigation */}
+      {/* Tab Navigation - Mobile Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="flex space-x-6 border-b border-gray-300 bg-white px-4"
+        className="flex overflow-x-auto border-b border-gray-200 bg-white px-2 sm:px-4 scrollbar-hide"
       >
         {tabs.map((tab, index) => (
           <button
             key={tab.id}
-            className={`py-3 px-4 text-sm font-medium ${
-              activeTab === tab.id ? 'border-b-2 border-[#004d66] text-[#004d66]' : 'text-gray-600 hover:text-[#FDD70D]'
+            className={`py-2 px-2 sm:px-4 text-xs sm:text-sm font-medium rounded-t-lg transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
+              activeTab === tab.id 
+                ? 'bg-gray-50 text-[#004d66] border-b-2 border-[#004d66]' 
+                : 'text-gray-600 hover:text-[#004d66] hover:bg-gray-50'
             }`}
             onClick={() => setActiveTab(tab.id as any)}
           >
@@ -329,39 +340,41 @@ const WhatsApp: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * (index + 1) }}
             >
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
             </motion.span>
           </button>
         ))}
       </motion.div>
 
-      {/* Tab Content */}
+      {/* Tab Content - Mobile Responsive */}
         <motion.div
         key={activeTab}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-        className="flex-1 p-4 overflow-hidden"
+        className="flex-1 p-2 sm:p-4 overflow-hidden bg-gray-50"
       >
         {!isWhatsAppReady ? (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Lock className="w-10 h-10 text-gray-400" />
+          <div className="h-full flex items-center justify-center p-4">
+            <div className="text-center max-w-md mx-auto">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
             </div>
-              <h3 className="text-xl font-semibold text-[#004d66] mb-4">WhatsApp Business Not Set Up</h3>
-              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              <h3 className="text-lg sm:text-xl font-semibold text-[#004d66] mb-3 sm:mb-4">WhatsApp Business Not Set Up</h3>
+              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
                 Complete the WhatsApp Business setup to start using messaging, templates, campaigns, and automation features.
               </p>
-                          <button
+              <button
                 onClick={handleOpenOnboarding}
-                className="px-6 py-3 bg-[#25D366] text-white rounded-md hover:bg-[#1DA851] transition-colors flex items-center gap-2 mx-auto"
-                          >
-                <Shield className="w-5 h-5" />
-                Set Up WhatsApp Business
-                          </button>
-                  </div>
-                      </div>
+                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#25D366] text-white rounded-md hover:bg-[#1DA851] transition-colors flex items-center gap-2 mx-auto text-sm sm:text-base"
+              >
+                <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Set Up WhatsApp Business</span>
+                <span className="sm:hidden">Set Up WhatsApp</span>
+              </button>
+            </div>
+          </div>
                     ) : (
           <>
             {activeTab === 'messaging' && (
