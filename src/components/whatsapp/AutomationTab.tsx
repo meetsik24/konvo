@@ -12,15 +12,13 @@ import {
   Edit, 
   Trash2,
   Search,
-  Filter,
   ArrowRight,
-  ArrowDown,
   Circle,
-  Square,
-  Triangle,
   Diamond
 } from 'lucide-react';
-import { AutomationFlow, FlowStep } from '../../types/whatsapp';
+import { AutomationFlow } from '../../types/whatsapp';
+import StandardModal from './StandardModal';
+import ModalButton from './ModalButton';
 
 interface AutomationTabProps {
   flows: AutomationFlow[];
@@ -198,7 +196,6 @@ const AutomationTab: React.FC<AutomationTabProps> = ({ flows, setFlows }) => {
           >
             <type.icon className={`w-6 h-6 sm:w-8 sm:h-8 ${type.color} mx-auto mb-1 sm:mb-2`} />
             <h3 className="font-medium text-[#004d66] text-sm sm:text-base">{type.name}</h3>
-            <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">{type.description}</p>
           </motion.div>
         ))}
       </div>
@@ -321,110 +318,97 @@ const AutomationTab: React.FC<AutomationTabProps> = ({ flows, setFlows }) => {
       </div>
 
       {/* Create Flow Modal */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg p-6 w-full max-w-md"
-          >
-            <h3 className="text-lg font-medium text-[#004d66] mb-4">Create New Flow</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Flow Name</label>
-                <input
-                  type="text"
-                  value={newFlow.name}
-                  onChange={(e) => setNewFlow({...newFlow, name: e.target.value})}
-                  placeholder="e.g., Welcome Message Flow"
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Trigger Type</label>
-                <select
-                  value={newFlow.trigger}
-                  onChange={(e) => setNewFlow({...newFlow, trigger: e.target.value as any})}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
-                >
-                  {flowTypes.map(type => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
-                <textarea
-                  value={newFlow.description}
-                  onChange={(e) => setNewFlow({...newFlow, description: e.target.value})}
-                  rows={3}
-                  placeholder="Describe what this flow does..."
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button
-                onClick={() => setShowCreateForm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateFlow}
-                disabled={!newFlow.name.trim()}
-                className="px-4 py-2 bg-[#25D366] text-white rounded-md hover:bg-[#1DA851] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Create Flow
-              </button>
-            </div>
-          </motion.div>
+      <StandardModal
+        isOpen={showCreateForm}
+        onClose={() => setShowCreateForm(false)}
+        title="Create New Flow"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Set up a new automation flow</p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Flow Name</label>
+            <input
+              type="text"
+              value={newFlow.name}
+              onChange={(e) => setNewFlow({...newFlow, name: e.target.value})}
+              placeholder="e.g., Welcome Message Flow"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Trigger Type</label>
+            <select
+              value={newFlow.trigger}
+              onChange={(e) => setNewFlow({...newFlow, trigger: e.target.value as any})}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+            >
+              {flowTypes.map(type => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+            <textarea
+              value={newFlow.description}
+              onChange={(e) => setNewFlow({...newFlow, description: e.target.value})}
+              rows={3}
+              placeholder="Describe what this flow does..."
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <ModalButton
+              onClick={() => setShowCreateForm(false)}
+              variant="secondary"
+              size="sm"
+            >
+              Cancel
+            </ModalButton>
+            <ModalButton
+              onClick={handleCreateFlow}
+              disabled={!newFlow.name.trim()}
+              variant="primary"
+              size="sm"
+            >
+              Create Flow
+            </ModalButton>
+          </div>
         </div>
-      )}
+      </StandardModal>
 
       {/* Flow Builder Modal */}
-      {showFlowBuilder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-[#004d66]">Flow Builder</h3>
-              <button
-                onClick={() => setShowFlowBuilder(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
+      <StandardModal
+        isOpen={!!showFlowBuilder}
+        onClose={() => setShowFlowBuilder(null)}
+        title="Flow Builder"
+        size="xl"
+      >
+        {(() => {
+          const flow = flows.find(f => f.id === showFlowBuilder);
+          return flow ? (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">Build and configure your automation flow</p>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium text-gray-800">{flow.name}</h4>
+                <p className="text-sm text-gray-600">Trigger: {flow.trigger}</p>
+                <p className="text-sm text-gray-600">Status: {flow.status}</p>
+              </div>
+              
+              <div className="text-center py-8">
+                <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">Flow builder coming soon</p>
+                <p className="text-sm text-gray-500">Drag and drop interface for building automation flows</p>
+              </div>
             </div>
-            
-            {(() => {
-              const flow = flows.find(f => f.id === showFlowBuilder);
-              return flow ? (
-                <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-800">{flow.name}</h4>
-                    <p className="text-sm text-gray-600">Trigger: {flow.trigger}</p>
-                    <p className="text-sm text-gray-600">Status: {flow.status}</p>
-                  </div>
-                  
-                  <div className="text-center py-8">
-                    <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">Flow builder coming soon</p>
-                    <p className="text-sm text-gray-500">Drag and drop interface for building automation flows</p>
-                  </div>
-                </div>
-              ) : null;
-            })()}
-          </motion.div>
-        </div>
-      )}
+          ) : null;
+        })()}
+      </StandardModal>
     </div>
   );
 };

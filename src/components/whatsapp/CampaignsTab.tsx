@@ -12,8 +12,7 @@ import {
   Search,
   Users,
   Calendar,
-  Target,
-  XCircle
+  Target
 } from 'lucide-react';
 import { WhatsAppCampaign, WhatsAppTemplate } from '../../types/whatsapp';
 import StandardModal from './StandardModal';
@@ -755,12 +754,10 @@ const CampaignsTab: React.FC<CampaignsTabProps> = ({ campaigns, setCampaigns, te
                     <p>Audience: {campaign.audience_count.toLocaleString()}</p>
                     <p>Created: {new Date(campaign.created_at).toLocaleDateString()}</p>
                   </div>
-                </div>
-              ) : null;
-            })()}
-          </motion.div>
-        </div>
-      )}
+            </div>
+          ) : null;
+        })()}
+      </StandardModal>
 
       {/* Success Message */}
       {showSuccessMessage && (

@@ -9,11 +9,10 @@ import {
   Upload, 
   ArrowRight,
   ArrowLeft,
-  FileText,
-  X,
-  MessageCircle
+  FileText
 } from 'lucide-react';
 import { WABAStatus } from '../../types/whatsapp';
+import StandardModal from './StandardModal';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -122,44 +121,18 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
     onClose();
   };
 
-  const handleClose = () => {
-    // Only allow closing if already verified or if user explicitly wants to skip
-    if (wabaStatus.status === 'verified') {
-      onClose();
-    } else {
-      // Show confirmation for skipping setup
-      if (window.confirm('Are you sure you want to skip WhatsApp Business setup? You can set it up later from the settings.')) {
-        onClose();
-      }
-    }
-  };
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="bg-white rounded-md w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-lg border border-gray-200"
-          >
-            {/* Header */}
-            <div className="sticky top-0  p-4 rounded-t-md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <MessageCircle className="w-6 h-6 text-white" />
-                  <h2 className="text-xl font-semibold text-[#004d66]">WhatsApp Business Setup</h2>
-                </div>
-                <button
-                  onClick={handleClose}
-                  className="p-1 text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+        <StandardModal
+          isOpen={isOpen}
+          onClose={onClose}
+          title="WhatsApp Business Setup"
+          size="xl"
+          showCloseButton={false}
+        >
+          <div className="space-y-6">
 
             {/* Content */}
             <div className="p-6">
@@ -425,8 +398,8 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 )}
               </div>
             </div>
-          </motion.div>
-        </div>
+          </div>
+        </StandardModal>
       )}
     </AnimatePresence>
   );
