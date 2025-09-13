@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  MessageSquare, 
-  Shield, 
-  FileText, 
-  Megaphone, 
-  Bot, 
-  MessageCircle,
+  MessageSquare,
+  Shield,
+  FileText,
+  Megaphone,
+  Bot,
   Lock,
   CheckCircle,
   Clock,
@@ -260,21 +259,13 @@ const WhatsApp: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 bg-[#f5f5f5] min-h-screen font-inter">
-      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <MessageCircle className="w-8 h-8 text-[#25D366]" />
-            <div>
-              <h1 className="text-2xl font-semibold text-[#004d66]">WhatsApp Business</h1>
-              <p className="text-sm text-gray-600">Manage your WhatsApp Business communications</p>
-            </div>
-          </div>
-          
+          <h1 className="text-2xl font-semibold text-[#004d66]">WhatsApp Business</h1>
           {/* Status Indicator */}
           {wabaStatus.status !== 'not_connected' && (
             <div className="flex items-center gap-2">
@@ -323,19 +314,16 @@ const WhatsApp: React.FC = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="flex flex-wrap gap-2 border-b border-gray-300 mb-6"
+        className="flex space-x-6 border-b border-gray-300 mb-6"
       >
         {tabs.map((tab, index) => (
           <button
             key={tab.id}
-            className={`py-3 px-4 text-sm font-medium flex items-center gap-2 rounded-t-md transition-colors ${
-              activeTab === tab.id 
-                ? 'border-b-2 border-[#25D366] text-[#25D366] bg-white' 
-                : 'text-gray-600 hover:text-[#25D366] hover:bg-gray-50'
+            className={`py-2 px-4 text-sm font-medium ${
+              activeTab === tab.id ? 'border-b-2 border-[#004d66] text-[#004d66]' : 'text-gray-600 hover:text-[#FDD70D]'
             }`}
             onClick={() => setActiveTab(tab.id as any)}
           >
-            <tab.icon className="w-5 h-5" />
             <motion.span
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -348,11 +336,11 @@ const WhatsApp: React.FC = () => {
       </motion.div>
 
       {/* Tab Content */}
-        <motion.div
+      <motion.div
         key={activeTab}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
         className="bg-white rounded-md p-6 border border-gray-200"
       >
         {!isWhatsAppReady ? (
@@ -364,15 +352,15 @@ const WhatsApp: React.FC = () => {
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
               Complete the WhatsApp Business setup to start using messaging, templates, campaigns, and automation features.
             </p>
-                          <button
+            <button
               onClick={handleOpenOnboarding}
               className="px-6 py-3 bg-[#25D366] text-white rounded-md hover:bg-[#1DA851] transition-colors flex items-center gap-2 mx-auto"
-                          >
+            >
               <Shield className="w-5 h-5" />
               Set Up WhatsApp Business
-                          </button>
-                      </div>
-                    ) : (
+            </button>
+          </div>
+        ) : (
           <>
             {activeTab === 'messaging' && (
               <MessagingTab conversations={conversations} setConversations={setConversations} />
@@ -386,9 +374,9 @@ const WhatsApp: React.FC = () => {
             {activeTab === 'automation' && (
               <AutomationTab flows={flows} setFlows={setFlows} />
             )}
-                  </>
-                )}
-        </motion.div>
+          </>
+        )}
+      </motion.div>
 
       {/* Onboarding Modal */}
       <OnboardingModal

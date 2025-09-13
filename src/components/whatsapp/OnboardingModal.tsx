@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Shield, 
   Phone, 
   Building2, 
   CheckCircle, 
@@ -31,12 +30,10 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [otpCode, setOtpCode] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [businessCategory, setBusinessCategory] = useState('');
   const [verificationDocs, setVerificationDocs] = useState<File[]>([]);
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
-  const [isUploadingDocs, setIsUploadingDocs] = useState(false);
 
   const steps = [
     { 
@@ -140,29 +137,24 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="bg-white rounded-md w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-lg border border-gray-200"
           >
             {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 rounded-t-lg">
+            <div className="sticky top-0  p-4 rounded-t-md">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#25D366] rounded-full flex items-center justify-center">
-                    <MessageCircle className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-[#004d66]">WhatsApp Business Setup</h2>
-                    <p className="text-sm text-gray-600">Complete setup to start using WhatsApp Business features</p>
-                  </div>
+                  <MessageCircle className="w-6 h-6 text-white" />
+                  <h2 className="text-xl font-semibold text-[#004d66]">WhatsApp Business Setup</h2>
                 </div>
                 <button
                   onClick={handleClose}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
+                  className="p-1 text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -172,23 +164,22 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
             {/* Content */}
             <div className="p-6">
               {/* Progress Steps */}
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-6">
                 {steps.map((step, index) => (
-                  <div key={step.id} className="flex items-center">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                  <div key={step.id} className="flex items-center flex-1">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
                       currentStep >= step.id 
-                        ? 'bg-[#25D366] text-white' 
-                        : 'bg-gray-200 text-gray-600'
+                        ? 'bg-[#004d66] text-white' 
+                        : 'bg-gray-100 text-gray-400'
                     }`}>
-                      <step.icon className="w-5 h-5" />
+                      <step.icon className="w-4 h-4" />
                     </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-[#004d66]">{step.title}</p>
-                      <p className="text-xs text-gray-600">{step.description}</p>
+                    <div className="ml-2 flex-1">
+                      <p className="text-xs font-medium text-[#004d66]">{step.title}</p>
                     </div>
                     {index < steps.length - 1 && (
-                      <div className={`w-16 h-0.5 mx-4 transition-colors ${
-                        currentStep > step.id ? 'bg-[#25D366]' : 'bg-gray-200'
+                      <div className={`w-8 h-1 mx-2 rounded-full transition-colors ${
+                        currentStep > step.id ? 'bg-[#004d66]' : 'bg-gray-200'
                       }`} />
                     )}
                   </div>
@@ -200,19 +191,19 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`p-4 rounded-lg border mb-6 ${getStatusColor(wabaStatus.status)}`}
+                  className={`p-4 rounded-md border mb-6 ${getStatusColor(wabaStatus.status)}`}
                 >
                   <div className="flex items-center gap-3">
                     {getStatusIcon(wabaStatus.status)}
                     <div>
-                      <h3 className="font-medium">WhatsApp Business Account Status</h3>
-                      <p className="text-sm">
+                      <h3 className="font-medium text-sm">WhatsApp Business Account Status</h3>
+                      <p className="text-xs mt-1">
                         {wabaStatus.status === 'pending' && 'Verification pending - documents under review'}
                         {wabaStatus.status === 'verified' && 'Account verified and ready to use'}
                         {wabaStatus.status === 'rejected' && 'Verification rejected - please resubmit documents'}
                       </p>
                       {wabaStatus.business_name && (
-                        <p className="text-xs mt-1">Business: {wabaStatus.business_name}</p>
+                        <p className="text-xs mt-1 font-medium">Business: {wabaStatus.business_name}</p>
                       )}
                     </div>
                   </div>
@@ -224,26 +215,26 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 key={currentStep}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3 }}
-                className="bg-gray-50 p-6 rounded-lg"
+                transition={{ duration: 0.2 }}
+                className="bg-gray-50 p-6 rounded-md border border-gray-200"
               >
                 {currentStep === 1 && (
                   <div className="space-y-6">
                     <div className="text-center">
-                      <Phone className="w-16 h-16 text-[#25D366] mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-[#004d66] mb-2">Phone Number Verification</h3>
-                      <p className="text-gray-600">Enter your business phone number to start the verification process</p>
+                      <Phone className="w-12 h-12 text-[#004d66] mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-[#004d66] mb-2">Phone Number Verification</h3>
+                      <p className="text-gray-600 text-sm">Enter your business phone number to start the verification process</p>
                     </div>
                     
-                    <div className="max-w-md mx-auto space-y-4">
+                    <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                        <label className="block text-sm font-medium text-gray-600 mb-2">Phone Number</label>
                         <input
                           type="tel"
                           value={phoneNumber}
                           onChange={(e) => setPhoneNumber(e.target.value)}
                           placeholder="+255123456789"
-                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
                         />
                         <p className="text-xs text-gray-500 mt-1">
                           Include country code (e.g., +255 for Tanzania)
@@ -253,7 +244,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       <button 
                         onClick={handlePhoneVerification}
                         disabled={!phoneNumber || isVerifyingPhone}
-                        className="w-full px-4 py-3 bg-[#25D366] text-white rounded-md hover:bg-[#1DA851] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full px-4 py-3 bg-[#004d66] text-white rounded-md hover:bg-[#1DA851] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm font-medium"
                       >
                         {isVerifyingPhone ? (
                           <>
@@ -274,29 +265,29 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 {currentStep === 2 && (
                   <div className="space-y-6">
                     <div className="text-center">
-                      <Building2 className="w-16 h-16 text-[#25D366] mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-[#004d66] mb-2">Business Information</h3>
-                      <p className="text-gray-600">Tell us about your business</p>
+                      <Building2 className="w-12 h-12 text-[#004d66] mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-[#004d66] mb-2">Business Information</h3>
+                      <p className="text-gray-600 text-sm">Tell us about your business</p>
                     </div>
                     
-                    <div className="max-w-md mx-auto space-y-4">
+                    <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+                        <label className="block text-sm font-medium text-gray-600 mb-2">Business Name</label>
                         <input
                           type="text"
                           value={businessName}
                           onChange={(e) => setBusinessName(e.target.value)}
                           placeholder="Your Business Name"
-                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
                         />
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Business Category</label>
+                        <label className="block text-sm font-medium text-gray-600 mb-2">Business Category</label>
                         <select
                           value={businessCategory}
                           onChange={(e) => setBusinessCategory(e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm"
                         >
                           <option value="">Select Category</option>
                           <option value="ecommerce">E-commerce</option>
@@ -315,17 +306,17 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 {currentStep === 3 && (
                   <div className="space-y-6">
                     <div className="text-center">
-                      <FileText className="w-16 h-16 text-[#25D366] mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-[#004d66] mb-2">Document Verification</h3>
-                      <p className="text-gray-600">Upload your business documents for verification</p>
+                      <FileText className="w-12 h-12 text-[#004d66] mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-[#004d66] mb-2">Document Verification</h3>
+                      <p className="text-gray-600 text-sm">Upload your business documents for verification</p>
                     </div>
                     
-                    <div className="max-w-md mx-auto space-y-4">
+                    <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Upload Documents</label>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#25D366] transition-colors">
-                          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600 mb-2">Drag and drop business documents here</p>
+                        <label className="block text-sm font-medium text-gray-600 mb-2">Upload Documents</label>
+                        <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center hover:border-[#25D366] hover:bg-[#25D366]/5 transition-colors">
+                          <Upload className="w-8 h-8 text-[#004d66] mx-auto mb-3" />
+                          <p className="text-sm text-gray-700 mb-1 font-medium">Drag and drop business documents here</p>
                           <p className="text-xs text-gray-500 mb-4">or click to browse</p>
                           <input
                             type="file"
@@ -337,19 +328,19 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                           />
                           <label
                             htmlFor="document-upload"
-                            className="px-4 py-2 bg-[#25D366] text-white rounded-md hover:bg-[#1DA851] cursor-pointer inline-block"
+                            className="px-4 py-2 bg-[#25D366] text-white rounded-md hover:bg-[#1DA851] cursor-pointer inline-block text-sm font-medium transition-colors"
                           >
                             Choose Files
                           </label>
                         </div>
                         
                         {verificationDocs.length > 0 && (
-                          <div className="mt-4 space-y-2">
-                            <p className="text-sm font-medium text-gray-700">Uploaded Documents:</p>
+                          <div className="mt-3 space-y-2">
+                            <p className="text-xs font-medium text-gray-700">Uploaded Documents:</p>
                             {verificationDocs.map((doc, index) => (
-                              <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                                <FileText className="w-4 h-4 text-gray-500" />
-                                <span className="text-sm text-gray-700">{doc.name}</span>
+                              <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs">
+                                <FileText className="w-3 h-3 text-gray-500" />
+                                <span className="text-gray-700">{doc.name}</span>
                               </div>
                             ))}
                           </div>
@@ -362,27 +353,36 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 {currentStep === 4 && (
                   <div className="space-y-6">
                     <div className="text-center">
-                      <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-[#004d66] mb-2">Setup Complete!</h3>
-                      <p className="text-gray-600">Your WhatsApp Business account is being verified</p>
+                      <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-[#004d66] mb-2">Setup Complete!</h3>
+                      <p className="text-gray-600 text-sm">Your WhatsApp Business account is being verified</p>
                     </div>
                     
-                    <div className="max-w-md mx-auto space-y-4">
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <h4 className="font-medium text-green-800 mb-2">What happens next?</h4>
-                        <ul className="text-sm text-green-700 space-y-1">
-                          <li>• Your documents are being reviewed</li>
-                          <li>• You'll receive an email when verification is complete</li>
-                          <li>• This usually takes 24-48 hours</li>
+                    <div className="space-y-4">
+                      <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                        <h4 className="font-medium text-green-800 mb-3 text-sm">What happens next?</h4>
+                        <ul className="text-green-700 space-y-1 text-xs">
+                          <li className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                            Your documents are being reviewed
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                            You'll receive an email when verification is complete
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                            This usually takes 24-48 hours
+                          </li>
                         </ul>
                       </div>
                       
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600">
-                          Business: <span className="font-medium">{businessName}</span>
+                      <div className="bg-gray-50 rounded-md p-4 text-center">
+                        <p className="text-sm text-gray-700 mb-1">
+                          <span className="font-medium">Business:</span> {businessName}
                         </p>
-                        <p className="text-sm text-gray-600">
-                          Phone: <span className="font-medium">{phoneNumber}</span>
+                        <p className="text-sm text-gray-700">
+                          <span className="font-medium">Phone:</span> {phoneNumber}
                         </p>
                       </div>
                     </div>
@@ -395,7 +395,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 <button
                   onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
                   disabled={currentStep === 1}
-                  className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium transition-colors"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Previous
@@ -409,7 +409,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       (currentStep === 2 && (!businessName || !businessCategory)) ||
                       (currentStep === 3 && verificationDocs.length === 0)
                     }
-                    className="px-6 py-2 bg-[#25D366] text-white rounded-md hover:bg-[#1DA851] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-4 py-2 bg-[#004d66] text-white rounded-md hover:bg-[#1DA851] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium"
                   >
                     Next Step
                     <ArrowRight className="w-4 h-4" />
@@ -417,7 +417,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 ) : (
                   <button
                     onClick={handleCompleteSetup}
-                    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2 text-sm font-medium"
                   >
                     Complete Setup
                     <CheckCircle className="w-4 h-4" />

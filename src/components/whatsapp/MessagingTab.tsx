@@ -209,8 +209,8 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
               <div className="p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5" />
+                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                      <User className="w-4 h-4" />
                     </div>
                     <div>
                       <h3 className="font-medium text-[#004d66]">{selectedConv.customer_name}</h3>
