@@ -371,7 +371,10 @@ const WhatsApp: React.FC = () => {
               <TemplatesTab templates={templates} setTemplates={setTemplates} />
             )}
             {activeTab === 'campaigns' && (
-              <CampaignsTab campaigns={campaigns} setCampaigns={setCampaigns} templates={templates} />
+              <>
+                {console.log('Rendering CampaignsTab with props:', { campaigns, templates })}
+                <CampaignsTab campaigns={campaigns} setCampaigns={setCampaigns} templates={templates} />
+              </>
             )}
             {activeTab === 'automation' && (
               <AutomationTab flows={flows} setFlows={setFlows} />

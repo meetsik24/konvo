@@ -38,6 +38,13 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [messageType, setMessageType] = useState<'text' | 'image' | 'document' | 'location'>('text');
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
+  const [newTemplate, setNewTemplate] = useState({
+    name: '',
+    content: '',
+    category: 'transactional' as 'transactional' | 'marketing' | 'otp' | 'notification',
+    variables: [] as string[]
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -320,6 +327,51 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
     setMessageType('text');
   };
 
+  const handleCreateTemplate = () => {
+    if (!newTemplate.name.trim() || !newTemplate.content.trim()) return;
+
+    // Extract variables from content (look for {{variable}} pattern)
+    const variableMatches = newTemplate.content.match(/\{\{([^}]+)\}\}/g);
+    const extractedVariables = variableMatches ? variableMatches.map(v => v.replace(/[{}]/g, '')) : [];
+
+    const template: WhatsAppTemplate = {
+      id: Date.now().toString(),
+      name: newTemplate.name,
+      content: newTemplate.content,
+      category: newTemplate.category,
+      status: 'pending',
+      variables: extractedVariables,
+      created_at: new Date().toISOString()
+    };
+
+    // Add template to the templates list (this would normally update a parent state)
+    console.log('New template created:', template);
+    setNewTemplate({
+      name: '',
+      content: '',
+      category: 'transactional',
+      variables: []
+    });
+    setShowCreateTemplate(false);
+  };
+
+  const handleAddVariable = () => {
+    const variable = prompt('Enter variable name (without {{}}):');
+    if (variable && !newTemplate.variables.includes(variable)) {
+      setNewTemplate(prev => ({
+        ...prev,
+        variables: [...prev.variables, variable]
+      }));
+    }
+  };
+
+  const handleRemoveVariable = (variable: string) => {
+    setNewTemplate(prev => ({
+      ...prev,
+      variables: prev.variables.filter(v => v !== variable)
+    }));
+  };
+
   return (
     <div className="h-full flex bg-[#ECE5DD] rounded-lg overflow-hidden font-sans">
       {/* Sidebar - Conversations List */}
@@ -562,24 +614,27 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
                    <Paperclip className="w-5 h-5" />
                  </button>
                  {showAttachmentMenu && (
-                   <div className="absolute bottom-12 left-0 flex flex-col bg-white rounded-lg shadow-lg p-2 z-20">
+                   <div className="absolute bottom-12 left-0 flex flex-col bg-white rounded-lg shadow-lg p-2 z-20 min-w-[140px]">
                      <button 
                        onClick={() => handleFileSelect('image')}
-                       className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded text-sm"
+                       className="flex items-center gap-3 p-3 hover:bg-gray-100 rounded text-sm w-full text-left"
                      >
-                       <Image className="w-4 h-4" /> Image
+                       <Image className="w-4 h-4 flex-shrink-0" /> 
+                       <span>Image</span>
                      </button>
                      <button 
                        onClick={() => handleFileSelect('document')}
-                       className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded text-sm"
+                       className="flex items-center gap-3 p-3 hover:bg-gray-100 rounded text-sm w-full text-left"
                      >
-                       <FileText className="w-4 h-4" /> Document
+                       <FileText className="w-4 h-4 flex-shrink-0" /> 
+                       <span>Document</span>
                      </button>
                      <button 
                        onClick={handleLocationShare}
-                       className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded text-sm"
+                       className="flex items-center gap-3 p-3 hover:bg-gray-100 rounded text-sm w-full text-left"
                      >
-                       <MapPin className="w-4 h-4" /> Location
+                       <MapPin className="w-4 h-4 flex-shrink-0" /> 
+                       <span>Location</span>
                      </button>
                    </div>
                  )}
@@ -689,7 +744,18 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
             </div>
             <div className="p-6 space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-[#004d66] mb-3">Choose Template</label>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-medium text-[#004d66]">Choose Template</label>
+                    <button
+                      onClick={() => setShowCreateTemplate(true)}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs bg-[#004d66] text-white rounded-lg hover:bg-[#003d52] transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Create Template
+                    </button>
+                  </div>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {templates.map((template) => (
                       <div
@@ -944,6 +1010,119 @@ const MessagingTab: React.FC<MessagingTabProps> = ({ conversations, setConversat
                     <p className="text-gray-400 text-xs">Try a different search term</p>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Create Template Modal */}
+      {showCreateTemplate && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        >
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#004d66] rounded-full flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-[#004d66]">Create New Template</h3>
+                  <p className="text-sm text-gray-600">Design a message template for your broadcasts</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowCreateTemplate(false)}
+                className="p-2 text-gray-400 hover:bg-gray-200 rounded-full transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-[#004d66] mb-2">Template Name</label>
+                <input
+                  type="text"
+                  value={newTemplate.name}
+                  onChange={(e) => setNewTemplate(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter template name"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-[#004d66] mb-2">Category</label>
+                <select
+                  value={newTemplate.category}
+                  onChange={(e) => setNewTemplate(prev => ({ ...prev, category: e.target.value as any }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+                >
+                  <option value="transactional">Transactional</option>
+                  <option value="marketing">Marketing</option>
+                  <option value="otp">OTP</option>
+                  <option value="notification">Notification</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#004d66] mb-2">Template Content</label>
+                <textarea
+                  value={newTemplate.content}
+                  onChange={(e) => setNewTemplate(prev => ({ ...prev, content: e.target.value }))}
+                  placeholder="Enter your template content. Use {{variable}} for dynamic content (e.g., {{name}}, {{amount}})."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#25D366] focus:border-transparent h-32 resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">Use {'{{variable}}'} for dynamic content (e.g., {'{{name}}'}, {'{{amount}}'})</p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-[#004d66]">Variables</label>
+                  <button
+                    onClick={handleAddVariable}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-[#25D366] text-white rounded hover:bg-[#1DA851] transition-colors"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Variable
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {newTemplate.variables.map((variable, index) => (
+                    <div key={index} className="flex items-center gap-1 bg-[#F0F2F5] px-3 py-1 rounded-full">
+                      <span className="text-sm text-gray-700">{variable}</span>
+                      <button
+                        onClick={() => handleRemoveVariable(variable)}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setShowCreateTemplate(false)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateTemplate}
+                  disabled={!newTemplate.name.trim() || !newTemplate.content.trim()}
+                  className="px-6 py-2 bg-[#25D366] text-white rounded-lg hover:bg-[#1DA851] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  Create Template
+                </button>
               </div>
             </div>
           </div>
