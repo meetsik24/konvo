@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useSelector } from 'react-redux';
+import { RootState } from '../store/store';
 import { motion } from "framer-motion";
 import { Wallet, ShoppingBag, Package, Loader2 } from "lucide-react";
 import { getAccountBalance, getUsageLogs, ServiceName } from "../services/api";
@@ -55,8 +57,6 @@ interface UsageData {
 
 const Subscription: React.FC = () => {
   const [wallet, setWallet] = useState<{
-    balance_id: string;
-    user_id: string;
     units: number;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,15 +69,21 @@ const Subscription: React.FC = () => {
   const [transactions, setTransactions] = useState<
     { type: string; units: number; desc: string }[]
   >([]);
+  const userId = useSelector((state: RootState) => state.auth.user.userId);
 
   useEffect(() => {
     const fetchBalance = async () => {
       try {
-        const balance = await getAccountBalance();
+                // const user_id = useSelector((state: RootState) => state.auth.user?.id); // Adjust the selector path based on your Redux store structure
+        
+        if (!userId) {
+          throw new Error('User ID not found');
+        }
+        // Replace 'yourUserId' with the actual user ID variable or value
+        const balance = await getAccountBalance(userId);
+        // console.log("Fetched balance:", balance);
         setWallet({
-          balance_id: balance.balance_id,
-          user_id: balance.user_id,
-          units: balance.units,
+          units: balance.unit_cost
         });
       } catch (err) {
         setError("Failed to load wallet balance");
@@ -88,7 +94,7 @@ const Subscription: React.FC = () => {
     };
 
     fetchBalance();
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     const fetchUsageData = async () => {
@@ -176,7 +182,7 @@ const Subscription: React.FC = () => {
               <p className="text-red-500 text-sm">{error}</p>
             ) : (
               <p className="text-2xl font-bold text-[#00333e]">
-                {wallet?.units.toLocaleString()} Units
+                {wallet?.units?.toLocaleString()} Units
               </p>
             )}
           </div>

@@ -209,6 +209,7 @@ interface Plan {
 interface User {
   email: string;
   username: string;
+  userId?: string;
   full_name?: string;
   mobile_number?: string;
   avatar?: string;
@@ -288,10 +289,7 @@ interface ApiKey {
 }
 
 interface AccountBalance {
-  balance_id: string;
-  user_id: string;
-  units: number;
-  last_updated: string;
+  unit_cost: number;
 }
 
 
@@ -956,6 +954,7 @@ export const getProfile = async (): Promise<User> => {
       username: response.data.username,
       full_name: response.data.full_name,
       mobile_number: response.data.mobile_number,
+      userId: response.data.user_id,
       avatar: response.data.avatar || undefined,
     };
   } catch (error: any) {
@@ -1394,7 +1393,7 @@ export const getMetricsV1 = async (dateRange?: 'today' | 'this_week' | 'this_mon
   try {
     const query = dateRange ? `?dateRange=${dateRange}` : '';
     const response = await api.get(`/v1/metrics${query}`);
-    console.log("getMetricsV1 API response:", JSON.stringify(response.data, null, 2));
+    // console.log("getMetricsV1 API response:", JSON.stringify(response.data, null, 2));
 
     // Basic response validation
     const data = response.data as {
@@ -1425,10 +1424,10 @@ export const getMetricsV1 = async (dateRange?: 'today' | 'this_week' | 'this_mon
   }
 };
 
-export const getAccountBalance = async (): Promise<AccountBalance> => {
+export const getAccountBalance = async (user_id: string): Promise<AccountBalance> => {
   console.log("getAccountBalance API call initiated");
   try {
-    const response = await api.get("/account-balance/account");
+    const response = await api.get(`/admin/balance/${user_id}/units`);
     console.log("getAccountBalance API response:", response.data);
     return response.data;
   } catch (error: any) {
