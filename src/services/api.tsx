@@ -543,10 +543,8 @@ export const createWorkspace = async (name: string): Promise<Workspace> => {
 };
 
 export const getWorkspaces = async (): Promise<Workspace[]> => {
-  console.log("getWorkspaces API call initiated");
   try {
     const response = await api.get("/workspaces/");
-    console.log("getWorkspaces API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch workspaces");
@@ -945,10 +943,8 @@ export const getApprovedSenderIds = async (workspaceId: string): Promise<SenderI
 
 // PROFILE
 export const getProfile = async (): Promise<User> => {
-  console.log("getProfile API call initiated");
   try {
     const response = await api.get("/users/me");
-    console.log("getProfile API response:", response.data);
     return {
       email: response.data.email,
       username: response.data.username,
@@ -967,10 +963,8 @@ export const updateProfile = async (data: {
   email: string;
   mobile_number: string;
 }): Promise<User> => {
-  console.log("updateProfile API call initiated with data:", data);
   try {
     const response = await api.patch("/users/me", data);
-    console.log("updateProfile API response:", response.data);
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to update user profile");
@@ -981,7 +975,6 @@ export const changePassword = async (token: string, data: {
   old_password: string; // Changed from current_password to old_password
   new_password: string;
 }): Promise<void> => {
-  console.log("changePassword API call initiated with data:", data);
   try {
     await api.patch(
       "/users/change-password",
@@ -1389,7 +1382,6 @@ export const getMetricsV1 = async (dateRange?: 'today' | 'this_week' | 'this_mon
   contacts_count: { total_contacts: number; total_groups: number; groups: { group_id: string; group_name: string; count: number }[] };
   logs_count: { total_sms: number; status_counts: Record<string, number>; daily_counts: Record<string, { pending: number; sent: number; failed: number }> };
 }> => {
-  console.log(`getMetricsV1 API call initiated with dateRange: ${dateRange || 'all'}`);
   try {
     const query = dateRange ? `?dateRange=${dateRange}` : '';
     const response = await api.get(`/v1/metrics${query}`);
