@@ -238,18 +238,20 @@ interface PurchaseSmsCreditsResponse {
   requested_sms: number;
 }
 
-interface PaymentStatusRequest {
-  payment_reference: string;
+interface InitiateUnitsPaymentRequest {
+  mobile_money_number: string;
+  amount: number;
 }
 
-interface PaymentStatusResponse {
-  success: boolean;
-  message: string;
+interface InitiateUnitsPaymentResponse {
+  transaction_id: string;
+  user_id: string;
+  total_amount_paid: number;
+  units_purchased: number;
+  payment_method: string;
   payment_reference: string;
-  status: string;
-  credits_added: number;
-  total_paid: number;
-  updated_sms_balance: number;
+  transaction_date: string;
+  marked_complete: boolean;
 }
 
 interface SenderId {
@@ -1032,24 +1034,36 @@ export const getSubscriptionUsage = async (planId: string): Promise<Subscription
 
 
 //PLANS AND SUBSCRIPTIONS
+// Currently moving from purchasing direct sms credits to purchasing units
 
 // Purchase SMS credits
-export const purchaseSmsCredits = async (
-  planId: string,
-  smsQuantity: number,
-  mobileMoneyNumber: string
-): Promise<PurchaseSmsCreditsResponse> => {
-  const payload: PurchaseSmsCreditsRequest = {
-    plan_id: planId,
-    sms_quantity: smsQuantity,
-    mobile_money_number: mobileMoneyNumber,
-  };
+// export const purchaseSmsCredits = async (
+//   planId: string,
+//   smsQuantity: number,
+//   mobileMoneyNumber: string
+// ): Promise<PurchaseSmsCreditsResponse> => {
+//   const payload: PurchaseSmsCreditsRequest = {
+//     plan_id: planId,
+//     sms_quantity: smsQuantity,
+//     mobile_money_number: mobileMoneyNumber,
+//   };
+//   try {
+//     const response = await api.post('/purchase-sms-credits', payload);
+//     console.log('purchaseSmsCredits API response:', response.data);
+//     return response.data;
+//   } catch (error: any) {
+//     return handleApiError(error, 'Failed to purchase SMS credits');
+//   }
+// };
+
+export const initiateUnitsPayment = async (data: InitiateUnitsPaymentRequest): Promise<InitiateUnitsPaymentResponse> => {
+  console.log("initiateUnitsPayment API call initiated with data:", data);
   try {
-    const response = await api.post('/purchase-sms-credits', payload);
-    console.log('purchaseSmsCredits API response:', response.data);
+    const response = await api.post("/transaction/initiate-payment", data);
+    console.log("initiateUnitsPayment API response:", response.data);
     return response.data;
   } catch (error: any) {
-    return handleApiError(error, 'Failed to purchase SMS credits');
+    return handleApiError(error, "Failed to initiate Units payment");
   }
 };
 

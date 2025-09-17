@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import { motion } from "framer-motion";
 import { Wallet, ShoppingBag, Package, Loader2 } from "lucide-react";
-import { getAccountBalance, getUsageLogs, ServiceName } from "../services/api";
+import { getAccountBalance, initiateUnitsPayment, getUsageLogs, ServiceName } from "../services/api";
 
 interface Package {
   id: string;
@@ -70,6 +71,40 @@ const Subscription: React.FC = () => {
     { type: string; units: number; desc: string }[]
   >([]);
   const userId = useSelector((state: RootState) => state.auth.user.userId);
+  const [topUpAmount, setTopUpAmount] = useState<number>(0);
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+
+
+
+  const handleTopUp = async (e: React.FormEvent) => {
+  e.preventDefault();
+  try {
+    setIsProcessing(true);
+    const response = await initiateUnitsPayment({
+      mobile_money_number: phoneNumber,
+      amount: topUpAmount
+    });
+    
+    console.log("Payment initiated:", response);
+    if (response.marked_complete) {
+      setWallet(prev => ({
+        ...prev,
+        units: (prev?.units || 0) + response.units_purchased
+      }));
+      setIsTopUpModalOpen(false); // Close modal on success
+      setPhoneNumber(""); // Reset form
+      setTopUpAmount(0); // Reset form
+    }
+  } catch (error) {
+    console.error("Payment initiation failed:", error);
+    setError("Failed to initiate payment");
+  } finally {
+    setIsProcessing(false);
+  }
+  };
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -190,9 +225,73 @@ const Subscription: React.FC = () => {
         <button
           className="px-4 py-2 bg-[#00333e] text-white rounded-md text-sm hover:bg-[#00262f]"
           disabled={isLoading}
+          onClick={() => setIsTopUpModalOpen(true)}
         >
           Top Up
         </button>
+        {isTopUpModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md relative">
+            <button
+              onClick={() => setIsTopUpModalOpen(false)}
+              className="absolute right-4 top-4 text-gray-500 hover:text-gray-700"
+            >
+              <X size={20} />
+            </button>
+            
+            <h2 className="text-xl font-semibold text-[#00333e] mb-4">Top Up Wallet</h2>
+            
+            <form onSubmit={handleTopUp} className="space-y-4">
+              <div>
+                <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  id="phoneNumber"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="Enter your phone number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  required
+                />
+              </div>
+        
+          <div>
+            <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+              Amount
+            </label>
+            <input
+              type="number"
+              id="amount"
+              value={topUpAmount || ''}
+              onChange={(e) => setTopUpAmount(Number(e.target.value))}
+              placeholder="Enter amount"
+              min="1"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+              required
+            />
+          </div>
+
+            <button
+              type="submit"
+              disabled={isProcessing}
+              className="w-full px-4 py-2 bg-[#00333e] text-white rounded-md text-sm hover:bg-[#00262f] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isProcessing ? (
+                <span className="flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Processing...
+                      </span>
+                                ) : (
+                  'Proceed with Payment'
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       </motion.div>
 
       <motion.div
