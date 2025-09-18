@@ -8,7 +8,7 @@ import type {
 } from '../types';
 
 const API_BASE_URL = import.meta.env.MODE === 'development'
-  ? import.meta.env.VITE_DEVELOPMENT_API_URL
+  ? '/api'  // Use proxy in development
   : import.meta.env.VITE_PRODUCTION_API_URL;
 
 const api = axios.create({
@@ -1327,10 +1327,14 @@ export const generateMessage = async (prompt: string): Promise<string> => {
 // API KEYS
 export const listApiKeys = async (): Promise<ApiKey[]> => {
   try {
+    console.log("Fetching API keys from:", "/api-keys/");
     const response = await api.get("/api-keys/");
     console.log("listApiKeys API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
+    console.error("listApiKeys error:", error);
+    console.error("Error response:", error.response?.data);
+    console.error("Error status:", error.response?.status);
     handleApiError(error, "Failed to fetch API keys");
     return [];
   }

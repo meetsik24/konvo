@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Key, Copy, Trash2, Shield, RefreshCw, Lock, CheckCircle, X, BookOpen } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Key, Copy, Trash2, Shield, RefreshCw, Lock, CheckCircle, X, BookOpen, AlertTriangle } from 'lucide-react';
 import { 
   listApiKeys, 
   createApiKey, 
@@ -11,6 +11,7 @@ import {
   deleteDeveloperApp
 } from '../services/api';
 import type { DeveloperApp } from '../types';
+import { useWorkspace } from './WorkspaceContext';
 
 interface ApiKey {
   api_key_id: string;
@@ -47,7 +48,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ isOpen, onClose, 
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -113,9 +114,10 @@ interface CreateDeveloperAppModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (name: string, description: string, workspaceId?: string) => void;
+  workspaces: Array<{ workspace_id: string; name: string }>;
 }
 
-const CreateDeveloperAppModal: React.FC<CreateDeveloperAppModalProps> = ({ isOpen, onClose, onSubmit }) => {
+const CreateDeveloperAppModal: React.FC<CreateDeveloperAppModalProps> = ({ isOpen, onClose, onSubmit, workspaces }) => {
   const [appName, setAppName] = useState('');
   const [appDescription, setAppDescription] = useState('');
   const [workspaceId, setWorkspaceId] = useState('');
@@ -128,6 +130,13 @@ const CreateDeveloperAppModal: React.FC<CreateDeveloperAppModalProps> = ({ isOpe
     onSubmit(appName, appDescription, workspaceId || undefined);
   };
 
+  const handleClose = () => {
+    setAppName('');
+    setAppDescription('');
+    setWorkspaceId('');
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -136,7 +145,7 @@ const CreateDeveloperAppModal: React.FC<CreateDeveloperAppModalProps> = ({ isOpe
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -153,7 +162,7 @@ const CreateDeveloperAppModal: React.FC<CreateDeveloperAppModalProps> = ({ isOpe
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-500 hover:text-[#00333e] transition-colors"
           >
             <X className="w-6 h-6" />
@@ -181,16 +190,21 @@ const CreateDeveloperAppModal: React.FC<CreateDeveloperAppModalProps> = ({ isOpe
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[#00333e] mb-2">Workspace ID (Optional)</label>
-            <input
-              type="text"
-              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all placeholder-gray-400"
-              placeholder="Enter workspace ID (optional)"
+            <label className="block text-sm font-medium text-[#00333e] mb-2">Workspace (Optional)</label>
+            <select
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
               value={workspaceId}
               onChange={(e) => setWorkspaceId(e.target.value)}
-            />
+            >
+              <option value="">Select a workspace (optional)</option>
+              {workspaces.map((workspace) => (
+                <option key={workspace.workspace_id} value={workspace.workspace_id}>
+                  {workspace.name}
+                </option>
+              ))}
+            </select>
             <p className="text-xs text-gray-500 mt-2">
-              Leave empty to create app in your default workspace.
+              Leave unselected to create app in your default workspace.
             </p>
           </div>
         </div>
@@ -198,7 +212,7 @@ const CreateDeveloperAppModal: React.FC<CreateDeveloperAppModalProps> = ({ isOpe
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
           >
             Cancel
@@ -252,7 +266,7 @@ const EditDeveloperAppModal: React.FC<EditDeveloperAppModalProps> = ({ isOpen, o
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -320,7 +334,83 @@ const EditDeveloperAppModal: React.FC<EditDeveloperAppModalProps> = ({ isOpen, o
   );
 };
 
+// Confirmation Modal Component for Deleting Developer Apps
+interface ConfirmationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  type?: 'danger' | 'warning';
+}
+
+const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  title, 
+  message, 
+  confirmText = 'Delete', 
+  cancelText = 'Cancel',
+  type = 'danger'
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
+        className="bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-w-md p-6"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`p-2 rounded-full ${type === 'danger' ? 'bg-red-100' : 'bg-yellow-100'}`}>
+            <AlertTriangle className={`w-6 h-6 ${type === 'danger' ? 'text-red-600' : 'text-yellow-600'}`} />
+          </div>
+          <h3 className="text-xl font-bold text-[#00333e]">{title}</h3>
+        </div>
+        
+        <p className="text-gray-600 mb-6">{message}</p>
+        
+        <div className="flex justify-end gap-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            {cancelText}
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onConfirm}
+            className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
+              type === 'danger' 
+                ? 'bg-red-500 hover:bg-red-600' 
+                : 'bg-yellow-500 hover:bg-yellow-600'
+            }`}
+          >
+            {confirmText}
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const ApiKeys = () => {
+  const { workspaces } = useWorkspace();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [developerApps, setDeveloperApps] = useState<DeveloperApp[]>([]);
   const [loading, setLoading] = useState(false);
@@ -335,6 +425,8 @@ const ApiKeys = () => {
   const [isCreateDevAppModalOpen, setIsCreateDevAppModalOpen] = useState(false);
   const [isEditDevAppModalOpen, setIsEditDevAppModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState<DeveloperApp | null>(null);
+  const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
+  const [appToDelete, setAppToDelete] = useState<DeveloperApp | null>(null);
 
   // Fetch API keys
   const fetchApiKeys = async () => {
@@ -467,21 +559,35 @@ const ApiKeys = () => {
     }
   };
 
+  // Show delete confirmation modal
+  const showDeleteConfirmation = (app: DeveloperApp) => {
+    setAppToDelete(app);
+    setIsConfirmationModalOpen(true);
+  };
+
   // Delete a Developer App
-  const handleDeleteDeveloperApp = async (appId: string) => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this developer app? This action cannot be undone.'
-    );
+  const handleDeleteDeveloperApp = async () => {
+    if (!appToDelete) return;
 
-    if (!confirmed) return;
-
-    setActionInProgress(`delete-dev-app-${appId}`);
+    setActionInProgress(`delete-dev-app-${appToDelete.app_id}`);
     try {
-      await deleteDeveloperApp(appId);
-      setDeveloperApps((prevApps) => prevApps.filter((app) => app.app_id !== appId));
+      console.log('Attempting to delete app:', appToDelete.app_id);
+      await deleteDeveloperApp(appToDelete.app_id);
+      setDeveloperApps((prevApps) => prevApps.filter((app) => app.app_id !== appToDelete.app_id));
       showNotification('Developer app deleted successfully', 'success');
+      setIsConfirmationModalOpen(false);
+      setAppToDelete(null);
     } catch (error: any) {
-      showNotification('Failed to delete developer app: ' + error.message, 'error');
+      console.error('Delete error details:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to delete developer app';
+      
+      showNotification(`Failed to delete developer app: ${errorMessage}`, 'error');
     } finally {
       setActionInProgress(null);
     }
@@ -566,6 +672,7 @@ const ApiKeys = () => {
         isOpen={isCreateDevAppModalOpen}
         onClose={() => setIsCreateDevAppModalOpen(false)}
         onSubmit={handleCreateDeveloperApp}
+        workspaces={workspaces}
       />
 
       {/* Edit Developer App Modal */}
@@ -578,6 +685,26 @@ const ApiKeys = () => {
         onSubmit={handleEditDeveloperApp}
         app={editingApp}
       />
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {isConfirmationModalOpen && (
+          <ConfirmationModal
+            key="confirmation-modal"
+            isOpen={isConfirmationModalOpen}
+            onClose={() => {
+              setIsConfirmationModalOpen(false);
+              setAppToDelete(null);
+            }}
+            onConfirm={handleDeleteDeveloperApp}
+            title="Delete Developer App"
+            message={`Are you sure you want to delete "${appToDelete?.app_name}"? This action cannot be undone and will remove all associated data.`}
+            confirmText="Delete App"
+            cancelText="Cancel"
+            type="danger"
+          />
+        )}
+      </AnimatePresence>
 
       {/* Header */}
       <motion.div
@@ -916,7 +1043,7 @@ const ApiKeys = () => {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => handleDeleteDeveloperApp(app.app_id)}
+                            onClick={() => showDeleteConfirmation(app)}
                             disabled={actionInProgress === `delete-dev-app-${app.app_id}`}
                             className="text-red-500 hover:text-red-600 transition-colors"
                             title="Delete app"
