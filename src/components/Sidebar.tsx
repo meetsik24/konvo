@@ -6,12 +6,12 @@ import { useWorkspace } from '../pages/WorkspaceContext';
 const navItems = [
   { to: 'Dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/send-sms', icon: MessageSquare, label: 'Send SMS' },
-  { to: '/whatsapp', icon: MessageSquare, label: 'WhatsApp' },
+  // { to: '/whatsapp', icon: MessageSquare, label: 'WhatsApp' },
   { to: '/senderid', icon: IdCard, label: 'Sender ID' },
   { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/logs', icon: Activity, label: 'Logs' },
   { to: '/subscription', icon: DollarSign, label: 'Subscription' },
-  { to: '/apikeys', icon: IdCard, label: 'API Keys' },
+  { to: '/apikeys', icon: IdCard, label: 'Developer Apps & API' },
  
 ];
 

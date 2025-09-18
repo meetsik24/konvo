@@ -1,4 +1,11 @@
 import axios from 'axios';
+import type { 
+  DeveloperApp, 
+  CreateDeveloperAppRequest, 
+  UpdateDeveloperAppRequest, 
+  ApiError, 
+  ApiResponse 
+} from '../types';
 
 const API_BASE_URL = import.meta.env.MODE === 'development'
   ? import.meta.env.VITE_DEVELOPMENT_API_URL
@@ -1507,5 +1514,269 @@ export const getMetricsV1 = async (dateRange?: 'today' | 'this_week' | 'this_mon
 };
 
 
+
+// DEVELOPER APPS API
+export class DeveloperAppsApiClient {
+  private config: { baseUrl: string; headers?: Record<string, string> };
+
+  constructor(config: { baseUrl: string; headers?: Record<string, string> }) {
+    this.config = config;
+  }
+
+  private async makeRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<ApiResponse<T>> {
+    const url = `${this.config.baseUrl}${endpoint}`;
+    
+    const requestOptions: RequestInit = {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.config.headers,
+        ...options.headers,
+      },
+    };
+
+    try {
+      const response = await fetch(url, requestOptions);
+      
+      if (response.ok) {
+        const data = await response.json();
+        return { data, status: response.status };
+      } else {
+        const error = await response.json();
+        return { error, status: response.status };
+      }
+    } catch (err) {
+      throw new Error(`Request failed: ${err}`);
+    }
+  }
+
+  /**
+   * List all developer apps for the authenticated user
+   * GET /developer-apps/
+   */
+  async listDeveloperApps(): Promise<ApiResponse<DeveloperApp[]>> {
+    return this.makeRequest<DeveloperApp[]>('/developer-apps/');
+  }
+
+  /**
+   * Create a new developer app (optionally in a workspace owned by the user)
+   * POST /developer-apps/
+   */
+  async createDeveloperApp(
+    appData: CreateDeveloperAppRequest
+  ): Promise<ApiResponse<DeveloperApp>> {
+    return this.makeRequest<DeveloperApp>('/developer-apps/', {
+      method: 'POST',
+      body: JSON.stringify(appData),
+    });
+  }
+
+  /**
+   * Get a developer app by its ID
+   * GET /developer-apps/{app_id}
+   */
+  async getDeveloperApp(appId: string): Promise<ApiResponse<DeveloperApp>> {
+    return this.makeRequest<DeveloperApp>(`/developer-apps/${appId}`);
+  }
+
+  /**
+   * Update a developer app
+   * PATCH /developer-apps/{app_id}
+   */
+  async updateDeveloperApp(
+    appId: string,
+    appData: UpdateDeveloperAppRequest
+  ): Promise<ApiResponse<DeveloperApp>> {
+    return this.makeRequest<DeveloperApp>(`/developer-apps/${appId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(appData),
+    });
+  }
+
+  /**
+   * Delete a developer app
+   * DELETE /developer-apps/{app_id}
+   */
+  async deleteDeveloperApp(appId: string): Promise<ApiResponse<void>> {
+    return this.makeRequest<void>(`/developer-apps/${appId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Get a developer app by its app_key
+   * GET /developer-apps/by-key/{app_key}
+   */
+  async getDeveloperAppByKey(appKey: string): Promise<ApiResponse<DeveloperApp>> {
+    return this.makeRequest<DeveloperApp>(`/developer-apps/by-key/${appKey}`);
+  }
+
+  /**
+   * List all developer apps for a workspace (owned by the user)
+   * GET /workspaces/{workspace_id}/developer-apps
+   */
+  async getWorkspaceDeveloperApps(
+    workspaceId: string
+  ): Promise<ApiResponse<DeveloperApp[]>> {
+    return this.makeRequest<DeveloperApp[]>(
+      `/workspaces/${workspaceId}/developer-apps`
+    );
+  }
+}
+
+// Usage example and helper functions
+export class DeveloperAppsService {
+  private client: DeveloperAppsApiClient;
+
+  constructor(baseUrl: string, authToken?: string) {
+    const headers: Record<string, string> = {};
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    this.client = new DeveloperAppsApiClient({
+      baseUrl,
+      headers,
+    });
+  }
+
+  // Convenience methods with error handling
+  async createApp(
+    name: string,
+    description: string,
+    workspaceId?: string
+  ): Promise<DeveloperApp | null> {
+    const response = await this.client.createDeveloperApp({
+      app_name: name,
+      app_description: description,
+      workspace_id: workspaceId,
+    });
+
+    if (response.data) {
+      return response.data;
+    } else {
+      console.error('Failed to create app:', response.error);
+      return null;
+    }
+  }
+
+  async getAllApps(): Promise<DeveloperApp[]> {
+    const response = await this.client.listDeveloperApps();
+    return response.data || [];
+  }
+
+  async getAppById(appId: string): Promise<DeveloperApp | null> {
+    const response = await this.client.getDeveloperApp(appId);
+    return response.data || null;
+  }
+
+  async getAppByKey(appKey: string): Promise<DeveloperApp | null> {
+    const response = await this.client.getDeveloperAppByKey(appKey);
+    return response.data || null;
+  }
+
+  async updateApp(
+    appId: string,
+    updates: UpdateDeveloperAppRequest
+  ): Promise<DeveloperApp | null> {
+    const response = await this.client.updateDeveloperApp(appId, updates);
+    return response.data || null;
+  }
+
+  async deleteApp(appId: string): Promise<boolean> {
+    const response = await this.client.deleteDeveloperApp(appId);
+    return response.status === 204;
+  }
+
+  async getWorkspaceApps(workspaceId: string): Promise<DeveloperApp[]> {
+    const response = await this.client.getWorkspaceDeveloperApps(workspaceId);
+    return response.data || [];
+  }
+}
+
+// Convenience functions using the existing axios instance
+export const createDeveloperApp = async (data: CreateDeveloperAppRequest): Promise<DeveloperApp> => {
+  console.log("createDeveloperApp API call initiated with data:", data);
+  try {
+    const response = await api.post("/developer-apps/", data);
+    console.log("createDeveloperApp API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to create developer app");
+  }
+};
+
+export const getDeveloperApps = async (): Promise<DeveloperApp[]> => {
+  console.log("getDeveloperApps API call initiated");
+  try {
+    const response = await api.get("/developer-apps/");
+    console.log("getDeveloperApps API response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch developer apps");
+    return [];
+  }
+};
+
+export const getDeveloperApp = async (appId: string): Promise<DeveloperApp> => {
+  console.log("getDeveloperApp API call initiated for app:", appId);
+  try {
+    const response = await api.get(`/developer-apps/${appId}`);
+    console.log("getDeveloperApp API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch developer app");
+  }
+};
+
+export const updateDeveloperApp = async (
+  appId: string,
+  data: UpdateDeveloperAppRequest
+): Promise<DeveloperApp> => {
+  console.log("updateDeveloperApp API call initiated for app:", appId, "with data:", data);
+  try {
+    const response = await api.patch(`/developer-apps/${appId}`, data);
+    console.log("updateDeveloperApp API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to update developer app");
+  }
+};
+
+export const deleteDeveloperApp = async (appId: string): Promise<void> => {
+  console.log("deleteDeveloperApp API call initiated for app:", appId);
+  try {
+    await api.delete(`/developer-apps/${appId}`);
+    console.log("Developer app deleted successfully");
+  } catch (error: any) {
+    handleApiError(error, "Failed to delete developer app");
+  }
+};
+
+export const getDeveloperAppByKey = async (appKey: string): Promise<DeveloperApp> => {
+  console.log("getDeveloperAppByKey API call initiated for key:", appKey);
+  try {
+    const response = await api.get(`/developer-apps/by-key/${appKey}`);
+    console.log("getDeveloperAppByKey API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch developer app by key");
+  }
+};
+
+export const getWorkspaceDeveloperApps = async (workspaceId: string): Promise<DeveloperApp[]> => {
+  console.log("getWorkspaceDeveloperApps API call initiated for workspace:", workspaceId);
+  try {
+    const response = await api.get(`/workspaces/${workspaceId}/developer-apps`);
+    console.log("getWorkspaceDeveloperApps API response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch workspace developer apps");
+    return [];
+  }
+};
 
 export default api;

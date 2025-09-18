@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Key, Copy, Trash2, Shield, RefreshCw, Lock, CheckCircle, X, BookOpen } from 'lucide-react';
-import { listApiKeys, createApiKey, deleteApiKey } from '../services/api';
+import { 
+  listApiKeys, 
+  createApiKey, 
+  deleteApiKey,
+  getDeveloperApps,
+  createDeveloperApp,
+  updateDeveloperApp,
+  deleteDeveloperApp
+} from '../services/api';
+import type { DeveloperApp } from '../types';
 
 interface ApiKey {
   api_key_id: string;
@@ -99,9 +108,223 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ isOpen, onClose, 
   );
 };
 
+// Modal Component for Developer App Creation
+interface CreateDeveloperAppModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (name: string, description: string, workspaceId?: string) => void;
+}
+
+const CreateDeveloperAppModal: React.FC<CreateDeveloperAppModalProps> = ({ isOpen, onClose, onSubmit }) => {
+  const [appName, setAppName] = useState('');
+  const [appDescription, setAppDescription] = useState('');
+  const [workspaceId, setWorkspaceId] = useState('');
+
+  const handleSubmit = () => {
+    if (!appName.trim() || !appDescription.trim()) {
+      alert('Please enter both app name and description.');
+      return;
+    }
+    onSubmit(appName, appDescription, workspaceId || undefined);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
+        className="bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-w-md p-6"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <Shield className="w-6 h-6 text-[#00333e]" />
+            <h3 className="text-xl font-bold text-[#00333e]">Create Developer App</h3>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={onClose}
+            className="text-gray-500 hover:text-[#00333e] transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </motion.button>
+        </div>
+        <div className="mb-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">App Name</label>
+            <input
+              type="text"
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all placeholder-gray-400"
+              placeholder="Enter app name (e.g., MyApp)"
+              value={appName}
+              onChange={(e) => setAppName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">Description</label>
+            <textarea
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all placeholder-gray-400 resize-none"
+              placeholder="Enter app description"
+              rows={3}
+              value={appDescription}
+              onChange={(e) => setAppDescription(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">Workspace ID (Optional)</label>
+            <input
+              type="text"
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all placeholder-gray-400"
+              placeholder="Enter workspace ID (optional)"
+              value={workspaceId}
+              onChange={(e) => setWorkspaceId(e.target.value)}
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Leave empty to create app in your default workspace.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors"
+          >
+            Create App
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// Modal Component for Developer App Editing
+interface EditDeveloperAppModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (appId: string, name: string, description: string) => void;
+  app: DeveloperApp | null;
+}
+
+const EditDeveloperAppModal: React.FC<EditDeveloperAppModalProps> = ({ isOpen, onClose, onSubmit, app }) => {
+  const [appName, setAppName] = useState('');
+  const [appDescription, setAppDescription] = useState('');
+
+  React.useEffect(() => {
+    if (app) {
+      setAppName(app.app_name);
+      setAppDescription(app.app_description);
+    }
+  }, [app]);
+
+  const handleSubmit = () => {
+    if (!appName.trim() || !appDescription.trim() || !app) {
+      alert('Please enter both app name and description.');
+      return;
+    }
+    onSubmit(app.app_id, appName, appDescription);
+  };
+
+  if (!isOpen || !app) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
+        className="bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-w-md p-6"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <Shield className="w-6 h-6 text-[#00333e]" />
+            <h3 className="text-xl font-bold text-[#00333e]">Edit Developer App</h3>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={onClose}
+            className="text-gray-500 hover:text-[#00333e] transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </motion.button>
+        </div>
+        <div className="mb-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">App Name</label>
+            <input
+              type="text"
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all placeholder-gray-400"
+              placeholder="Enter app name"
+              value={appName}
+              onChange={(e) => setAppName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">Description</label>
+            <textarea
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all placeholder-gray-400 resize-none"
+              placeholder="Enter app description"
+              rows={3}
+              value={appDescription}
+              onChange={(e) => setAppDescription(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors"
+          >
+            Update App
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const ApiKeys = () => {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [developerApps, setDeveloperApps] = useState<DeveloperApp[]>([]);
   const [loading, setLoading] = useState(false);
+  const [devAppsLoading, setDevAppsLoading] = useState(false);
   const [notification, setNotification] = useState({
     show: false,
     message: '',
@@ -109,6 +332,9 @@ const ApiKeys = () => {
   });
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateDevAppModalOpen, setIsCreateDevAppModalOpen] = useState(false);
+  const [isEditDevAppModalOpen, setIsEditDevAppModalOpen] = useState(false);
+  const [editingApp, setEditingApp] = useState<DeveloperApp | null>(null);
 
   // Fetch API keys
   const fetchApiKeys = async () => {
@@ -123,8 +349,22 @@ const ApiKeys = () => {
     }
   };
 
+  // Fetch Developer Apps
+  const fetchDeveloperApps = async () => {
+    setDevAppsLoading(true);
+    try {
+      const data = await getDeveloperApps();
+      setDeveloperApps(data);
+    } catch (error: any) {
+      showNotification('Failed to fetch developer apps: ' + error.message, 'error');
+    } finally {
+      setDevAppsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchApiKeys();
+    fetchDeveloperApps();
   }, []);
 
   // Handle API key creation
@@ -183,6 +423,89 @@ const ApiKeys = () => {
     }
   };
 
+  // Handle Developer App creation
+  const handleCreateDeveloperApp = async (name: string, description: string, workspaceId?: string) => {
+    setDevAppsLoading(true);
+    try {
+      const newApp = await createDeveloperApp({
+        app_name: name,
+        app_description: description,
+        workspace_id: workspaceId,
+      });
+      setDeveloperApps((prev) => [...prev, newApp]);
+      showNotification('Developer app created successfully', 'success');
+      setIsCreateDevAppModalOpen(false);
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to create developer app';
+      showNotification(`Failed to create developer app: ${errorMessage}`, 'error');
+    } finally {
+      setDevAppsLoading(false);
+    }
+  };
+
+  // Handle Developer App editing
+  const handleEditDeveloperApp = async (appId: string, name: string, description: string) => {
+    setDevAppsLoading(true);
+    try {
+      const updatedApp = await updateDeveloperApp(appId, {
+        app_name: name,
+        app_description: description,
+      });
+      setDeveloperApps((prev) =>
+        prev.map((app) => (app.app_id === appId ? updatedApp : app))
+      );
+      showNotification('Developer app updated successfully', 'success');
+      setIsEditDevAppModalOpen(false);
+      setEditingApp(null);
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to update developer app';
+      showNotification(`Failed to update developer app: ${errorMessage}`, 'error');
+    } finally {
+      setDevAppsLoading(false);
+    }
+  };
+
+  // Delete a Developer App
+  const handleDeleteDeveloperApp = async (appId: string) => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this developer app? This action cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
+    setActionInProgress(`delete-dev-app-${appId}`);
+    try {
+      await deleteDeveloperApp(appId);
+      setDeveloperApps((prevApps) => prevApps.filter((app) => app.app_id !== appId));
+      showNotification('Developer app deleted successfully', 'success');
+    } catch (error: any) {
+      showNotification('Failed to delete developer app: ' + error.message, 'error');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  // Copy App Key to clipboard
+  const copyAppKeyToClipboard = async (appKey: string) => {
+    setActionInProgress(`copy-app-key-${appKey}`);
+    try {
+      await navigator.clipboard.writeText(appKey);
+      showNotification('App key copied to clipboard', 'success');
+    } catch (error: any) {
+      showNotification('Failed to copy app key: ' + error.message, 'error');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  // Open edit modal
+  const openEditModal = (app: DeveloperApp) => {
+    setEditingApp(app);
+    setIsEditDevAppModalOpen(true);
+  };
+
   // Show notification
   const showNotification = (message: string, type: 'success' | 'error') => {
     setNotification({ show: true, message, type });
@@ -236,6 +559,24 @@ const ApiKeys = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateApiKey}
+      />
+
+      {/* Create Developer App Modal */}
+      <CreateDeveloperAppModal
+        isOpen={isCreateDevAppModalOpen}
+        onClose={() => setIsCreateDevAppModalOpen(false)}
+        onSubmit={handleCreateDeveloperApp}
+      />
+
+      {/* Edit Developer App Modal */}
+      <EditDeveloperAppModal
+        isOpen={isEditDevAppModalOpen}
+        onClose={() => {
+          setIsEditDevAppModalOpen(false);
+          setEditingApp(null);
+        }}
+        onSubmit={handleEditDeveloperApp}
+        app={editingApp}
       />
 
       {/* Header */}
@@ -463,6 +804,143 @@ const ApiKeys = () => {
                 </div>
               </div>
             </motion.div>
+          </motion.div>
+
+          {/* Developer Apps Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <Shield className="w-6 h-6 text-[#00333e]" />
+                <h2 className="text-xl font-bold text-[#00333e]">Developer Apps</h2>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsCreateDevAppModalOpen(true)}
+                disabled={devAppsLoading}
+                className="flex items-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50"
+              >
+                <Shield className="w-5 h-5" />
+                Create Developer App
+              </motion.button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Manage your developer applications and their API access keys
+            </p>
+
+            {devAppsLoading ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#00333e]"></div>
+                <p className="ml-4 text-[#00333e]">Loading developer apps...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm">
+                        App Name
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm">
+                        Description
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm">
+                        App Key
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm">
+                        Workspace
+                      </th>
+                      <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm">
+                        Created
+                      </th>
+                      <th className="text-right py-3 px-4 font-medium text-[#00333e] text-sm">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {developerApps.map((app) => (
+                      <motion.tr
+                        key={app.app_id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-[#00333e]">{app.app_name}</div>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-700 max-w-xs truncate">
+                          {app.app_description}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full border font-mono text-sm text-gray-700">
+                            {app.app_key.substring(0, 8)}...{app.app_key.slice(-4)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-700">
+                          {app.workspace_id}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-700">
+                          {new Date(app.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-4 text-right flex justify-end gap-2">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => copyAppKeyToClipboard(app.app_key)}
+                            disabled={actionInProgress === `copy-app-key-${app.app_key}`}
+                            className="text-gray-500 hover:text-[#00333e] transition-colors"
+                            title="Copy app key"
+                          >
+                            {actionInProgress === `copy-app-key-${app.app_key}` ? (
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#00333e]" />
+                            ) : (
+                              <Copy className="w-5 h-5" />
+                            )}
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => openEditModal(app)}
+                            className="text-blue-500 hover:text-blue-600 transition-colors"
+                            title="Edit app"
+                          >
+                            <RefreshCw className="w-5 h-5" />
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleDeleteDeveloperApp(app.app_id)}
+                            disabled={actionInProgress === `delete-dev-app-${app.app_id}`}
+                            className="text-red-500 hover:text-red-600 transition-colors"
+                            title="Delete app"
+                          >
+                            {actionInProgress === `delete-dev-app-${app.app_id}` ? (
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500" />
+                            ) : (
+                              <Trash2 className="w-5 h-5" />
+                            )}
+                          </motion.button>
+                        </td>
+                      </motion.tr>
+                    ))}
+                    {developerApps.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="text-center py-8 text-gray-500 text-sm">
+                          No developer apps found. Create one to get started.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </motion.div>
         </div>
       )}
