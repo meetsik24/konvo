@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import { motion } from "framer-motion";
 import { Wallet, ShoppingBag, Package, Loader2 } from "lucide-react";
-import { getAccountBalance, initiateUnitsPayment, getUsageLogs, ServiceName } from "../services/api";
+import { getAccountBalance, initiateUnitsPayment, getUsageLogs, getPlans, ServiceName } from "../services/api";
 
 interface Package {
   id: string;
@@ -14,7 +14,7 @@ interface Package {
   allocation: {
     sms: number;
     whatsapp: number;
-    avr: number;
+    voice: number; // Changed from 'avr' to 'voice'
   };
 }
 
@@ -75,7 +75,9 @@ const Subscription: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-
+  const [packages, setPackages] = useState<Plan[]>([]);
+  const [isPackagesLoading, setIsPackagesLoading] = useState(true);
+  const [packagesError, setPackagesError] = useState<string | null>(null);
 
 
 
@@ -130,6 +132,24 @@ const Subscription: React.FC = () => {
 
     fetchBalance();
   }, [userId]);
+
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        setIsPackagesLoading(true);
+        const plans = await getPlans();
+        setPackages(plans);
+      } catch (error) {
+        console.error("Failed to fetch plans:", error);
+        setPackagesError("Failed to load available packages");
+      } finally {
+        setIsPackagesLoading(false);
+      }
+    };
+
+    fetchPlans();
+  }, []);
 
   useEffect(() => {
     const fetchUsageData = async () => {
@@ -329,40 +349,53 @@ const Subscription: React.FC = () => {
       </motion.div>
 
       {/* Packages */}
-      <div>
-        <h3 className="text-xl font-medium text-[#00333e] mb-4 flex items-center gap-2">
-          Available Packages
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {dummyPackages.map((pkg) => (
-            <motion.div
-              key={pkg.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
-            >
-              <h4 className="text-lg font-semibold text-[#00333e] mb-1">
-                {pkg.name}
-              </h4>
-              <p className="text-gray-600 text-sm mb-3">{pkg.description}</p>
-              <p className="text-sm mb-3 text-[#00333e] font-medium">
-                {pkg.units.toLocaleString()} Units
-              </p>
-              <ul className="text-sm text-gray-600 space-y-1 mb-4">
-                <li>{pkg.allocation.sms} SMS</li>
-                <li>{pkg.allocation.whatsapp} WhatsApp</li>
-                <li>{pkg.allocation.avr} AVR</li>
-              </ul>
-              <button
-                onClick={() => handlePurchase(pkg)}
-                className="px-4 py-2 bg-[#fddf0d] text-[#00333e] rounded-md text-sm font-medium hover:bg-yellow-400"
+        <div>
+          <h3 className="text-xl font-medium text-[#00333e] mb-4 flex items-center gap-2">
+            Available Packages
+          </h3>
+          {isPackagesLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
+            </div>
+          ) : packagesError ? (
+            <p className="text-red-500 text-sm">{packagesError}</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {packages?.map((pkg) => (
+              <motion.div
+                key={pkg?.id || Math.random()}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white p-6 rounded-md border border-gray-100 shadow-sm flex flex-col justify-between"
               >
-                Purchase
-              </button>
-            </motion.div>
-          ))}
+                <div>
+                  <h4 className="text-lg font-semibold text-[#00333e] mb-1">
+                    {pkg?.name || 'Package Name'}
+                  </h4>
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-2 h-10">
+                    {pkg?.description || 'No description available'}
+                  </p>
+                  <p className="text-sm mb-3 text-[#00333e] font-medium">
+                    {(pkg?.units || 0).toLocaleString()} Units
+                  </p>
+                  <ul className="text-sm text-gray-600 space-y-1 mb-4">
+                    <li>{pkg?.allocation?.sms || 0} SMS</li>
+                    <li>{pkg?.allocation?.whatsapp || 0} WhatsApp</li>
+                    <li>{pkg?.allocation?.voice || 0} Voice</li>
+                  </ul>
+                </div>
+                <button
+                  onClick={() => pkg && handlePurchase(pkg)}
+                  className="w-full px-4 py-2 bg-[#fddf0d] text-[#00333e] rounded-md text-sm font-medium hover:bg-yellow-400 transition-colors"
+                  disabled={!pkg}
+                >
+                  Purchase
+                </button>
+              </motion.div>
+            ))}
+            </div>
+          )}
         </div>
-      </div>
 
       {/* Transactions */}
       <div>
