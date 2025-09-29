@@ -75,7 +75,7 @@ const Subscription: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [packages, setPackages] = useState<Plan[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
   const [isPackagesLoading, setIsPackagesLoading] = useState(true);
   const [packagesError, setPackagesError] = useState<string | null>(null);
 
@@ -134,22 +134,36 @@ const Subscription: React.FC = () => {
   }, [userId]);
 
 
-  useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        setIsPackagesLoading(true);
-        const plans = await getPlans();
-        setPackages(plans);
-      } catch (error) {
-        console.error("Failed to fetch plans:", error);
-        setPackagesError("Failed to load available packages");
-      } finally {
-        setIsPackagesLoading(false);
-      }
-    };
+    useEffect(() => {
+      const fetchPlans = async () => {
+        try {
+          setIsPackagesLoading(true);
+          const plans = await getPlans();
+          
+          // Transform Plan[] to Package[]
+          const transformedPackages = plans.map(plan => ({
+            id: plan.plan_id,
+            name: plan.name,
+            description: plan.description,
+            units: plan.sms_unit_price,
+            allocation: {
+              sms: plan.minimum_sms_purchase, // 40% for SMS
+              whatsapp: 0, // 40% for WhatsApp
+              voice: 0, // 20% for Voice
+            }
+          }));
 
-    fetchPlans();
-  }, []);
+          setPackages(transformedPackages);
+        } catch (error) {
+          console.error("Failed to fetch plans:", error);
+          setPackagesError("Failed to load available packages");
+        } finally {
+          setIsPackagesLoading(false);
+        }
+      };
+
+      fetchPlans();
+    }, []);
 
   useEffect(() => {
     const fetchUsageData = async () => {
