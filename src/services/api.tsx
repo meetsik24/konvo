@@ -294,6 +294,22 @@ interface AccountBalance {
   unit_cost: number;
 }
 
+export interface Transaction {
+  transaction_id: string;
+  user_id: string;
+  total_amount_paid: number;
+  units_purchased: number;
+  payment_method: string;
+  payment_reference: string;
+  transaction_date: string;
+  marked_complete: boolean;
+}
+
+export interface TransactionResponse {
+  transactions: Transaction[];
+  total_count?: number;
+}
+
 
 // Utility function for consistent error handling
 const handleApiError = (error: unknown, defaultMessage: string): never => {
@@ -1064,6 +1080,26 @@ export const initiateUnitsPayment = async (data: InitiateUnitsPaymentRequest): P
     return response.data;
   } catch (error: any) {
     return handleApiError(error, "Failed to initiate Units payment");
+  }
+};
+
+
+// Add this function before export default api
+export const getTransactionHistory = async (skip: number = 0, limit: number = 100): Promise<TransactionResponse> => {
+  console.log("getTransactionHistory API call initiated");
+  try {
+    const response = await api.get(`/transaction/admin/transaction/?skip=${skip}&limit=${limit}`);
+    console.log("getTransactionHistory API response:", response.data);
+    
+    // If the response is an array, wrap it in the expected format
+    const transactions = Array.isArray(response.data) ? response.data : [];
+    
+    return {
+      transactions,
+      total_count: transactions.length
+    };
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch transaction history");
   }
 };
 

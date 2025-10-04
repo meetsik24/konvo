@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import { motion } from "framer-motion";
 import { Wallet, ShoppingBag, Package, Loader2 } from "lucide-react";
-import { getAccountBalance, initiateUnitsPayment, getUsageLogs, getPlans, ServiceName } from "../services/api";
+import { getAccountBalance, initiateUnitsPayment, getUsageLogs, getTransactionHistory, getPlans, ServiceName } from "../services/api";
 
 interface Package {
   id: string;
@@ -18,29 +18,6 @@ interface Package {
   };
 }
 
-const dummyPackages: Package[] = [
-  {
-    id: "pkg1",
-    name: "Starter Pack",
-    description: "Great for testing out SMS & WhatsApp",
-    units: 2000,
-    allocation: { sms: 200, whatsapp: 800, avr: 0 },
-  },
-  {
-    id: "pkg2",
-    name: "Business Pack",
-    description: "Balanced credits for mixed usage",
-    units: 5000,
-    allocation: { sms: 500, whatsapp: 1500, avr: 100 },
-  },
-  {
-    id: "pkg3",
-    name: "Enterprise Pack",
-    description: "High volume with AVR support",
-    units: 10000,
-    allocation: { sms: 1000, whatsapp: 3000, avr: 300 },
-  },
-];
 
 interface UsageData {
   name: string;
@@ -78,6 +55,10 @@ const Subscription: React.FC = () => {
   const [packages, setPackages] = useState<Package[]>([]);
   const [isPackagesLoading, setIsPackagesLoading] = useState(true);
   const [packagesError, setPackagesError] = useState<string | null>(null);
+  // const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
+  const [transactionsError, setTransactionsError] = useState<string | null>(null);
+
 
 
 
@@ -175,13 +156,13 @@ const Subscription: React.FC = () => {
           (acc, log) => {
             switch (log.service_name) {
               case ServiceName.SMS:
-                acc.sms += log.units_used;
+                acc.sms += log.quantity;
                 break;
               case ServiceName.WHATSAPP:
-                acc.whatsapp += log.units_used;
+                acc.whatsapp += log.quantity;
                 break;
               case ServiceName.VOICE:
-                acc.avr += log.units_used;
+                acc.avr += log.quantity;
                 break;
             }
             return acc;
@@ -224,6 +205,23 @@ const Subscription: React.FC = () => {
       },
     ]);
   };
+
+  useEffect(() => {
+  const fetchTransactions = async () => {
+    try {
+      setIsTransactionsLoading(true);
+      const response = await getTransactionHistory();
+      setTransactions(response.transactions);
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+      setTransactionsError("Failed to load transaction history");
+    } finally {
+      setIsTransactionsLoading(false);
+    }
+  };
+
+  fetchTransactions();
+  }, []);
 
   const calcUsagePercent = (used: number, total: number) =>
     total === 0 ? 0 : Math.min(100, Math.round((used / total) * 100));
@@ -413,27 +411,47 @@ const Subscription: React.FC = () => {
 
       {/* Transactions */}
       <div>
-        <h3 className="text-xl font-medium text-[#00333e] mb-4 flex items-center gap-2">
-          Recent Transactions
-        </h3>
-        {transactions.length === 0 ? (
-          <p className="text-gray-500 text-sm">No purchases yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {transactions.map((tx, idx) => (
-              <li
-                key={idx}
-                className="bg-white border rounded-md p-3 text-sm flex justify-between"
-              >
-                <span className="text-gray-700">{tx.desc}</span>
-                <span className="font-medium text-[#00333e]">
-                  -{tx.units} units
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <h3 className="text-xl font-medium text-[#00333e] mb-4">Transaction History</h3>
+      {isTransactionsLoading ? (
+        <div className="flex items-center justify-center p-8">
+          <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
+        </div>
+      ) : transactionsError ? (
+        <p className="text-red-500 text-sm">{transactionsError}</p>
+      ) : transactions.length === 0 ? (
+        <p className="text-gray-500 text-sm">No transaction history available.</p>
+      ) : (
+        <div className="space-y-4">
+          {transactions.map((transaction) => (
+            <div
+              key={transaction.transaction_id}
+              className="bg-white p-4 rounded-md border border-gray-100 shadow-sm"
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-medium text-[#00333e]">
+                    {transaction.units_purchased.toLocaleString()} Units
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {new Date(transaction.transaction_date).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium text-[#00333e]">
+                    {transaction.total_amount_paid.toLocaleString()} Tsh
+                  </p>
+                  <p className={`text-sm ${
+                    transaction.marked_complete ? 'text-green-500' : 'text-orange-500'
+                  }`}>
+                    {transaction.marked_complete ? 'Completed' : 'Pending'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
     </div>
   );
 };
