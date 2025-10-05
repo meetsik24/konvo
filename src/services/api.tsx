@@ -310,6 +310,16 @@ export interface TransactionResponse {
   total_count?: number;
 }
 
+interface ServiceAllocation {
+  service_id: string;
+  units_allocated: number;
+}
+
+interface ServiceAllocationResponse {
+  status: boolean;
+  allocations: ServiceAllocation[];
+}
+
 
 // Utility function for consistent error handling
 const handleApiError = (error: unknown, defaultMessage: string): never => {
@@ -1100,6 +1110,18 @@ export const getTransactionHistory = async (skip: number = 0, limit: number = 10
     };
   } catch (error: any) {
     return handleApiError(error, "Failed to fetch transaction history");
+  }
+};
+
+export const getAllocationsFromPackage = async (packageId: string): Promise<ServiceAllocationResponse> => {
+  try {
+    const response = await api.post('/service-allocation/from-package', {
+      package_id: packageId
+    });
+    console.log('getAllocationsFromPackage API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, 'Failed to get package allocations');
   }
 };
 

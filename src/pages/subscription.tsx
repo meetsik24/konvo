@@ -4,7 +4,8 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import { motion } from "framer-motion";
 import { Wallet, ShoppingBag, Package, Loader2 } from "lucide-react";
-import { getAccountBalance, initiateUnitsPayment, getUsageLogs, getTransactionHistory, getPlans, ServiceName } from "../services/api";
+import Alert from '../components/Alert';
+import { getAccountBalance, initiateUnitsPayment, getUsageLogs, getAllocationsFromPackage, getTransactionHistory, getPlans, ServiceName } from "../services/api";
 
 interface Package {
   id: string;
@@ -55,12 +56,28 @@ const Subscription: React.FC = () => {
   const [packages, setPackages] = useState<Package[]>([]);
   const [isPackagesLoading, setIsPackagesLoading] = useState(true);
   const [packagesError, setPackagesError] = useState<string | null>(null);
-  // const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [purchasingPackageId, setPurchasingPackageId] = useState<string | null>(null);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [transactionsError, setTransactionsError] = useState<string | null>(null);
 
 
+  const [alertState, setAlertState] = useState<{
+  isOpen: boolean;
+  type: 'success' | 'error';
+  message: string;
+  }>({
+    isOpen: false,
+    type: 'success',
+    message: '',
+  });
 
+  const showAlert = (type: 'success' | 'error', message: string) => {
+  setAlertState({ isOpen: true, type, message });
+  // Auto-hide after 5 seconds
+    setTimeout(() => {
+      setAlertState(prev => ({ ...prev, isOpen: false }));
+    }, 5000);
+  };
 
   const handleTopUp = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -183,28 +200,53 @@ const Subscription: React.FC = () => {
     fetchUsageData();
   }, []);
 
-  const handlePurchase = (pkg: Package) => {
+  const handlePurchase = async (pkg: Package) => {
+  try {
+    setPurchasingPackageId(pkg.id);
     if (!wallet || wallet.units < pkg.units) {
-      alert("Not enough credits in wallet to purchase this package.");
+      showAlert('error', "Not enough credits in wallet to purchase this package.");
       return;
     }
+
+    // Get allocations for the package
+    const allocationsResponse = await getAllocationsFromPackage(pkg.id);
+    
+    if (!allocationsResponse.status) {
+      throw new Error('Failed to get package allocations');
+    }
+
+    // Update wallet balance
     setWallet((prev) =>
-      prev
-        ? {
-            ...prev,
-            units: prev.units - pkg.units,
-          }
-        : null
+      prev ? {
+        ...prev,
+        units: prev.units - pkg.units,
+      } : null
     );
+
+    // Update transactions with allocation details
+    const allocationDetails = allocationsResponse.allocations
+      .map(a => `${a.units_allocated} units for service ${a.service_id}`)
+      .join(', ');
+
     setTransactions((prev) => [
       ...prev,
       {
         type: "purchase",
         units: pkg.units,
-        desc: `Bought ${pkg.name} (${pkg.allocation.sms} SMS, ${pkg.allocation.whatsapp} WhatsApp, ${pkg.allocation.avr} AVR)`,
+        desc: `Bought ${pkg.name} (${allocationDetails})`,
       },
     ]);
-  };
+
+    // Show success message
+     showAlert('success', 'Package purchased successfully!');
+
+  } catch (error) {
+    console.error('Package purchase failed:', error);
+    showAlert('error', 'Failed to purchase package. Please try again.');
+  } finally {
+    setPurchasingPackageId(null);
+  }
+};
 
   useEffect(() => {
   const fetchTransactions = async () => {
@@ -228,12 +270,19 @@ const Subscription: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 min-h-screen space-y-8">
+     
       {/* Wallet Overview */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-white p-6 rounded-md border border-gray-100 shadow-sm flex items-center justify-between"
       >
+         <Alert
+        type={alertState.type}
+        message={alertState.message}
+        isOpen={alertState.isOpen}
+        onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
+      />
         <div className="flex items-center space-x-4">
           <Wallet className="w-8 h-8 text-[#00333e]" />
           <div>
@@ -398,10 +447,17 @@ const Subscription: React.FC = () => {
                 </div>
                 <button
                   onClick={() => pkg && handlePurchase(pkg)}
-                  className="w-full px-4 py-2 bg-[#fddf0d] text-[#00333e] rounded-md text-sm font-medium hover:bg-yellow-400 transition-colors"
-                  disabled={!pkg}
+                  className="w-full px-4 py-2 bg-[#fddf0d] text-[#00333e] rounded-md text-sm font-medium hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!pkg || purchasingPackageId === pkg.id || !wallet || wallet.units < pkg.units}
                 >
-                  Purchase
+                  {purchasingPackageId === pkg.id ? (
+                    <span className="flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Processing...
+                    </span>
+                  ) : (
+                    'Purchase'
+                  )}
                 </button>
               </motion.div>
             ))}
