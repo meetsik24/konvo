@@ -86,7 +86,7 @@ function Home() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => handleNavigate("/documentation")}
+                onClick={() => window.open("https://docs.briq.tz", "_blank")}
                 className="text-white border-[#6f888c] hover:bg-[#6f888c]/20 px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base md:text-lg transition-all duration-300 hover:scale-105" // Adjusted padding and font size
                 style={{ fontFamily: "Exo, sans-serif" }}
               >
