@@ -5,7 +5,21 @@ import { RootState } from '../store/store';
 import { motion } from "framer-motion";
 import { Wallet, ShoppingBag, Package, Loader2 } from "lucide-react";
 import Alert from '../components/Alert';
-import { getAccountBalance, initiateUnitsPayment, getUsageLogs, getAllocationsFromPackage, getTransactionHistory, getPlans, ServiceName } from "../services/api";
+import { 
+  getAccountBalance, 
+  initiateUnitsPayment, 
+  getUsageLogs, 
+  getAllocationsFromPackage, 
+  getTransactionHistory, 
+  getPlans, 
+  ServiceName,
+  getTransactionById,
+  listAllTransactions,
+  validatePayment,
+  purchasePackage,
+  purchaseCustom,
+  getCurrentServiceAllocations,
+} from "../services/api";
 
 interface Package {
   id: string;
@@ -15,24 +29,29 @@ interface Package {
   allocation: {
     sms: number;
     whatsapp: number;
-    voice: number; // Changed from 'avr' to 'voice'
+    voice: number;
   };
 }
-
 
 interface UsageData {
   name: string;
   allocation: {
     sms: number;
     whatsapp: number;
-    avr: number;
+    voice: number;
   };
   usage: {
     sms: number;
     whatsapp: number;
-    avr: number;
+    voice: number;
   };
 }
+
+const serviceRates: { [key in keyof UsageData['allocation']]: number } = {
+  sms: 0.1,
+  whatsapp: 0.2,
+  voice: 0.5
+};
 
 const Subscription: React.FC = () => {
   const [wallet, setWallet] = useState<{
@@ -42,8 +61,8 @@ const Subscription: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentPackage, setCurrentPackage] = useState<UsageData>({
     name: "Your Package",
-    allocation: { sms: 0, whatsapp: 0, avr: 0 },
-    usage: { sms: 0, whatsapp: 0, avr: 0 },
+    allocation: { sms: 0, whatsapp: 0, voice: 0 },
+    usage: { sms: 0, whatsapp: 0, voice: 0 },
   });
   const [transactions, setTransactions] = useState<
     { type: string; units: number; desc: string }[]
@@ -59,12 +78,15 @@ const Subscription: React.FC = () => {
   const [purchasingPackageId, setPurchasingPackageId] = useState<string | null>(null);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [transactionsError, setTransactionsError] = useState<string | null>(null);
-
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
+  const [customService, setCustomService] = useState<'sms' | 'whatsapp' | 'voice'>('sms');
+  const [customQuantity, setCustomQuantity] = useState<number>(0);
 
   const [alertState, setAlertState] = useState<{
-  isOpen: boolean;
-  type: 'success' | 'error';
-  message: string;
+    isOpen: boolean;
+    type: 'success' | 'error';
+    message: string;
   }>({
     isOpen: false,
     type: 'success',
@@ -72,51 +94,76 @@ const Subscription: React.FC = () => {
   });
 
   const showAlert = (type: 'success' | 'error', message: string) => {
-  setAlertState({ isOpen: true, type, message });
-  // Auto-hide after 5 seconds
+    setAlertState({ isOpen: true, type, message });
+    // Auto-hide after 5 seconds
     setTimeout(() => {
       setAlertState(prev => ({ ...prev, isOpen: false }));
     }, 5000);
   };
 
   const handleTopUp = async (e: React.FormEvent) => {
-  e.preventDefault();
-  try {
-    setIsProcessing(true);
-    const response = await initiateUnitsPayment({
-      mobile_money_number: phoneNumber,
-      amount: topUpAmount
-    });
-    
-    console.log("Payment initiated:", response);
-    if (response.marked_complete) {
-      setWallet(prev => ({
-        ...prev,
-        units: (prev?.units || 0) + response.units_purchased
-      }));
-      setIsTopUpModalOpen(false); // Close modal on success
-      setPhoneNumber(""); // Reset form
-      setTopUpAmount(0); // Reset form
+    e.preventDefault();
+    try {
+      setIsProcessing(true);
+      const response = await initiateUnitsPayment({
+        mobile_money_number: phoneNumber,
+        amount: topUpAmount
+      });
+      
+      console.log("Payment initiated:", response);
+      if (response.marked_complete) {
+        setRefreshKey(prev => prev + 1);
+        setIsTopUpModalOpen(false); // Close modal on success
+        setPhoneNumber(""); // Reset form
+        setTopUpAmount(0); // Reset form
+      }
+    } catch (error) {
+      console.error("Payment initiation failed:", error);
+      setError("Failed to initiate payment");
+    } finally {
+      setIsProcessing(false);
     }
-  } catch (error) {
-    console.error("Payment initiation failed:", error);
-    setError("Failed to initiate payment");
-  } finally {
-    setIsProcessing(false);
-  }
+  };
+
+  const handleCustomPurchase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setIsProcessing(true);
+      const rate = serviceRates[customService];
+      const cost = Math.ceil(customQuantity * rate);
+      if (cost <= 0 || customQuantity <= 0) {
+        showAlert('error', 'Invalid quantity');
+        return;
+      }
+      if (!wallet || wallet.units < cost) {
+        showAlert('error', "Not enough units in wallet.");
+        return;
+      }
+      const response = await purchaseCustom(customService, customQuantity, cost);
+      if (response.status) {
+        showAlert('success', 'Custom credits purchased successfully!');
+        setRefreshKey(prev => prev + 1);
+        setIsCustomModalOpen(false);
+        setCustomQuantity(0);
+        setCustomService('sms');
+      } else {
+        showAlert('error', 'Failed to purchase custom credits.');
+      }
+    } catch (error) {
+      console.error("Custom purchase failed:", error);
+      showAlert('error', 'Failed to purchase custom credits. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   useEffect(() => {
     const fetchBalance = async () => {
       try {
-                // const user_id = useSelector((state: RootState) => state.auth.user?.id); // Adjust the selector path based on your Redux store structure
-        
         if (!userId) {
           throw new Error('User ID not found');
         }
-        // Replace 'yourUserId' with the actual user ID variable or value
         const balance = await getAccountBalance(userId);
-        // console.log("Fetched balance:", balance);
         setWallet({
           units: balance.unit_cost
         });
@@ -129,42 +176,41 @@ const Subscription: React.FC = () => {
     };
 
     fetchBalance();
-  }, [userId]);
-
-
-    useEffect(() => {
-      const fetchPlans = async () => {
-        try {
-          setIsPackagesLoading(true);
-          const plans = await getPlans();
-          
-          // Transform Plan[] to Package[]
-          const transformedPackages = plans.map(plan => ({
-            id: plan.plan_id,
-            name: plan.name,
-            description: plan.description,
-            units: plan.sms_unit_price,
-            allocation: {
-              sms: plan.minimum_sms_purchase, // 40% for SMS
-              whatsapp: 0, // 40% for WhatsApp
-              voice: 0, // 20% for Voice
-            }
-          }));
-
-          setPackages(transformedPackages);
-        } catch (error) {
-          console.error("Failed to fetch plans:", error);
-          setPackagesError("Failed to load available packages");
-        } finally {
-          setIsPackagesLoading(false);
-        }
-      };
-
-      fetchPlans();
-    }, []);
+  }, [userId, refreshKey]);
 
   useEffect(() => {
-    const fetchUsageData = async () => {
+    const fetchPlans = async () => {
+      try {
+        setIsPackagesLoading(true);
+        const plans = await getPlans();
+        
+        // Transform Plan[] to Package[]
+        const transformedPackages = plans.map(plan => ({
+          id: plan.plan_id,
+          name: plan.name,
+          description: plan.description,
+          units: plan.sms_unit_price,
+          allocation: {
+            sms: plan.minimum_sms_purchase, // 40% for SMS
+            whatsapp: 0, // 40% for WhatsApp
+            voice: 0, // 20% for Voice
+          }
+        }));
+
+        setPackages(transformedPackages);
+      } catch (error) {
+        console.error("Failed to fetch plans:", error);
+        setPackagesError("Failed to load available packages");
+      } finally {
+        setIsPackagesLoading(false);
+      }
+    };
+
+    fetchPlans();
+  }, [refreshKey]);
+
+  useEffect(() => {
+    const fetchUsageAndAllocation = async () => {
       try {
         const logs = await getUsageLogs();
 
@@ -179,91 +225,78 @@ const Subscription: React.FC = () => {
                 acc.whatsapp += log.quantity;
                 break;
               case ServiceName.VOICE:
-                acc.avr += log.quantity;
+                acc.voice += log.quantity;
                 break;
             }
             return acc;
           },
-          { sms: 0, whatsapp: 0, avr: 0 }
+          { sms: 0, whatsapp: 0, voice: 0 }
         );
 
-        setCurrentPackage((prev) => ({
-          ...prev,
+        const allocations = await getCurrentServiceAllocations();
+
+        setCurrentPackage({
+          name: "Your Package",
+          allocation: allocations,
           usage: usage,
-        }));
+        });
       } catch (err) {
-        console.error("Failed to fetch usage logs:", err);
+        console.error("Failed to fetch usage logs or allocations:", err);
         setError("Failed to load usage data");
       }
     };
 
-    fetchUsageData();
-  }, []);
+    fetchUsageAndAllocation();
+  }, [refreshKey]);
 
   const handlePurchase = async (pkg: Package) => {
-  try {
-    setPurchasingPackageId(pkg.id);
-    if (!wallet || wallet.units < pkg.units) {
-      showAlert('error', "Not enough credits in wallet to purchase this package.");
-      return;
-    }
-
-    // Get allocations for the package
-    const allocationsResponse = await getAllocationsFromPackage(pkg.id);
-    
-    if (!allocationsResponse.status) {
-      throw new Error('Failed to get package allocations');
-    }
-
-    // Update wallet balance
-    setWallet((prev) =>
-      prev ? {
-        ...prev,
-        units: prev.units - pkg.units,
-      } : null
-    );
-
-    // Update transactions with allocation details
-    const allocationDetails = allocationsResponse.allocations
-      .map(a => `${a.units_allocated} units for service ${a.service_id}`)
-      .join(', ');
-
-    setTransactions((prev) => [
-      ...prev,
-      {
-        type: "purchase",
-        units: pkg.units,
-        desc: `Bought ${pkg.name} (${allocationDetails})`,
-      },
-    ]);
-
-    // Show success message
-     showAlert('success', 'Package purchased successfully!');
-
-  } catch (error) {
-    console.error('Package purchase failed:', error);
-    showAlert('error', 'Failed to purchase package. Please try again.');
-  } finally {
-    setPurchasingPackageId(null);
-  }
-};
-
-  useEffect(() => {
-  const fetchTransactions = async () => {
     try {
-      setIsTransactionsLoading(true);
-      const response = await getTransactionHistory();
-      setTransactions(response.transactions);
+      setPurchasingPackageId(pkg.id);
+      if (!wallet || wallet.units < pkg.units) {
+        showAlert('error', "Not enough credits in wallet to purchase this package.");
+        return;
+      }
+
+      // Get allocations for the package
+      const allocationsResponse = await getAllocationsFromPackage(pkg.id);
+      
+      if (!allocationsResponse.status) {
+        throw new Error('Failed to get package allocations');
+      }
+
+      const purchaseResponse = await purchasePackage(pkg.id);
+
+      if (purchaseResponse.status) {
+        showAlert('success', 'Package purchased successfully!');
+        setRefreshKey(prev => prev + 1);
+      } else {
+        throw new Error('Purchase failed');
+      }
+
     } catch (error) {
-      console.error("Failed to fetch transactions:", error);
-      setTransactionsError("Failed to load transaction history");
+      console.error('Package purchase failed:', error);
+      showAlert('error', 'Failed to purchase package. Please try again.');
     } finally {
-      setIsTransactionsLoading(false);
+      setPurchasingPackageId(null);
     }
   };
 
-  fetchTransactions();
-  }, []);
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        setIsTransactionsLoading(true);
+        const response = await getTransactionHistory();
+        setTransactions(response.transactions);
+      } catch (error) {
+        console.error("Failed to fetch transactions:", error);
+        setTransactionsError("Failed to load transaction history");
+      } finally {
+        setIsTransactionsLoading(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [refreshKey]);
 
   const calcUsagePercent = (used: number, total: number) =>
     total === 0 ? 0 : Math.min(100, Math.round((used / total) * 100));
@@ -408,6 +441,100 @@ const Subscription: React.FC = () => {
           })}
         </div>
       </motion.div>
+
+      {/* Custom Credits */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white p-6 rounded-md border border-gray-100 shadow-sm flex items-center justify-between"
+      >
+        <div className="flex items-center space-x-4">
+          <ShoppingBag className="w-8 h-8 text-[#00333e]" />
+          <div>
+            <h2 className="text-lg font-semibold text-[#00333e]">
+              Custom Credits
+            </h2>
+            <p className="text-sm text-gray-600">
+              Buy credits for specific services
+            </p>
+          </div>
+        </div>
+        <button
+          className="px-4 py-2 bg-[#00333e] text-white rounded-md text-sm hover:bg-[#00262f]"
+          onClick={() => setIsCustomModalOpen(true)}
+        >
+          Buy Custom
+        </button>
+      </motion.div>
+
+      {isCustomModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md relative">
+            <button
+              onClick={() => setIsCustomModalOpen(false)}
+              className="absolute right-4 top-4 text-gray-500 hover:text-gray-700"
+            >
+              <X size={20} />
+            </button>
+            
+            <h2 className="text-xl font-semibold text-[#00333e] mb-4">Buy Custom Credits</h2>
+            
+            <form onSubmit={handleCustomPurchase} className="space-y-4">
+              <div>
+                <label htmlFor="service" className="block text-sm font-medium text-gray-700 mb-1">
+                  Service
+                </label>
+                <select
+                  id="service"
+                  value={customService}
+                  onChange={(e) => setCustomService(e.target.value as 'sms' | 'whatsapp' | 'voice')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  required
+                >
+                  <option value="sms">SMS</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="voice">Voice</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                  Quantity
+                </label>
+                <input
+                  type="number"
+                  id="quantity"
+                  value={customQuantity || ''}
+                  onChange={(e) => setCustomQuantity(Number(e.target.value))}
+                  placeholder="Enter quantity"
+                  min="1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  required
+                />
+              </div>
+
+              <p className="text-sm text-gray-600">
+                Estimated cost: {Math.ceil(customQuantity * serviceRates[customService]).toLocaleString()} units
+              </p>
+
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="w-full px-4 py-2 bg-[#00333e] text-white rounded-md text-sm hover:bg-[#00262f] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing ? (
+                  <span className="flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Processing...
+                  </span>
+                ) : (
+                  'Purchase'
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Packages */}
         <div>

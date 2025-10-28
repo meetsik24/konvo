@@ -321,6 +321,20 @@ interface ServiceAllocationResponse {
 }
 
 
+
+//interface for trasnactions
+
+interface PaymentValidationRequest {
+  transaction_id: string;
+  payment_reference?: string;
+}
+
+interface PaymentValidationResponse {
+  status: boolean;
+  message: string;
+  transaction: Transaction;
+}
+
 // Utility function for consistent error handling
 const handleApiError = (error: unknown, defaultMessage: string): never => {
   let message = defaultMessage;
@@ -1535,5 +1549,61 @@ export const getUsageLogs = async (): Promise<UsageLog[]> => {
     return handleApiError(error, "Failed to fetch usage logs");
   }
 };
+
+
+
+//Transactions
+export const getTransactionById = async (transactionId: string): Promise<Transaction> => {
+  console.log("getTransactionById API call initiated for transaction:", transactionId);
+  try {
+    const response = await api.get(`/transaction/get/${transactionId}`);
+    console.log("getTransactionById API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch transaction");
+  }
+};
+
+export const listAllTransactions = async (): Promise<TransactionResponse> => {
+  console.log("listAllTransactions API call initiated");
+  try {
+    const response = await api.get("/transaction/list-all");
+    console.log("listAllTransactions API response:", response.data);
+    
+    // If the response is an array, wrap it in the expected format
+    const transactions = Array.isArray(response.data) ? response.data : response.data.transactions || [];
+    
+    return {
+      transactions,
+      total_count: response.data.total_count || transactions.length
+    };
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch all transactions");
+  }
+};
+
+export const validatePayment = async (data: PaymentValidationRequest): Promise<PaymentValidationResponse> => {
+  console.log("validatePayment API call initiated with data:", data);
+  try {
+    const response = await api.post("/transaction/validate-payment", data);
+    console.log("validatePayment API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to validate payment");
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 export default api;
