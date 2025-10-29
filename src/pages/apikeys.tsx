@@ -71,7 +71,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ isOpen, onClose, 
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
         transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
-        className="bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-w-md p-6"
+        className="bg-white border border-gray-200 rounded-2xl  w-full max-w-md p-6"
       >
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
@@ -168,7 +168,7 @@ const CreateDeveloperAppModal: React.FC<CreateDeveloperAppModalProps> = ({ isOpe
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
         transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
-        className="bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-w-md p-6"
+        className="bg-white border border-gray-200 rounded-2xl  w-full max-w-md p-6"
       >
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
@@ -1243,7 +1243,7 @@ const ApiKeys = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
+            className="bg-white rounded-xl p-6 border border-gray-100"
           >
             <div className="flex justify-between items-center mb-6">
               <p className="text-sm text-gray-600">Manage your API keys securely</p>
@@ -1367,7 +1367,7 @@ const ApiKeys = () => {
           >
             <motion.div
               whileHover={{ scale: 1.03 }}
-              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
+              className="bg-white rounded-xl  p-4 border border-gray-100"
             >
               <div className="flex items-center gap-3">
                 <Shield className="w-6 h-6 text-[#00333e]" />
@@ -1381,7 +1381,7 @@ const ApiKeys = () => {
             </motion.div>
             <motion.div
               whileHover={{ scale: 1.03 }}
-              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
+              className="bg-white rounded-xl p-4 border border-gray-100"
             >
               <div className="flex items-center gap-3">
                 <RefreshCw className="w-6 h-6 text-[#00333e]" />
@@ -1395,7 +1395,7 @@ const ApiKeys = () => {
             </motion.div>
             <motion.div
               whileHover={{ scale: 1.03 }}
-              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
+              className="bg-white rounded-xl  p-4 border border-gray-100"
             >
               <div className="flex items-center gap-3">
                 <Lock className="w-6 h-6 text-[#00333e]" />
@@ -1414,7 +1414,7 @@ const ApiKeys = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
+            className="bg-white rounded-xl  p-6 border border-gray-100"
           >
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
@@ -1551,7 +1551,7 @@ const ApiKeys = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
+            className="bg-white rounded-xl  p-6 border border-gray-100"
           >
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
