@@ -1,6 +1,15 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { loginUser, registerUser, getProfile } from "../../services/api";
 
+// Auth State Interface
+interface AuthState {
+  user: any;
+  token: string | null;
+  error: string | null;
+  status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  successMessage: string | null;
+}
+
 // **1️⃣ Register User**
 export const register = createAsyncThunk(
   "auth/register",
@@ -43,9 +52,9 @@ export const login = createAsyncThunk(
 // **3️⃣ Fetch User Profile**
 export const fetchUserProfile = createAsyncThunk(
   "auth/fetchUserProfile",
-  async (token: string, { rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      const profileData = await getProfile(token);
+      const profileData = await getProfile();
       console.log('Profile fetch response:', profileData); // Debug log
       return profileData;
     } catch (error: any) {
@@ -56,7 +65,7 @@ export const fetchUserProfile = createAsyncThunk(
 );
 
 // **4️⃣ Initialize Auth State from localStorage**
-const initializeAuthState = () => {
+const initializeAuthState = (): AuthState => {
   const token = localStorage.getItem("token");
   // Optionally, attempt to restore user data from localStorage if persisted
   const persistedState = localStorage.getItem("persist:root");

@@ -9,11 +9,11 @@ import {
   getCampaigns,
   getCampaignGroups,
   sendInstantMessage,
-  // sendBulkSMSFile,
   generateMessage,
   getWorkspaceGroups,
   createCampaign,
   assignGroupToCampaign,
+  getContacts,
 } from '../services/api';
 
 interface Campaign { 
@@ -24,9 +24,15 @@ interface Campaign {
   launch_date?: string;
   created_at: string;
 }
-interface Group { group_id: string; name: string; }
+interface Group { group_id: string; name: string; contact_count?: number; }
 interface SenderId { sender_id: string; name: string; is_approved: boolean; }
-
+interface Contact { 
+  contact_id: string; 
+  workspace_id: string; 
+  phone: string; 
+  name?: string;
+  created_at: string;
+}
 interface UploadedRow { [key: string]: string; }
 
 const SendSMS = () => {
@@ -55,8 +61,8 @@ const SendSMS = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedData, setUploadedData] = useState<UploadedRow[]>([]);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
-  const [phoneColumn, setPhoneColumn] = useState<string>(''); // Phone column selection
-  const [defaultCountryCode, setDefaultCountryCode] = useState<string>('+255'); // Default country code
+  const [phoneColumn, setPhoneColumn] = useState<string>('');
+  const [defaultCountryCode, setDefaultCountryCode] = useState<string>('+255');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -67,7 +73,9 @@ const SendSMS = () => {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [recipientCount, setRecipientCount] = useState(0);
   const [messagePreview, setMessagePreview] = useState('');
-  const [lastSentMessage, setLastSentMessage] = useState<string | null>(null); // Keep track of the last sent message
+  const [lastSentMessage, setLastSentMessage] = useState<string | null>(null);
+  const [sendToAll, setSendToAll] = useState(false);
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [modalState, setModalState] = useState({
@@ -94,6 +102,8 @@ const SendSMS = () => {
         setCampaigns(campaignsData as unknown as Campaign[]);
         const groupsData = await getWorkspaceGroups(currentWorkspaceId);
         setGroups(groupsData);
+        const contactsData = await getContacts(currentWorkspaceId);
+        setAllContacts(contactsData);
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load data.';
         setError(errorMessage);
@@ -117,7 +127,6 @@ const SendSMS = () => {
         setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: groupsData || [] }));
       } catch (error) {
         console.error('Error fetching campaign groups:', error);
-        // If no groups are assigned, set empty array instead of showing error
         setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: [] }));
       }
     };
@@ -125,7 +134,7 @@ const SendSMS = () => {
     if (selectedCampaignId) {
       fetchCampaignGroups();
     }
-  }, [selectedCampaignId, campaigns]); // Add campaigns as dependency
+  }, [selectedCampaignId, campaigns]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -144,7 +153,6 @@ const SendSMS = () => {
           reject(new Error('File is empty.'));
           return;
         }
-        // Try multiple delimiters
         const delimiters = [',', ';', '\t'];
         let headers: string[] = [];
         let rows: string[][] = [];
@@ -161,7 +169,6 @@ const SendSMS = () => {
           reject(new Error('CSV must have at least one column.'));
           return;
         }
-        // Find phone column dynamically
         const phoneColIndex = headers.findIndex(h => /phone|mobile|number/i.test(h));
         if (phoneColIndex === -1) {
           reject(new Error('No phone number column found (e.g., phone, mobile, phone_number).'));
@@ -184,7 +191,6 @@ const SendSMS = () => {
           return;
         }
         
-        // Skip heavy phone validation - let backend handle it
         setAvailableColumns(headers);
         resolve(parsedRows);
       };
@@ -202,7 +208,6 @@ const SendSMS = () => {
         try {
           const data = await parseFileRecipients(file);
           setUploadedData(data);
-          // No need to show validation warnings - backend will handle validation
         } catch (err: unknown) {
           const errorMessage = err instanceof Error ? err.message : 'Failed to parse file.';
           setError(errorMessage);
@@ -240,12 +245,10 @@ const SendSMS = () => {
   const isFormValid = () => {
     if (!formData.senderId || !formData.message.trim()) return false;
     
-    if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length) return false;
+    if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length && !sendToAll) return false;
     
     if (sendMode === 'campaign') {
       if (!selectedCampaignId) return false;
-      
-      // Check schedule data validity if frequency is provided
       if (formData.frequency && formData.frequency !== 'once') {
         if (!formData.startDate || !formData.startTime) return false;
       }
@@ -267,33 +270,34 @@ const SendSMS = () => {
       let previewMessage = formData.message;
 
       if (sendMode === 'instant') {
-        if (formData.manualContacts.trim()) {
-          // Simple split and trim - let backend handle validation
-          const manualPhones = formData.manualContacts
-            .split(/[\n,]+/)
-            .map(phone => phone.trim())
-            .filter(phone => phone);
-          recipientCount += manualPhones.length;
-        }
-        if (selectedGroups.length) {
-          // Use actual contact_count for each selected group
-          const groupContacts = selectedGroups.reduce((total, groupId) => {
-            const group = groups.find(g => g.group_id === groupId);
-            return total + (group ? group.contact_count : 0);
-          }, 0);
-          recipientCount += groupContacts;
+        if (sendToAll) {
+          recipientCount = allContacts.length;
+          if (recipientCount === 0) {
+            throw new Error('No contacts found in workspace.');
+          }
+        } else {
+          if (formData.manualContacts.trim()) {
+            const manualPhones = formData.manualContacts
+              .split(/[\n,]+/)
+              .map(phone => phone.trim())
+              .filter(phone => phone);
+            recipientCount += manualPhones.length;
+          }
+          if (selectedGroups.length) {
+            const groupContacts = selectedGroups.reduce((total, groupId) => {
+              const group = groups.find(g => g.group_id === groupId);
+              return total + (group ? (group.contact_count || 0) : 0);
+            }, 0);
+            recipientCount += groupContacts;
+          }
         }
       } else if (sendMode === 'campaign') {
         const campaignGroupsList = campaignGroups[selectedCampaignId] || [];
         if (!campaignGroupsList.length) {
-          // If no groups are assigned, show a more helpful error
           throw new Error('This campaign has no groups assigned. Please assign groups to the campaign first or create a new campaign with groups.');
         }
-        // Use actual contact_count for each group in the campaign
         recipientCount = campaignGroupsList.reduce((total, group) => total + (group.contact_count || 0), 0);
       } else if (sendMode === 'file') {
-        // For file mode, we'll show an estimate based on uploaded data
-        // The actual validation will happen on the backend
         if (uploadedData.length && phoneColumn) {
           const validPhones = uploadedData
             .map(row => row[phoneColumn] || '')
@@ -303,14 +307,13 @@ const SendSMS = () => {
             previewMessage = applyPlaceholders(formData.message, uploadedData[0]);
           }
         } else {
-          // If no data parsed yet, show file info
-          recipientCount = uploadedFile ? 1 : 0; // Placeholder count
+          recipientCount = uploadedFile ? 1 : 0;
           previewMessage = formData.message;
         }
       }
 
-      if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length) {
-        throw new Error('Please add recipients or select groups.');
+      if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length && !sendToAll) {
+        throw new Error('Please add recipients, select groups, or choose to send to all contacts.');
       }
       if (sendMode === 'file' && !uploadedFile) {
         throw new Error('Please upload a file.');
@@ -331,14 +334,6 @@ const SendSMS = () => {
   const generatePersonalizedMessage = (row: UploadedRow, template: string, feature: 'name' | 'subscription' | 'scheduled_time' | 'custom' = 'name') => {
     let message = template;
     switch (feature) {
-      // case 'name': {
-      //   if (row['names']) {
-      //     message = `Hello ${row['names']}, ` + message.replace(/{names}/gi, row['names']);
-      //   } else {
-      //     message = message.replace(/{names}/gi, '');
-      //   }
-      //   break;
-      // }
       case 'subscription': {
         message = message.replace(/{subscription}/gi, row['subscription'] || '');
         const balance = Number(row['subscription']);
@@ -359,7 +354,6 @@ const SendSMS = () => {
         break;
       }
       default: {
-        // Replace all placeholders as fallback
         message = message
           .replace(/{names}/gi, row['names'] || '')
           .replace(/{subscription}/gi, row['subscription'] || '')
@@ -373,14 +367,14 @@ const SendSMS = () => {
 
   const handleSendSMS = async () => {
     setIsSending(true);
-    setError(null); // Clear any existing errors
+    setError(null);
     
     console.log('=== handleSendSMS START ===');
     console.log('Send mode:', sendMode);
     console.log('Current workspace ID:', currentWorkspaceId);
     console.log('Form data:', formData);
     console.log('Selected groups:', selectedGroups);
-    console.log('Selected campaign ID:', selectedCampaignId);
+    console.log('Send to all:', sendToAll);
     
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected.');
@@ -391,27 +385,30 @@ const SendSMS = () => {
         
         console.log('=== INSTANT MODE PROCESSING ===');
         
-        // Add manual contacts (raw phone numbers)
-        if (formData.manualContacts.trim()) {
-          const manualPhones = formData.manualContacts
-            .split(/[\n,]+/)
-            .map(phone => phone.trim())
-            .filter(phone => phone);
-          recipients.push(...manualPhones);
-          console.log('Manual contacts processed:', manualPhones);
-        }
-        
-        // Add group IDs
-        if (selectedGroups.length) {
-          groups.push(...selectedGroups);
-          console.log('Groups to send to:', groups);
+        if (sendToAll) {
+          recipients.push(...allContacts.map(c => c.phone));
+          console.log('Sending to all contacts:', recipients.length);
+        } else {
+          if (formData.manualContacts.trim()) {
+            const manualPhones = formData.manualContacts
+              .split(/[\n,]+/)
+              .map(phone => phone.trim())
+              .filter(phone => phone);
+            recipients.push(...manualPhones);
+            console.log('Manual contacts processed:', manualPhones);
+          }
+          if (selectedGroups.length) {
+            groups.push(...selectedGroups);
+            console.log('Groups to send to:', groups);
+          }
         }
         
         const instantMessageData = {
           sender_id: formData.senderId,
           content: formData.message,
-          recipients: recipients, // Always include recipients array
+          recipients: recipients,
           ...(groups.length > 0 && { groups }),
+          ...(sendToAll && { default_country_code: defaultCountryCode }),
         };
         
         console.log('About to call sendInstantMessage with data:', instantMessageData);
@@ -427,7 +424,6 @@ const SendSMS = () => {
           throw new Error('This campaign has no groups assigned. Please assign groups to the campaign first or create a new campaign with groups.');
         }
         
-        // Prepare schedule data if provided
         const hasScheduleData = formData.startDate && formData.startTime;
         const scheduleData = hasScheduleData ? {
           start_date: formData.startDate,
@@ -440,7 +436,7 @@ const SendSMS = () => {
         const campaignMessageData = {
           sender_id: formData.senderId,
           content: formData.message,
-          recipients: [], // Add empty recipients array for campaign mode
+          recipients: [],
           groups: campaignGroupsList.map(g => g.group_id),
           campaign_id: selectedCampaignId,
           ...(scheduleData && { schedule: scheduleData }),
@@ -448,7 +444,6 @@ const SendSMS = () => {
         
         console.log('About to call sendInstantMessage with campaign data:', campaignMessageData);
         
-        // Send campaign with group IDs and campaign ID
         await sendInstantMessage(currentWorkspaceId, campaignMessageData);
         
       } else if (sendMode === 'file') {
@@ -462,7 +457,6 @@ const SendSMS = () => {
           throw new Error('Please select the phone number column.');
         }
         
-        // for each row, generate and send personalised message
         for (const row of uploadedData) {
           const phone = row[phoneColumn];
           if (!phone) continue;
@@ -479,10 +473,8 @@ const SendSMS = () => {
 
       console.log('=== SMS SENT SUCCESSFULLY ===');
 
-      // Save the last sent message before resetting the form
       setLastSentMessage(formData.message);
 
-      // Reset form after successful send
       setFormData({
         senderId: senderIds[0]?.sender_id || '',
         message: '',
@@ -501,6 +493,7 @@ const SendSMS = () => {
       setUploadedData([]);
       setAvailableColumns([]);
       setPhoneColumn('');
+      setSendToAll(false);
       
     } catch (err: unknown) {
       console.error('=== handleSendSMS ERROR ===');
@@ -544,10 +537,8 @@ const SendSMS = () => {
   };
 
   const handleCreateCampaign = async () => {
-    // Clear any existing errors
     setError(null);
     
-    // Validate inputs
     if (!formData.campaignName?.trim()) {
       setError('Please enter a campaign name.');
       return;
@@ -570,12 +561,11 @@ const SendSMS = () => {
         workspaceId: currentWorkspaceId
       });
       
-      // Create the campaign via API
       const campaignData = {
         name: formData.campaignName.trim(),
         description: `Campaign with ${selectedGroups.length} group(s)`,
         workspace_id: currentWorkspaceId,
-        launch_date: new Date().toISOString() // Add required launch_date field
+        launch_date: new Date().toISOString()
       };
       
       console.log('Sending campaign data to API:', campaignData);
@@ -586,21 +576,17 @@ const SendSMS = () => {
       const newCampaign = await createCampaign(campaignData);
       console.log('Created campaign:', newCampaign);
 
-      // Assign selected groups to the campaign
       for (const groupId of selectedGroups) {
         console.log('Assigning group', groupId, 'to campaign', newCampaign.campaign_id);
         await assignGroupToCampaign(groupId, newCampaign.campaign_id);
       }
 
-      // Update local state
       setCampaigns(prev => [...prev, newCampaign]);
       setSelectedCampaignId(newCampaign.campaign_id);
       
-      // Update campaign groups cache with the selected groups
       const campaignGroupsData = groups.filter(group => selectedGroups.includes(group.group_id));
       setCampaignGroups(prev => ({ ...prev, [newCampaign.campaign_id]: campaignGroupsData }));
 
-      // Close modal and reset form
       setModal('isCreateCampaignOpen', false);
       setFormData(prev => ({ ...prev, campaignName: '' }));
       setSelectedGroups([]);
@@ -610,10 +596,8 @@ const SendSMS = () => {
     } catch (err: unknown) {
       console.error('Error creating campaign:', err);
       
-      // Enhanced error handling
       let errorMessage = 'Failed to create campaign.';
       
-      // Type guard for axios error
       if (err && typeof err === 'object' && 'response' in err) {
         const axiosError = err as { 
           response?: { 
@@ -622,7 +606,6 @@ const SendSMS = () => {
           } 
         };
         
-        // Server responded with error status
         console.error('API Error Response:', axiosError.response?.data);
         console.error('API Error Status:', axiosError.response?.status);
         
@@ -644,7 +627,6 @@ const SendSMS = () => {
           errorMessage = 'Server error. Please try again later.';
         }
       } else if (err instanceof Error && err.message !== '[object Object]') {
-        // Network error or other client-side error
         errorMessage = err.message;
       }
       
@@ -767,28 +749,49 @@ const SendSMS = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-3">
-                  <textarea
-                    value={formData.manualContacts}
-                    onChange={(e) => handleInputChange('manualContacts', e.target.value)}
-                    rows={4}
-                    className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
-                    placeholder="Enter phone numbers (one per line or comma-separated)"
-                  />
-                  <div className="flex flex-wrap gap-3">
-                    <motion.button
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                      type="button"
-                      onClick={() => setModal('isGroupModalOpen', true)}
-                      className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] flex items-center gap-2 text-sm font-medium transition-colors"
-                    >
-                      <Users className="w-5 h-5" />
-                      Select Group
-                    </motion.button>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={sendToAll}
+                      onChange={(e) => {
+                        setSendToAll(e.target.checked);
+                        if (e.target.checked) {
+                          setFormData(prev => ({ ...prev, manualContacts: '' }));
+                          setSelectedGroups([]);
+                        }
+                      }}
+                      className="w-4 h-4 text-[#004d66] rounded border-gray-200 focus:ring-[#FDD70D]"
+                    />
+                    <label className="text-sm font-medium text-gray-600">
+                      Send to all contacts ({allContacts.length} contacts)
+                    </label>
                   </div>
+                  {!sendToAll && (
+                    <>
+                      <textarea
+                        value={formData.manualContacts}
+                        onChange={(e) => handleInputChange('manualContacts', e.target.value)}
+                        rows={4}
+                        className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
+                        placeholder="Enter phone numbers (one per line or comma-separated)"
+                      />
+                      <div className="flex flex-wrap gap-3">
+                        <motion.button
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.4 }}
+                          type="button"
+                          onClick={() => setModal('isGroupModalOpen', true)}
+                          className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] flex items-center gap-2 text-sm font-medium transition-colors"
+                        >
+                          <Users className="w-5 h-5" />
+                          Select Group
+                        </motion.button>
+                      </div>
+                    </>
+                  )}
                 </div>
-                {selectedGroups.length > 0 && (
+                {selectedGroups.length > 0 && !sendToAll && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -834,7 +837,6 @@ const SendSMS = () => {
                       transition={{ delay: 0.4 }}
                       type="button"
                       onClick={() => {
-                        // Reset form when opening create campaign modal
                         setFormData(prev => ({ ...prev, campaignName: '' }));
                         setSelectedGroups([]);
                         setError(null);
@@ -1160,12 +1162,12 @@ const SendSMS = () => {
                 {isSending ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {sendMode === 'instant' ? 'Sending...' : sendMode === 'campaign' ? 'Launching...' : 'Sending to All...'}
+                    {sendMode === 'instant' ? 'Sending...' : sendMode === 'campaign' ? 'Launching...' : 'Sending...'}
                   </>
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    {sendMode === 'instant' ? 'Send SMS Now' : sendMode === 'campaign' ? 'Launch Campaign' : 'Send to All Contacts'}
+                    {sendMode === 'instant' ? 'Send SMS Now' : sendMode === 'campaign' ? 'Launch Campaign' : 'Send from File'}
                   </>
                 )}
               </button>
@@ -1312,7 +1314,7 @@ const SendSMS = () => {
         </motion.div>
       </Modal>
 
-  <Modal
+      <Modal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         title="Confirm SMS Send"
@@ -1326,7 +1328,6 @@ const SendSMS = () => {
           transition={{ delay: 0.1 }}
           className="space-y-4 text-[#004d66]"
         >
-          {/* Confirmation Message: the recipient count should meet the threshold criteria */}
           <p className="text-sm">
             You are about to send <strong>{smsCount * recipientCount}</strong> SMS messages to <strong>{recipientCount}</strong> recipients.
           </p>
@@ -1335,7 +1336,6 @@ const SendSMS = () => {
             <p className="text-sm text-[#004d66] mt-2 break-words">{messagePreview}</p>
           </div>
           
-          {/* Show scheduling information for campaign mode */}
           {sendMode === 'campaign' && formData.startDate && formData.startTime && (
             <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
               <p className="text-sm font-medium text-[#004d66]">Scheduling Information:</p>

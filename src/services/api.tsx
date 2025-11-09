@@ -382,6 +382,37 @@ interface CallLogsResponse {
   logs: CallLog[];
 }
 
+
+interface Webhook {
+  webhook_id: string;
+  app_id: string;
+  url: string;
+  events: string[];
+  is_active: boolean;
+  secret?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface CreateWebhookRequest {
+  app_id: string;
+  url: string;
+  events: string[];
+  is_active?: boolean;
+  secret?: string;
+}
+
+interface UpdateWebhookRequest {
+  url?: string;
+  events?: string[];
+  is_active?: boolean;
+  secret?: string;
+}
+
+
+
+
+
 // AUTHENTICATION
 export const registerUser = async (
   username: string,
@@ -1782,5 +1813,81 @@ export const getWorkspaceDeveloperApps = async (workspaceId: string): Promise<De
     return [];
   }
 };
+
+
+
+
+//webhooks
+
+export const createWebhook = async (data: CreateWebhookRequest): Promise<Webhook> => {
+  console.log("createWebhook API call initiated with data:", data);
+  try {
+    const response = await api.post("/webhooks/", data);
+    console.log("createWebhook API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to create webhook");
+  }
+};
+
+export const listWebhooks = async (): Promise<Webhook[]> => {
+  console.log("listWebhooks API call initiated");
+  try {
+    const response = await api.get("/webhooks/");
+    console.log("listWebhooks API response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch webhooks");
+    return [];
+  }
+};
+
+export const getWebhooksByApp = async (appId: string): Promise<Webhook[]> => {
+  console.log("getWebhooksByApp API call initiated for app:", appId);
+  try {
+    const response = await api.get(`/webhooks/app/${appId}`);
+    console.log("getWebhooksByApp API response:", response.data);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch webhooks for app");
+    return [];
+  }
+};
+
+export const getWebhook = async (webhookId: string): Promise<Webhook> => {
+  console.log("getWebhook API call initiated for webhook:", webhookId);
+  try {
+    const response = await api.get(`/webhooks/${webhookId}`);
+    console.log("getWebhook API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch webhook");
+  }
+};
+
+export const updateWebhook = async (
+  webhookId: string,
+  data: UpdateWebhookRequest
+): Promise<Webhook> => {
+  console.log("updateWebhook API call initiated for webhook:", webhookId, "with data:", data);
+  try {
+    const response = await api.patch(`/webhooks/${webhookId}`, data);
+    console.log("updateWebhook API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to update webhook");
+  }
+};
+
+export const deleteWebhook = async (webhookId: string): Promise<void> => {
+  console.log("deleteWebhook API call initiated for webhook:", webhookId);
+  try {
+    await api.delete(`/webhooks/${webhookId}`);
+    console.log("Webhook deleted successfully");
+  } catch (error: any) {
+    handleApiError(error, "Failed to delete webhook");
+  }
+};
+
 
 export default api;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Key, Copy, Trash2, Shield, RefreshCw, Lock, CheckCircle, X, BookOpen, AlertTriangle } from 'lucide-react';
+import { Key, Copy, Trash2, Shield, RefreshCw, Lock, CheckCircle, X, BookOpen, AlertTriangle, Webhook, Globe, Settings, Edit } from 'lucide-react';
 import { 
   listApiKeys, 
   createApiKey, 
@@ -8,7 +8,12 @@ import {
   getDeveloperApps,
   createDeveloperApp,
   updateDeveloperApp,
-  deleteDeveloperApp
+  deleteDeveloperApp,
+  createWebhook,
+  listWebhooks,
+  getWebhooksByApp,
+  updateWebhook,
+  deleteWebhook
 } from '../services/api';
 import type { DeveloperApp } from '../types';
 import { useWorkspace } from './WorkspaceContext';
@@ -20,6 +25,17 @@ interface ApiKey {
   status: 'active' | 'inactive';
   created_at: string;
   expires_at: string;
+}
+
+interface Webhook {
+  webhook_id: string;
+  app_id: string;
+  url: string;
+  events: string[];
+  is_active: boolean;
+  secret?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Modal Component for API Key Creation
@@ -55,7 +71,7 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ isOpen, onClose, 
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
         transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
-        className="bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-w-md p-6"
+        className="bg-white border border-gray-200 rounded-2xl  w-full max-w-md p-6"
       >
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
@@ -152,7 +168,7 @@ const CreateDeveloperAppModal: React.FC<CreateDeveloperAppModalProps> = ({ isOpe
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
         transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
-        className="bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-w-md p-6"
+        className="bg-white border border-gray-200 rounded-2xl  w-full max-w-md p-6"
       >
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
@@ -409,12 +425,348 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   );
 };
 
+// Modal Component for Webhook Creation
+interface CreateWebhookModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (appId: string, url: string, events: string[], isActive: boolean, secret?: string) => void;
+  apps: DeveloperApp[];
+}
+
+const CreateWebhookModal: React.FC<CreateWebhookModalProps> = ({ isOpen, onClose, onSubmit, apps }) => {
+  const [selectedAppId, setSelectedAppId] = useState('');
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
+  const [isActive, setIsActive] = useState(true);
+  const [secret, setSecret] = useState('');
+
+  const availableEvents = [
+    'message.sent',
+    'message.delivered',
+    'message.failed',
+    'payment.completed',
+    'payment.failed',
+    'call.completed',
+    'call.failed'
+  ];
+
+  const handleEventToggle = (event: string) => {
+    setSelectedEvents(prev => 
+      prev.includes(event) 
+        ? prev.filter(e => e !== event)
+        : [...prev, event]
+    );
+  };
+
+  const handleSubmit = () => {
+    if (!selectedAppId || !webhookUrl || selectedEvents.length === 0) {
+      alert('Please fill in all required fields and select at least one event.');
+      return;
+    }
+    onSubmit(selectedAppId, webhookUrl, selectedEvents, isActive, secret || undefined);
+    handleClose();
+  };
+
+  const handleClose = () => {
+    setSelectedAppId('');
+    setWebhookUrl('');
+    setSelectedEvents([]);
+    setIsActive(true);
+    setSecret('');
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
+        className="bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <Webhook className="w-6 h-6 text-[#00333e]" />
+            <h3 className="text-xl font-bold text-[#00333e]">Create Webhook</h3>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={handleClose}
+            className="text-gray-500 hover:text-[#00333e] transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </motion.button>
+        </div>
+
+        <div className="mb-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">Developer App *</label>
+            <select
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all"
+              value={selectedAppId}
+              onChange={(e) => setSelectedAppId(e.target.value)}
+            >
+              <option value="">Select a developer app</option>
+              {apps.map((app) => (
+                <option key={app.app_id} value={app.app_id}>
+                  {app.app_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">Webhook URL *</label>
+            <input
+              type="url"
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all placeholder-gray-400"
+              placeholder="https://your-app.com/webhook"
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">Events *</label>
+            <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-3">
+              {availableEvents.map((event) => (
+                <label key={event} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedEvents.includes(event)}
+                    onChange={() => handleEventToggle(event)}
+                    className="rounded text-[#00333e] focus:ring-[#fddf0d]"
+                  />
+                  <span className="text-sm text-gray-700">{event}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">Secret (Optional)</label>
+            <input
+              type="text"
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all placeholder-gray-400"
+              placeholder="Webhook secret for validation"
+              value={secret}
+              onChange={(e) => setSecret(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isActive"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+              className="rounded text-[#00333e] focus:ring-[#fddf0d]"
+            />
+            <label htmlFor="isActive" className="text-sm text-gray-700">
+              Active webhook
+            </label>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleClose}
+            className="px-4 py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors"
+          >
+            Create Webhook
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// Modal Component for Webhook Editing
+interface EditWebhookModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (webhookId: string, url: string, events: string[], isActive: boolean, secret?: string) => void;
+  webhook: Webhook | null;
+}
+
+const EditWebhookModal: React.FC<EditWebhookModalProps> = ({ isOpen, onClose, onSubmit, webhook }) => {
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
+  const [isActive, setIsActive] = useState(true);
+  const [secret, setSecret] = useState('');
+
+  const availableEvents = [
+    'message.sent',
+    'message.delivered',
+    'message.failed',
+    'payment.completed',
+    'payment.failed',
+    'call.completed',
+    'call.failed'
+  ];
+
+  React.useEffect(() => {
+    if (webhook) {
+      setWebhookUrl(webhook.url);
+      setSelectedEvents(webhook.events);
+      setIsActive(webhook.is_active);
+      setSecret(webhook.secret || '');
+    }
+  }, [webhook]);
+
+  const handleEventToggle = (event: string) => {
+    setSelectedEvents(prev => 
+      prev.includes(event) 
+        ? prev.filter(e => e !== event)
+        : [...prev, event]
+    );
+  };
+
+  const handleSubmit = () => {
+    if (!webhookUrl || selectedEvents.length === 0 || !webhook) {
+      alert('Please fill in all required fields and select at least one event.');
+      return;
+    }
+    onSubmit(webhook.webhook_id, webhookUrl, selectedEvents, isActive, secret || undefined);
+  };
+
+  if (!isOpen || !webhook) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
+        className="bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <Edit className="w-6 h-6 text-[#00333e]" />
+            <h3 className="text-xl font-bold text-[#00333e]">Edit Webhook</h3>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={onClose}
+            className="text-gray-500 hover:text-[#00333e] transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </motion.button>
+        </div>
+
+        <div className="mb-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">Webhook URL *</label>
+            <input
+              type="url"
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all placeholder-gray-400"
+              placeholder="https://your-app.com/webhook"
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">Events *</label>
+            <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-3">
+              {availableEvents.map((event) => (
+                <label key={event} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedEvents.includes(event)}
+                    onChange={() => handleEventToggle(event)}
+                    className="rounded text-[#00333e] focus:ring-[#fddf0d]"
+                  />
+                  <span className="text-sm text-gray-700">{event}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#00333e] mb-2">Secret (Optional)</label>
+            <input
+              type="text"
+              className="w-full text-sm py-3 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] transition-all placeholder-gray-400"
+              placeholder="Webhook secret for validation"
+              value={secret}
+              onChange={(e) => setSecret(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="editIsActive"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+              className="rounded text-[#00333e] focus:ring-[#fddf0d]"
+            />
+            <label htmlFor="editIsActive" className="text-sm text-gray-700">
+              Active webhook
+            </label>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-[#00333e] bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm font-medium bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors"
+          >
+            Update Webhook
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const ApiKeys = () => {
   const { workspaces } = useWorkspace();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [developerApps, setDeveloperApps] = useState<DeveloperApp[]>([]);
+  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(false);
   const [devAppsLoading, setDevAppsLoading] = useState(false);
+  const [webhooksLoading, setWebhooksLoading] = useState(false);
   const [notification, setNotification] = useState({
     show: false,
     message: '',
@@ -427,6 +779,10 @@ const ApiKeys = () => {
   const [editingApp, setEditingApp] = useState<DeveloperApp | null>(null);
   const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
   const [appToDelete, setAppToDelete] = useState<DeveloperApp | null>(null);
+  const [isCreateWebhookModalOpen, setIsCreateWebhookModalOpen] = useState(false);
+  const [isEditWebhookModalOpen, setIsEditWebhookModalOpen] = useState(false);
+  const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
+  const [webhookToDelete, setWebhookToDelete] = useState<Webhook | null>(null);
 
   // Fetch API keys
   const fetchApiKeys = async () => {
@@ -457,6 +813,7 @@ const ApiKeys = () => {
   useEffect(() => {
     fetchApiKeys();
     fetchDeveloperApps();
+    fetchWebhooks();
   }, []);
 
   // Handle API key creation
@@ -612,6 +969,102 @@ const ApiKeys = () => {
     setIsEditDevAppModalOpen(true);
   };
 
+  // Fetch Webhooks
+  const fetchWebhooks = async () => {
+    setWebhooksLoading(true);
+    try {
+      const data = await listWebhooks();
+      setWebhooks(data);
+    } catch (error: any) {
+      showNotification('Failed to fetch webhooks: ' + error.message, 'error');
+    } finally {
+      setWebhooksLoading(false);
+    }
+  };
+
+  // Handle Webhook creation
+  const handleCreateWebhook = async (appId: string, url: string, events: string[], isActive: boolean, secret?: string) => {
+    setWebhooksLoading(true);
+    try {
+      const newWebhook = await createWebhook({
+        app_id: appId,
+        url,
+        events,
+        is_active: isActive,
+        secret,
+      });
+      setWebhooks((prev) => [...prev, newWebhook]);
+      showNotification('Webhook created successfully', 'success');
+      setIsCreateWebhookModalOpen(false);
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to create webhook';
+      showNotification(`Failed to create webhook: ${errorMessage}`, 'error');
+    } finally {
+      setWebhooksLoading(false);
+    }
+  };
+
+  // Handle Webhook editing
+  const handleEditWebhook = async (webhookId: string, url: string, events: string[], isActive: boolean, secret?: string) => {
+    setWebhooksLoading(true);
+    try {
+      const updatedWebhook = await updateWebhook(webhookId, {
+        url,
+        events,
+        is_active: isActive,
+        secret,
+      });
+      setWebhooks((prev) =>
+        prev.map((webhook) => (webhook.webhook_id === webhookId ? updatedWebhook : webhook))
+      );
+      showNotification('Webhook updated successfully', 'success');
+      setIsEditWebhookModalOpen(false);
+      setEditingWebhook(null);
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to update webhook';
+      showNotification(`Failed to update webhook: ${errorMessage}`, 'error');
+    } finally {
+      setWebhooksLoading(false);
+    }
+  };
+
+  // Show delete confirmation modal for webhook
+  const showWebhookDeleteConfirmation = (webhook: Webhook) => {
+    setWebhookToDelete(webhook);
+    setIsConfirmationModalOpen(true);
+  };
+
+  // Delete a Webhook
+  const handleDeleteWebhook = async () => {
+    if (!webhookToDelete) return;
+
+    setActionInProgress(`delete-webhook-${webhookToDelete.webhook_id}`);
+    try {
+      await deleteWebhook(webhookToDelete.webhook_id);
+      setWebhooks((prevWebhooks) => prevWebhooks.filter((webhook) => webhook.webhook_id !== webhookToDelete.webhook_id));
+      showNotification('Webhook deleted successfully', 'success');
+      setIsConfirmationModalOpen(false);
+      setWebhookToDelete(null);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to delete webhook';
+      
+      showNotification(`Failed to delete webhook: ${errorMessage}`, 'error');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  // Open edit webhook modal
+  const openEditWebhookModal = (webhook: Webhook) => {
+    setEditingWebhook(webhook);
+    setIsEditWebhookModalOpen(true);
+  };
+
   // Show notification
   const showNotification = (message: string, type: 'success' | 'error') => {
     setNotification({ show: true, message, type });
@@ -695,16 +1148,39 @@ const ApiKeys = () => {
             onClose={() => {
               setIsConfirmationModalOpen(false);
               setAppToDelete(null);
+              setWebhookToDelete(null);
             }}
-            onConfirm={handleDeleteDeveloperApp}
-            title="Delete Developer App"
-            message={`Are you sure you want to delete "${appToDelete?.app_name}"? This action cannot be undone and will remove all associated data.`}
-            confirmText="Delete App"
+            onConfirm={webhookToDelete ? handleDeleteWebhook : handleDeleteDeveloperApp}
+            title={webhookToDelete ? "Delete Webhook" : "Delete Developer App"}
+            message={webhookToDelete 
+              ? `Are you sure you want to delete this webhook? This action cannot be undone.`
+              : `Are you sure you want to delete "${appToDelete?.app_name}"? This action cannot be undone and will remove all associated data.`
+            }
+            confirmText={webhookToDelete ? "Delete Webhook" : "Delete App"}
             cancelText="Cancel"
             type="danger"
           />
         )}
       </AnimatePresence>
+
+      {/* Create Webhook Modal */}
+      <CreateWebhookModal
+        isOpen={isCreateWebhookModalOpen}
+        onClose={() => setIsCreateWebhookModalOpen(false)}
+        onSubmit={handleCreateWebhook}
+        apps={developerApps}
+      />
+
+      {/* Edit Webhook Modal */}
+      <EditWebhookModal
+        isOpen={isEditWebhookModalOpen}
+        onClose={() => {
+          setIsEditWebhookModalOpen(false);
+          setEditingWebhook(null);
+        }}
+        onSubmit={handleEditWebhook}
+        webhook={editingWebhook}
+      />
 
       {/* Header */}
       <motion.div
@@ -767,7 +1243,7 @@ const ApiKeys = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
+            className="bg-white rounded-xl p-6 border border-gray-100"
           >
             <div className="flex justify-between items-center mb-6">
               <p className="text-sm text-gray-600">Manage your API keys securely</p>
@@ -891,7 +1367,7 @@ const ApiKeys = () => {
           >
             <motion.div
               whileHover={{ scale: 1.03 }}
-              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
+              className="bg-white rounded-xl  p-4 border border-gray-100"
             >
               <div className="flex items-center gap-3">
                 <Shield className="w-6 h-6 text-[#00333e]" />
@@ -905,7 +1381,7 @@ const ApiKeys = () => {
             </motion.div>
             <motion.div
               whileHover={{ scale: 1.03 }}
-              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
+              className="bg-white rounded-xl p-4 border border-gray-100"
             >
               <div className="flex items-center gap-3">
                 <RefreshCw className="w-6 h-6 text-[#00333e]" />
@@ -919,7 +1395,7 @@ const ApiKeys = () => {
             </motion.div>
             <motion.div
               whileHover={{ scale: 1.03 }}
-              className="bg-white rounded-xl shadow-md p-4 border border-gray-100"
+              className="bg-white rounded-xl  p-4 border border-gray-100"
             >
               <div className="flex items-center gap-3">
                 <Lock className="w-6 h-6 text-[#00333e]" />
@@ -938,7 +1414,7 @@ const ApiKeys = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="bg-white rounded-xl shadow-md p-6 border border-gray-100"
+            className="bg-white rounded-xl  p-6 border border-gray-100"
           >
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
@@ -1067,6 +1543,164 @@ const ApiKeys = () => {
                   </tbody>
                 </table>
               </div>
+            )}
+          </motion.div>
+
+          {/* Webhooks Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="bg-white rounded-xl  p-6 border border-gray-100"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <Webhook className="w-6 h-6 text-[#00333e]" />
+                <h2 className="text-xl font-bold text-[#00333e]">Webhooks</h2>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsCreateWebhookModalOpen(true)}
+                disabled={webhooksLoading || developerApps.length === 0}
+                className="flex items-center gap-2 text-sm py-2 px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50"
+              >
+                <Webhook className="w-5 h-5" />
+                Create Webhook
+              </motion.button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Manage webhooks to receive real-time notifications about events in your applications
+            </p>
+
+            {developerApps.length === 0 && (
+              <div className="text-center py-8 text-gray-500 text-sm bg-gray-50 rounded-lg">
+                You need to create a developer app first before creating webhooks.
+              </div>
+            )}
+
+            {developerApps.length > 0 && (
+              <>
+                {webhooksLoading ? (
+                  <div className="flex justify-center items-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#00333e]"></div>
+                    <p className="ml-4 text-[#00333e]">Loading webhooks...</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm">
+                            URL
+                          </th>
+                          <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm">
+                            App
+                          </th>
+                          <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm">
+                            Events
+                          </th>
+                          <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm">
+                            Status
+                          </th>
+                          <th className="text-left py-3 px-4 font-medium text-[#00333e] text-sm">
+                            Created
+                          </th>
+                          <th className="text-right py-3 px-4 font-medium text-[#00333e] text-sm">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {webhooks.map((webhook) => {
+                          const relatedApp = developerApps.find(app => app.app_id === webhook.app_id);
+                          return (
+                            <motion.tr
+                              key={webhook.webhook_id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                            >
+                              <td className="py-3 px-4">
+                                <div className="font-mono text-sm text-gray-700 truncate max-w-xs">
+                                  {webhook.url}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-sm text-gray-700">
+                                {relatedApp?.app_name || 'Unknown App'}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-gray-700">
+                                <div className="flex flex-wrap gap-1">
+                                  {webhook.events.slice(0, 2).map((event) => (
+                                    <span
+                                      key={event}
+                                      className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full"
+                                    >
+                                      {event}
+                                    </span>
+                                  ))}
+                                  {webhook.events.length > 2 && (
+                                    <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">
+                                      +{webhook.events.length - 2}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-sm">
+                                <span
+                                  className={`inline-block px-2 py-1 rounded-full text-xs ${
+                                    webhook.is_active
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-red-100 text-red-700'
+                                  }`}
+                                >
+                                  {webhook.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-sm text-gray-700">
+                                {new Date(webhook.created_at).toLocaleDateString()}
+                              </td>
+                              <td className="py-3 px-4 text-right flex justify-end gap-2">
+                                <motion.button
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => openEditWebhookModal(webhook)}
+                                  className="text-blue-500 hover:text-blue-600 transition-colors"
+                                  title="Edit webhook"
+                                >
+                                  <Edit className="w-5 h-5" />
+                                </motion.button>
+                                <motion.button
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => showWebhookDeleteConfirmation(webhook)}
+                                  disabled={actionInProgress === `delete-webhook-${webhook.webhook_id}`}
+                                  className="text-red-500 hover:text-red-600 transition-colors"
+                                  title="Delete webhook"
+                                >
+                                  {actionInProgress === `delete-webhook-${webhook.webhook_id}` ? (
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500" />
+                                  ) : (
+                                    <Trash2 className="w-5 h-5" />
+                                  )}
+                                </motion.button>
+                              </td>
+                            </motion.tr>
+                          );
+                        })}
+                        {webhooks.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="text-center py-8 text-gray-500 text-sm">
+                              No webhooks found. Create one to get started.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             )}
           </motion.div>
         </div>

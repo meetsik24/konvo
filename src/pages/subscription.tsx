@@ -1,7 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard, Check, X, MessageSquare, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  CreditCard,
+  Check,
+  X,
+  MessageSquare,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import {
   getPlans,
   getUserPlan,
@@ -9,8 +17,8 @@ import {
   getSubscriptionUsage,
   purchaseSmsCredits,
   checkPaymentStatus,
-} from '../services/api';
-import type { RootState } from '..';
+} from "../services/api";
+import type { RootState } from "..";
 
 interface Contact {
   name: string;
@@ -47,20 +55,25 @@ const salesContacts: Contact[] = [
 const Subscription: React.FC = () => {
   const { token } = useSelector((state: RootState) => state.auth);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionUsage | null>(null);
+  const [subscriptionDetails, setSubscriptionDetails] =
+    useState<SubscriptionUsage | null>(null);
   const [userPlan, setUserPlan] = useState<Plan | null>(null);
   const [showSmsInputModal, setShowSmsInputModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [smsCountInput, setSmsCountInput] = useState('');
-  const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
+  const [smsCountInput, setSmsCountInput] = useState("");
+  const [mobileMoneyNumber, setMobileMoneyNumber] = useState("");
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(
+    null
+  );
   const [paymentReference, setPaymentReference] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [expandedPlans, setExpandedPlans] = useState<{ [key: string]: boolean }>({});
+  const [expandedPlans, setExpandedPlans] = useState<{
+    [key: string]: boolean;
+  }>({});
 
   useEffect(() => {
     const fetchPlansAndCreditBalance = async () => {
@@ -69,11 +82,14 @@ const Subscription: React.FC = () => {
 
       try {
         const plansData = await getPlans();
-        console.log('Plan IDs:', plansData.map((plan: Plan) => plan.plan_id));
+        console.log(
+          "Plan IDs:",
+          plansData.map((plan: Plan) => plan.plan_id)
+        );
         const planIds = plansData.map((plan: Plan) => plan.plan_id);
         const uniquePlanIds = new Set(planIds);
         if (uniquePlanIds.size !== planIds.length) {
-          console.warn('Duplicate plan_ids detected:', planIds);
+          console.warn("Duplicate plan_ids detected:", planIds);
         }
         setPlans(plansData);
 
@@ -83,41 +99,54 @@ const Subscription: React.FC = () => {
           setUserPlan(userPlanData);
           planId = userPlanData.plan_id;
         } catch (planErr: any) {
-          console.error('Error fetching user plan:', planErr);
+          console.error("Error fetching user plan:", planErr);
           try {
             const userProfile = await getProfile();
             if (userProfile.plan_id) {
               planId = userProfile.plan_id;
-              const matchingPlan = plansData.find((plan: Plan) => plan.plan_id === planId);
+              const matchingPlan = plansData.find(
+                (plan: Plan) => plan.plan_id === planId
+              );
               if (matchingPlan) {
                 setUserPlan(matchingPlan);
               } else {
-                console.warn('User plan_id found in profile but not in available plans:', userProfile.plan_id);
+                console.warn(
+                  "User plan_id found in profile but not in available plans:",
+                  userProfile.plan_id
+                );
                 if (plansData.length > 0) {
                   planId = plansData[0].plan_id;
                   setUserPlan(plansData[0]);
-                  console.warn('Using default plan:', plansData[0].name);
+                  console.warn("Using default plan:", plansData[0].name);
                 } else {
-                  throw new Error('No plans available to use as a default.');
+                  throw new Error("No plans available to use as a default.");
                 }
               }
             } else {
               if (plansData.length > 0) {
                 planId = plansData[0].plan_id;
                 setUserPlan(plansData[0]);
-                console.warn('User plan not found in profile. Using default plan:', plansData[0].name);
+                console.warn(
+                  "User plan not found in profile. Using default plan:",
+                  plansData[0].name
+                );
               } else {
-                throw new Error('No plans available to use as a default.');
+                throw new Error("No plans available to use as a default.");
               }
             }
           } catch (profileErr: any) {
-            console.error('Error fetching user profile:', profileErr);
+            console.error("Error fetching user profile:", profileErr);
             if (plansData.length > 0) {
               planId = plansData[0].plan_id;
               setUserPlan(plansData[0]);
-              console.warn('User profile fetch failed. Using default plan:', plansData[0].name);
+              console.warn(
+                "User profile fetch failed. Using default plan:",
+                plansData[0].name
+              );
             } else {
-              throw new Error('No plans available and user profile fetch failed.');
+              throw new Error(
+                "No plans available and user profile fetch failed."
+              );
             }
           }
         }
@@ -127,15 +156,17 @@ const Subscription: React.FC = () => {
             const creditBalanceData = await getSubscriptionUsage(planId);
             setSubscriptionDetails(creditBalanceData);
           } catch (subErr: any) {
-            console.error('Error fetching credit balance:', subErr);
-            setError('Failed to fetch credit balance. Please try again later.');
+            console.error("Error fetching credit balance:", subErr);
+            setError("Failed to fetch credit balance. Please try again later.");
           }
         } else {
-          setError('Unable to determine your plan. Please contact support.');
+          setError("Unable to determine your plan. Please contact support.");
         }
       } catch (err: any) {
-        console.error('Error fetching plans:', err);
-        setError('Failed to load plans. Please check your connection and try again.');
+        console.error("Error fetching plans:", err);
+        setError(
+          "Failed to load plans. Please check your connection and try again."
+        );
       } finally {
         setIsLoading(false);
       }
@@ -144,69 +175,81 @@ const Subscription: React.FC = () => {
     if (token) {
       fetchPlansAndCreditBalance();
     } else {
-      setError('You must be logged in to view subscription plans.');
+      setError("You must be logged in to view subscription plans.");
     }
   }, [token]);
 
-  const calculateTotalAmount = (smsUnitPrice: string, smsCount: number): number => {
+  const calculateTotalAmount = (
+    smsUnitPrice: string,
+    smsCount: number
+  ): number => {
     if (smsCount <= 0) return 0;
     const pricePerSms = parseFloat(smsUnitPrice) || 0;
     return Math.round(smsCount * pricePerSms);
   };
 
   const handleInitiatePurchase = (smsUnitPrice: string) => {
-    setError(null);
-    setSuccess(null);
-    setPaymentDetails(null);
-    setSmsCountInput('');
-    setPaymentReference(null);
+  setError(null);
+  setSuccess(null);
+  setPaymentDetails(null);
+  setSmsCountInput('');
+  setPaymentReference(null);
 
-    const selectedPlan = plans.find((plan: Plan) => plan.sms_unit_price === smsUnitPrice);
-    if (selectedPlan) {
-      setSmsCountInput(selectedPlan.minimum_sms_purchase.toString());
-      setPaymentDetails({ smsCount: 0, totalAmount: 0, planId: selectedPlan.plan_id });
-    }
+  const selectedPlan = plans.find((plan: Plan) => plan.sms_unit_price === smsUnitPrice);
+  if (!selectedPlan) return;
 
-    setShowSmsInputModal(true);
-  };
+  const isKitonga = selectedPlan.name.toLowerCase().includes('kitonga');
+  const minimum = isKitonga ? 100 : selectedPlan.minimum_sms_purchase;
 
-  const handleSmsCountSubmit = () => {
-    const smsCount = parseInt(smsCountInput, 10);
-    if (isNaN(smsCount) || smsCount <= 0) {
-      setError('Please enter a valid number of SMS (greater than 0).');
-      return;
-    }
+  // Start with minimum so user sees correct amount
+  setSmsCountInput(minimum.toString());
+  setPaymentDetails({
+    smsCount: minimum,
+    totalAmount: calculateTotalAmount(selectedPlan.sms_unit_price, minimum),
+    planId: selectedPlan.plan_id,
+  });
 
-    if (!paymentDetails) {
-      setError('Payment details are missing. Please try again.');
-      return;
-    }
+  setShowSmsInputModal(true);
+};
 
-    const selectedPlan = plans.find((plan: Plan) => plan.plan_id === paymentDetails.planId);
-    if (!selectedPlan) {
-      setError('Could not find the selected plan. Please try again.');
-      return;
-    }
 
-    if (smsCount < selectedPlan.minimum_sms_purchase) {
-      setError(`The number of SMS must be at least ${selectedPlan.minimum_sms_purchase.toLocaleString()} for this plan.`);
-      return;
-    }
+const handleSmsCountSubmit = () => {
+  const count = parseInt(smsCountInput, 10);
 
-    const totalAmount = calculateTotalAmount(selectedPlan.sms_unit_price, smsCount);
-    setPaymentDetails({ ...paymentDetails, smsCount, totalAmount });
-    setShowSmsInputModal(false);
-    setShowPaymentModal(true);
-  };
+  if (isNaN(count) || count <= 0) {
+    setError('Please enter a valid number of SMS credits.');
+    return;
+  }
+
+  const plan = plans.find(p => p.plan_id === paymentDetails?.planId);
+  if (!plan) return;
+
+  const isKitonga = plan.name.toLowerCase().includes('kitonga');
+
+  if (isKitonga && count < 100) {
+    setError('Kitonga package requires a minimum of 100 SMS. Please enter 100 or more.');
+    return;
+  }
+
+  if (!isKitonga && count < plan.minimum_sms_purchase) {
+    setError(`Minimum purchase is ${plan.minimum_sms_purchase.toLocaleString()} SMS for this plan.`);
+    return;
+  }
+
+  const total = calculateTotalAmount(plan.sms_unit_price, count);
+  setPaymentDetails(prev => prev ? { ...prev, smsCount: count, totalAmount: total } : null);
+  setShowSmsInputModal(false);
+  setShowPaymentModal(true);
+};
 
   const handlePurchase = async () => {
     if (!token) {
-      setError('Authentication token is missing. Please log in again.');
+      setError("Authentication token is missing. Please log in again.");
       return;
     }
 
     if (!paymentDetails) {
-      setError('Payment details are missing. Please try again.');
+      setError("Payment details are missing. Please try again.");
       return;
     }
 
@@ -228,29 +271,36 @@ const Subscription: React.FC = () => {
       const maxAttempts = 15;
 
       while (!paymentCompleted && attempts < maxAttempts) {
-        const paymentStatus = await checkPaymentStatus(purchaseResponse.payment_reference);
+        const paymentStatus = await checkPaymentStatus(
+          purchaseResponse.payment_reference
+        );
 
-        if (paymentStatus.success && paymentStatus.status === 'true') {
+        if (paymentStatus.success && paymentStatus.status === "true") {
           paymentCompleted = true;
-        } else if (paymentStatus.status === 'failed') {
-          throw new Error('Payment failed. Please try again.');
+        } else if (paymentStatus.status === "failed") {
+          throw new Error("Payment failed. Please try again.");
         } else {
-          await new Promise(resolve => setTimeout(resolve, 120000));
+          await new Promise((resolve) => setTimeout(resolve, 120000));
           attempts++;
         }
       }
 
       if (!paymentCompleted) {
-        throw new Error('Payment processing timed out. Please check your payment status.');
+        throw new Error(
+          "Payment processing timed out. Please check your payment status."
+        );
       }
 
       let creditsUpdated = false;
       attempts = 0;
 
       while (!creditsUpdated && attempts < maxAttempts) {
-        const creditBalanceData = await getSubscriptionUsage(paymentDetails.planId);
+        const creditBalanceData = await getSubscriptionUsage(
+          paymentDetails.planId
+        );
 
-        const expectedCredits = (subscriptionDetails?.sms_credits || 0) + paymentDetails.smsCount;
+        const expectedCredits =
+          (subscriptionDetails?.sms_credits || 0) + paymentDetails.smsCount;
         if (creditBalanceData.sms_credits >= expectedCredits) {
           creditsUpdated = true;
           setSubscriptionDetails(creditBalanceData);
@@ -258,22 +308,24 @@ const Subscription: React.FC = () => {
             `Payment Successful! ${paymentDetails.smsCount.toLocaleString()} credits added. New balance: ${creditBalanceData.sms_credits.toLocaleString()}`
           );
         } else {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           attempts++;
         }
       }
 
       if (!creditsUpdated) {
-        throw new Error('Credit update failed. Please contact support.');
+        throw new Error("Credit update failed. Please contact support.");
       }
     } catch (err: any) {
-      console.error('Error during purchase:', err);
-      setError(err.message || 'Payment failed. Please try again or contact support.');
+      console.error("Error during purchase:", err);
+      setError(
+        err.message || "Payment failed. Please try again or contact support."
+      );
     } finally {
       setIsPaymentProcessing(false);
-      setMobileMoneyNumber('');
+      setMobileMoneyNumber("");
       setPaymentDetails(null);
-      setSmsCountInput('');
+      setSmsCountInput("");
       setPaymentReference(null);
     }
   };
@@ -317,12 +369,16 @@ const Subscription: React.FC = () => {
           >
             <div className="bg-white rounded-lg p-6 shadow-md max-w-sm w-full text-center">
               <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#00333e]" />
-              <h2 className="text-lg font-semibold text-[#00333e]">Processing Payment</h2>
+              <h2 className="text-lg font-semibold text-[#00333e]">
+                Processing Payment
+              </h2>
               <p className="text-sm mt-2 text-[#6f888c]">
                 Please complete the USSD payment on your phone...
               </p>
               {paymentReference && (
-                <p className="text-xs mt-2 text-[#6f888c]">Reference: {paymentReference}</p>
+                <p className="text-xs mt-2 text-[#6f888c]">
+                  Reference: {paymentReference}
+                </p>
               )}
             </div>
           </motion.div>
@@ -341,7 +397,7 @@ const Subscription: React.FC = () => {
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
+                transition={{ duration: 0.5, type: "spring", stiffness: 100 }}
               >
                 <Check className="w-12 h-12 mx-auto mb-4 text-[#fddf0d]" />
               </motion.div>
@@ -370,7 +426,7 @@ const Subscription: React.FC = () => {
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
+                transition={{ duration: 0.5, type: "spring", stiffness: 100 }}
               >
                 <X className="w-12 h-12 mx-auto mb-4" />
               </motion.div>
@@ -388,7 +444,9 @@ const Subscription: React.FC = () => {
       </AnimatePresence>
 
       <div className="text-center">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#00333e]">SMS Credit Packages</h1>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#00333e]">
+          SMS Credit Packages
+        </h1>
         <p className="mt-2 sm:mt-4 text-base sm:text-lg lg:text-xl text-[#6f888c]">
           Purchase SMS credits to reach your audience
         </p>
@@ -403,11 +461,31 @@ const Subscription: React.FC = () => {
           <div className="flex items-center justify-center space-x-3 sm:space-x-4">
             <MessageSquare className="w-8 h-8 sm:w-10 sm:h-10 text-[#00333e]" />
             <div className="text-center">
-              <h3 className="text-base sm:text-lg font-semibold text-[#00333e]">Your SMS Credits</h3>
-              <p className="mt-1 sm:mt-2 text-2xl sm:text-4xl font-bold text-[#00333e]">
-                {subscriptionDetails.sms_credits.toLocaleString()}
-              </p>
-              <p className="mt-1 text-xs sm:text-sm text-[#6f888c]">Available Credits</p>
+              <h3 className="text-base sm:text-lg font-semibold text-[#00333e]">
+                Your SMS Credits
+              </h3>
+              {subscriptionDetails.sms_credits > 0 ? (
+                <>
+                  <p className="mt-1 sm:mt-2 text-2xl sm:text-4xl font-bold text-[#00333e]">
+                    {subscriptionDetails.sms_credits.toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs sm:text-sm text-[#6f888c]">
+                    Available Credits
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 sm:mt-2 text-2xl sm:text-4xl font-bold text-red-500">
+                    0
+                  </p>
+                  <p className="mt-1 text-xs sm:text-sm text-red-500 font-medium">
+                    You don't have any SMS credits at the moment
+                  </p>
+                  <p className="mt-2 text-xs sm:text-sm text-[#6f888c]">
+                    Purchase credits to start sending messages
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </motion.div>
@@ -426,7 +504,7 @@ const Subscription: React.FC = () => {
                   plan.name.toLowerCase().includes('paradiso') ? 'border-[#fddf0d]' : 'border-gray-200'
                 } shadow-sm bg-white flex flex-col transition-all duration-200"
               >
-                {plan.name.toLowerCase().includes('paradiso') && (
+                {plan.name.toLowerCase().includes("paradiso") && (
                   <div className="absolute top-0 right-0 -mr-1 -mt-1 px-2 sm:px-3 py-1 bg-[#fddf0d] text-[#00333e] text-xs sm:text-sm font-medium rounded-full transform translate-x-1/2 -translate-y-1/2">
                     Popular
                   </div>
@@ -435,10 +513,16 @@ const Subscription: React.FC = () => {
                 <div className="p-4 sm:p-6 ${isExpanded ? 'pb-0 sm:pb-0' : ''}">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="text-xl sm:text-2xl font-semibold text-[#00333e]">{plan.name}</h3>
+                      <h3 className="text-xl sm:text-2xl font-semibold text-[#00333e]">
+                        {plan.name}
+                      </h3>
                       <div className="mt-2 sm:mt-3">
-                        <span className="text-xl sm:text-2xl font-extrabold text-[#00333e]">{plan.sms_unit_price}</span>
-                        <span className="ml-1 sm:ml-2 text-sm sm:text-base text-[#6f888c]">TZS per SMS</span>
+                        <span className="text-xl sm:text-2xl font-extrabold text-[#00333e]">
+                          {plan.sms_unit_price}
+                        </span>
+                        <span className="ml-1 sm:ml-2 text-sm sm:text-base text-[#6f888c]">
+                          TZS per SMS
+                        </span>
                       </div>
                     </div>
                     <button
@@ -458,38 +542,51 @@ const Subscription: React.FC = () => {
                   {isExpanded && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
+                      animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3 }}
                       className="overflow-hidden"
                     >
                       <div className="p-4 sm:p-6 pt-0">
                         <div className="mt-4 sm:mt-6">
-                          <h4 className="text-xs sm:text-sm font-medium text-[#00333e] mb-3 sm:mb-4">Features</h4>
+                          <h4 className="text-xs sm:text-sm font-medium text-[#00333e] mb-3 sm:mb-4">
+                            Features
+                          </h4>
                           <ul className="space-y-2 sm:space-y-3">
-                            {plan.description.split(', ').map((feature: string, index: number) => (
-                              <li key={index} className="flex items-start">
-                                <Check className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] shrink-0" />
-                                <span className="ml-2 sm:ml-3 text-sm sm:text-base text-gray-700">{feature}</span>
-                              </li>
-                            ))}
+                            {plan.description
+                              .split(", ")
+                              .map((feature: string, index: number) => (
+                                <li key={index} className="flex items-start">
+                                  <Check className="w-4 h-4 sm:w-5 sm:h-5 text-[#00333e] shrink-0" />
+                                  <span className="ml-2 sm:ml-3 text-sm sm:text-base text-gray-700">
+                                    {feature}
+                                  </span>
+                                </li>
+                              ))}
                           </ul>
                         </div>
                         <div className="mt-4 sm:mt-6">
                           <p className="text-xs sm:text-sm text-[#6f888c]">
-                            Minimum SMS Purchase: {plan.minimum_sms_purchase.toLocaleString()}
+                            Minimum SMS Purchase:{" "}
+                            {plan.minimum_sms_purchase.toLocaleString()}
                           </p>
                         </div>
                       </div>
 
                       <div className="p-4 sm:p-6 mt-auto">
                         <button
-                          onClick={() => handleInitiatePurchase(plan.sms_unit_price)}
+                          onClick={() =>
+                            handleInitiatePurchase(plan.sms_unit_price)
+                          }
                           className="w-full flex items-center justify-center space-x-1 sm:space-x-2 bg-[#00333e] text-white text-sm sm:text-base py-2 rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
                           disabled={isLoading || isPaymentProcessing}
                         >
                           <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
-                          <span>Purchase Credits</span>
+                          <span>
+                            {plan.name.toLowerCase().includes("kitonga")
+                              ? "Buy Min. 100 SMS"
+                              : "Purchase Credits"}
+                          </span>
                         </button>
                       </div>
                     </motion.div>
@@ -499,14 +596,21 @@ const Subscription: React.FC = () => {
             );
           })}
         </div>
-      ) : !isLoading && (
-        <div className="text-center py-8 sm:py-12">
-          <p className="text-base sm:text-lg text-[#6f888c]">No plans available at this time. Please check back later or contact support.</p>
-        </div>
+      ) : (
+        !isLoading && (
+          <div className="text-center py-8 sm:py-12">
+            <p className="text-base sm:text-lg text-[#6f888c]">
+              No plans available at this time. Please check back later or
+              contact support.
+            </p>
+          </div>
+        )
       )}
 
       <div className="mt-8 sm:mt-12 text-center">
-        <h2 className="text-xl sm:text-2xl font-semibold text-[#00333e]">Need a custom solution?</h2>
+        <h2 className="text-xl sm:text-2xl font-semibold text-[#00333e]">
+          Need a custom solution?
+        </h2>
         <p className="mt-2 sm:mt-4 text-sm sm:text-base text-[#6f888c]">
           Contact our sales team for tailored options beyond Paradiso.
         </p>
@@ -519,47 +623,71 @@ const Subscription: React.FC = () => {
         </button>
       </div>
 
-      {showSmsInputModal && paymentDetails && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
-          <div className="bg-white p-6 sm:p-8 rounded-lg shadow-md w-full max-w-sm sm:max-w-md">
-            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-[#00333e]">Enter Number of SMS Credits</h2>
+      
+  {showSmsInputModal && paymentDetails && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
+    <div className="bg-white p-6 sm:p-8 rounded-lg shadow-md w-full max-w-sm sm:max-w-md">
+      <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-[#00333e]">
+        Enter Number of SMS Credits
+      </h2>
+
+      {(() => {
+        const plan = plans.find(p => p.plan_id === paymentDetails.planId);
+        const isKitonga = plan?.name.toLowerCase().includes('kitonga');
+        const min = isKitonga ? 100 : (plan?.minimum_sms_purchase || 0);
+
+        return (
+          <>
             <p className="text-xs sm:text-sm text-[#6f888c] mb-3 sm:mb-4">
               You must purchase at least{' '}
-              <strong>{plans.find((plan: Plan) => plan.plan_id === paymentDetails.planId)?.minimum_sms_purchase.toLocaleString()}</strong> SMS credits.
+              <strong>{min.toLocaleString()}</strong> SMS credits
+              {isKitonga && ' (Kitonga package minimum)'}.
             </p>
+
             <input
               type="number"
-              className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent mb-3 sm:mb-4"
               value={smsCountInput}
               onChange={(e) => setSmsCountInput(e.target.value)}
-              placeholder="Enter number of SMS credits"
+              placeholder={`Minimum: ${min.toLocaleString()}`}
+              className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent mb-3 sm:mb-4 placeholder:text-gray-400"
+              min={min}
               step="1"
-              disabled={isPaymentProcessing}
             />
-            <button
-              className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
-              onClick={handleSmsCountSubmit}
-              disabled={isPaymentProcessing}
-            >
-              Continue
-            </button>
-            <button
-              className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 mt-1 sm:mt-2"
-              onClick={() => setShowSmsInputModal(false)}
-              disabled={isPaymentProcessing}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+
+            {/* {isKitonga && (
+              // <p className="text-xs text-red-500 -mt-2 mb-3 text-center">
+              //   You cannot proceed with fewer than 100 SMS
+              // </p>
+            )} */}
+          </>
+        );
+      })()}
+
+      <button
+        onClick={handleSmsCountSubmit}
+        className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={isPaymentProcessing || !smsCountInput || parseInt(smsCountInput || '0') < (plans.find(p => p.plan_id === paymentDetails.planId)?.name.toLowerCase().includes('kitonga') ? 100 : 0)}
+      >
+        Continue
+      </button>
+
+      <button
+        onClick={() => setShowSmsInputModal(false)}
+        className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 mt-1 sm:mt-2"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
 
       {showPaymentModal && paymentDetails && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
           <div className="bg-white p-6 sm:p-8 rounded-lg shadow-md w-full max-w-sm sm:max-w-md">
             <div className="space-y-4">
               <p className="text-sm sm:text-base text-[#6f888c]">
-                <strong>COST:</strong> {paymentDetails.totalAmount.toLocaleString()} TZS
+                <strong>Total:</strong>{" "}
+                {paymentDetails.totalAmount.toLocaleString()} TZS
               </p>
               <input
                 type="number"
@@ -573,16 +701,18 @@ const Subscription: React.FC = () => {
                 className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fddf0d] focus:border-transparent mb-3 sm:mb-4"
                 value={mobileMoneyNumber}
                 onChange={(e) => setMobileMoneyNumber(e.target.value)}
-                placeholder="PHONE NUMBER"
+                placeholder="Phone Number for Mobile Money"
                 disabled={isPaymentProcessing}
               />
-              <p className="text-sm sm:text-base text-[#6f888c]">CREDIT DESCRIPTIONS: SMS credits for your plan</p>
+              {/* <p className="text-sm sm:text-base text-[#6f888c]">
+               Credit Des: SMS credits for your plan
+              </p> */}
               <button
                 className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 bg-[#00333e] text-white rounded-lg hover:bg-[#005a6e] transition-colors duration-200"
                 onClick={handlePurchase}
                 disabled={isPaymentProcessing}
               >
-                PURCHASE
+                Purchase
               </button>
               <button
                 className="w-full text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 mt-1 sm:mt-2"
@@ -600,7 +730,9 @@ const Subscription: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4 sm:p-0">
           <div className="bg-white p-6 sm:p-8 rounded-xl shadow-md w-full max-w-sm sm:max-w-md">
             <div className="flex justify-between items-center mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-2xl font-bold text-[#00333e]">Contact Our Sales Team</h2>
+              <h2 className="text-lg sm:text-2xl font-bold text-[#00333e]">
+                Contact Our Sales Team
+              </h2>
               <button
                 onClick={() => setShowContactModal(false)}
                 className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -609,20 +741,33 @@ const Subscription: React.FC = () => {
                 <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
-            <p className="text-xs sm:text-sm text-[#6f888c] mb-4 sm:mb-6">Reach out to our sales representatives for assistance.</p>
+            <p className="text-xs sm:text-sm text-[#6f888c] mb-4 sm:mb-6">
+              Reach out to our sales representatives for assistance.
+            </p>
             <div className="space-y-3 sm:space-y-4">
               {salesContacts.map((contact: Contact, index: number) => (
-                <div key={index} className="border-b border-gray-200 pb-3 sm:pb-4 last:border-b-0">
-                  <h3 className="text-base sm:text-lg font-semibold text-[#00333e]">{contact.name}</h3>
+                <div
+                  key={index}
+                  className="border-b border-gray-200 pb-3 sm:pb-4 last:border-b-0"
+                >
+                  <h3 className="text-base sm:text-lg font-semibold text-[#00333e]">
+                    {contact.name}
+                  </h3>
                   <p className="text-xs sm:text-sm text-[#6f888c] mt-1">
-                    <span className="font-medium">Phone:</span>{' '}
-                    <a href={`tel:${contact.phone_number}`} className="hover:text-[#fddf0d] transition-colors">
+                    <span className="font-medium">Phone:</span>{" "}
+                    <a
+                      href={`tel:${contact.phone_number}`}
+                      className="hover:text-[#fddf0d] transition-colors"
+                    >
                       {contact.phone_number}
                     </a>
                   </p>
                   <p className="text-xs sm:text-sm text-[#6f888c] mt-1">
-                    <span className="font-medium">Email:</span>{' '}
-                    <a href={`mailto:${contact.email}`} className="hover:text-[#fddf0d] transition-colors">
+                    <span className="font-medium">Email:</span>{" "}
+                    <a
+                      href={`mailto:${contact.email}`}
+                      className="hover:text-[#fddf0d] transition-colors"
+                    >
                       {contact.email}
                     </a>
                   </p>
