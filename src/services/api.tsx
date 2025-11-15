@@ -292,9 +292,87 @@ interface ApiKey {
 
 interface AccountBalance {
   unit_cost: number;
+  balance_id: string;
+  last_updated: string;
+  units: number;
+}
+
+interface BalanceUnits {
+  unit_cost: number;
+}
+
+interface BalanceRefund{
+  usage_id: string,
+ 
+}
+
+interface BalanceUsage{
+  unit_cost: number;
+  usage_id: string,
+  user_id: string,
+  service_id: string,
+  message_id: string,
+  units_used: 0,
+  quantity: 0,
+  usage_description: string,
+  usage_date: string
+}
+
+interface BalanceUsageLogs{
+  usage_id: string,
+  user_id: string,
+  service_id: string,
+  message_id: string,
+  units_used: 0,
+  quantity: 0,
+  usage_description: string,
+  usage_date: string
+}
+
+interface BalanceUsageStats{
+  service_id: string,
+  total_units_used: 0,
+  by_services: {
+    service_id: string,
+    total_units_used: 0,
+  }
+  by_usage_description: {
+    usage_description: string,
+    total_units_used: 0,
+  }
+  by_usage_date: {
+    usage_date: string,
+    total_units_used: 0,
+  }
+}
+
+interface  BalanceServicesCost{
+  service_id: string,
+  total_cost: 0,
 }
 
 export interface Transaction {
+  transaction_id: string;
+  user_id: string;
+  total_amount_paid: number;
+  units_purchased: number;
+  payment_method: string;
+  payment_reference: string;
+  transaction_date: string;
+  marked_complete: boolean;
+}
+
+interface TransactionDeposit {
+  transaction_id: string;
+  user_id: string;
+  total_amount_paid: number;
+  units_purchased: number;
+  payment_method: string;
+  payment_reference: string;
+  transaction_date: string;
+  marked_complete: boolean;
+}
+interface getTransactionById {
   transaction_id: string;
   user_id: string;
   total_amount_paid: number;
@@ -310,15 +388,18 @@ export interface TransactionResponse {
   total_count?: number;
 }
 
-interface ServiceAllocation {
-  service_id: string;
-  units_allocated: number;
-}
+//Services Interface
+interface services {
+  
+    service_id: string,
+    name: string,
+    description: string,
+    unit_cost: 0,
+    is_unit_based: true,
+    minimum_purchase: 0,
+    created_at: "string"
+  }
 
-interface ServiceAllocationResponse {
-  status: boolean;
-  allocations: ServiceAllocation[];
-}
 
 
 
@@ -1109,23 +1190,7 @@ export const initiateUnitsPayment = async (data: InitiateUnitsPaymentRequest): P
 
 
 // Add this function before export default api
-export const getTransactionHistory = async (skip: number = 0, limit: number = 100): Promise<TransactionResponse> => {
-  console.log("getTransactionHistory API call initiated");
-  try {
-    const response = await api.get(`/transaction/admin/transaction/?skip=${skip}&limit=${limit}`);
-    console.log("getTransactionHistory API response:", response.data);
-    
-    // If the response is an array, wrap it in the expected format
-    const transactions = Array.isArray(response.data) ? response.data : [];
-    
-    return {
-      transactions,
-      total_count: transactions.length
-    };
-  } catch (error: any) {
-    return handleApiError(error, "Failed to fetch transaction history");
-  }
-};
+
 
 export const getAllocationsFromPackage = async (packageId: string): Promise<ServiceAllocationResponse> => {
   try {
@@ -1502,16 +1567,16 @@ export const getMetricsV1 = async (dateRange?: 'today' | 'this_week' | 'this_mon
   }
 };
 
-export const getAccountBalance = async (user_id: string): Promise<AccountBalance> => {
-  console.log("getAccountBalance API call initiated");
-  try {
-    const response = await api.get(`/admin/balance/${user_id}/units`);
-    console.log("getAccountBalance API response:", response.data);
-    return response.data;
-  } catch (error: any) {
-    return handleApiError(error, "Failed to fetch account balance");
-  }
-};
+// export const getAccountBalance = async (user_id: string): Promise<AccountBalance> => {
+//   console.log("getAccountBalance API call initiated");
+//   try {
+//     const response = await api.get(`/admin/balance/${user_id}/units`);
+//     console.log("getAccountBalance API response:", response.data);
+//     return response.data;
+//   } catch (error: any) {
+//     return handleApiError(error, "Failed to fetch account balance");
+//   }
+// };
 
 // Add these interfaces with the other interfaces
 export enum ServiceName {
@@ -1552,36 +1617,7 @@ export const getUsageLogs = async (): Promise<UsageLog[]> => {
 
 
 
-//Transactions
-export const getTransactionById = async (transactionId: string): Promise<Transaction> => {
-  console.log("getTransactionById API call initiated for transaction:", transactionId);
-  try {
-    const response = await api.get(`/transaction/get/${transactionId}`);
-    console.log("getTransactionById API response:", response.data);
-    return response.data;
-  } catch (error: any) {
-    return handleApiError(error, "Failed to fetch transaction");
-  }
-};
-
-export const listAllTransactions = async (): Promise<TransactionResponse> => {
-  console.log("listAllTransactions API call initiated");
-  try {
-    const response = await api.get("/transaction/list-all");
-    console.log("listAllTransactions API response:", response.data);
-    
-    // If the response is an array, wrap it in the expected format
-    const transactions = Array.isArray(response.data) ? response.data : response.data.transactions || [];
-    
-    return {
-      transactions,
-      total_count: response.data.total_count || transactions.length
-    };
-  } catch (error: any) {
-    return handleApiError(error, "Failed to fetch all transactions");
-  }
-};
-
+// === PAYMENT VALIDATION ===
 export const validatePayment = async (data: PaymentValidationRequest): Promise<PaymentValidationResponse> => {
   console.log("validatePayment API call initiated with data:", data);
   try {
@@ -1593,16 +1629,183 @@ export const validatePayment = async (data: PaymentValidationRequest): Promise<P
   }
 };
 
+// === SERVICES CRUD ===
+export const getServices = async (): Promise<services[]> => {
+  console.log("getServices API call initiated");
+  try {
+    const response = await api.get("/services");
+    console.log("getServices API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch services");
+  }
+};
 
+export const getServiceById = async (service_id: string): Promise<services> => {
+  console.log("getServiceById API call initiated for service:", service_id);
+  try {
+    const response = await api.get(`/services/${service_id}`);
+    console.log("getServiceById API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch service");
+  }
+};
 
+export const createService = async (data: services): Promise<services> => {
+  console.log("createService API call initiated with data:", data);
+  try {
+    const response = await api.post("/services", data);
+    console.log("createService API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to create service");
+  }
+};
 
+export const updateService = async (service_id: string, data: services): Promise<services> => {
+  console.log("updateService API call initiated for service:", service_id, "with data:", data);
+  try {
+    const response = await api.put(`/services/${service_id}`, data);
+    console.log("updateService API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to update service");
+  }
+};
 
+export const deleteService = async (service_id: string): Promise<void> => {
+  console.log("deleteService API call initiated for service:", service_id);
+  try {
+    await api.delete(`/services/${service_id}`);
+    console.log("deleteService API response: Service deleted successfully");
+  } catch (error: any) {
+    return handleApiError(error, "Failed to delete service");
+  }
+};
 
+// === BALANCE ENDPOINTS ===
+export const getBalanceUnits = async (): Promise<BalanceUnits> => {
+  console.log("getBalanceUnits API call initiated");
+  try {
+    const response = await api.get("/balance/units");
+    console.log("getBalanceUnits API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance units");
+  }
+};
 
+export const getBalanceRefund = async (): Promise<BalanceRefund> => {
+  console.log("getBalanceRefund API call initiated");
+  try {
+    const response = await api.get("/balance/refund");
+    console.log("getBalanceRefund API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance refund");
+  }
+};
 
+export const getAccountBalance = async (): Promise<AccountBalance> => {
+  console.log("getAccountBalance API call initiated");
+  try {
+    const response = await api.get("/balance/account");
+    console.log("getAccountBalance API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch account balance");
+  }
+};
 
+export const getBalanceUsage = async (): Promise<BalanceUsage> => {
+  console.log("getBalanceUsage API call initiated");
+  try {
+    const response = await api.get("/balance/usage");
+    console.log("getBalanceUsage API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance usage");
+  }
+};
 
+export const getBalanceUsageLogs = async (): Promise<BalanceUsageLogs[]> => {
+  console.log("getBalanceUsageLogs API call initiated");
+  try {
+    const response = await api.get("/balance/usage/logs");
+    console.log("getBalanceUsageLogs API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance usage logs");
+  }
+};
 
+export const getBalanceUsageLogsById = async (usage_id: string): Promise<BalanceUsageLogs> => {
+  console.log("getBalanceUsageLogsById API call initiated for ID:", usage_id);
+  try {
+    const response = await api.get(`/balance/usage/logs/${usage_id}`);
+    console.log("getBalanceUsageLogsById API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance usage log by ID");
+  }
+};
+
+export const getBalanceUsageStats = async (): Promise<BalanceUsageStats> => {
+  console.log("getBalanceUsageStats API call initiated");
+  try {
+    const response = await api.get("/balance/usage/stats");
+    console.log("getBalanceUsageStats API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance usage stats");
+  }
+};
+
+export const getBalanceServicesCost = async (service_id: string): Promise<BalanceServicesCost> => {
+  console.log("getBalanceServicesCost API call initiated for service:", service_id);
+  try {
+    const response = await api.get(`/balance/services/cost/${service_id}`);
+    console.log("getBalanceServicesCost API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance services cost");
+  }
+};
+
+// === TRANSACTIONS ===
+export const transactionDeposit = async (data: Transaction): Promise<Transaction> => {
+  console.log("transactionDeposit API call initiated with data:", data);
+  try {
+    const response = await api.post("/transaction/deposit", data);
+    console.log("transactionDeposit API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to create transaction deposit");
+  }
+};
+
+export const getTransactionById = async (transaction_id: string): Promise<Transaction> => {
+  console.log("getTransactionById API call initiated for transaction:", transaction_id);
+  try {
+    const response = await api.get(`/transaction/${transaction_id}`);
+    console.log("getTransactionById API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to get transaction by id");
+  }
+};
+
+export const getTransactions = async (): Promise<Transaction[]> => {
+  console.log("getTransactions API call initiated");
+  try {
+    const response = await api.get("/transaction");
+    console.log("getTransactions API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to get transactions");
+  }
+};
 
 
 
