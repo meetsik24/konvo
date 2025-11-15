@@ -18,7 +18,7 @@ import {
   validatePayment,
   purchasePackage,
   purchaseCustom,
-  getCurrentServiceAllocations,
+  getCurrentServiceAllocations
 } from "../services/api";
 
 interface Package {
