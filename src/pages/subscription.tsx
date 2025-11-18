@@ -7,9 +7,10 @@ import {
   initiateUnitsPayment,
   getUsageLogs,
   getAllocationsFromPackage,
-  // getTransactionHistory,
+  getTransactions,
   getPlans,
   ServiceName,
+  getBalanceUsageLogs
 } from "../services/api";
 
 interface Package {
@@ -56,6 +57,12 @@ const Subscription: React.FC = () => {
     transactions: true,
     packages: true,
   });
+
+  const [fullHistory, setFullHistory] = useState<any[]>([]);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
+  const [transactionsError, setTransactionsError] = useState<string | null>(null);
+
+
 
   const [errors, setErrors] = useState({
     wallet: null as string | null,
@@ -177,24 +184,54 @@ const Subscription: React.FC = () => {
   }, []);
 
   // -------------------- FETCH: TRANSACTIONS --------------------
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading((prev) => ({ ...prev, transactions: true }));
-        const response = await getTransactionHistory();
-        setTransactions(response.transactions);
-      } catch (error) {
-        console.error("Transaction fetch failed:", error);
-        setErrors((prev) => ({
-          ...prev,
-          transactions: "Failed to load transaction history",
-        }));
-      } finally {
-        setLoading((prev) => ({ ...prev, transactions: false }));
-      }
-    };
-    fetchTransactions();
-  }, []);
+useEffect(() => {
+  const fetchTransactions = async () => {
+    try {
+      setIsTransactionsLoading(true);
+
+      // 1. Fetch REAL top-up transactions from backend
+      const topUps = await getTransactions();
+
+      const normalizedTopUps = (Array.isArray(topUps) ? topUps : []).map((tx: any) => ({
+        type: "topup",
+        units: tx.units_purchased,
+        amount: tx.total_amount_paid,
+        date: tx.transaction_date,
+        status: tx.marked_complete ? "Completed" : "Pending",
+        source: "Wallet Top-Up"
+      }));
+
+      // 2. Local package-purchase transactions already exist in "transactions" state
+      const balanceUsage = await getBalanceUsageLogs();
+
+      const normalizedPurchases = (Array.isArray(balanceUsage) ? balanceUsage : []).map((p: any) => ({
+        type: "package",
+        units: p.units_used,
+        amount: 0,
+        date: p.usage_date,
+        status: "Completed",
+        source: p.usage_description
+      }));
+
+      // 3. Merge both lists
+      const merged = [...normalizedTopUps, ...normalizedPurchases];
+
+      // 4. Sort by most recent first
+      merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      setFullHistory(merged);
+
+    } catch (error) {
+      console.error("Failed to fetch transaction history:", error);
+      setTransactionsError("Failed to load transaction history");
+    } finally {
+      setIsTransactionsLoading(false);
+    }
+  };
+
+  fetchTransactions();
+}, [transactions]);
+
 
   // -------------------- TOP-UP HANDLER --------------------
   const handleTopUp = async (e: React.FormEvent) => {
@@ -399,54 +436,63 @@ const Subscription: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
       >
-        <h3 className="text-xl font-medium text-[#00333e] mb-4">
-          Transaction History
-        </h3>
-        {errors.transactions ? (
-          <p className="text-red-500 text-sm">{errors.transactions}</p>
-        ) : loading.transactions ? (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
-          </div>
-        ) : transactions.length === 0 ? (
-          <p className="text-gray-500 text-sm">
-            No transaction history available.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {transactions.map((t: any) => (
-              <div
-                key={t.transaction_id}
-                className="bg-white p-4 rounded-md border border-gray-100 shadow-sm"
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium text-[#00333e]">
-                      {t.units_purchased.toLocaleString()} Units
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {new Date(t.transaction_date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-[#00333e]">
-                      {t.total_amount_paid.toLocaleString()} Tsh
-                    </p>
-                    <p
-                      className={`text-sm ${
-                        t.marked_complete
-                          ? "text-green-500"
-                          : "text-orange-500"
-                      }`}
-                    >
-                      {t.marked_complete ? "Completed" : "Pending"}
-                    </p>
-                  </div>
-                </div>
+        <div>
+  <h3 className="text-xl font-medium text-[#00333e] mb-4">Transaction History</h3>
+
+            {isTransactionsLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
               </div>
-            ))}
-          </div>
-        )}
+            ) : transactionsError ? (
+              <p className="text-red-500 text-sm">{transactionsError}</p>
+            ) : fullHistory.length === 0 ? (
+              <p className="text-gray-500 text-sm">No transaction history available.</p>
+            ) : (
+              <div className="space-y-4">
+                {fullHistory.map((historyItem, index) => (
+                  <div
+                    key={index}
+                    className="bg-white p-4 rounded-md border border-gray-100 shadow-sm"
+                  >
+                    {/* TOP ROW */}
+                    <div className="flex justify-between items-center">
+                      {/* Left */}
+                      <div>
+                        <p className="font-medium text-[#00333e]">
+                          {historyItem.units.toLocaleString()} Units
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(historyItem.date).toLocaleDateString()}
+                        </p>
+                      </div>
+
+                      {/* Right */}
+                      <div className="text-right">
+                        {historyItem.amount > 0 && (
+                          <p className="font-medium text-[#00333e]">
+                          {historyItem.amount.toLocaleString()} Tsh
+                        </p>
+                      )}
+                      <p
+                        className={`text-sm ${
+                          historyItem.status === "Completed"
+                            ? "text-green-500"
+                            : "text-orange-500"
+                        }`}
+                      >
+                        {historyItem.status}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-xs text-gray-500 mt-2">{historyItem.source}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </motion.div>
     </div>
   );

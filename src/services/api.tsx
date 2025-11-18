@@ -1798,7 +1798,9 @@ export const getTransactionById = async (transaction_id: string): Promise<Transa
 export const getTransactions = async (): Promise<Transaction[]> => {
   console.log("getTransactions API call initiated");
   try {
-    const response = await api.get("/transaction");
+    const response = await api.get("/transaction", {
+      params: { skip: 0, limit: 1000 },
+    });
     console.log("getTransactions API response:", response.data);
     return response.data;
   } catch (error: any) {
