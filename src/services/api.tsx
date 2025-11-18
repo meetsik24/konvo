@@ -291,6 +291,7 @@ interface ApiKey {
 }
 
 interface AccountBalance {
+  balance: number;
   balance_id: string;
   last_updated: string;
   units: number;

@@ -103,7 +103,7 @@ const Subscription: React.FC = () => {
       try {
         setLoading((prev) => ({ ...prev, wallet: true }));
         const balance = await getAccountBalance();
-        setWallet({ units: balance.units });
+        setWallet({ units: balance.balance });
       } catch (error) {
         console.error("Wallet fetch failed:", error);
         setErrors((prev) => ({ ...prev, wallet: "Failed to load wallet balance" }));
@@ -202,7 +202,7 @@ useEffect(() => {
       }));
 
       // 2. Local package-purchase transactions already exist in "transactions" state
-      const balanceUsage = await getBalanceUsageLogs();
+      const balanceUsage = await getBalanceUsageLogs(); 
 
       const normalizedPurchases = (Array.isArray(balanceUsage) ? balanceUsage : []).map((p: any) => ({
         type: "package",
