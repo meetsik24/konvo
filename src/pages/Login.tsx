@@ -6,11 +6,6 @@ import { useDispatch } from 'react-redux';
 import { setCredentials } from '../store/slices/authSlice';
 import { flake_request, flake_verify } from '../services/api';
 
-import simuImage from "../../../assets/simu2.png";
-import dashboard from "../../../assets/SMS.png";
-import simuImage2 from "../../../assets/Simu.png";
-import whtatsappIcon from "../../../assets/whatsapp-logo.png"
-
 const AuthScreen: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [preferredChannel, setPreferredChannel] = useState<'whatsapp' | 'sms' | 'voice'>('whatsapp');
@@ -25,9 +20,9 @@ const AuthScreen: React.FC = () => {
 
   // Images to rotate through on the right side
   const images = [
-    simuImage,
-    dashboard,
-    simuImage2
+    '/assets/simu2.png',
+    '/assets/SMS.png',
+    '/assets/simu.png'
   ];
 
   // Rotate images every 4 seconds
