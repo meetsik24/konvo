@@ -59,7 +59,7 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href="#documentation" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors">
+                <a href="docs.briq.tz" className="text-[#6f888c] hover:text-[#fddf0d] transition-colors">
                   Developer Documentation
                 </a>
               </li>
