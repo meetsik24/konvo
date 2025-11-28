@@ -5,12 +5,11 @@ import Alert from "../components/Alert";
 import {
   getAccountBalance,
   initiateUnitsPayment,
-  getUsageLogs,
   getAllocationsFromPackage,
   getTransactions,
   getPlans,
-  ServiceName,
-  getBalanceUsageLogs
+  getBalanceUsageLogs,
+  getAllocationsSummary
 } from "../services/api";
 
 interface Package {
@@ -152,29 +151,29 @@ const Subscription: React.FC = () => {
     const fetchUsageData = async () => {
       try {
         setLoading((prev) => ({ ...prev, usage: true }));
-        const logs = await getUsageLogs();
+        
+        // Fetch allocations summary only
+        const allocationsData = await getAllocationsSummary();
+        console.log("Allocations Data:", allocationsData);
 
-        const usage = logs.reduce(
-          (acc: any, log: any) => {
-            switch (log.service_name) {
-              case ServiceName.SMS:
-                acc.sms += log.quantity;
-                break;
-              case ServiceName.WHATSAPP:
-                acc.whatsapp += log.quantity;
-                break;
-              case ServiceName.VOICE:
-                acc.avr += log.quantity;
-                break;
-            }
-            return acc;
-          },
-          { sms: 0, whatsapp: 0, avr: 0 }
-        );
+        // Calculate allocations from the allocations summary endpoint
+        const allocation = { sms: 0, whatsapp: 0, avr: 0 };
+        allocationsData.allocations.forEach((alloc: any) => {
+          if (alloc.service_name === "SMS") {
+            allocation.sms = alloc.total_units_allocated;
+          } else if (alloc.service_name === "WHATSAPP") {
+            allocation.whatsapp = alloc.total_units_allocated;
+          } else if (alloc.service_name === "VOICE") {
+            allocation.avr = alloc.total_units_allocated;
+          }
+        });
 
-        setCurrentPackage((prev) => ({ ...prev, usage }));
+        // Initialize usage as zero (no usage data from this endpoint)
+        const usage = { sms: 0, whatsapp: 0, avr: 0 };
+
+        setCurrentPackage((prev) => ({ ...prev, allocation, usage }));
       } catch (error) {
-        console.error("Usage fetch failed:", error);
+        console.error("Usage allocation fetch failed:", error);
         setErrors((prev) => ({ ...prev, usage: "Failed to load usage data" }));
       } finally {
         setLoading((prev) => ({ ...prev, usage: false }));
@@ -353,21 +352,12 @@ useEffect(() => {
               const used = currentPackage.usage[
                 key as keyof typeof currentPackage.usage
               ];
-              const percent = calcUsagePercent(used, total);
               return (
-                <div key={key}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600 capitalize">{key}</span>
-                    <span className="text-[#00333e] font-medium">
-                      {used} units used
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-md h-2">
-                    <div
-                      className="bg-[#00333e] h-2 rounded-md"
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
+                <div key={key} className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+                  <span className="text-gray-600 capitalize font-medium">{key}</span>
+                  <span className="text-[#00333e] font-semibold">
+                    {used.toLocaleString()} / {total.toLocaleString()} units
+                  </span>
                 </div>
               );
             })}

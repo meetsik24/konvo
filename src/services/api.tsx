@@ -351,6 +351,16 @@ interface  BalanceServicesCost{
   total_cost: 0,
 }
 
+export interface AllocationSummary {
+  service_id: string;
+  service_name: string;
+  total_units_allocated: number;
+}
+
+export interface AllocationsSummaryResponse {
+  allocations: AllocationSummary[];
+}
+
 export interface Transaction {
   transaction_id: string;
   user_id: string;
@@ -1806,6 +1816,36 @@ export const getTransactions = async (): Promise<Transaction[]> => {
     return response.data;
   } catch (error: any) {
     return handleApiError(error, "Failed to get transactions");
+  }
+};
+
+export const getAllocationsSummary = async (): Promise<AllocationsSummaryResponse> => {
+  console.log("getAllocationsSummary API call initiated");
+  try {
+    const response = await api.get("/allocations/summary");
+    console.log("getAllocationsSummary API response:", response.data);
+    
+    // Validate and normalize response
+    if (!response.data || !Array.isArray(response.data.allocations)) {
+      console.warn("Invalid allocations response structure, returning empty allocations");
+      return { allocations: [] };
+    }
+    
+    // Validate each allocation object
+    const validAllocations = response.data.allocations.filter((alloc: any) =>
+      alloc &&
+      typeof alloc.service_id === 'string' &&
+      typeof alloc.service_name === 'string' &&
+      typeof alloc.total_units_allocated === 'number'
+    );
+    
+    if (validAllocations.length !== response.data.allocations.length) {
+      console.warn(`Filtered out ${response.data.allocations.length - validAllocations.length} invalid allocation objects`);
+    }
+    
+    return { allocations: validAllocations };
+  } catch (error: any) {
+    return handleApiError(error, "Failed to get allocations summary");
   }
 };
 
