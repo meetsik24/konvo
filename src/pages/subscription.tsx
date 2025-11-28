@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Loader2, Wallet } from "lucide-react";
+import { X, Loader2, Wallet, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import Alert from "../components/Alert";
 import {
@@ -17,6 +17,9 @@ interface Package {
   name: string;
   description: string;
   units: number;
+  unitPrice: number;
+  minSms: number;
+  maxSms: number;
   allocation: {
     sms: number;
     whatsapp: number;
@@ -60,8 +63,9 @@ const Subscription: React.FC = () => {
   const [fullHistory, setFullHistory] = useState<any[]>([]);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [transactionsError, setTransactionsError] = useState<string | null>(null);
-
-
+  const [currentPage, setCurrentPage] = useState(1);
+  const [transactionFilter, setTransactionFilter] = useState<"all" | "usage" | "topup">("all");
+  const itemsPerPage = 5;
 
   const [errors, setErrors] = useState({
     wallet: null as string | null,
@@ -75,9 +79,11 @@ const Subscription: React.FC = () => {
   const [topUpAmount, setTopUpAmount] = useState<number>(0);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [purchasingPackageId, setPurchasingPackageId] = useState<string | null>(
-    null
-  );
+  const [purchasingPackageId, setPurchasingPackageId] = useState<string | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [isPackageDetailsModalOpen, setIsPackageDetailsModalOpen] = useState(false);
+  const [smsQuantity, setSmsQuantity] = useState<number>(0);
+  const [smsError, setSmsError] = useState<string>("");
 
   const [alertState, setAlertState] = useState<{
     isOpen: boolean;
@@ -120,19 +126,33 @@ const Subscription: React.FC = () => {
         setLoading((prev) => ({ ...prev, packages: true }));
         const plans = await getPlans();
 
-        const transformedPackages = plans.map((plan) => ({
-          id: plan.plan_id,
-          name: plan.name,
-          description: plan.description,
-          units: plan.sms_unit_price,
-          allocation: {
-            sms: plan.minimum_sms_purchase,
-            whatsapp: 0,
-            voice: 0,
-          },
-        }));
+        // Sort plans by minimum SMS to ensure proper ordering
+        const sortedPlans = [...plans].sort((a, b) => a.minimum_sms_purchase - b.minimum_sms_purchase);
+
+        const transformedPackages = sortedPlans.map((plan, index) => {
+          // Max SMS of current package = Min SMS of next package - 1
+          const maxSms = index < sortedPlans.length - 1 
+            ? sortedPlans[index + 1].minimum_sms_purchase - 1
+            : plan.minimum_sms_purchase + (plan.maximum_sms_purchase || 100000);
+
+          return {
+            id: plan.plan_id,
+            name: plan.name,
+            description: plan.description,
+            units: plan.sms_unit_price,
+            unitPrice: plan.sms_unit_price,
+            minSms: plan.minimum_sms_purchase,
+            maxSms: maxSms,
+            allocation: {
+              sms: plan.minimum_sms_purchase,
+              whatsapp: 0,
+              voice: 0,
+            },
+          };
+        });
 
         setPackages(transformedPackages);
+        console.log("Loaded packages from API:", transformedPackages);
       } catch (error) {
         console.error("Plans fetch failed:", error);
         setErrors((prev) => ({
@@ -183,54 +203,48 @@ const Subscription: React.FC = () => {
   }, []);
 
   // -------------------- FETCH: TRANSACTIONS --------------------
-useEffect(() => {
-  const fetchTransactions = async () => {
-    try {
-      setIsTransactionsLoading(true);
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        setIsTransactionsLoading(true);
 
-      // 1. Fetch REAL top-up transactions from backend
-      const topUps = await getTransactions();
+        const topUps = await getTransactions();
 
-      const normalizedTopUps = (Array.isArray(topUps) ? topUps : []).map((tx: any) => ({
-        type: "topup",
-        units: tx.units_purchased,
-        amount: tx.total_amount_paid,
-        date: tx.transaction_date,
-        status: tx.marked_complete ? "Completed" : "Pending",
-        source: "Wallet Top-Up"
-      }));
+        const normalizedTopUps = (Array.isArray(topUps) ? topUps : []).map((tx: any) => ({
+          type: "topup",
+          units: tx.units_purchased,
+          amount: tx.total_amount_paid,
+          date: tx.transaction_date,
+          status: tx.marked_complete ? "Completed" : "Pending",
+          source: "Wallet Top-Up"
+        }));
 
-      // 2. Local package-purchase transactions already exist in "transactions" state
-      const balanceUsage = await getBalanceUsageLogs(); 
+        const balanceUsage = await getBalanceUsageLogs();
 
-      const normalizedPurchases = (Array.isArray(balanceUsage) ? balanceUsage : []).map((p: any) => ({
-        type: "package",
-        units: p.units_used,
-        amount: 0,
-        date: p.usage_date,
-        status: "Completed",
-        source: p.usage_description
-      }));
+        const normalizedPurchases = (Array.isArray(balanceUsage) ? balanceUsage : []).map((p: any) => ({
+          type: "package",
+          units: p.units_used,
+          amount: 0,
+          date: p.usage_date,
+          status: "Completed",
+          source: p.usage_description
+        }));
 
-      // 3. Merge both lists
-      const merged = [...normalizedTopUps, ...normalizedPurchases];
+        const merged = [...normalizedTopUps, ...normalizedPurchases];
+        merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-      // 4. Sort by most recent first
-      merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setFullHistory(merged);
 
-      setFullHistory(merged);
+      } catch (error) {
+        console.error("Failed to fetch transaction history:", error);
+        setTransactionsError("Failed to load transaction history");
+      } finally {
+        setIsTransactionsLoading(false);
+      }
+    };
 
-    } catch (error) {
-      console.error("Failed to fetch transaction history:", error);
-      setTransactionsError("Failed to load transaction history");
-    } finally {
-      setIsTransactionsLoading(false);
-    }
-  };
-
-  fetchTransactions();
-}, [transactions]);
-
+    fetchTransactions();
+  }, [transactions]);
 
   // -------------------- TOP-UP HANDLER --------------------
   const handleTopUp = async (e: React.FormEvent) => {
@@ -260,12 +274,34 @@ useEffect(() => {
     }
   };
 
+  // -------------------- SMS QUANTITY VALIDATION --------------------
+  const validateSmsQuantity = (quantity: number, pkg: Package): string => {
+    if (!quantity || quantity <= 0) {
+      return "Please enter a valid SMS quantity";
+    }
+    if (quantity < pkg.minSms) {
+      return `Minimum SMS for this package is ${pkg.minSms.toLocaleString()}`;
+    }
+    if (quantity > pkg.maxSms) {
+      return `Maximum SMS for this package is ${pkg.maxSms.toLocaleString()}`;
+    }
+    return "";
+  };
+
   // -------------------- PACKAGE PURCHASE --------------------
   const handlePurchase = async (pkg: Package) => {
+    const error = validateSmsQuantity(smsQuantity, pkg);
+    if (error) {
+      setSmsError(error);
+      return;
+    }
+
     try {
       setPurchasingPackageId(pkg.id);
-      if (!wallet || wallet.units < pkg.units) {
-        showAlert("error", "Not enough credits in wallet to purchase this package.");
+      const totalCost = smsQuantity * pkg.unitPrice;
+
+      if (!wallet || wallet.units < totalCost) {
+        showAlert("error", `Not enough credits. You need ${totalCost} units but have ${wallet?.units || 0}`);
         return;
       }
 
@@ -274,10 +310,13 @@ useEffect(() => {
         throw new Error("Failed to get package allocations");
 
       setWallet((prev) =>
-        prev ? { ...prev, units: prev.units - pkg.units } : null
+        prev ? { ...prev, units: prev.units - totalCost } : null
       );
 
-      showAlert("success", "Package purchased successfully!");
+      setSmsQuantity(0);
+      setSmsError("");
+      setIsPackageDetailsModalOpen(false);
+      showAlert("success", `Successfully purchased ${smsQuantity.toLocaleString()} SMS for ${totalCost} units!`);
     } catch (error) {
       console.error("Package purchase failed:", error);
       showAlert("error", "Failed to purchase package. Please try again.");
@@ -289,6 +328,27 @@ useEffect(() => {
   // -------------------- HELPERS --------------------
   const calcUsagePercent = (used: number, total: number) =>
     total === 0 ? 0 : Math.min(100, Math.round((used / total) * 100));
+
+  // Filter transactions based on type
+  const filteredHistory = fullHistory.filter((item) => {
+    if (transactionFilter === "all") return true;
+    if (transactionFilter === "usage") return item.type === "package";
+    if (transactionFilter === "topup") return item.type === "topup";
+    return true;
+  });
+
+  // Pagination helpers
+  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedHistory = filteredHistory.slice(startIndex, endIndex);
+
+  const openPackageModal = (pkg: Package) => {
+    setSelectedPackage(pkg);
+    setSmsQuantity(0);
+    setSmsError("");
+    setIsPackageDetailsModalOpen(true);
+  };
 
   // -------------------- UI RENDER --------------------
   return (
@@ -383,42 +443,276 @@ useEffect(() => {
             {packages.map((pkg) => (
               <motion.div
                 key={pkg.id}
-                className="bg-white p-6 rounded-md border border-gray-100 shadow-sm flex flex-col justify-between"
+                className="bg-white p-6 rounded-md border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
               >
                 <div>
                   <h4 className="text-lg font-semibold text-[#00333e] mb-1">
                     {pkg.name}
                   </h4>
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2 h-10">
-                    {pkg.description}
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                    {pkg.description?.length > 100 
+                      ? `${pkg.description.substring(0, 100)}...` 
+                      : pkg.description}
                   </p>
-                  <p className="text-sm mb-3 text-[#00333e] font-medium">
-                    {pkg.units.toLocaleString()} Units
-                  </p>
+                  <div className="bg-gray-50 p-3 rounded-md mb-3">
+                    <p className="text-xs text-gray-600 mb-1">Price per SMS</p>
+                    <p className="text-xl font-bold text-[#00333e]">
+                      {pkg.unitPrice} Units
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-md">
+                    <p className="text-xs text-gray-600 mb-1">SMS Range</p>
+                    <p className="text-sm font-medium text-[#00333e]">
+                      {pkg.minSms.toLocaleString()} - {pkg.maxSms.toLocaleString()} SMS
+                    </p>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handlePurchase(pkg)}
-                  className="w-full px-4 py-2 bg-[#fddf0d] text-[#00333e] rounded-md text-sm font-medium hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={
-                    purchasingPackageId === pkg.id ||
-                    !wallet ||
-                    wallet.units < pkg.units
-                  }
-                >
-                  {purchasingPackageId === pkg.id ? (
-                    <span className="flex items-center justify-center">
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Processing...
-                    </span>
-                  ) : (
-                    "Purchase"
-                  )}
-                </button>
+                <div className="space-y-2 mt-4">
+                  <button
+                    onClick={() => openPackageModal(pkg)}
+                    className="w-full px-4 py-2 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                  >
+                    View Details
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </motion.div>
             ))}
           </div>
         )}
       </motion.div>
+
+      {/* Package Details Modal */}
+      {isPackageDetailsModalOpen && selectedPackage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-md max-w-md w-full shadow-lg"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-semibold text-[#00333e]">{selectedPackage.name}</h2>
+              <button
+                onClick={() => setIsPackageDetailsModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4 max-h-96 overflow-y-auto">
+              {/* Description */}
+              <div>
+                <h3 className="text-sm font-medium text-[#00333e] mb-2">Description</h3>
+                <p className="text-gray-600 text-sm">{selectedPackage.description}</p>
+              </div>
+
+              {/* Price Info */}
+              <div>
+                <h3 className="text-sm font-medium text-[#00333e] mb-2">Price</h3>
+                <p className="text-2xl font-bold text-[#00333e">
+                  {selectedPackage.unitPrice} Units per SMS
+                </p>
+              </div>
+
+              {/* SMS Range */}
+              <div>
+                <h3 className="text-sm font-medium text-[#00333e] mb-2">Available SMS Range</h3>
+                <p className="text-lg font-semibold text-[#00333e]">
+                  {selectedPackage.minSms.toLocaleString()} - {selectedPackage.maxSms.toLocaleString()} SMS
+                </p>
+              </div>
+
+              {/* SMS Quantity Input */}
+              <div>
+                <label className="block text-sm font-medium text-[#00333e] mb-2">
+                  How many SMS do you want?
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newValue = Math.max(selectedPackage.minSms, smsQuantity - 100);
+                      setSmsQuantity(newValue);
+                      if (newValue > 0) {
+                        setSmsError(validateSmsQuantity(newValue, selectedPackage));
+                      } else {
+                        setSmsError("");
+                      }
+                    }}
+                    className="px-3 py-2 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-bold"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    value={smsQuantity || ""}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      setSmsQuantity(value);
+                      if (value > 0) {
+                        setSmsError(validateSmsQuantity(value, selectedPackage));
+                      } else {
+                        setSmsError("");
+                      }
+                    }}
+                    placeholder="Enter SMS quantity"
+                    min={selectedPackage.minSms}
+                    max={selectedPackage.maxSms}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e] text-center"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newValue = Math.min(selectedPackage.maxSms, smsQuantity + 100);
+                      setSmsQuantity(newValue);
+                      if (newValue > 0) {
+                        setSmsError(validateSmsQuantity(newValue, selectedPackage));
+                      } else {
+                        setSmsError("");
+                      }
+                    }}
+                    className="px-3 py-2 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+                {smsError && (
+                  <p className="text-red-500 text-xs mt-2">{smsError}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Range: {selectedPackage.minSms.toLocaleString()} - {selectedPackage.maxSms.toLocaleString()} SMS
+                </p>
+              </div>
+
+              {/* Cost Breakdown */}
+              {smsQuantity > 0 && !smsError && (
+                <div className="bg-blue-50 p-4 rounded-md space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">SMS Quantity:</span>
+                    <span className="font-medium text-[#00333e]">{smsQuantity.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Unit Price:</span>
+                    <span className="font-medium text-[#00333e]">{selectedPackage.unitPrice} units/SMS</span>
+                  </div>
+                  <div className="border-t border-blue-200 pt-2 flex justify-between">
+                    <span className="font-semibold text-[#00333e]">Total Cost:</span>
+                    <span className="text-lg font-bold text-[#fddf0d]">
+                      {(smsQuantity * selectedPackage.unitPrice).toLocaleString()} Units
+                    </span>
+                  </div>
+                  {wallet && (
+                    <div className="flex justify-between text-sm pt-2">
+                      <span className="text-gray-600">Wallet Balance:</span>
+                      <span className={wallet.units >= smsQuantity * selectedPackage.unitPrice ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                        {wallet.units.toLocaleString()} Units
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 p-6 border-t border-gray-100">
+              <button
+                onClick={() => setIsPackageDetailsModalOpen(false)}
+                className="flex-1 px-4 py-2 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => handlePurchase(selectedPackage)}
+                className="flex-1 px-4 py-2 bg-[#fddf0d] text-[#00333e] rounded-md text-sm font-medium hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={
+                  purchasingPackageId === selectedPackage.id ||
+                  !wallet ||
+                  smsQuantity <= 0 ||
+                  !!smsError ||
+                  wallet.units < smsQuantity * selectedPackage.unitPrice
+                }
+              >
+                {purchasingPackageId === selectedPackage.id ? (
+                  <span className="flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Processing...
+                  </span>
+                ) : (
+                  `Purchase ${smsQuantity.toLocaleString()} SMS`
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Top-Up Modal */}
+      {isTopUpModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-md max-w-md w-full shadow-lg"
+          >
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-semibold text-[#00333e]">Top Up Wallet</h2>
+              <button
+                onClick={() => setIsTopUpModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleTopUp} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[#00333e] mb-2">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="Enter mobile money number"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#00333e] mb-2">
+                  Amount (Tsh)
+                </label>
+                <input
+                  type="number"
+                  value={topUpAmount}
+                  onChange={(e) => setTopUpAmount(parseFloat(e.target.value))}
+                  placeholder="Enter amount"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsTopUpModalOpen(false)}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isProcessing}
+                  className="flex-1 px-4 py-2 bg-[#00333e] text-white rounded-md text-sm font-medium hover:bg-[#00262f] disabled:opacity-50"
+                >
+                  {isProcessing ? "Processing..." : "Top Up"}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       {/* Transactions */}
       <motion.div
@@ -427,26 +721,68 @@ useEffect(() => {
         className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
       >
         <div>
-  <h3 className="text-xl font-medium text-[#00333e] mb-4">Transaction History</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-medium text-[#00333e]">Transaction History</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setTransactionFilter("all");
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  transactionFilter === "all"
+                    ? "bg-[#00333e] text-white"
+                    : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => {
+                  setTransactionFilter("usage");
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  transactionFilter === "usage"
+                    ? "bg-[#00333e] text-white"
+                    : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
+                }`}
+              >
+                Package Usage
+              </button>
+              <button
+                onClick={() => {
+                  setTransactionFilter("topup");
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  transactionFilter === "topup"
+                    ? "bg-[#00333e] text-white"
+                    : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
+                }`}
+              >
+                Top-Up
+              </button>
+            </div>
+          </div>
 
-            {isTransactionsLoading ? (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
-              </div>
-            ) : transactionsError ? (
-              <p className="text-red-500 text-sm">{transactionsError}</p>
-            ) : fullHistory.length === 0 ? (
-              <p className="text-gray-500 text-sm">No transaction history available.</p>
-            ) : (
+          {isTransactionsLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
+            </div>
+          ) : transactionsError ? (
+            <p className="text-red-500 text-sm">{transactionsError}</p>
+          ) : filteredHistory.length === 0 ? (
+            <p className="text-gray-500 text-sm">No transactions found.</p>
+          ) : (
+            <div>
               <div className="space-y-4">
-                {fullHistory.map((historyItem, index) => (
+                {paginatedHistory.map((historyItem, index) => (
                   <div
                     key={index}
                     className="bg-white p-4 rounded-md border border-gray-100 shadow-sm"
                   >
-                    {/* TOP ROW */}
                     <div className="flex justify-between items-center">
-                      {/* Left */}
                       <div>
                         <p className="font-medium text-[#00333e]">
                           {historyItem.units.toLocaleString()} Units
@@ -456,33 +792,55 @@ useEffect(() => {
                         </p>
                       </div>
 
-                      {/* Right */}
                       <div className="text-right">
                         {historyItem.amount > 0 && (
                           <p className="font-medium text-[#00333e]">
-                          {historyItem.amount.toLocaleString()} Tsh
+                            {historyItem.amount.toLocaleString()} Tsh
+                          </p>
+                        )}
+                        <p
+                          className={`text-sm ${
+                            historyItem.status === "Completed"
+                              ? "text-green-500"
+                              : "text-orange-500"
+                          }`}
+                        >
+                          {historyItem.status}
                         </p>
-                      )}
-                      <p
-                        className={`text-sm ${
-                          historyItem.status === "Completed"
-                            ? "text-green-500"
-                            : "text-orange-500"
-                        }`}
-                      >
-                        {historyItem.status}
-                      </p>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Description */}
-                  <p className="text-xs text-gray-500 mt-2">{historyItem.source}</p>
+                    <p className="text-xs text-gray-500 mt-2">{historyItem.source}</p>
+                  </div>
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-600">
+                    Page {currentPage} of {totalPages}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
-
       </motion.div>
     </div>
   );
