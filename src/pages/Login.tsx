@@ -1,352 +1,376 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MessageCircle, Phone, PhoneCall, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { LogIn, UserPlus, Phone, X } from 'lucide-react';
-import { setCredentials, setError } from '../store/slices/authSlice';
-import { loginUser, requestOtp } from '../services/api';
+import { setCredentials } from '../store/slices/authSlice';
+import { flake_request, flake_verify } from '../services/api';
 
-// Placeholder for the logo (replace with your actual logo)
-import Logo from '/assets/briq2.png'; // Adjust the path to your logo file
+const AuthScreen: React.FC = () => {
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [preferredChannel, setPreferredChannel] = useState<'whatsapp' | 'sms' | 'voice'>('whatsapp');
+  const [step, setStep] = useState<'input' | 'otp'>('input');
+  const [otp, setOtp] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-const Login: React.FC = () => {
-  const location = useLocation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    username: location.state?.username || '',
-    password: '',
-  });
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [error, setLocalError] = useState<string | null>(null);
-  const [modalError, setModalError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [modalLoading, setModalLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  // Images to rotate through on the right side
+  const images = [
+    '/assets/simu2.png',
+    '/assets/SMS.png',
+    '/assets/simu.png'
+  ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Rotate images every 4 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Rotating welcome messages
+  const welcomeMessages = [
+    { line1: "Hey there, superstar!", line2: "Ready to dive back in?" },
+    { line1: "Long time no tap!", line2: "Let's get you back in." },
+    { line1: "Knock knock!", line2: "It's your account calling." },
+    { line1: "Your seat's still warm", line2: "hop back in!" },
+    { line1: "Back for more?", line2: "We knew you'd be." },
+  ];
+
+  // Select a random message on component mount
+  const welcomeMessage = useMemo(() => {
+    return welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+  }, []);
+
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!phoneNumber.trim()) return setError('Please enter your phone number');
+
     setLoading(true);
-    setLocalError(null);
+    setError(null);
 
     try {
-      const { token, user } = await loginUser(formData.username, formData.password);
-      dispatch(setCredentials({ user, token }));
-      navigate('/dashboard');
+      await flake_request(phoneNumber, preferredChannel);
+      setStep('otp');
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || 'Invalid credentials or server error';
-      setLocalError(errorMsg);
-      dispatch(setError(errorMsg));
+      setError(err.message || 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleForgotPassword = () => {
-    setShowModal(true);
-  };
-
-  const handleSendOTP = async (e: React.FormEvent) => {
+  const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    setModalLoading(true);
-    setModalError(null);
+    if (otp.length !== 6) return setError('Enter the 6-digit code');
 
-    if (!phoneNumber) {
-      setModalError('Please enter a phone number.');
-      setModalLoading(false);
-      return;
-    }
+    setLoading(true);
+    setError(null);
 
     try {
-      await requestOtp(phoneNumber);
-      setShowModal(false);
-      navigate('/ResetPassword', { state: { phoneNumber } });
+      console.log("📞 Calling flake_verify with phoneNumber:", phoneNumber, "otp:", otp);
+      const { token, user } = await flake_verify(phoneNumber, otp);
+      dispatch(setCredentials({ user, token }));
+      navigate('/dashboard');
     } catch (err: any) {
-      const errorMsg = err.message || 'Failed to send OTP. Please try again.';
-      setModalError(errorMsg);
-      dispatch(setError(errorMsg));
+      setError(err.message || 'Invalid or expired code');
     } finally {
-      setModalLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Gradient Background */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(to bottom right, #00333e, #111827)',
-        }}
-      />
-
-      {/* Animated Particle Texture */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `
-            radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.2) 1px, transparent 0),
-            radial-gradient(circle at 20px 20px, rgba(255, 255, 255, 0.15) 1px, transparent 0),
-            radial-gradient(circle at 40px 40px, rgba(255, 255, 255, 0.1) 1px, transparent 0),
-            radial-gradient(circle at 60px 60px, rgba(255, 255, 255, 0.15) 1px, transparent 0),
-            radial-gradient(circle at 80px 80px, rgba(255, 255, 255, 0.2) 1px, transparent 0)
-          `,
-          backgroundSize: '100px 100px',
-          backgroundBlendMode: 'overlay',
-          animation: 'drift 20s linear infinite',
-          opacity: 0.3,
-        }}
-      />
-
-      {/* Login Form */}
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-md w-full bg-white rounded-xl shadow-lg p-6 sm:p-8 space-y-6 sm:space-y-8 relative z-10"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-screen-2xl min-h-[900px] bg-white rounded-3xl overflow-hidden flex flex-col lg:flex-row"
       >
-        {/* Logo Section */}
-        <div className="flex justify-center">
-          <motion.img
-            src={Logo}
-            alt="Logo"
-            className="h-12 sm:h-16 w-auto"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          />
-        </div>
+        {/* Left Side - Form */}
+        <div className="w-full lg:w-3/6 p-8 lg:p-16 flex items-center justify-center">
+          <div className="w-full max-w-md">
+            {/* Logo */}
+            <div className="mb-10">
+              {/* <div className="flex items-center gap-2">
+                <img src="/assets/briq.png" alt="Briq Logo" className="w-8 h-8" />
 
-        {/* Welcome Text */}
-        <div>
-          <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-[#00333e]">
-            Welcome Back
-          </h2>
-          <p className="mt-2 text-center text-sm sm:text-base text-gray-600">
-            Sign in to continue to your dashboard
-          </p>
-        </div>
-
-        {/* Login Form */}
-        <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md space-y-4 sm:space-y-5">
-            <div>
-              <label htmlFor="username" className="sr-only">
-                Username | Phone-number
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
-                placeholder="Username or Phone Number"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                disabled={loading}
-              />
+              </div> */}
             </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="appearance-none rounded-lg relative block w-full px-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm sm:text-base transition duration-200"
-                placeholder="Password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                disabled={loading}
-              />
+
+            {/* Welcome Text */}
+            <div className="mb-10">
+              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+                {step === 'input' ? (
+                  <>
+                    {welcomeMessage.line1}
+                    <br />
+                    {welcomeMessage.line2}
+                  </>
+                ) : (
+                  'Verify your phone'
+                )}
+              </h1>
+              <p className="text-sm text-gray-600">
+                {step === 'input'
+                  ? 'Just your number. No passwords, No stress.'
+                  : 'Enter the 6-digit code we sent you'}
+              </p>
             </div>
-          </div>
 
-          {error && (
-            <div className="text-red-500 text-xs sm:text-sm text-center">{error}</div>
-          )}
-
-          <div className="space-y-3 sm:space-y-4">
-            <button
-              type="submit"
-              className="group relative w-full flex justify-center items-center py-2 sm:py-3 px-4 border border-transparent text-sm sm:text-base font-medium rounded-lg text-white bg-[#00333e] hover:bg-[#002a36] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00333e] transition duration-200"
-              disabled={loading}
-            >
-              {loading ? (
-                <span className="flex items-center">
-                  <svg
-                    className="animate-spin h-5 w-5 mr-2 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v8H4z"
-                    />
-                  </svg>
-                  Signing in...
-                </span>
-              ) : (
-                <>
-                  <LogIn className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                  Sign in
-                </>
-              )}
-            </button>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                className="group relative w-full flex justify-center items-center py-2 sm:py-3 px-4 border border-gray-300 text-sm sm:text-base font-medium rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00333e] transition duration-200"
-                disabled={loading}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
               >
-                Forgot Password
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/register')}
-                className="group relative w-full flex justify-center items-center py-2 sm:py-3 px-4 border border-gray-300 text-sm sm:text-base font-medium rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00333e] transition duration-200"
-                disabled={loading}
-              >
-                <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                Sign up
-              </button>
-            </div>
-          </div>
-        </form>
-      </motion.div>
+                {error}
+              </motion.div>
+            )}
 
-      {/* Modal for Phone Number Input and OTP Sending */}
-      {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white rounded-xl shadow-lg p-6 max-w-sm w-full mx-4 relative z-10"
-          >
-            {/* Close Button */}
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-              disabled={modalLoading}
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {/* Step 1: Phone Input */}
+            {step === 'input' && (
+              <form onSubmit={handleSendOTP} className="space-y-5">
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-normal text-gray-700 mb-2">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      id="phone"
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="+254 712 345 678"
+                      className="w-full pl-11 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00333e] focus:border-transparent transition"
+                      required
+                    />
+                  </div>
+                </div>
 
-            <h3 className="text-lg font-bold text-[#00333e] mb-2">Reset Password</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Enter your phone number to receive an OTP
-            </p>
 
-            <form onSubmit={handleSendOTP}>
-              <div className="mb-4">
-                <label htmlFor="phoneNumber" className="sr-only">
-                  Phone Number
-                </label>
-                <input
-                  id="phoneNumber"
-                  name="phoneNumber"
-                  type="tel"
-                  required
-                  className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] text-sm transition duration-200"
-                  placeholder="Phone Number (e.g., +1234567890)"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  disabled={modalLoading}
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-normal text-gray-700 mb-2">
+                    Send code via
+                  </label>
+                  <div className="flex gap-2 justify-center">
+                    {/* WhatsApp */}
+                    <button
+                      type="button"
+                      onClick={() => setPreferredChannel('whatsapp')}
+                      className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-all ${preferredChannel === 'whatsapp'
+                        ? 'border-[#00333e] bg-[#00333e]/5'
+                        : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      title="WhatsApp"
+                    >
+                      <img
+                        src="/assets/whatsapp-logo.png"
+                        alt="WhatsApp"
+                        className="w-5 h-5 object-contain"
+                      />
+                    </button>
 
-              {modalError && (
-                <div className="text-red-500 text-xs mb-4">{modalError}</div>
-              )}
+                    {/* SMS */}
+                    <button
+                      type="button"
+                      onClick={() => setPreferredChannel('sms')}
+                      className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-all ${preferredChannel === 'sms'
+                        ? 'border-[#00333e] bg-[#00333e]/5'
+                        : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      title="SMS"
+                    >
+                      <MessageCircle className="w-5 h-5 text-gray-600" />
+                    </button>
 
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="group relative w-full flex justify-center items-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00333e] transition duration-200"
-                  disabled={modalLoading}
-                >
-                  Cancel
-                </button>
+                    {/* Voice Call */}
+                    <button
+                      type="button"
+                      onClick={() => setPreferredChannel('voice')}
+                      className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-all ${preferredChannel === 'voice'
+                        ? 'border-[#00333e] bg-[#00333e]/5'
+                        : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      title="Voice Call"
+                    >
+                      <PhoneCall className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                </div>
+
                 <button
                   type="submit"
-                  className="group relative w-full flex justify-center items-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-[#00333e] hover:bg-[#002a36] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00333e] transition duration-200"
-                  disabled={modalLoading}
+                  disabled={loading || !phoneNumber}
+                  className="w-full py-2.5 text-sm bg-[#00333e] hover:bg-[#004d5c] text-white font-normal rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {modalLoading ? (
-                    <span className="flex items-center">
-                      <svg
-                        className="animate-spin h-5 w-5 mr-2 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v8H4z"
-                        />
-                      </svg>
-                      Sending...
-                    </span>
-                  ) : (
+                  {loading ? 'Sending...' : (
                     <>
-                      <Phone className="w-4 h-4 mr-1" />
-                      Send OTP
+                      Continue <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
-              </div>
-            </form>
-          </motion.div>
+              </form>
+            )}
+
+            {/* Step 2: OTP Input */}
+            {step === 'otp' && (
+              <form onSubmit={handleVerifyOTP} className="space-y-5">
+                <div className="text-center">
+                  <div className="text-sm text-gray-500 mb-6">
+                    Sent to <span className="font-normal">{phoneNumber}</span>
+                  </div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full max-w-sm mx-auto text-center text-2xl font-light tracking-[0.5em] py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#00333e] transition-colors bg-gray-50/50"
+                    placeholder="· · · · · ·"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep('input');
+                      setOtp('');
+                      setError(null);
+                    }}
+                    className="flex-1 py-2.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-normal"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading || otp.length !== 6}
+                    className="flex-1 py-2.5 text-sm bg-[#00333e] hover:bg-[#004d5c] text-white font-normal rounded-lg transition disabled:opacity-50"
+                  >
+                    {loading ? 'Verifying...' : 'Continue'}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSendOTP}
+                  disabled={loading}
+                  className="text-sm text-[#00333e] hover:underline w-full text-center font-normal"
+                >
+                  Resend code
+                </button>
+              </form>
+            )}
+
+            {/* Footer Links */}
+            <div className="mt-10 text-center text-xs text-gray-500">
+              Copyright · Briq. All Rights Reserved{' '}
+              <a href="#" className="text-[#00333e] hover:underline">Terms & Condition</a>
+              {' · '}
+              <a href="#" className="text-[#00333e] hover:underline">Privacy & Policy</a>
+            </div>
+
+            {/* Legacy Login Link */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-center text-xs text-gray-500">
+                Need to use the old login?{' '}
+                <button
+                  onClick={() => navigate('/loginLegacy')}
+                  className="text-[#00333e] hover:underline font-medium"
+                >
+                  Switch to legacy login
+                </button>
+              </p>
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* CSS for the Animated Texture */}
-      <style>
-        {`
-          @keyframes drift {
-            0% {
-              background-position: 0 0;
-            }
-            100% {
-              background-position: 100px 100px;
-            }
-          }
+        {/* Right Side - Dashboard Preview */}
+        <div className="hidden lg:flex lg:w-3/5 bg-gradient-to-br from-[#00333e] via-[#004d5c] to-[#006d7a] items-center justify-center p-12 relative overflow-hidden">
+          {/* Decorative circles */}
+          <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 left-20 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
 
-          @media (prefers-reduced-motion: reduce) {
-            .animated-texture {
-              animation: none !important;
-            }
-          }
-        `}
-      </style>
+          <div className="relative z-10 text-center">
+            {/* Animated Dashboard Images */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentImageIndex}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.6 }}
+                className="mb-8 h-80 flex items-center justify-center"
+              >
+                <img
+                  src={images[currentImageIndex]}
+                  alt="Briq Dashboard"
+                  className="max-w-md max-h-full mx-auto rounded-2xl object-contain"
+                />
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Logo Icon */}
+            {/* <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: 'spring' }}
+              className="mb-6 inline-block"
+            >
+              <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
+                  <span className="text-[#00333e] font-bold text-2xl">B</span>
+                </div>
+              </div>
+            </motion.div> */}
+
+            {/* Heading */}
+            <motion.h2
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="text-3xl font-bold text-white mb-4"
+            >
+              A Unified Hub for Smarter
+              <br />
+              Communication Management
+            </motion.h2>
+
+            {/* Description */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7 }}
+              className="text-white/80 text-sm max-w-md mx-auto leading-relaxed"
+            >
+              Briq empowers you with a unified communication command center—
+              delivering deep insights and a 360° view of your entire messaging world.
+            </motion.p>
+
+            {/* Progress Indicators */}
+            <div className="flex justify-center gap-2 mt-8">
+              {images.map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-1 rounded-full transition-all duration-300 ${index === currentImageIndex
+                    ? 'w-8 bg-white'
+                    : 'w-1 bg-white/30'
+                    }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };
 
-export default Login;
+export default AuthScreen;

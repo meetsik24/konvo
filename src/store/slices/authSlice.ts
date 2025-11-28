@@ -1,21 +1,12 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { loginUser, registerUser, getProfile } from "../../services/api";
 
-// Auth State Interface
-interface AuthState {
-  user: any;
-  token: string | null;
-  error: string | null;
-  status: 'idle' | 'loading' | 'succeeded' | 'failed';
-  successMessage: string | null;
-}
-
 // **1️⃣ Register User**
 export const register = createAsyncThunk(
   "auth/register",
   async (
-    { username, fullName, email, mobileNumber, password }: 
-    { username: string; fullName: string; email: string; mobileNumber: string; password: string }, 
+    { username, fullName, email, mobileNumber, password }:
+      { username: string; fullName: string; email: string; mobileNumber: string; password: string },
     { dispatch, rejectWithValue }
   ) => {
     try {
@@ -52,10 +43,9 @@ export const login = createAsyncThunk(
 // **3️⃣ Fetch User Profile**
 export const fetchUserProfile = createAsyncThunk(
   "auth/fetchUserProfile",
-  async (_, { rejectWithValue }) => {
+  async (token: string, { rejectWithValue }) => {
     try {
-      const profileData = await getProfile();
-      console.log('Profile fetch response:', profileData); // Debug log
+      const profileData = await getProfile(token);
       return profileData;
     } catch (error: any) {
       console.error('Profile fetch error:', error.response?.data || error.message);
@@ -65,7 +55,7 @@ export const fetchUserProfile = createAsyncThunk(
 );
 
 // **4️⃣ Initialize Auth State from localStorage**
-const initializeAuthState = (): AuthState => {
+const initializeAuthState = () => {
   const token = localStorage.getItem("token");
   // Optionally, attempt to restore user data from localStorage if persisted
   const persistedState = localStorage.getItem("persist:root");

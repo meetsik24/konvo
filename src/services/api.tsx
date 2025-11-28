@@ -1,10 +1,10 @@
 import axios from 'axios';
-import type { 
-  DeveloperApp, 
-  CreateDeveloperAppRequest, 
-  UpdateDeveloperAppRequest, 
-  ApiError, 
-  ApiResponse 
+import type {
+  DeveloperApp,
+  CreateDeveloperAppRequest,
+  UpdateDeveloperAppRequest,
+  ApiError,
+  ApiResponse
 } from '../types';
 
 const API_BASE_URL = import.meta.env.MODE === 'development'
@@ -31,6 +31,20 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
+
+
+
+//flake
+//interface for flake
+interface flake_request {
+  phone_number: string;
+  preferred_channel: string
+}
+
+interface flake_verify {
+  phone_number: string;
+  flake_code: string;
+}
 
 
 // Attach Token Automatically Before Each Request
@@ -269,7 +283,7 @@ interface SenderId {
   status?: "pending" | "approved" | "rejected";
   requested_at?: string;
   reviewed_at?: string;
-  purpose?: string; 
+  purpose?: string;
   use_cases?: string[]; // Array of use cases for the sender ID
 }
 
@@ -298,17 +312,17 @@ interface ApiKey {
 // Utility function for consistent error handling
 const handleApiError = (error: unknown, defaultMessage: string): never => {
   let message = defaultMessage;
-  
+
   // Log the full error for debugging
   console.error(`${defaultMessage}:`, error);
-  
+
   if (error && typeof error === 'object' && 'response' in error) {
     const axiosError = error as { response?: { data?: unknown; status?: number } };
     const data = axiosError.response?.data;
-    
+
     console.error('Response data:', data);
     console.error('Response status:', axiosError.response?.status);
-    
+
     if (data && typeof data === 'object') {
       // Handle different error formats
       if ('detail' in data) {
@@ -353,7 +367,7 @@ const handleApiError = (error: unknown, defaultMessage: string): never => {
   } else if (error instanceof Error) {
     message = error.message;
   }
-  
+
   throw new Error(message);
 };
 
@@ -695,15 +709,15 @@ export const createContact = async (data: {
   }
 };
 export const bulkUploadContacts = async (
-  workspace_id: string, 
-  file: File, 
+  workspace_id: string,
+  file: File,
   group_id: string
 ): Promise<BulkUploadResponse & { status: number }> => {
   try {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("group_id", group_id);
-    
+
     const response = await api.post(`/contacts/${workspace_id}/${group_id}/bulk-upload`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
       onUploadProgress: (progressEvent) => {
@@ -711,19 +725,19 @@ export const bulkUploadContacts = async (
         console.log(`Upload progress: ${percentCompleted}%`);
       },
     });
-    
+
     console.log("bulkUploadContacts API response:", response.data);
     console.log("HTTP Status Code:", response.status);
-    
+
     // Return both the response data and status code
     return {
       ...response.data,
       status: response.status
     } as BulkUploadResponse & { status: number };
-    
+
   } catch (error: any) {
     console.error("bulkUploadContacts API error:", error.response?.data || error);
-    
+
     // If it's a progress code, don't treat as error
     if (error.response?.status && isProgressCode(error.response.status)) {
       return {
@@ -732,7 +746,7 @@ export const bulkUploadContacts = async (
         success: false // Keep success false but status indicates progress
       };
     }
-    
+
     handleApiError(error, "Failed to bulk upload contacts");
     throw error;
   }
@@ -782,28 +796,28 @@ export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> 
   try {
     const response = await api.get(`/workspaces/${workspaceId}/contact-groups`);
     console.log("getWorkspaceGroups API response:", response.data);
-    
+
     // Validate the response structure
     if (!Array.isArray(response.data)) {
       console.warn("Expected array response but received:", typeof response.data);
       return [];
     }
-    
+
     // Optional: Validate each group object has required properties
-    const validGroups = response.data.filter((group: any) => 
-      group && 
+    const validGroups = response.data.filter((group: any) =>
+      group &&
       typeof group.group_id === 'string' &&
       typeof group.workspace_id === 'string' &&
       typeof group.name === 'string' &&
       typeof group.created_at === 'string' &&
       typeof group.contact_count === 'number'
-      
+
     );
-    
+
     if (validGroups.length !== response.data.length) {
       console.warn(`Filtered out ${response.data.length - validGroups.length} invalid group objects`);
     }
-    
+
     return validGroups;
   } catch (error: any) {
     console.error(`Failed to fetch workspace groups:`, error);
@@ -1135,16 +1149,16 @@ export const sendInstantMessage = async (
     ...(data.campaign_id && { campaign_id: data.campaign_id }),
     ...(data.schedule && { schedule: data.schedule }),
   };
-  
+
   console.log("sendInstantMessage - payload being sent:", JSON.stringify(payload, null, 2));
   // Still log workspaceId for debugging purposes even though it's not in the payload
   console.log("sendInstantMessage - workspace ID (not in payload):", workspaceId);
   console.log("sendInstantMessage - original data:", JSON.stringify(data, null, 2));
-  
+
   try {
     const response = await api.post("/messages/send-instant", payload);
     console.log("sendInstantMessage - success response:", response.data);
-    
+
     // Return a properly formatted Message object including the content
     // This ensures the content is available in the response for UI display
     return {
@@ -1158,7 +1172,7 @@ export const sendInstantMessage = async (
     console.error("sendInstantMessage - full error object:", error);
     console.error("sendInstantMessage - error response data:", error.response?.data);
     console.error("sendInstantMessage - error response status:", error.response?.status);
-    
+
     // Log validation details if available
     if (error.response?.data?.detail && Array.isArray(error.response.data.detail)) {
       console.error("sendInstantMessage - validation errors:", error.response.data.detail);
@@ -1171,7 +1185,7 @@ export const sendInstantMessage = async (
         });
       });
     }
-    
+
     handleApiError(error, "Failed to send instant message");
   }
 };
@@ -1196,7 +1210,7 @@ export const sendBulkSMSFile = async (
     // Parse the CSV file to extract phone numbers
     const fileContent = await data.file.text();
     const lines = fileContent.split('\n').filter(line => line.trim());
-    
+
     if (lines.length === 0) {
       throw new Error('File is empty or invalid');
     }
@@ -1206,7 +1220,7 @@ export const sendBulkSMSFile = async (
     console.log('CSV Headers:', headers);
 
     // Find the phone column index
-    const phoneColumnIndex = headers.findIndex(h => 
+    const phoneColumnIndex = headers.findIndex(h =>
       h.toLowerCase() === data.phone_column?.toLowerCase()
     );
 
@@ -1220,12 +1234,12 @@ export const sendBulkSMSFile = async (
       const row = lines[i].split(',').map(c => c.trim().replace(/['"]/g, ''));
       if (row[phoneColumnIndex] && row[phoneColumnIndex].trim()) {
         let phoneNumber = row[phoneColumnIndex].trim();
-        
+
         // Add default country code if needed
         if (data.default_country_code && !phoneNumber.startsWith('+') && !phoneNumber.startsWith('255')) {
           phoneNumber = data.default_country_code + phoneNumber;
         }
-        
+
         recipients.push(phoneNumber);
       }
     }
@@ -1246,7 +1260,7 @@ export const sendBulkSMSFile = async (
 
     console.log('Sending via instant message API with', recipients.length, 'recipients');
     return await sendInstantMessage(workspaceId, messageData);
-    
+
   } catch (error: unknown) {
     console.error('=== sendBulkSMSFile error ===');
     console.error('Error details:', error);
@@ -1563,7 +1577,7 @@ export class DeveloperAppsApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.config.baseUrl}${endpoint}`;
-    
+
     const requestOptions: RequestInit = {
       ...options,
       headers: {
@@ -1575,7 +1589,7 @@ export class DeveloperAppsApiClient {
 
     try {
       const response = await fetch(url, requestOptions);
-      
+
       if (response.ok) {
         const data = await response.json();
         return { data, status: response.status };
@@ -1886,6 +1900,47 @@ export const deleteWebhook = async (webhookId: string): Promise<void> => {
     console.log("Webhook deleted successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to delete webhook");
+  }
+};
+
+
+
+export const flake_request = async (phoneNumber: string, preferredChannel: string = "sms"): Promise<void> => {
+  try {
+    await api.post("/auth/flake/request", {
+      phone_number: phoneNumber,
+      preferred_channel: preferredChannel,
+    });
+    console.log("OTP requested successfully");
+  } catch (error: any) {
+    handleApiError(error, "Failed to request OTP");
+  }
+};
+
+
+export const flake_verify = async (phoneNumber: string, otpCode: string): Promise<{ token: string; user: User }> => {
+  try {
+    console.log("🔍 flake_verify called with:", { phoneNumber, otpCode });
+
+    const requestBody = {
+      phone_number: phoneNumber,
+      flake_code: otpCode,
+    };
+
+    console.log("📤 Sending request body:", requestBody);
+
+    const response = await api.post("/auth/flake/verify", requestBody);
+
+    const { access_token, user } = response.data;
+    if (access_token) {
+      localStorage.setItem("token", access_token);
+    }
+
+    console.log("OTP verified successfully");
+    return { token: access_token, user };
+  } catch (error: any) {
+    console.error(" flake_verify error:", error);
+    handleApiError(error, "Failed to verify OTP");
   }
 };
 
