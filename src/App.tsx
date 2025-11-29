@@ -15,7 +15,7 @@ import Features from './landing/pages/Features';
 import Pricing from './landing/pages/Pricing';
 import Navbar from './landing/components/Navbar';
 import { Footer } from './landing/components/Footer';
-import BlogSection from  './landing/pages/blog';
+import BlogSection from './landing/pages/blog';
 
 // Documentation Pages
 // import DocumentationHome from './Karibu/pages/Home';
@@ -34,6 +34,7 @@ import BlogSection from  './landing/pages/blog';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import LoginLegacy from './pages/LoginLegacy';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
 import Account from './pages/Account';
@@ -91,8 +92,8 @@ const Landing = () => {
         <Features />
       </div>
       <div id="learn">
-        <LearnWithBriq/>
-      </div>      
+        <LearnWithBriq />
+      </div>
       <div id="pricing">
         <Pricing />
       </div>
@@ -173,6 +174,7 @@ function App() {
 
                   {/* Authentication Routes */}
                   <Route path="/login" element={<Login />} />
+                  <Route path="/loginLegacy" element={<LoginLegacy />} />
                   <Route path="/register" element={<Register />} />
                   <Route path="/ResetPassword" element={<ResetPassword />} />
 

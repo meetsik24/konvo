@@ -6,11 +6,11 @@ import { useDispatch } from 'react-redux';
 import { setCredentials } from '../store/slices/authSlice';
 import { flake_request, flake_verify } from '../services/api';
 
-// Import images from assets
-import simuImage from '../../../assets/simu2.png';
-import dashboard from '../../../assets/SMS.png';
-import simuImage2 from '../../../assets/simu.png';
-import whatsappIcon from '../../../assets/whatsapp-logo.png';
+// Import images from public assets folder
+const simuImage = '/assets/simu2.png';
+const dashboard = '/assets/SMS.png';
+const simuImage2 = '/assets/simu.png';
+const whatsappIcon = '/assets/whatsapp-logo.png';
 
 const AuthScreen: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -287,12 +287,12 @@ const AuthScreen: React.FC = () => {
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-center text-xs text-gray-500">
                 Need to use the old login?{' '}
-                <button
-                  onClick={() => navigate('/loginLegacy')}
+                <a
+                  href="/loginLegacy"
                   className="text-[#00333e] hover:underline font-medium"
                 >
                   Switch to legacy login
-                </button>
+                </a>
               </p>
             </div>
           </div>
