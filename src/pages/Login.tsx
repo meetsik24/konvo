@@ -6,6 +6,12 @@ import { useDispatch } from 'react-redux';
 import { setCredentials } from '../store/slices/authSlice';
 import { flake_request, flake_verify } from '../services/api';
 
+// Import images from assets
+import simuImage from '../../../assets/simu2.png';
+import dashboard from '../../../assets/SMS.png';
+import simuImage2 from '../../../assets/simu.png';
+import whatsappIcon from '../../../assets/whatsapp-logo.png';
+
 const AuthScreen: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [preferredChannel, setPreferredChannel] = useState<'whatsapp' | 'sms' | 'voice'>('whatsapp');
@@ -20,9 +26,9 @@ const AuthScreen: React.FC = () => {
 
   // Images to rotate through on the right side
   const images = [
-    '/assets/simu2.png',
-    '/assets/SMS.png',
-    '/assets/simu.png'
+    simuImage,
+    dashboard,
+    simuImage2
   ];
 
   // Rotate images every 4 seconds
@@ -170,7 +176,7 @@ const AuthScreen: React.FC = () => {
                       title="WhatsApp"
                     >
                       <img
-                        src="/assets/whatsapp-logo.png"
+                        src={whatsappIcon}
                         alt="WhatsApp"
                         className="w-5 h-5 object-contain"
                       />
@@ -270,12 +276,12 @@ const AuthScreen: React.FC = () => {
             )}
 
             {/* Footer Links */}
-            <div className="mt-10 text-center text-xs text-gray-500">
+            {/* <div className="mt-10 text-center text-xs text-gray-500">
               Copyright · Briq. All Rights Reserved{' '}
               <a href="#" className="text-[#00333e] hover:underline">Terms & Condition</a>
               {' · '}
               <a href="#" className="text-[#00333e] hover:underline">Privacy & Policy</a>
-            </div>
+            </div> */}
 
             {/* Legacy Login Link */}
             <div className="mt-4 pt-4 border-t border-gray-200">
