@@ -352,135 +352,268 @@ const Subscription: React.FC = () => {
 
   // -------------------- UI RENDER --------------------
   return (
-    <div className="max-w-7xl mx-auto p-6 min-h-screen space-y-8">
-      <Alert
-        type={alertState.type}
-        message={alertState.message}
-        isOpen={alertState.isOpen}
-        onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
-      />
+    <div className="w-full min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 min-h-screen space-y-8">
+        <Alert
+          type={alertState.type}
+          message={alertState.message}
+          isOpen={alertState.isOpen}
+          onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
+        />
 
-      {/* Wallet Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-6 rounded-md border border-gray-100 shadow-sm flex items-center justify-between"
-      >
-        <div className="flex items-center space-x-4">
-          <Wallet className="w-8 h-8 text-[#00333e]" />
-          <div>
-            <h2 className="text-lg font-semibold text-[#00333e]">Wallet Balance</h2>
-            {loading.wallet ? (
-              <div className="flex items-center space-x-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Loading balance...</span>
+        {/* Wallet Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white p-4 sm:p-6 rounded-md border border-gray-100 shadow-sm"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <Wallet className="w-6 sm:w-8 h-6 sm:h-8 text-[#00333e] flex-shrink-0" />
+              <div>
+                <h2 className="text-base sm:text-lg font-semibold text-[#00333e]">Wallet Balance</h2>
+                {loading.wallet ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-xs sm:text-sm">Loading balance...</span>
+                  </div>
+                ) : errors.wallet ? (
+                  <p className="text-red-500 text-xs sm:text-sm">{errors.wallet}</p>
+                ) : (
+                  <p className="text-xl sm:text-2xl font-bold text-[#00333e]">
+                    {wallet?.units?.toLocaleString()} Units
+                  </p>
+                )}
               </div>
-            ) : errors.wallet ? (
-              <p className="text-red-500 text-sm">{errors.wallet}</p>
+            </div>
+            <button
+              className="w-full sm:w-auto px-4 py-2 bg-[#00333e] text-white rounded-md text-sm hover:bg-[#00262f] transition-colors"
+              disabled={loading.wallet}
+              onClick={() => setIsTopUpModalOpen(true)}
+            >
+              Top Up
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Usage Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white p-4 sm:p-6 rounded-md border border-gray-100 shadow-sm"
+        >
+          <h3 className="text-lg sm:text-xl font-medium text-[#00333e] mb-4">Current Usage</h3>
+          {errors.usage ? (
+            <p className="text-red-500 text-sm">{errors.usage}</p>
+          ) : loading.usage ? (
+            <div className="flex items-center justify-center p-6">
+              <Loader2 className="w-5 h-5 animate-spin text-[#00333e]" />
+            </div>
+          ) : (
+            <div className="space-y-3 sm:space-y-4">
+              {Object.entries(currentPackage.allocation).map(([key, total]) => {
+                const used = currentPackage.usage[
+                  key as keyof typeof currentPackage.usage
+                ];
+                return (
+                  <div key={key} className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 rounded-md">
+                    <span className="text-xs sm:text-sm text-gray-600 capitalize font-medium">{key}</span>
+                    <span className="text-xs sm:text-base text-[#00333e] font-semibold">
+                      {used.toLocaleString()} / {total.toLocaleString()} units
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </motion.div>
+
+        {/* Packages */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
+        >
+          <h3 className="text-xl font-medium text-[#00333e] mb-4">Available Packages</h3>
+          {errors.packages ? (
+            <p className="text-red-500 text-sm">{errors.packages}</p>
+          ) : loading.packages ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {packages.map((pkg) => (
+                <motion.div
+                  key={pkg.id}
+                  className="bg-white p-4 sm:p-6 rounded-md border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
+                >
+                  <div>
+                    <h4 className="text-base sm:text-lg font-semibold text-[#00333e] mb-1">
+                      {pkg.name}
+                    </h4>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2">
+                      {pkg.description?.length > 100 
+                        ? `${pkg.description.substring(0, 100)}...` 
+                        : pkg.description}
+                    </p>
+                    <div className="bg-gray-50 p-2 sm:p-3 rounded-md mb-3">
+                      <p className="text-xs text-gray-600 mb-1">Price per SMS</p>
+                      <p className="text-lg sm:text-xl font-bold text-[#00333e]">
+                        {pkg.unitPrice} Units
+                      </p>
+                    </div>
+                    <div className="bg-blue-50 p-2 sm:p-3 rounded-md">
+                      <p className="text-xs text-gray-600 mb-1">SMS Range</p>
+                      <p className="text-xs sm:text-sm font-medium text-[#00333e]">
+                        {pkg.minSms.toLocaleString()} - {pkg.maxSms.toLocaleString()} SMS
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <button
+                      onClick={() => openPackageModal(pkg)}
+                      className="w-full px-3 sm:px-4 py-2 bg-gray-100 text-[#00333e] rounded-md text-xs sm:text-sm font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                    >
+                      View Details
+                      <ChevronRight className="w-3 sm:w-4 h-3 sm:h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        {/* Transactions */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white p-4 sm:p-6 rounded-md border border-gray-100 shadow-sm"
+        >
+          <div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+              <h3 className="text-lg sm:text-xl font-medium text-[#00333e]">Transaction History</h3>
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => {
+                    setTransactionFilter("all");
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors flex-1 sm:flex-none ${
+                    transactionFilter === "all"
+                      ? "bg-[#00333e] text-white"
+                      : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => {
+                    setTransactionFilter("usage");
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors flex-1 sm:flex-none ${
+                    transactionFilter === "usage"
+                      ? "bg-[#00333e] text-white"
+                      : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
+                  }`}
+                >
+                  Package Usage
+                </button>
+                <button
+                  onClick={() => {
+                    setTransactionFilter("topup");
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors flex-1 sm:flex-none ${
+                    transactionFilter === "topup"
+                      ? "bg-[#00333e] text-white"
+                      : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
+                  }`}
+                >
+                  Top-Up
+                </button>
+              </div>
+            </div>
+
+            {isTransactionsLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
+              </div>
+            ) : transactionsError ? (
+              <p className="text-red-500 text-sm">{transactionsError}</p>
+            ) : filteredHistory.length === 0 ? (
+              <p className="text-gray-500 text-sm">No transactions found.</p>
             ) : (
-              <p className="text-2xl font-bold text-[#00333e]">
-                {wallet?.units?.toLocaleString()} Units
-              </p>
+              <div>
+                <div className="space-y-3 sm:space-y-4">
+                  {paginatedHistory.map((historyItem, index) => (
+                    <div
+                      key={index}
+                      className="bg-white p-3 sm:p-4 rounded-md border border-gray-100 shadow-sm"
+                    >
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div>
+                          <p className="font-medium text-[#00333e] text-sm sm:text-base">
+                            {historyItem.units.toLocaleString()} Units
+                          </p>
+                          <p className="text-xs sm:text-sm text-gray-600">
+                            {new Date(historyItem.date).toLocaleDateString()}
+                          </p>
+                        </div>
+
+                        <div className="text-left sm:text-right">
+                          {historyItem.amount > 0 && (
+                            <p className="font-medium text-[#00333e] text-sm sm:text-base">
+                              {historyItem.amount.toLocaleString()} Tsh
+                            </p>
+                          )}
+                          <p
+                            className={`text-xs sm:text-sm ${
+                              historyItem.status === "Completed"
+                                ? "text-green-500"
+                                : "text-orange-500"
+                            }`}
+                          >
+                            {historyItem.status}
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-gray-500 mt-2">{historyItem.source}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between mt-4 sm:mt-6 pt-4 border-t border-gray-200 gap-3">
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Page {currentPage} of {totalPages}
+                    </p>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="flex-1 sm:flex-none px-3 py-1.5 bg-gray-100 text-[#00333e] rounded-md text-xs sm:text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="flex-1 sm:flex-none px-3 py-1.5 bg-gray-100 text-[#00333e] rounded-md text-xs sm:text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
-        </div>
-        <button
-          className="px-4 py-2 bg-[#00333e] text-white rounded-md text-sm hover:bg-[#00262f]"
-          disabled={loading.wallet}
-          onClick={() => setIsTopUpModalOpen(true)}
-        >
-          Top Up
-        </button>
-      </motion.div>
-
-      {/* Usage Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
-      >
-        <h3 className="text-xl font-medium text-[#00333e] mb-4">Current Usage</h3>
-        {errors.usage ? (
-          <p className="text-red-500 text-sm">{errors.usage}</p>
-        ) : loading.usage ? (
-          <div className="flex items-center justify-center p-6">
-            <Loader2 className="w-5 h-5 animate-spin text-[#00333e]" />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {Object.entries(currentPackage.allocation).map(([key, total]) => {
-              const used = currentPackage.usage[
-                key as keyof typeof currentPackage.usage
-              ];
-              return (
-                <div key={key} className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
-                  <span className="text-gray-600 capitalize font-medium">{key}</span>
-                  <span className="text-[#00333e] font-semibold">
-                    {used.toLocaleString()} / {total.toLocaleString()} units
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </motion.div>
-
-      {/* Packages */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
-      >
-        <h3 className="text-xl font-medium text-[#00333e] mb-4">Available Packages</h3>
-        {errors.packages ? (
-          <p className="text-red-500 text-sm">{errors.packages}</p>
-        ) : loading.packages ? (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {packages.map((pkg) => (
-              <motion.div
-                key={pkg.id}
-                className="bg-white p-6 rounded-md border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
-              >
-                <div>
-                  <h4 className="text-lg font-semibold text-[#00333e] mb-1">
-                    {pkg.name}
-                  </h4>
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                    {pkg.description?.length > 100 
-                      ? `${pkg.description.substring(0, 100)}...` 
-                      : pkg.description}
-                  </p>
-                  <div className="bg-gray-50 p-3 rounded-md mb-3">
-                    <p className="text-xs text-gray-600 mb-1">Price per SMS</p>
-                    <p className="text-xl font-bold text-[#00333e]">
-                      {pkg.unitPrice} Units
-                    </p>
-                  </div>
-                  <div className="bg-blue-50 p-3 rounded-md">
-                    <p className="text-xs text-gray-600 mb-1">SMS Range</p>
-                    <p className="text-sm font-medium text-[#00333e]">
-                      {pkg.minSms.toLocaleString()} - {pkg.maxSms.toLocaleString()} SMS
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-2 mt-4">
-                  <button
-                    onClick={() => openPackageModal(pkg)}
-                    className="w-full px-4 py-2 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                  >
-                    View Details
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </motion.div>
+        </motion.div>
+      </div>
 
       {/* Package Details Modal */}
       {isPackageDetailsModalOpen && selectedPackage && (
@@ -713,135 +846,6 @@ const Subscription: React.FC = () => {
           </motion.div>
         </div>
       )}
-
-      {/* Transactions */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
-      >
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-medium text-[#00333e]">Transaction History</h3>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setTransactionFilter("all");
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  transactionFilter === "all"
-                    ? "bg-[#00333e] text-white"
-                    : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => {
-                  setTransactionFilter("usage");
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  transactionFilter === "usage"
-                    ? "bg-[#00333e] text-white"
-                    : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
-                }`}
-              >
-                Package Usage
-              </button>
-              <button
-                onClick={() => {
-                  setTransactionFilter("topup");
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  transactionFilter === "topup"
-                    ? "bg-[#00333e] text-white"
-                    : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
-                }`}
-              >
-                Top-Up
-              </button>
-            </div>
-          </div>
-
-          {isTransactionsLoading ? (
-            <div className="flex items-center justify-center p-8">
-              <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
-            </div>
-          ) : transactionsError ? (
-            <p className="text-red-500 text-sm">{transactionsError}</p>
-          ) : filteredHistory.length === 0 ? (
-            <p className="text-gray-500 text-sm">No transactions found.</p>
-          ) : (
-            <div>
-              <div className="space-y-4">
-                {paginatedHistory.map((historyItem, index) => (
-                  <div
-                    key={index}
-                    className="bg-white p-4 rounded-md border border-gray-100 shadow-sm"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium text-[#00333e]">
-                          {historyItem.units.toLocaleString()} Units
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {new Date(historyItem.date).toLocaleDateString()}
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        {historyItem.amount > 0 && (
-                          <p className="font-medium text-[#00333e]">
-                            {historyItem.amount.toLocaleString()} Tsh
-                          </p>
-                        )}
-                        <p
-                          className={`text-sm ${
-                            historyItem.status === "Completed"
-                              ? "text-green-500"
-                              : "text-orange-500"
-                          }`}
-                        >
-                          {historyItem.status}
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-gray-500 mt-2">{historyItem.source}</p>
-                  </div>
-                ))}
-              </div>
-
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </motion.div>
     </div>
   );
 };

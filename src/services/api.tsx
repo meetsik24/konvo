@@ -1190,7 +1190,7 @@ export const getSubscriptionUsage = async (planId: string): Promise<Subscription
 export const initiateUnitsPayment = async (data: InitiateUnitsPaymentRequest): Promise<InitiateUnitsPaymentResponse> => {
   console.log("initiateUnitsPayment API call initiated with data:", data);
   try {
-    const response = await api.post("/transaction/initiate-payment", data);
+    const response = await api.post("/transaction/initiate", data);
     console.log("initiateUnitsPayment API response:", response.data);
     return response.data;
   } catch (error: any) {
