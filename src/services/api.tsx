@@ -239,8 +239,9 @@ interface PurchaseSmsCreditsResponse {
 }
 
 interface InitiateUnitsPaymentRequest {
-  mobile_money_number: string;
-  amount: number;
+  amount_paid: number;
+  target_phone: string;
+  payment_method: string;
 }
 
 interface InitiateUnitsPaymentResponse {

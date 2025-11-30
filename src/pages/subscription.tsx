@@ -252,8 +252,9 @@ const Subscription: React.FC = () => {
     try {
       setIsProcessing(true);
       const response = await initiateUnitsPayment({
-        mobile_money_number: phoneNumber,
-        amount: topUpAmount,
+        amount_paid: topUpAmount,
+        target_phone: phoneNumber,
+        payment_method: "mobile_money",
       });
 
       if (response.marked_complete) {
