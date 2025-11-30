@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, Phone, PhoneCall, ArrowRight } from 'lucide-react';
+import { MessageCircle, Phone, PhoneCall, ArrowRight, Lock, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../store/slices/authSlice';
-import { flake_request, flake_verify } from '../services/api';
+import { flake_request, flake_verify, loginUser } from '../services/api';
 
 // Import images from public assets folder
 const simuImage = '/assets/simu2.png';
@@ -12,11 +12,22 @@ const dashboard = '/assets/SMS.png';
 const simuImage2 = '/assets/simu.png';
 const whatsappIcon = '/assets/whatsapp-logo.png';
 
+type LoginMethod = 'otp' | 'password';
+
 const AuthScreen: React.FC = () => {
+  // Login method toggle
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('otp');
+
+  // OTP-based login state
   const [phoneNumber, setPhoneNumber] = useState('');
   const [preferredChannel, setPreferredChannel] = useState<'whatsapp' | 'sms' | 'voice'>('whatsapp');
   const [step, setStep] = useState<'input' | 'otp'>('input');
   const [otp, setOtp] = useState('');
+
+  // Password-based login state
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -90,6 +101,34 @@ const AuthScreen: React.FC = () => {
     }
   };
 
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !password.trim()) {
+      return setError('Please enter both username and password');
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { token, user } = await loginUser(username, password);
+      dispatch(setCredentials({ user, token }));
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Invalid credentials or server error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset form when switching methods
+  const handleMethodSwitch = (method: LoginMethod) => {
+    setLoginMethod(method);
+    setError(null);
+    setStep('input');
+    setOtp('');
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <motion.div
@@ -109,170 +148,247 @@ const AuthScreen: React.FC = () => {
             </div>
 
             {/* Welcome Text */}
-            <div className="mb-10">
+            <div className="mb-8">
               <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-                {step === 'input' ? (
-                  <>
-                    {welcomeMessage.line1}
-                    <br />
-                    {welcomeMessage.line2}
-                  </>
+                {loginMethod === 'otp' ? (
+                  step === 'input' ? (
+                    <>
+                      {welcomeMessage.line1}
+                      <br />
+                      {welcomeMessage.line2}
+                    </>
+                  ) : (
+                    'Verify your phone'
+                  )
                 ) : (
-                  'Verify your phone'
+                  'Welcome Back'
                 )}
               </h1>
               <p className="text-sm text-gray-600">
-                {step === 'input'
-                  ? 'Just your number. No passwords, No stress.'
-                  : 'Enter the 6-digit code we sent you'}
+                {loginMethod === 'otp' ? (
+                  step === 'input'
+                    ? 'Just your number. No passwords, No stress.'
+                    : 'Enter the 6-digit code we sent you'
+                ) : (
+                  'Sign in with your username and password'
+                )}
               </p>
+            </div>
+
+            {/* Login Method Toggle */}
+            <div className="mb-6">
+              <p className="text-xs text-gray-500 mb-3">Choose login method</p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleMethodSwitch('otp')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg border transition-all ${loginMethod === 'otp'
+                    ? 'border-[#00333e] bg-[#00333e] text-white shadow-sm'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                    }`}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">OTP</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMethodSwitch('password')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg border transition-all ${loginMethod === 'password'
+                    ? 'border-[#00333e] bg-[#00333e] text-white shadow-sm'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                    }`}
+                >
+                  <Lock className="w-4 h-4" />
+                  <span className="text-sm font-medium">Password</span>
+                </button>
+              </div>
             </div>
 
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
+                className="mb-6 p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
               >
                 {error}
               </motion.div>
             )}
 
-            {/* Step 1: Phone Input */}
-            {step === 'input' && (
-              <form onSubmit={handleSendOTP} className="space-y-5">
+            {/* Password Login Form */}
+            {loginMethod === 'password' && (
+              <form onSubmit={handlePasswordLogin} className="space-y-4">
                 <div>
-                  <label htmlFor="phone" className="block text-sm font-normal text-gray-700 mb-2">
-                    Phone Number <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      id="phone"
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="+255 712 345 678"
-                      className="w-full pl-11 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00333e] focus:border-transparent transition"
-                      required
-                    />
-                  </div>
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username or Phone Number"
+                    className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00333e] focus:border-transparent transition placeholder-gray-400"
+                    required
+                  />
                 </div>
 
-
                 <div>
-                  <label className="block text-sm font-normal text-gray-700 mb-2">
-                    Send code via
-                  </label>
-                  <div className="flex gap-2 justify-center">
-                    {/* WhatsApp */}
-                    <button
-                      type="button"
-                      onClick={() => setPreferredChannel('whatsapp')}
-                      className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-all ${preferredChannel === 'whatsapp'
-                        ? 'border-[#00333e] bg-[#00333e]/5'
-                        : 'border-gray-300 hover:border-gray-400'
-                        }`}
-                      title="WhatsApp"
-                    >
-                      <img
-                        src={whatsappIcon}
-                        alt="WhatsApp"
-                        className="w-5 h-5 object-contain"
-                      />
-                    </button>
-
-                    {/* SMS */}
-                    <button
-                      type="button"
-                      onClick={() => setPreferredChannel('sms')}
-                      className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-all ${preferredChannel === 'sms'
-                        ? 'border-[#00333e] bg-[#00333e]/5'
-                        : 'border-gray-300 hover:border-gray-400'
-                        }`}
-                      title="SMS"
-                    >
-                      <MessageCircle className="w-5 h-5 text-gray-600" />
-                    </button>
-
-                    {/* Voice Call */}
-                    <button
-                      type="button"
-                      onClick={() => setPreferredChannel('voice')}
-                      className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-all ${preferredChannel === 'voice'
-                        ? 'border-[#00333e] bg-[#00333e]/5'
-                        : 'border-gray-300 hover:border-gray-400'
-                        }`}
-                      title="Voice Call"
-                    >
-                      <PhoneCall className="w-5 h-5 text-gray-600" />
-                    </button>
-                  </div>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00333e] focus:border-transparent transition placeholder-gray-400"
+                    required
+                  />
                 </div>
 
                 <button
                   type="submit"
-                  disabled={loading || !phoneNumber}
-                  className="w-full py-2.5 text-sm bg-[#00333e] hover:bg-[#004d5c] text-white font-normal rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  disabled={loading || !username || !password}
+                  className="w-full py-3 text-sm bg-[#00333e] hover:bg-[#004d5c] text-white font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Sending...' : (
+                  {loading ? 'Signing in...' : (
                     <>
-                      Continue <ArrowRight className="w-4 h-4" />
+                      Sign in <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
               </form>
             )}
 
-            {/* Step 2: OTP Input */}
-            {step === 'otp' && (
-              <form onSubmit={handleVerifyOTP} className="space-y-5">
-                <div className="text-center">
-                  <div className="text-sm text-gray-500 mb-6">
-                    Sent to <span className="font-normal">{phoneNumber}</span>
-                  </div>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="w-full max-w-sm mx-auto text-center text-2xl font-light tracking-[0.5em] py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#00333e] transition-colors bg-gray-50/50"
-                    placeholder="· · · · · ·"
-                    autoFocus
-                  />
-                </div>
+            {/* OTP Login Forms */}
+            {loginMethod === 'otp' && (
+              <>
+                {/* Step 1: Phone Input */}
+                {step === 'input' && (
+                  <form onSubmit={handleSendOTP} className="space-y-4">
+                    <div>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input
+                          id="phone"
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          placeholder="Phone Number (e.g., +255 712 345 678)"
+                          className="w-full pl-11 pr-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00333e] focus:border-transparent transition placeholder-gray-400"
+                          required
+                        />
+                      </div>
+                    </div>
 
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('input');
-                      setOtp('');
-                      setError(null);
-                    }}
-                    className="flex-1 py-2.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-normal"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading || otp.length !== 6}
-                    className="flex-1 py-2.5 text-sm bg-[#00333e] hover:bg-[#004d5c] text-white font-normal rounded-lg transition disabled:opacity-50"
-                  >
-                    {loading ? 'Verifying...' : 'Continue'}
-                  </button>
-                </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-3">Send code via</p>
+                      <div className="flex gap-2">
+                        {/* WhatsApp */}
+                        <button
+                          type="button"
+                          onClick={() => setPreferredChannel('whatsapp')}
+                          className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-all ${preferredChannel === 'whatsapp'
+                            ? 'border-[#00333e] bg-[#00333e]/5'
+                            : 'border-gray-300 hover:border-gray-400'
+                            }`}
+                          title="WhatsApp"
+                        >
+                          <img
+                            src={whatsappIcon}
+                            alt="WhatsApp"
+                            className="w-5 h-5 object-contain"
+                          />
+                        </button>
 
-                <button
-                  type="button"
-                  onClick={handleSendOTP}
-                  disabled={loading}
-                  className="text-sm text-[#00333e] hover:underline w-full text-center font-normal"
-                >
-                  Resend code
-                </button>
-              </form>
+                        {/* SMS */}
+                        <button
+                          type="button"
+                          onClick={() => setPreferredChannel('sms')}
+                          className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-all ${preferredChannel === 'sms'
+                            ? 'border-[#00333e] bg-[#00333e]/5'
+                            : 'border-gray-300 hover:border-gray-400'
+                            }`}
+                          title="SMS"
+                        >
+                          <MessageCircle className="w-5 h-5 text-gray-600" />
+                        </button>
+
+                        {/* Voice Call */}
+                        <button
+                          type="button"
+                          onClick={() => setPreferredChannel('voice')}
+                          className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-all ${preferredChannel === 'voice'
+                            ? 'border-[#00333e] bg-[#00333e]/5'
+                            : 'border-gray-300 hover:border-gray-400'
+                            }`}
+                          title="Voice Call"
+                        >
+                          <PhoneCall className="w-5 h-5 text-gray-600" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading || !phoneNumber}
+                      className="w-full py-3 text-sm bg-[#00333e] hover:bg-[#004d5c] text-white font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {loading ? 'Sending...' : (
+                        <>
+                          Continue <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
+
+                {/* Step 2: OTP Input */}
+                {step === 'otp' && (
+                  <form onSubmit={handleVerifyOTP} className="space-y-4">
+                    <div className="text-center">
+                      <div className="text-sm text-gray-500 mb-6">
+                        Code sent to <span className="font-medium text-gray-700">{phoneNumber}</span>
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="w-full max-w-sm mx-auto text-center text-2xl font-light tracking-[0.5em] py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-transparent transition-colors placeholder-gray-300"
+                        placeholder="· · · · · ·"
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStep('input');
+                          setOtp('');
+                          setError(null);
+                        }}
+                        className="flex-1 py-3 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={loading || otp.length !== 6}
+                        className="flex-1 py-3 text-sm bg-[#00333e] hover:bg-[#004d5c] text-white font-medium rounded-lg transition disabled:opacity-50"
+                      >
+                        {loading ? 'Verifying...' : 'Verify'}
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleSendOTP}
+                      disabled={loading}
+                      className="text-sm text-[#00333e] hover:underline w-full text-center font-medium"
+                    >
+                      Resend code
+                    </button>
+                  </form>
+                )}
+              </>
             )}
 
             {/* Footer Links */}
@@ -283,16 +399,18 @@ const AuthScreen: React.FC = () => {
               <a href="#" className="text-[#00333e] hover:underline">Privacy & Policy</a>
             </div> */}
 
-            {/* Legacy Login Link */}
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <p className="text-center text-xs text-gray-500">
-                Need to use the old login?{' '}
-                <a
-                  href="/loginLegacy"
-                  className="text-[#00333e] hover:underline font-medium"
+            {/* Sign Up Link */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-xs text-gray-500">
+                Don't have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate('/register')}
+                  className="text-[#00333e] hover:underline font-medium inline-flex items-center gap-1"
                 >
-                  Switch to legacy login
-                </a>
+                  <UserPlus className="w-3 h-3" />
+                  Sign up here
+                </button>
               </p>
             </div>
           </div>
