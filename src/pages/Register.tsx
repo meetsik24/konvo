@@ -107,6 +107,7 @@ const Register: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
+        style={{ zoom: '85%' }}
         className="w-full max-w-screen-2xl min-h-[900px] bg-white rounded-3xl overflow-hidden flex flex-col lg:flex-row"
       >
         {/* Left Side - Form */}
@@ -353,8 +354,8 @@ const Register: React.FC = () => {
                 <div
                   key={index}
                   className={`h-1 rounded-full transition-all duration-300 ${index === currentImageIndex
-                      ? 'w-8 bg-white'
-                      : 'w-1 bg-white/30'
+                    ? 'w-8 bg-white'
+                    : 'w-1 bg-white/30'
                     }`}
                 />
               ))}

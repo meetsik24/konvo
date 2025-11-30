@@ -134,6 +134,7 @@ const AuthScreen: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
+        style={{ zoom: '85%' }}
         className="w-full max-w-screen-2xl min-h-[900px] bg-white rounded-3xl overflow-hidden flex flex-col lg:flex-row"
       >
         {/* Left Side - Form */}
