@@ -9,12 +9,12 @@ import type {
 
 const API_BASE_URL = import.meta.env.MODE === 'development'
   ? '/api'  // Use proxy in development
-  : (import.meta.env.VITE_PRODUCTION_API_URL || 'https://heading-to-paris-op.briq.tz/');
+  : import.meta.env.VITE_PRODUCTION_API_URL;
 
 console.log('API Configuration:', {
   mode: import.meta.env.MODE,
   baseURL: API_BASE_URL,
-  envVar: import.meta.env.VITE_PRODUCTION_API_URL
+  productionURL: import.meta.env.VITE_PRODUCTION_API_URL
 });
 
 const api = axios.create({
