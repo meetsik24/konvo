@@ -1,5 +1,5 @@
-# Use Node.js 18 for building the project
-FROM node:18-alpine AS builder
+# Use Node.js 20 for building the project
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -7,17 +7,17 @@ WORKDIR /app
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install --frozen-lockfile
+# Install dependencies with legacy peer deps to avoid conflicts
+RUN npm install --legacy-peer-deps
 
 # Copy the rest of the application code
 COPY . .
 
-# Build the Vite project
-RUN npm run build
+# Build the Vite project with increased memory
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 # Use a lightweight Node.js server for serving static files
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 # Set working directory in final container
 WORKDIR /app
