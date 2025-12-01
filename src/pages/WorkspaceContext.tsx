@@ -94,13 +94,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const isValidId = formattedWorkspaces.some((ws) => ws.workspace_id === storedId);
       const newCurrentId = isValidId ? storedId : formattedWorkspaces[0]?.workspace_id || null;
 
-      if (newCurrentId !== currentWorkspaceId) {
-        setCurrentWorkspaceIdState(newCurrentId);
-        if (newCurrentId) {
-          localStorage.setItem('currentWorkspaceId', newCurrentId);
-        } else {
-          localStorage.removeItem('currentWorkspaceId');
-        }
+      setCurrentWorkspaceIdState(newCurrentId);
+      if (newCurrentId) {
+        localStorage.setItem('currentWorkspaceId', newCurrentId);
+      } else {
+        localStorage.removeItem('currentWorkspaceId');
       }
     } catch (error: any) {
       console.error('Workspace fetch error:', error.response?.data || error.message);
@@ -114,7 +112,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     } finally {
       setIsLoading(false);
     }
-  }, [token, currentWorkspaceId, dispatch]);
+  }, [token, dispatch]);
 
   // Refresh workspaces on demand
   const refreshWorkspaces = useCallback(async () => {
@@ -123,8 +121,16 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   // Initial fetch and token change handler
   useEffect(() => {
-    fetchWorkspaces();
-  }, [fetchWorkspaces]);
+    if (token) {
+      fetchWorkspaces();
+    } else {
+      setWorkspaces([]);
+      setCurrentWorkspaceIdState(null);
+      localStorage.removeItem('currentWorkspaceId');
+      setIsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   // Add workspace
   const handleAddWorkspace = useCallback(async (name: string) => {
