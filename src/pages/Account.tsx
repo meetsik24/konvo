@@ -156,22 +156,39 @@ const Account: React.FC = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-2xl mx-auto space-y-4 sm:space-y-6 p-4 sm:p-6"
-    >
-      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-8">
-        <User className="w-6 h-6 sm:w-8 sm:h-8 text-primary-500" />
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Account Settings</h1>
-      </div>
+    <div className="max-w-2xl mx-auto p-6 bg-[#f5f5f5] min-h-screen font-inter">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <h1 className="text-2xl font-semibold text-[#00333e] mb-8">Account Settings</h1>
+      </motion.div>
 
       {/* Error and Success Messages */}
-      {error && <div className="text-red-500 text-sm sm:text-base mb-3 sm:mb-4">{error}</div>}
-      {success && <div className="text-green-500 text-sm sm:text-base mb-3 sm:mb-4">{success}</div>}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md text-center mb-6"
+        >
+          {error}
+        </motion.div>
+      )}
+      {success && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-green-50 border border-green-200 text-green-600 p-4 rounded-md text-center mb-6"
+        >
+          {success}
+        </motion.div>
+      )}
 
       {/* Profile Section */}
-      <div className="card p-4 sm:p-6">
+      <div className="bg-white rounded-md p-6 border border-gray-200 mb-6">
         <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Profile Information</h2>
         {!isEditing ? (
           <div className="space-y-3 sm:space-y-4">
@@ -192,7 +209,7 @@ const Account: React.FC = () => {
             </div>
             <button
               onClick={() => setIsEditing(true)}
-              className="btn btn-primary flex items-center gap-1 sm:gap-2 text-sm sm:text-base"
+              className="flex items-center gap-2 text-sm py-2 px-3 bg-[#00333e] text-white rounded-md hover:bg-[#005a6e]"
             >
               <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
               Edit Profile
@@ -204,7 +221,7 @@ const Account: React.FC = () => {
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Username</label>
               <input
                 type="text"
-                className="input w-full text-sm sm:text-base"
+                className="w-full text-sm py-3 px-4 border border-gray-300 rounded-md bg-white text-[#00333e] focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 disabled
@@ -214,7 +231,7 @@ const Account: React.FC = () => {
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Full Name</label>
               <input
                 type="text"
-                className="input w-full text-sm sm:text-base"
+                className="w-full text-sm py-3 px-4 border border-gray-300 rounded-md bg-white text-[#00333e] focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                 required
@@ -224,7 +241,7 @@ const Account: React.FC = () => {
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Email</label>
               <input
                 type="email"
-                className="input w-full text-sm sm:text-base"
+                className="w-full text-sm py-3 px-4 border border-gray-300 rounded-md bg-white text-[#00333e] focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
@@ -234,7 +251,7 @@ const Account: React.FC = () => {
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Mobile Number</label>
               <input
                 type="tel"
-                className="input w-full text-sm sm:text-base"
+                className="w-full text-sm py-3 px-4 border border-gray-300 rounded-md bg-white text-[#00333e] focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
                 value={formData.mobile_number}
                 onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
                 required
@@ -244,7 +261,7 @@ const Account: React.FC = () => {
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Account Status</label>
               <input
                 type="text"
-                className="input w-full text-sm sm:text-base"
+                className="w-full text-sm py-3 px-4 border border-gray-300 rounded-md bg-white text-[#00333e] focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
                 value={formData.account_status}
                 onChange={(e) => setFormData({ ...formData, account_status: e.target.value })}
                 disabled
@@ -254,14 +271,14 @@ const Account: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
-                className="btn btn-secondary text-sm sm:text-base"
+                className="flex items-center gap-2 text-sm py-2 px-3 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
               >
                 <X className="w-4 h-4 sm:w-5 sm:h-5" /> Cancel
               </button>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn btn-primary flex items-center gap-1 sm:gap-2 text-sm sm:text-base"
+                className="flex items-center gap-2 text-sm py-2 px-3 bg-[#00333e] text-white rounded-md hover:bg-[#005a6e] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Check className="w-4 h-4 sm:w-5 sm:h-5" />
                 {isLoading ? 'Saving...' : 'Save Changes'}
@@ -272,12 +289,12 @@ const Account: React.FC = () => {
       </div>
 
       {/* Password Change Section */}
-      <div className="card p-4 sm:p-6">
-        <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Change Password</h2>
+      <div className="bg-white rounded-md p-6 border border-gray-200">
+        <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-[#00333e]">Change Password</h2>
         {!isChangingPassword ? (
           <button
             onClick={() => setIsChangingPassword(true)}
-            className="btn btn-primary flex items-center gap-1 sm:gap-2 text-sm sm:text-base"
+            className="flex items-center gap-2 text-sm py-2 px-3 bg-[#00333e] text-white rounded-md hover:bg-[#005a6e]"
           >
             <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
             Change Password
@@ -288,7 +305,7 @@ const Account: React.FC = () => {
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Current Password</label>
               <input
                 type="password"
-                className="input w-full text-sm sm:text-base"
+                className="w-full text-sm py-3 px-4 border border-gray-300 rounded-md bg-white text-[#00333e] focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
                 value={passwordData.currentPassword}
                 onChange={(e) =>
                   setPasswordData({ ...passwordData, currentPassword: e.target.value })
@@ -300,7 +317,7 @@ const Account: React.FC = () => {
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">New Password</label>
               <input
                 type="password"
-                className="input w-full text-sm sm:text-base"
+                className="w-full text-sm py-3 px-4 border border-gray-300 rounded-md bg-white text-[#00333e] focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
                 value={passwordData.newPassword}
                 onChange={(e) =>
                   setPasswordData({ ...passwordData, newPassword: e.target.value })
@@ -312,7 +329,7 @@ const Account: React.FC = () => {
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Confirm New Password</label>
               <input
                 type="password"
-                className="input w-full text-sm sm:text-base"
+                className="w-full text-sm py-3 px-4 border border-gray-300 rounded-md bg-white text-[#00333e] focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
                 value={passwordData.confirmPassword}
                 onChange={(e) =>
                   setPasswordData({ ...passwordData, confirmPassword: e.target.value })
@@ -324,14 +341,14 @@ const Account: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsChangingPassword(false)}
-                className="btn btn-secondary text-sm sm:text-base"
+                className="flex items-center gap-2 text-sm py-2 px-3 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
               >
                 <X className="w-4 h-4 sm:w-5 sm:h-5" /> Cancel
               </button>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn btn-primary flex items-center gap-1 sm:gap-2 text-sm sm:text-base"
+                className="flex items-center gap-2 text-sm py-2 px-3 bg-[#00333e] text-white rounded-md hover:bg-[#005a6e] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Check className="w-4 h-4 sm:w-5 sm:h-5" />
                 {isLoading ? 'Changing...' : 'Change Password'}
@@ -340,7 +357,7 @@ const Account: React.FC = () => {
           </form>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 };
 
