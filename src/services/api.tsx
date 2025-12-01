@@ -9,7 +9,13 @@ import type {
 
 const API_BASE_URL = import.meta.env.MODE === 'development'
   ? '/api'  // Use proxy in development
-  : import.meta.env.VITE_PRODUCTION_API_URL;
+  : (import.meta.env.VITE_PRODUCTION_API_URL || 'https://heading-to-paris-op.briq.tz/');
+
+console.log('API Configuration:', {
+  mode: import.meta.env.MODE,
+  baseURL: API_BASE_URL,
+  envVar: import.meta.env.VITE_PRODUCTION_API_URL
+});
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -59,9 +65,17 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Add Response Interceptor for 401 Unauthorized
+// Add Response Interceptor for 401 Unauthorized and HTML responses
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Check if response is HTML instead of JSON
+    const contentType = response.headers['content-type'];
+    if (contentType && contentType.includes('text/html')) {
+      console.error('API returned HTML instead of JSON. Check API_BASE_URL:', API_BASE_URL);
+      return Promise.reject(new Error('Invalid API response: received HTML instead of JSON'));
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
