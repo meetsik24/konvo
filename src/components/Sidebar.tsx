@@ -25,7 +25,7 @@ import type { RootState } from '../store/store';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const navItems = [
-  { to: 'Dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/send-sms', icon: MessageSquare, label: 'Send SMS' },
   { to: '/senderid', icon: IdCard, label: 'Sender ID' },
   { to: '/contacts', icon: Users, label: 'Contacts' },
@@ -165,7 +165,7 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
   const unreadCount = notifications.filter((notif) => !notif.is_read).length;
 
   const notificationPanel = useMemo(() => (
-    <div className="fixed bottom-20 left-20 w-80 bg-white border rounded-xl shadow-2xl z-[60] max-h-[500px] overflow-y-auto">
+    <div className="fixed bottom-4 left-4 right-4 md:bottom-20 md:left-20 md:right-auto md:w-80 bg-white border rounded-xl shadow-2xl z-[60] max-h-[500px] overflow-y-auto">
       <div className="p-3 border-b flex justify-between items-center sticky top-0 bg-white z-10">
         <h3 className="text-sm font-semibold text-gray-800">Notifications</h3>
         <button onClick={() => setIsNotificationOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -205,7 +205,7 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
       }}
     >
       <div
-        className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-sm max-h-[80vh] overflow-y-auto"
+        className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-sm max-h-[85vh] md:max-h-[80vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -245,7 +245,7 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
             )}
             <button
               type="submit"
-              className="w-full bg-[#00333e] text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50 flex items-center justify-center gap-2"
+              className="w-full bg-[#00333e] text-white px-4 py-3 sm:py-2 text-sm font-medium rounded-lg hover:bg-[#002a36] active:bg-[#002a36] transition-colors disabled:bg-[#00333e]/50 flex items-center justify-center gap-2 touch-manipulation"
               disabled={isLoading || workspaceLoading}
             >
               <Plus className="w-4 h-4" />
@@ -283,7 +283,7 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
                       setCurrentWorkspaceId(workspace.workspace_id);
                       setIsWorkspaceModalOpen(false);
                     }}
-                    className={`flex-1 text-left text-sm flex items-center gap-2 ${workspace.workspace_id === currentWorkspaceId
+                    className={`flex-1 text-left text-sm flex items-center gap-2 py-2 px-2 rounded touch-manipulation ${workspace.workspace_id === currentWorkspaceId
                         ? 'text-[#00333e] font-semibold'
                         : 'text-gray-700'
                       }`}
@@ -295,9 +295,10 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
                   {workspaces.length > 1 && (
                     <button
                       onClick={() => handleDeleteWorkspace(workspace.workspace_id)}
-                      className="text-gray-400 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50 transition-colors"
+                      className="text-gray-400 hover:text-red-500 active:text-red-500 p-2 sm:p-1.5 rounded-md hover:bg-red-50 active:bg-red-50 transition-colors touch-manipulation"
                       disabled={isLoading || workspaceLoading}
                       title="Delete workspace"
+                      aria-label="Delete workspace"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -314,14 +315,32 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
   return (
     <>
       <aside
-        className={`bg-[#00333e] flex flex-col h-[calc(100vh-2rem)] m-4 rounded-2xl shadow-xl overflow-hidden sticky top-4 z-40 sm:z-0 transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-0 sm:w-64'
+        className={`bg-[#00333e] flex flex-col shadow-xl overflow-hidden transition-all duration-300 ease-in-out
+          ${isSidebarOpen 
+            ? 'fixed md:sticky top-0 left-0 h-screen w-64 z-50 md:z-0 md:h-[calc(100vh-2rem)] md:m-4 md:rounded-2xl md:top-4' 
+            : 'fixed md:sticky top-0 left-0 h-screen w-0 md:w-64 -translate-x-full md:translate-x-0 z-50 md:z-0 md:h-[calc(100vh-2rem)] md:m-4 md:rounded-2xl md:top-4'
           }`}
       >
         <div className="flex flex-col h-full py-4">
-          {/* Logo Section */}
-          <div className="px-5 mb-6 flex items-center gap-3">
+          {/* Logo Section - Hidden on mobile, shown on desktop */}
+          <div className="hidden md:flex px-5 mb-6 items-center gap-3">
             <img src="/assets/briq.png" alt="Briq Logo" className="w-8 h-8" />
             <h1 className="text-lg font-bold text-white">Briq Solutions</h1>
+          </div>
+          
+          {/* Close button for mobile */}
+          <div className="flex md:hidden px-4 mb-4 items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img src="/assets/briq.png" alt="Briq Logo" className="w-8 h-8" />
+              <h1 className="text-lg font-bold text-white">Briq Solutions</h1>
+            </div>
+            <button
+              onClick={closeSidebar}
+              className="p-2 text-gray-300 hover:text-white hover:bg-[#004d5c] rounded-lg transition-colors"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Navigation */}
@@ -331,11 +350,11 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group ${!isWorkspaceSelected
+                  `flex items-center px-3 py-3 md:py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group touch-manipulation ${!isWorkspaceSelected
                     ? 'text-gray-500 cursor-not-allowed'
                     : isActive
                       ? 'bg-[#fddf0d] text-[#00333e] shadow-lg shadow-[#fddf0d]/20'
-                      : 'text-gray-300 hover:bg-[#004d5c] hover:text-white'
+                      : 'text-gray-300 hover:bg-[#004d5c] hover:text-white active:bg-[#004d5c]'
                   }`
                 }
                 onClick={(e) => {
@@ -346,9 +365,9 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
                   }
                 }}
               >
-                <item.icon className={`w-5 h-5 mr-3 transition-colors ${!isWorkspaceSelected ? 'text-gray-600' : ''
+                <item.icon className={`w-5 h-5 md:w-5 md:h-5 mr-3 transition-colors flex-shrink-0 ${!isWorkspaceSelected ? 'text-gray-600' : ''
                   }`} />
-                {item.label}
+                <span className="truncate">{item.label}</span>
               </NavLink>
             ))}
           </nav>
@@ -359,15 +378,18 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
             {/* Workspace Selector (Moved to Bottom) */}
             <div>
               <button
-                onClick={() => setIsWorkspaceModalOpen(true)}
-                className={`w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 ${isWorkspaceSelected
-                    ? 'text-white bg-[#004d5c] border border-[#fddf0d]/20 hover:bg-[#005a6e]'
+                onClick={() => {
+                  setIsWorkspaceModalOpen(true);
+                  closeSidebar();
+                }}
+                className={`w-full px-3 py-3 md:py-2.5 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 touch-manipulation ${isWorkspaceSelected
+                    ? 'text-white bg-[#004d5c] border border-[#fddf0d]/20 hover:bg-[#005a6e] active:bg-[#005a6e]'
                     : 'text-gray-400 bg-[#002a36] italic'
                   }`}
               >
-                <Building className="w-4 h-4 text-[#fddf0d]" />
+                <Building className="w-4 h-4 text-[#fddf0d] flex-shrink-0" />
                 <span className="truncate flex-1 text-left">{activeWorkspace?.name || 'Select Workspace'}</span>
-                <Settings className="w-3 h-3 text-gray-400" />
+                <Settings className="w-3 h-3 text-gray-400 flex-shrink-0" />
               </button>
               {!isWorkspaceSelected && (
                 <p className="mt-1 text-[10px] text-red-400 px-1">Please select a workspace.</p>
@@ -379,23 +401,33 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
               <div className="flex items-center justify-between mb-3">
                 <div className="relative">
                   <button
-                    onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                    className="p-2 text-gray-300 hover:text-white hover:bg-[#004d5c] rounded-lg transition-colors relative"
+                    onClick={() => {
+                      setIsNotificationOpen(!isNotificationOpen);
+                      closeSidebar();
+                    }}
+                    className="p-2.5 md:p-2 text-gray-300 hover:text-white hover:bg-[#004d5c] active:bg-[#004d5c] rounded-lg transition-colors relative touch-manipulation"
+                    aria-label="Notifications"
                   >
                     <Bell className="w-5 h-5" />
                     {unreadCount > 0 && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                      <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
                     )}
                   </button>
                 </div>
 
-                <Link to="/account" className="p-2 text-gray-300 hover:text-white hover:bg-[#004d5c] rounded-lg transition-colors">
+                <Link 
+                  to="/account" 
+                  onClick={closeSidebar}
+                  className="p-2.5 md:p-2 text-gray-300 hover:text-white hover:bg-[#004d5c] active:bg-[#004d5c] rounded-lg transition-colors touch-manipulation"
+                  aria-label="Account Settings"
+                >
                   <Settings className="w-5 h-5" />
                 </Link>
 
                 <button
                   onClick={handleLogout}
-                  className="p-2 text-gray-300 hover:text-red-400 hover:bg-[#004d5c] rounded-lg transition-colors"
+                  className="p-2.5 md:p-2 text-gray-300 hover:text-red-400 hover:bg-[#004d5c] active:bg-[#004d5c] rounded-lg transition-colors touch-manipulation"
+                  aria-label="Logout"
                 >
                   <LogOut className="w-5 h-5" />
                 </button>

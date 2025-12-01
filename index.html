@@ -63,6 +63,22 @@
             _waEmbed(wa_btnSetting, wa_widgetSetting);
           };
         </script>
+        
+        <!-- Hide WhatsApp widget on mobile devices only inside dashboard -->
+        <style>
+          @media (max-width: 767px) {
+            /* Hide WhatsApp button on dashboard pages (pages with Layout component) */
+            #root > div > div.min-h-screen.bg-gray-100 ~ * #wa-widget-send-button,
+            .min-h-screen.bg-gray-100 ~ #wa-widget-send-button,
+            body.dashboard-page #wa-widget-send-button,
+            body.dashboard-page .wa-widget-button,
+            body.dashboard-page [id*="wa-"],
+            body.dashboard-page [class*="wa-widget"],
+            body.dashboard-page [class*="whatsapp-widget"] {
+              display: none !important;
+            }
+          }
+        </style>
       
   
       
