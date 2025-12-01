@@ -257,21 +257,43 @@ const Subscription: React.FC = () => {
         payment_method: "mobile_money",
       });
 
-      if (response.marked_complete) {
-        setWallet((prev) => ({
-          ...prev,
-          units: (prev?.units || 0) + response.units_purchased,
-        }));
+      // Check if request was initiated successfully (not marked_complete)
+      if (response.success) {
+        // Payment is in progress, show pending status
         setIsTopUpModalOpen(false);
         setPhoneNumber("");
         setTopUpAmount(0);
-        showAlert("success", "Top-up completed successfully!");
+        showAlert(
+          "success", 
+          `Payment initiated successfully!. You will receive a callback shortly.`
+        );
+        
+        // Optional: Store payment reference for tracking
+        console.log("Payment Reference:", response.payment_reference);
+        
+        // Optional: You could poll the backend or wait for webhook callback
+        // For now, refresh wallet balance after a delay
+        setTimeout(() => {
+          fetchBalance();
+        }, 3000);
+      } else {
+        showAlert("error", response.message || "Payment initiation failed");
       }
     } catch (error) {
       console.error("Payment initiation failed:", error);
       showAlert("error", "Failed to initiate payment.");
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // Helper function to fetch balance
+  const fetchBalance = async () => {
+    try {
+      const balance = await getAccountBalance();
+      setWallet({ units: balance.balance });
+    } catch (error) {
+      console.error("Failed to refresh wallet:", error);
     }
   };
 

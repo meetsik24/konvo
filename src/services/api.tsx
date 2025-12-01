@@ -245,14 +245,17 @@ interface InitiateUnitsPaymentRequest {
 }
 
 interface InitiateUnitsPaymentResponse {
-  transaction_id: string;
-  user_id: string;
-  total_amount_paid: number;
-  units_purchased: number;
-  payment_method: string;
+  success: boolean;
+  message: string;
   payment_reference: string;
-  transaction_date: string;
-  marked_complete: boolean;
+  provider_response: {
+    message: string;
+    order_id: string;
+    resultcode: string;
+    status: string;
+  };
+  marked_complete?: boolean;
+  units_purchased?: number;
 }
 
 interface SenderId {
