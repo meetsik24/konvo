@@ -30,7 +30,7 @@ import BlogSection from './landing/pages/blog';
 // import DocumentationNavbar from './Karibu/components/Navbar';
 // import DocSidebar from './Karibu/components/Sidebar';
 
-// Dashboard Components
+// Dashboard Compone
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
@@ -147,7 +147,7 @@ function App() {
   // Fetch user profile if authenticated
   useEffect(() => {
     if (token && !user && status !== 'loading') {
-      dispatch(fetchUserProfile()).catch((err) => {
+      dispatch(fetchUserProfile(token)).catch((err) => {
         console.error('Failed to fetch user profile:', err);
         dispatch(logout());
       });
