@@ -147,7 +147,7 @@ function App() {
   // Fetch user profile if authenticated
   useEffect(() => {
     if (token && !user && status !== 'loading') {
-      dispatch(fetchUserProfile(token)).catch((err) => {
+      dispatch(fetchUserProfile()).catch((err) => {
         console.error('Failed to fetch user profile:', err);
         dispatch(logout());
       });
