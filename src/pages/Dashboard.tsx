@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Chart } from 'chart.js/auto';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   MessageSquare,
@@ -17,19 +18,25 @@ import {
   Filter,
   ArrowUpDown,
   CreditCard,
-  Wallet
+  Wallet,
+  Clock,
+  BarChart2
 } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
-import { getMetricsV1 } from '../services/api';
+import {
+  getMetricsV1,
+  getPlans,
+  getUserPlan,
+  getProfile,
+  getSubscriptionUsage
+} from '../services/api';
 import { SmsStatus, DailyCount } from '../services/metricsInterfaces';
 
 interface Stat {
   title: string;
   value: string;
   icon: React.FC<React.SVGProps<SVGSVGElement>>;
-  gradient: string;
-  change?: string;
-  trend?: 'up' | 'down';
+  color: string;
 }
 
 interface DataPoint {
@@ -51,13 +58,25 @@ interface DashboardData {
   campaigns: Campaign[];
 }
 
+interface Plan {
+  plan_id: string;
+  name: string;
+  sms_unit_price: string;
+  description: string;
+  minimum_sms_purchase: number;
+}
+
+interface SubscriptionUsage {
+  sms_credits: number;
+}
+
 const initialDashboardData: DashboardData = {
   stats: [
-    { title: 'Messages Sent', value: '0', icon: MessageSquare, gradient: 'from-blue-500 to-blue-600' },
-    { title: 'Campaigns', value: '0', icon: Megaphone, gradient: 'from-green-500 to-green-600' },
-    { title: 'Total Fails', value: '0', icon: XCircle, gradient: 'from-red-500 to-red-600' },
-    { title: 'Total Contacts', value: '0', icon: Users, gradient: 'from-purple-500 to-purple-600' },
-    { title: 'Contact Groups', value: '0', icon: Folder, gradient: 'from-yellow-500 to-yellow-600' },
+    { title: 'Messages Sent', value: '0', icon: MessageSquare, color: 'text-blue-600' },
+    { title: 'Campaigns', value: '0', icon: Megaphone, color: 'text-green-600' },
+    { title: 'Total Fails', value: '0', icon: XCircle, color: 'text-red-600' },
+    { title: 'Total Contacts', value: '0', icon: Users, color: 'text-purple-600' },
+    { title: 'Contact Groups', value: '0', icon: Folder, color: 'text-yellow-600' },
   ],
   data: [],
   campaigns: [],
@@ -75,15 +94,60 @@ const timeRangeOptions = [
 ];
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId } = useWorkspace();
   const workspace = getCurrentWorkspace();
-  const { user } = useSelector((state: any) => state.auth); // Access user from Redux
+  const { user, token } = useSelector((state: any) => state.auth);
   const [dashboardData, setDashboardData] = useState<DashboardData>(initialDashboardData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const chartRefLine = useRef<HTMLCanvasElement>(null);
   const [chartInstanceLine, setChartInstanceLine] = useState<Chart | null>(null);
   const [dateRange, setDateRange] = useState<'today' | 'this_week' | 'this_month' | 'past_3_months' | 'past_6_months' | 'past_9_months' | 'last_year' | 'all_time'>('all_time');
+
+  // Subscription State
+  const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionUsage | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+
+  // Fetch Credit Balance
+  useEffect(() => {
+    const fetchPlansAndCreditBalance = async () => {
+      if (!token) return;
+      try {
+        const plansData = await getPlans();
+        setPlans(plansData);
+
+        let planId: string | null = null;
+        try {
+          const userPlanData = await getUserPlan();
+          planId = userPlanData.plan_id;
+        } catch (planErr) {
+          try {
+            const userProfile = await getProfile();
+            if (userProfile.plan_id) {
+              planId = userProfile.plan_id;
+            } else if (plansData.length > 0) {
+              planId = plansData[0].plan_id;
+            }
+          } catch (profileErr) {
+            if (plansData.length > 0) {
+              planId = plansData[0].plan_id;
+            }
+          }
+        }
+
+        if (planId) {
+          const creditBalanceData = await getSubscriptionUsage(planId);
+          setSubscriptionDetails(creditBalanceData);
+        }
+      } catch (err) {
+        console.error("Error fetching subscription data:", err);
+      }
+    };
+
+    fetchPlansAndCreditBalance();
+  }, [token]);
+
 
   const fetchMetricsData = useCallback(async () => {
     try {
@@ -199,11 +263,11 @@ const Dashboard: React.FC = () => {
 
       const newDashboardData: DashboardData = {
         stats: [
-          { title: 'Messages Sent', value: messagesSent.toString(), icon: MessageSquare, gradient: 'from-blue-500 to-blue-600' },
-          { title: 'Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, gradient: 'from-green-500 to-green-600' },
-          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, gradient: 'from-red-500 to-red-600' },
-          { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, gradient: 'from-purple-500 to-purple-600' },
-          { title: 'Contact Groups', value: totalContactGroups.toString(), icon: Folder, gradient: 'from-yellow-500 to-yellow-600' },
+          { title: 'Messages Sent', value: messagesSent.toString(), icon: MessageSquare, color: 'text-blue-600' },
+          { title: 'Campaigns', value: numberOfCampaigns.toString(), icon: Megaphone, color: 'text-green-600' },
+          { title: 'Total Fails', value: totalFails.toString(), icon: XCircle, color: 'text-red-600' },
+          { title: 'Total Contacts', value: totalContacts.toString(), icon: Users, color: 'text-purple-600' },
+          { title: 'Contact Groups', value: totalContactGroups.toString(), icon: Folder, color: 'text-yellow-600' },
         ],
         data: dataPoints,
         campaigns: [],
@@ -294,7 +358,7 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 bg-[#f8f9fa] min-h-screen font-inter">
+    <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8  min-h-screen font-inter">
       {/* Header with Greetings and Balance */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
@@ -311,10 +375,15 @@ const Dashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-xs text-gray-500 font-medium">Credit Balance</p>
-              <p className="text-sm font-bold text-[#00333e]">€ 4,540.20</p>
+              <p className="text-sm font-bold text-[#00333e]">
+                {subscriptionDetails ? subscriptionDetails.sms_credits.toLocaleString() : '---'}
+              </p>
             </div>
           </div>
-          <button className="flex items-center gap-2 bg-[#00333e] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#004d5e] transition-colors shadow-sm">
+          <button
+            onClick={() => navigate('/subscription')}
+            className="flex items-center gap-2 bg-[#00333e] text-white px-4 py-4 rounded-xl text-sm font-medium hover:bg-[#004d5e] transition-colors shadow-sm"
+          >
             <Plus className="w-4 h-4" />
             <span>Purchase Credits</span>
           </button>
@@ -346,7 +415,6 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Filter for Hero (Optional) */}
               <div className="relative">
                 <select
                   value={dateRange}
@@ -366,91 +434,30 @@ const Dashboard: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* Compact Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Sent Stat */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 }}
-              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="p-2 bg-[#00333e]/5 rounded-lg">
-                  <ArrowDownRight className="w-4 h-4 text-[#00333e]" />
+          {/* Legacy Style Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { title: 'Successful', value: getStatValue('Messages Sent'), icon: ArrowDownRight, color: 'text-[#00333e]' },
+              { title: 'Failed', value: getStatValue('Total Fails'), icon: XCircle, color: 'text-red-500' },
+              { title: 'Contacts', value: getStatValue('Total Contacts'), icon: Users, color: 'text-[#00333e]' },
+              { title: 'Campaigns', value: getStatValue('Campaigns'), icon: Megaphone, color: 'text-[#00333e]' }
+            ].map((stat, index) => (
+              <motion.div
+                key={stat.title}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.1 + index * 0.1 }}
+                className="bg-white rounded-xl shadow-sm p-4 border border-gray-200 hover:shadow-md transition-shadow flex items-center gap-4"
+              >
+                <div className={`p-2 rounded-lg bg-gray-50 ${stat.color}`}>
+                  <stat.icon className="w-6 h-6" />
                 </div>
-                <span className="text-green-500 text-xs font-medium flex items-center bg-green-50 px-1.5 py-0.5 rounded-full">
-                  +45%
-                </span>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs font-medium mb-0.5">Successful</p>
-                <h3 className="text-xl font-bold text-[#00333e]">{getStatValue('Messages Sent')}</h3>
-              </div>
-            </motion.div>
-
-            {/* Failed Stat */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="p-2 bg-red-50 rounded-lg">
-                  <XCircle className="w-4 h-4 text-red-500" />
+                <div>
+                  <h3 className="text-lg font-bold text-[#00333e]">{stat.value}</h3>
+                  <p className="text-gray-500 text-xs font-medium">{stat.title}</p>
                 </div>
-                <span className="text-red-500 text-xs font-medium flex items-center bg-red-50 px-1.5 py-0.5 rounded-full">
-                  +12%
-                </span>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs font-medium mb-0.5">Failed</p>
-                <h3 className="text-xl font-bold text-[#00333e]">{getStatValue('Total Fails')}</h3>
-              </div>
-            </motion.div>
-
-            {/* Total Contacts */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3 }}
-              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="p-2 bg-purple-50 rounded-lg">
-                  <Users className="w-4 h-4 text-purple-600" />
-                </div>
-                <span className="text-green-500 text-xs font-medium flex items-center bg-green-50 px-1.5 py-0.5 rounded-full">
-                  +16%
-                </span>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs font-medium mb-0.5">Contacts</p>
-                <h3 className="text-xl font-bold text-[#00333e]">{getStatValue('Total Contacts')}</h3>
-              </div>
-            </motion.div>
-
-            {/* Campaigns */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.4 }}
-              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="p-2 bg-green-50 rounded-lg">
-                  <Megaphone className="w-4 h-4 text-green-600" />
-                </div>
-                <span className="text-green-500 text-xs font-medium flex items-center bg-green-50 px-1.5 py-0.5 rounded-full">
-                  +35%
-                </span>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs font-medium mb-0.5">Campaigns</p>
-                <h3 className="text-xl font-bold text-[#00333e]">{getStatValue('Campaigns')}</h3>
-              </div>
-            </motion.div>
+              </motion.div>
+            ))}
           </div>
 
           {/* Main Grid: Chart & Quick Actions */}
@@ -469,10 +476,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   <h3 className="text-lg font-bold text-[#00333e]">Message Volume</h3>
                 </div>
-                <div className="flex bg-gray-100 rounded-lg p-1">
-                  <button className="px-3 py-1 text-xs font-medium bg-white text-[#00333e] rounded-md shadow-sm">Weekly</button>
-                  <button className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-[#00333e]">Daily</button>
-                </div>
+
               </div>
               <div className="h-[250px] w-full">
                 {dashboardData.data.length > 0 ? (
@@ -496,8 +500,11 @@ const Dashboard: React.FC = () => {
               <h3 className="text-lg font-bold text-[#00333e] mb-4">Quick Actions</h3>
 
               <div className="flex-1 flex flex-col gap-3">
-                <button className="w-full flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors group text-left">
-                  <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-100 transition-colors">
+                <button
+                  onClick={() => navigate('/sendsms')}
+                  className="w-full flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors group text-left"
+                >
+                  <div className="p-3 bg-gray-50  rounded-xl group-hover:bg-blue-100 transition-colors">
                     <Send className="w-5 h-5" />
                   </div>
                   <div>
@@ -507,8 +514,11 @@ const Dashboard: React.FC = () => {
                   <ArrowUpRight className="w-4 h-4 text-gray-400 ml-auto" />
                 </button>
 
-                <button className="w-full flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors group text-left">
-                  <div className="p-3 bg-purple-50 text-purple-600 rounded-xl group-hover:bg-purple-100 transition-colors">
+                <button
+                  onClick={() => navigate('/campaigns')}
+                  className="w-full flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors group text-left"
+                >
+                  <div className="p-3 bg-gray-50  rounded-xl group-hover:bg-purple-100 transition-colors">
                     <Megaphone className="w-5 h-5" />
                   </div>
                   <div>
@@ -518,8 +528,11 @@ const Dashboard: React.FC = () => {
                   <ArrowUpRight className="w-4 h-4 text-gray-400 ml-auto" />
                 </button>
 
-                <button className="w-full flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors group text-left">
-                  <div className="p-3 bg-yellow-50 text-yellow-600 rounded-xl group-hover:bg-yellow-100 transition-colors">
+                <button
+                  onClick={() => navigate('/contacts')}
+                  className="w-full flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors group text-left"
+                >
+                  <div className="p-3 bg-gray-50 text-[#00333e] rounded-xl group-hover:bg-yellow-100 transition-colors">
                     <Users className="w-5 h-5" />
                   </div>
                   <div>
@@ -544,7 +557,12 @@ const Dashboard: React.FC = () => {
                 <TrendingUp className="w-5 h-5 text-[#00333e]" />
                 <h3 className="text-lg font-bold text-[#00333e]">Recent Activity</h3>
               </div>
-              <button className="text-xs font-medium text-[#00333e] hover:underline">View All</button>
+              <button
+                onClick={() => navigate('/campaigns')}
+                className="text-xs font-medium text-[#00333e] hover:underline"
+              >
+                View All
+              </button>
             </div>
 
             <div className="overflow-x-auto">
