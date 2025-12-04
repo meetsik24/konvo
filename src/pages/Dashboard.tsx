@@ -1,22 +1,41 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Chart } from 'chart.js/auto';
-import { Users, MessageSquare, XCircle, Megaphone, Folder, TrendingUp, CheckCircle, Clock } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import {
+  Users,
+  MessageSquare,
+  XCircle,
+  Megaphone,
+  Folder,
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight,
+  Send,
+  Plus,
+  MoreHorizontal,
+  Filter,
+  ArrowUpDown,
+  CreditCard,
+  Wallet
+} from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import { getMetricsV1 } from '../services/api';
-import { MetricsResponse, SmsStatus, ContactsCount, LogsCount, DailyCount } from '../services/metricsInterfaces';
+import { SmsStatus, DailyCount } from '../services/metricsInterfaces';
 
 interface Stat {
   title: string;
   value: string;
   icon: React.FC<React.SVGProps<SVGSVGElement>>;
   gradient: string;
+  change?: string;
+  trend?: 'up' | 'down';
 }
 
 interface DataPoint {
   name: string;
   value: number;
-  instanceDates: string[]; // Store all dates contributing to this data point
+  instanceDates: string[];
 }
 
 interface Campaign {
@@ -58,6 +77,7 @@ const timeRangeOptions = [
 const Dashboard: React.FC = () => {
   const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId } = useWorkspace();
   const workspace = getCurrentWorkspace();
+  const { user } = useSelector((state: any) => state.auth); // Access user from Redux
   const [dashboardData, setDashboardData] = useState<DashboardData>(initialDashboardData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,8 +87,7 @@ const Dashboard: React.FC = () => {
 
   const fetchMetricsData = useCallback(async () => {
     try {
-      const response = await getMetricsV1(dateRange);
-      console.log('getMetricsV1 response:', response);
+      const response = await getMetricsV1(dateRange as any);
       return response;
     } catch (error: any) {
       console.error('Error fetching metrics:', error.message);
@@ -78,44 +97,25 @@ const Dashboard: React.FC = () => {
 
   const aggregateDataPoints = (dailyCounts: Record<string, DailyCount>, range: typeof dateRange): DataPoint[] => {
     const now = new Date();
-    now.setHours(0, 0, 0, 0); // Normalize to start of day
+    now.setHours(0, 0, 0, 0);
     const dataPoints: DataPoint[] = [];
     const countsByRange: Record<string, { value: number; instanceDates: string[] }> = {};
 
-    // Define date boundaries
     let startDate: Date | null = null;
     let endDate = new Date(now);
-    if (range === 'today') {
-      startDate = new Date(now);
-    } else if (range === 'this_week') {
-      startDate = new Date(now);
-      startDate.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
-    } else if (range === 'this_month') {
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    } else if (range === 'past_3_months') {
-      startDate = new Date(now);
-      startDate.setMonth(now.getMonth() - 3);
-      startDate.setDate(1);
-    } else if (range === 'past_6_months') {
-      startDate = new Date(now);
-      startDate.setMonth(now.getMonth() - 6);
-      startDate.setDate(1);
-    } else if (range === 'past_9_months') {
-      startDate = new Date(now);
-      startDate.setMonth(now.getMonth() - 9);
-      startDate.setDate(1);
-    } else if (range === 'last_year') {
-      startDate = new Date(now.getFullYear() - 1, 0, 1);
-    } // No startDate for 'all_time'
+
+    if (range === 'today') startDate = new Date(now);
+    else if (range === 'this_week') { startDate = new Date(now); startDate.setDate(now.getDate() - now.getDay()); }
+    else if (range === 'this_month') startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    else if (range === 'past_3_months') { startDate = new Date(now); startDate.setMonth(now.getMonth() - 3); startDate.setDate(1); }
+    else if (range === 'past_6_months') { startDate = new Date(now); startDate.setMonth(now.getMonth() - 6); startDate.setDate(1); }
+    else if (range === 'past_9_months') { startDate = new Date(now); startDate.setMonth(now.getMonth() - 9); startDate.setDate(1); }
+    else if (range === 'last_year') startDate = new Date(now.getFullYear() - 1, 0, 1);
 
     Object.entries(dailyCounts).forEach(([date, counts]: [string, DailyCount]) => {
       const dateObj = new Date(date);
-      if (isNaN(dateObj.getTime())) {
-        console.warn('Invalid date in daily_counts:', date);
-        return;
-      }
+      if (isNaN(dateObj.getTime())) return;
 
-      // Filter by date range
       if (!startDate || (dateObj >= startDate && dateObj <= endDate)) {
         let key: string;
         if (range === 'today') {
@@ -139,22 +139,18 @@ const Dashboard: React.FC = () => {
       }
     });
 
-    // Format labels for display
     Object.entries(countsByRange).forEach(([key, data]) => {
       let displayName = key;
       if (range === 'this_month' || range === 'past_3_months' || range === 'past_6_months' || range === 'past_9_months') {
-        const [, month, week] = key.split('-');
+        const [, , week] = key.split('-');
         displayName = `Week ${week.slice(1)}`;
       }
       dataPoints.push({ name: displayName, value: data.value, instanceDates: data.instanceDates });
     });
 
-    // Sort data points chronologically
     return dataPoints.sort((a, b) => {
       if (range === 'this_month' || range === 'past_3_months' || range === 'past_6_months' || range === 'past_9_months') {
         return parseInt(a.name.replace('Week ', '')) - parseInt(b.name.replace('Week ', ''));
-      } else if (range === 'last_year' || range === 'all_time') {
-        return new Date(a.instanceDates[0]).getTime() - new Date(b.instanceDates[0]).getTime();
       }
       return new Date(a.instanceDates[0]).getTime() - new Date(b.instanceDates[0]).getTime();
     });
@@ -162,11 +158,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const storedDashboardData = workspace?.dashboardData;
-    if (
-      storedDashboardData?.stats?.length ||
-      storedDashboardData?.data?.length ||
-      storedDashboardData?.campaigns?.length
-    ) {
+    if (storedDashboardData?.stats?.length || storedDashboardData?.data?.length || storedDashboardData?.campaigns?.length) {
       setDashboardData({
         stats: storedDashboardData.stats || initialDashboardData.stats,
         data: storedDashboardData.data || initialDashboardData.data,
@@ -201,7 +193,7 @@ const Dashboard: React.FC = () => {
       const totalFails = metrics.sms_status.find((s: SmsStatus) => s.status.toLowerCase() === 'failed')?.count || 0;
       const totalContacts = metrics.contacts_count.total_contacts || 0;
       const totalContactGroups = metrics.contacts_count.total_groups || 0;
-      const numberOfCampaigns = 0; // No campaign data in /v1/metrics
+      const numberOfCampaigns = 0;
 
       const dataPoints = aggregateDataPoints(metrics.logs_count.daily_counts, dateRange);
 
@@ -242,105 +234,51 @@ const Dashboard: React.FC = () => {
       }
       try {
         const newChartInstanceLine = new Chart(ctxLine!, {
-          type: 'line',
+          type: 'bar',
           data: {
             labels: dashboardData.data.map((point) => point.name),
             datasets: [{
               label: 'Message Volume',
               data: dashboardData.data.map((point) => point.value),
-              borderColor: '#fddf0d',
-              backgroundColor: 'rgba(253, 223, 13, 0.2)',
-              fill: true,
-              tension: 0.4,
+              backgroundColor: '#00333e',
+              borderRadius: 4,
+              barThickness: 20,
             }],
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { position: 'bottom', labels: { color: '#00333e' } },
+              legend: { display: false },
               tooltip: {
-                callbacks: {
-                  title: (tooltipItems) => {
-                    const dataPoint = dashboardData.data[tooltipItems[0].dataIndex];
-                    const instanceDates = dataPoint.instanceDates;
-                    if (instanceDates.length === 0) return dataPoint.name;
-
-                    // Format all instance dates
-                    const formattedDates = instanceDates
-                      .map((date) =>
-                        new Date(date).toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })
-                      )
-                      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-
-                    if (dateRange === 'today' || dateRange === 'this_week') {
-                      return formattedDates[0]; // Single date for non-aggregated ranges
-                    } else if (dateRange === 'this_month' || dateRange === 'past_3_months' || dateRange === 'past_6_months' || dateRange === 'past_9_months') {
-                      // Calculate week range from the first instance date
-                      const firstDate = new Date(instanceDates[0]);
-                      const [year, month, week] = dataPoint.name.includes('Week')
-                        ? dataPoint.name.split('-').length === 3
-                          ? dataPoint.name.split('-')
-                          : ['', firstDate.getMonth() + 1, dataPoint.name.replace('Week ', '')]
-                        : ['', firstDate.getMonth() + 1, '1'];
-                      const weekNum = parseInt(week.slice(1) || '1');
-                      const startDate = new Date(year || firstDate.getFullYear(), month - 1, (weekNum - 1) * 7 + 1);
-                      const endDate = new Date(startDate);
-                      endDate.setDate(startDate.getDate() + 6);
-                      const weekRange = `Week of ${startDate.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })} - ${endDate.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}`;
-                      return [weekRange, ...formattedDates].join('\n');
-                    } else {
-                      // For 'last_year' or 'all_time', show month and all instance dates
-                      const monthYear = new Date(instanceDates[0]).toLocaleDateString('en-US', {
-                        month: 'long',
-                        year: 'numeric',
-                      });
-                      return [monthYear, ...formattedDates].join('\n');
-                    }
-                  },
-                  label: (tooltipItem) => `Messages Sent: ${tooltipItem.raw}`,
-                },
+                backgroundColor: '#00333e',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                padding: 10,
+                cornerRadius: 8,
+                displayColors: false,
               },
             },
             scales: {
-              y: { 
-                beginAtZero: true, 
-                title: { display: true, text: 'Message Count', color: '#00333e' },
-                ticks: { color: '#00333e' },
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: '#f3f4f6',
+                },
+                ticks: { color: '#6b7280', font: { size: 11 } },
+                border: { display: false }
               },
-              x: { 
-                title: { 
-                  display: true, 
-                  text: timeRangeOptions.find((opt) => opt.value === dateRange)?.label || 'Time', 
-                  color: '#00333e' 
-                },
-                ticks: { 
-                  color: '#00333e',
-                  maxRotation: 45,
-                  minRotation: 45,
-                  autoSkip: true,
-                  maxTicksLimit: 10,
-                },
+              x: {
+                grid: { display: false },
+                ticks: { color: '#6b7280', font: { size: 11 } },
+                border: { display: false }
               },
             },
           },
         });
         setChartInstanceLine(newChartInstanceLine);
       } catch (error) {
-        console.error('Error creating line chart:', error);
+        console.error('Error creating chart:', error);
       }
     }
 
@@ -351,143 +289,308 @@ const Dashboard: React.FC = () => {
     };
   }, [dashboardData.data, dateRange]);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Active':
-        return <CheckCircle className="w-5 h-5 text-[#00333e]" />;
-      case 'Completed':
-        return <CheckCircle className="w-5 h-5 text-[#00333e]" />;
-      case 'Pending':
-        return <Clock className="w-5 h-5 text-[#fddf0d]" />;
-      default:
-        return null;
-    }
+  const getStatValue = (title: string) => {
+    return dashboardData.stats.find(s => s.title === title)?.value || '0';
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-6 bg-[#f5f5f5] min-h-screen font-inter">
-      {isLoading && (
-        <div className="flex justify-center items-center h-64">
-          <svg className="animate-spin h-6 w-6 text-[#00333e]" viewBox="0 0 24 24" aria-label="Loading">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-          </svg>
-          <p className="ml-3 text-[#00333e] text-sm">Loading Dashboard Data</p>
+    <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 bg-[#f8f9fa] min-h-screen font-inter">
+      {/* Header with Greetings and Balance */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#00333e]">
+            Hello, {user?.username || 'User'}! 👋
+          </h1>
+          <p className="text-gray-500 text-sm">Here's what's happening today.</p>
         </div>
-      )}
 
-      {error && !isLoading && (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md text-center">
-          {error}
-        </div>
-      )}
-
-      {!isLoading && !error && (
-        <div className="space-y-6">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <h1 className="text-xl sm:text-2xl font-semibold text-[#00333e] mb-4">Dashboard</h1>
-          </motion.div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-            {dashboardData.stats.map((stat, index) => (
-              <motion.div
-                key={stat.title}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + index * 0.05 }}
-                className="min-w-[150px] max-w-[200px] w-full bg-white rounded-md p-3 border border-gray-200 shadow-sm"
-              >
-                <div className="flex items-center">
-                  <div className={`p-2 rounded-md bg-gradient-to-r ${stat.gradient}`}>
-                    <stat.icon className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="ml-2">
-                    <p className="text-xs font-medium text-gray-600">{stat.title}</p>
-                    <p className="text-base font-semibold text-[#00333e]">{stat.value}</p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+        <div className="flex items-center gap-4">
+          <div className="bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
+            <div className="p-1.5 bg-green-50 rounded-lg">
+              <Wallet className="w-4 h-4 text-green-600" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-medium">Credit Balance</p>
+              <p className="text-sm font-bold text-[#00333e]">€ 4,540.20</p>
+            </div>
           </div>
+          <button className="flex items-center gap-2 bg-[#00333e] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#004d5e] transition-colors shadow-sm">
+            <Plus className="w-4 h-4" />
+            <span>Purchase Credits</span>
+          </button>
+        </div>
+      </div>
 
+      {isLoading ? (
+        <div className="flex justify-center items-center h-96">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e]"></div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Hero Section - Total Messages (Compact) */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white rounded-md p-4 sm:p-6 border border-gray-200 shadow-sm"
+            className="bg-[#00333e] rounded-3xl p-6 text-white relative overflow-hidden shadow-lg"
           >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-[#00333e] flex items-center">
-                <TrendingUp className="w-6 h-6 mr-2 text-[#fddf0d]" />
-                Message Volume
-              </h2>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#fddf0d] opacity-5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+            <div className="relative z-10 flex justify-between items-center">
               <div>
-                <label htmlFor="dateRange" className="sr-only">Filter by:</label>
+                <h2 className="text-gray-300 text-xs font-medium mb-1 uppercase tracking-wider">Total Messages Sent</h2>
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl font-bold tracking-tight">{getStatValue('Messages Sent')}</span>
+                  <span className="flex items-center text-[#fddf0d] text-xs font-medium bg-[#fddf0d]/10 px-2 py-0.5 rounded-full">
+                    <ArrowUpRight className="w-3 h-3 mr-1" />
+                    15.8%
+                  </span>
+                </div>
+              </div>
+
+              {/* Filter for Hero (Optional) */}
+              <div className="relative">
                 <select
-                  id="dateRange"
                   value={dateRange}
                   onChange={(e) => setDateRange(e.target.value as typeof dateRange)}
-                  className="p-2 border border-gray-300 rounded-md text-sm text-[#00333e] focus:outline-none focus:ring-2 focus:ring-[#fddf0d]"
+                  className="appearance-none bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 pr-7 focus:outline-none focus:ring-2 focus:ring-[#fddf0d]/50 font-medium hover:bg-white/20 transition-colors cursor-pointer"
                 >
                   {timeRangeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
+                    <option key={option.value} value={option.value} className="text-[#00333e]">{option.label}</option>
                   ))}
                 </select>
-              </div>
-            </div>
-            <div className="relative h-[300px] sm:h-[350px]">
-              {dashboardData.data.length > 0 ? (
-                <canvas ref={chartRefLine} />
-              ) : (
-                <div className="flex items-center justify-center h-full text-[#00333e]">
-                  <MessageSquare className="w-8 h-8 mr-2 text-[#fddf0d]" />
-                  No message volume data available.
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-white/70">
+                  <svg width="8" height="5" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </div>
-              )}
+              </div>
             </div>
           </motion.div>
 
+          {/* Compact Stats Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Sent Stat */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-[#00333e]/5 rounded-lg">
+                  <ArrowDownRight className="w-4 h-4 text-[#00333e]" />
+                </div>
+                <span className="text-green-500 text-xs font-medium flex items-center bg-green-50 px-1.5 py-0.5 rounded-full">
+                  +45%
+                </span>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs font-medium mb-0.5">Successful</p>
+                <h3 className="text-xl font-bold text-[#00333e]">{getStatValue('Messages Sent')}</h3>
+              </div>
+            </motion.div>
+
+            {/* Failed Stat */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-red-50 rounded-lg">
+                  <XCircle className="w-4 h-4 text-red-500" />
+                </div>
+                <span className="text-red-500 text-xs font-medium flex items-center bg-red-50 px-1.5 py-0.5 rounded-full">
+                  +12%
+                </span>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs font-medium mb-0.5">Failed</p>
+                <h3 className="text-xl font-bold text-[#00333e]">{getStatValue('Total Fails')}</h3>
+              </div>
+            </motion.div>
+
+            {/* Total Contacts */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-purple-50 rounded-lg">
+                  <Users className="w-4 h-4 text-purple-600" />
+                </div>
+                <span className="text-green-500 text-xs font-medium flex items-center bg-green-50 px-1.5 py-0.5 rounded-full">
+                  +16%
+                </span>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs font-medium mb-0.5">Contacts</p>
+                <h3 className="text-xl font-bold text-[#00333e]">{getStatValue('Total Contacts')}</h3>
+              </div>
+            </motion.div>
+
+            {/* Campaigns */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-between"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <Megaphone className="w-4 h-4 text-green-600" />
+                </div>
+                <span className="text-green-500 text-xs font-medium flex items-center bg-green-50 px-1.5 py-0.5 rounded-full">
+                  +35%
+                </span>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs font-medium mb-0.5">Campaigns</p>
+                <h3 className="text-xl font-bold text-[#00333e]">{getStatValue('Campaigns')}</h3>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Main Grid: Chart & Quick Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Chart Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="lg:col-span-2 bg-white rounded-3xl p-6 shadow-sm border border-gray-100"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-green-50 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-[#00333e]">Message Volume</h3>
+                </div>
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  <button className="px-3 py-1 text-xs font-medium bg-white text-[#00333e] rounded-md shadow-sm">Weekly</button>
+                  <button className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-[#00333e]">Daily</button>
+                </div>
+              </div>
+              <div className="h-[250px] w-full">
+                {dashboardData.data.length > 0 ? (
+                  <canvas ref={chartRefLine} />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                    <MessageSquare className="w-12 h-12 mb-3 opacity-20" />
+                    <p>No data available for this period</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Quick Actions (Redesigned) */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col"
+            >
+              <h3 className="text-lg font-bold text-[#00333e] mb-4">Quick Actions</h3>
+
+              <div className="flex-1 flex flex-col gap-3">
+                <button className="w-full flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors group text-left">
+                  <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-100 transition-colors">
+                    <Send className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="block text-sm font-bold text-[#00333e]">Send SMS</span>
+                    <span className="text-xs text-gray-500">Start a new message</span>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-gray-400 ml-auto" />
+                </button>
+
+                <button className="w-full flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors group text-left">
+                  <div className="p-3 bg-purple-50 text-purple-600 rounded-xl group-hover:bg-purple-100 transition-colors">
+                    <Megaphone className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="block text-sm font-bold text-[#00333e]">New Campaign</span>
+                    <span className="text-xs text-gray-500">Reach more customers</span>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-gray-400 ml-auto" />
+                </button>
+
+                <button className="w-full flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors group text-left">
+                  <div className="p-3 bg-yellow-50 text-yellow-600 rounded-xl group-hover:bg-yellow-100 transition-colors">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="block text-sm font-bold text-[#00333e]">Add Contacts</span>
+                    <span className="text-xs text-gray-500">Grow your audience</span>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-gray-400 ml-auto" />
+                </button>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Recent Activity */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-white rounded-md p-4 sm:p-6 border border-gray-200 shadow-sm"
+            transition={{ delay: 0.7 }}
+            className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100"
           >
-            <h2 className="text-lg font-medium text-[#00333e] mb-4">Recent Campaigns</h2>
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-[#00333e]" />
+                <h3 className="text-lg font-bold text-[#00333e]">Recent Activity</h3>
+              </div>
+              <button className="text-xs font-medium text-[#00333e] hover:underline">View All</button>
+            </div>
+
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="w-full">
                 <thead>
-                  <tr>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <tr className="text-left text-xs font-medium text-gray-400 border-b border-gray-100">
+                    <th className="pb-3 pl-2">CAMPAIGN</th>
+                    <th className="pb-3">DATE</th>
+                    <th className="pb-3">STATUS</th>
+                    <th className="pb-3 text-right pr-2">TYPE</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="text-sm">
                   {dashboardData.campaigns && dashboardData.campaigns.length > 0 ? (
                     dashboardData.campaigns.slice(0, 5).map((campaign) => (
-                      <tr key={campaign.campaign_id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-[#00333e]">{campaign.name}</td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-[#00333e]">
+                      <tr key={campaign.campaign_id} className="group hover:bg-gray-50 transition-colors">
+                        <td className="py-4 pl-2">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-green-50 text-green-600 rounded-full group-hover:bg-white transition-colors">
+                              <Megaphone className="w-4 h-4" />
+                            </div>
+                            <span className="font-medium text-[#00333e]">{campaign.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 text-gray-500">
                           {new Date(campaign.created_at).toLocaleDateString('en-US', {
-                            year: 'numeric',
                             month: 'short',
                             day: 'numeric',
+                            year: 'numeric'
                           })}
                         </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm">{getStatusIcon(campaign.status)}</td>
+                        <td className="py-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                            ${campaign.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                              campaign.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'}`}>
+                            {campaign.status}
+                          </span>
+                        </td>
+                        <td className="py-4 text-right pr-2 text-gray-500">SMS Campaign</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={3} className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-[#00333e] text-center">
-                        No recent campaigns available.
+                      <td colSpan={4} className="py-8 text-center text-gray-400">
+                        No recent activity found
                       </td>
                     </tr>
                   )}
