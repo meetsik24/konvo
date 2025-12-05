@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Chart } from 'chart.js/auto';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -14,13 +14,8 @@ import {
   ArrowDownRight,
   Send,
   Plus,
-  MoreHorizontal,
-  Filter,
-  ArrowUpDown,
-  CreditCard,
   Wallet,
-  Clock,
-  BarChart2
+  PlusCircle,
 } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import {
@@ -93,6 +88,19 @@ const timeRangeOptions = [
   { value: 'all_time' as const, label: 'All Time' },
 ];
 
+const GREETING_MESSAGES = [
+  "December hustle hits different.",
+  "Still grinding? Santa would.",
+  "Holiday mode? Not yet.",
+  "Finish > start.",
+  "Pressure makes classics.",
+  "Lazy ain’t festive.",
+  "Next year starts now.",
+  "Move like it’s closing day.",
+  "Last push, loud results.",
+  "Bills don’t take holidays.",
+];
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { getCurrentWorkspace, updateWorkspace, currentWorkspaceId } = useWorkspace();
@@ -107,7 +115,18 @@ const Dashboard: React.FC = () => {
 
   // Subscription State
   const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionUsage | null>(null);
-  const [plans, setPlans] = useState<Plan[]>([]);
+
+  // Greeting State
+  const [currentGreetingIndex, setCurrentGreetingIndex] = useState(0);
+
+  // Rotate Greetings
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentGreetingIndex((prevIndex) => (prevIndex + 1) % GREETING_MESSAGES.length);
+    }, 5000); // Change every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch Credit Balance
   useEffect(() => {
@@ -115,7 +134,6 @@ const Dashboard: React.FC = () => {
       if (!token) return;
       try {
         const plansData = await getPlans();
-        setPlans(plansData);
 
         let planId: string | null = null;
         try {
@@ -221,7 +239,7 @@ const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    const storedDashboardData = workspace?.dashboardData;
+    const storedDashboardData = (workspace as any)?.dashboardData;
     if (storedDashboardData?.stats?.length || storedDashboardData?.data?.length || storedDashboardData?.campaigns?.length) {
       setDashboardData({
         stats: storedDashboardData.stats || initialDashboardData.stats,
@@ -360,16 +378,29 @@ const Dashboard: React.FC = () => {
   return (
     <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8  min-h-screen font-inter">
       {/* Header with Greetings and Balance */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6">
+        <div className="w-full lg:w-auto">
           <h1 className="text-2xl font-bold text-[#00333e]">
             Hello, {user?.username || 'User'}! 👋
           </h1>
-          <p className="text-gray-500 text-sm">Here's what's happening today.</p>
+          <div className="h-10 overflow-hidden relative max-w-lg mt-1">
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={currentGreetingIndex}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.5 }}
+                className="text-gray-500 text-sm absolute w-full leading-tight"
+              >
+                {GREETING_MESSAGES[currentGreetingIndex]}
+              </motion.p>
+            </AnimatePresence>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full lg:w-auto">
+          <div className="bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3 flex-grow sm:flex-grow-0">
             <div className="p-1.5 bg-green-50 rounded-lg">
               <Wallet className="w-4 h-4 text-green-600" />
             </div>
@@ -382,10 +413,15 @@ const Dashboard: React.FC = () => {
           </div>
           <button
             onClick={() => navigate('/subscription')}
-            className="flex items-center gap-2 bg-[#00333e] text-white px-4 py-4 rounded-xl text-sm font-medium hover:bg-[#004d5e] transition-colors shadow-sm"
+            className="flex items-center gap-3 bg-[#00333e] text-white px-4 py-2 rounded-xl border border-[#00333e] shadow-sm flex-grow sm:flex-grow-0 hover:bg-[#004d5e] transition-colors text-left"
           >
-            <Plus className="w-4 h-4" />
-            <span>Purchase Credits</span>
+
+            <PlusCircle className="w-7 h-7 text-[#fddf0d]" weight="fill" />
+
+            <div>
+              <p className="text-xs text-gray-300 font-medium">Purchase</p>
+              <p className="text-sm font-bold text-white">Credits</p>
+            </div>
           </button>
         </div>
       </div>
@@ -400,7 +436,7 @@ const Dashboard: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#00333e] rounded-3xl p-6 text-white relative overflow-hidden shadow-lg"
+            className="bg-[#00333e] rounded-xl p-6 text-white relative overflow-hidden border"
           >
             <div className="absolute top-0 right-0 w-64 h-64 bg-[#fddf0d] opacity-5 rounded-full blur-3xl -mr-16 -mt-16"></div>
             <div className="relative z-10 flex justify-between items-center">
@@ -447,7 +483,7 @@ const Dashboard: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.1 + index * 0.1 }}
-                className="bg-white rounded-xl shadow-sm p-4 border border-gray-200 hover:shadow-md transition-shadow flex items-center gap-4"
+                className="bg-white rounded-xl p-4 border flex items-center gap-4"
               >
                 <div className={`p-2 rounded-lg bg-gray-50 ${stat.color}`}>
                   <stat.icon className="w-6 h-6" />
@@ -467,7 +503,7 @@ const Dashboard: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="lg:col-span-2 bg-white rounded-3xl p-6 shadow-sm border border-gray-100"
+              className="lg:col-span-2 bg-white rounded-xl p-6 border"
             >
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-2">
@@ -495,13 +531,13 @@ const Dashboard: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
-              className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col"
+              className="bg-white rounded-xl p-6 border  flex flex-col"
             >
               <h3 className="text-lg font-bold text-[#00333e] mb-4">Quick Actions</h3>
 
               <div className="flex-1 flex flex-col gap-3">
                 <button
-                  onClick={() => navigate('/sendsms')}
+                  onClick={() => navigate('/send-sms')}
                   className="w-full flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors group text-left"
                 >
                   <div className="p-3 bg-gray-50  rounded-xl group-hover:bg-blue-100 transition-colors">
@@ -515,7 +551,7 @@ const Dashboard: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => navigate('/campaigns')}
+                  onClick={() => navigate('/send-sms')}
                   className="w-full flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors group text-left"
                 >
                   <div className="p-3 bg-gray-50  rounded-xl group-hover:bg-purple-100 transition-colors">
@@ -550,7 +586,7 @@ const Dashboard: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
-            className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100"
+            className="bg-white rounded-xl p-6 border"
           >
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
@@ -558,7 +594,7 @@ const Dashboard: React.FC = () => {
                 <h3 className="text-lg font-bold text-[#00333e]">Recent Activity</h3>
               </div>
               <button
-                onClick={() => navigate('/campaigns')}
+                onClick={() => navigate('/logs')}
                 className="text-xs font-medium text-[#00333e] hover:underline"
               >
                 View All
