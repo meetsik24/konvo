@@ -1,5 +1,5 @@
 # Use Node.js 18 for building the project
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -18,7 +18,7 @@ ARG VITE_PRODUCTION_API_URL=https://heading-to-paris-op.briq.tz/
 ENV VITE_PRODUCTION_API_URL=$VITE_PRODUCTION_API_URL
 
 # Build the Vite project
-RUN npm run build
+RUN NODE_ENV=production VITE_PRODUCTION_API_URL=$VITE_PRODUCTION_API_URL npm run build
 
 # Use a lightweight Node.js server for serving static files
 FROM node:18-alpine AS runner
