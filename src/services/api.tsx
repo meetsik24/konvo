@@ -1206,15 +1206,15 @@ export const initiateUnitsPayment = async (data: InitiateUnitsPaymentRequest): P
 // Add this function before export default api
 
 
-export const getAllocationsFromPackage = async (packageId: string): Promise<ServiceAllocationResponse> => {
+export const getAllocations = async (packageId: string): Promise<ServiceAllocationResponse> => {
   try {
-    const response = await api.post('/service-allocation/from-package', {
+    const response = await api.post('/allocation/batch', {
       package_id: packageId
     });
-    console.log('getAllocationsFromPackage API response:', response.data);
+    console.log('getAllocations API response:', response.data);
     return response.data;
   } catch (error: any) {
-    return handleApiError(error, 'Failed to get package allocations');
+    return handleApiError(error, 'Failed to get allocations');
   }
 };
 
@@ -1853,6 +1853,32 @@ export const getAllocationsSummary = async (): Promise<AllocationsSummaryRespons
   }
 };
 
+// Add this interface with the other interfaces
+export interface TransactionCompleteRequest {
+  payment_reference: string;
+  transaction_id: string;
+}
+
+export interface TransactionCompleteResponse {
+  success: boolean;
+  message: string;
+  payment_reference: string;
+  credits_added: number;
+  updated_balance: number;
+}
+
+// Add this function before export default api
+export const completeTransaction = async ( data: TransactionCompleteRequest
+): Promise<TransactionCompleteResponse> => {
+  console.log("completeTransaction API call initiated with data:", data);
+  try {
+    const response = await api.post("/transaction/complete", data);
+    console.log("completeTransaction API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to complete transaction");
+  }
+};
 
 
 export default api;
