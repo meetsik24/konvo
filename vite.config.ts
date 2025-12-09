@@ -7,6 +7,16 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove all console.* in production
+        drop_debugger: true, // Remove debugger statements
+        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'], // Extra safety for specific methods
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {
