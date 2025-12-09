@@ -20,7 +20,7 @@ const AuthScreen: React.FC = () => {
 
   // OTP-based login state
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [preferredChannel, setPreferredChannel] = useState<'whatsapp' | 'sms' | 'voice'>('whatsapp');
+  const [preferredChannel, setPreferredChannel] = useState<'whatsapp' | 'sms' | 'call'>('whatsapp');
   const [step, setStep] = useState<'input' | 'otp'>('input');
   const [otp, setOtp] = useState('');
 
@@ -313,8 +313,8 @@ const AuthScreen: React.FC = () => {
                         {/* Voice Call */}
                         <button
                           type="button"
-                          onClick={() => setPreferredChannel('voice')}
-                          className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-all ${preferredChannel === 'voice'
+                          onClick={() => setPreferredChannel('call')}
+                          className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-all ${preferredChannel === 'call'
                             ? 'border-[#00333e] bg-[#00333e]/5'
                             : 'border-gray-300 hover:border-gray-400'
                             }`}
