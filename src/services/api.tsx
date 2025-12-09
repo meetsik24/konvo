@@ -1073,7 +1073,7 @@ export const getPlans = async (): Promise<Plan[]> => {
 export const getUserPlan = async (): Promise<Plan> => {
   try {
     const response = await api.get('/users/me/plan');
-    console.log('getUserPlan API response:', response.data);
+    // console.log('getUserPlan API response:', response.data);
     return response.data;
   } catch (error: any) {
     console.error('Failed to fetch user plan:', error);
