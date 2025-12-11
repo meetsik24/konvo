@@ -365,6 +365,32 @@ export interface AllocationsSummaryResponse {
   allocations: AllocationSummary[];
 }
 
+export interface AllocationItem {
+  service_id: string;
+  units: number;
+  expires_at: string;
+}
+
+export interface AllocationBatchRequest {
+  items: AllocationItem[];
+  transaction_id: string;
+}
+
+export interface Allocation {
+  allocation_id: string;
+  transaction_id: string;
+  user_id: string;
+  service_id: string;
+  service_name: string;
+  units_allocated: number;
+  expires_at: string;
+  last_updated: string;
+}
+
+export interface AllocationBatchResponse {
+  allocations: Allocation[];
+}
+
 export interface Transaction {
   transaction_id: string;
   user_id: string;
@@ -1850,6 +1876,18 @@ export const getAllocationsSummary = async (): Promise<AllocationsSummaryRespons
     return { allocations: validAllocations };
   } catch (error: any) {
     return handleApiError(error, "Failed to get allocations summary");
+  }
+};
+
+// Allocation batch endpoint for purchasing packages with wallet credits
+export const allocateBatch = async (data: AllocationBatchRequest): Promise<AllocationBatchResponse> => {
+  console.log("allocateBatch API call initiated with data:", data);
+  try {
+    const response = await api.post("/allocations/batch", data);
+    console.log("allocateBatch API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to allocate batch");
   }
 };
 

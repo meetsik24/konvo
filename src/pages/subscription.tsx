@@ -5,7 +5,7 @@ import Alert from "../components/Alert";
 import {
   getAccountBalance,
   initiateUnitsPayment,
-  getAllocationsFromPackage,
+  allocateBatch,
   getTransactions,
   getPlans,
   getBalanceUsageLogs,
@@ -397,10 +397,32 @@ const Subscription: React.FC = () => {
         return;
       }
 
-      const allocationsResponse = await getAllocationsFromPackage(pkg.id);
-      if (!allocationsResponse.status)
-        throw new Error("Failed to get package allocations");
+      // Generate a unique transaction ID
+      const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+      // Calculate expiration date (30 days from now)
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+
+      // Prepare allocation batch request
+      const allocationRequest = {
+        items: [
+          {
+            service_id: "sms", // SMS service ID
+            units: smsQuantity,
+            expires_at: expiresAt.toISOString(),
+          },
+        ],
+        transaction_id: transactionId,
+      };
+
+      // Call allocateBatch to allocate units to user
+      const allocationsResponse = await allocateBatch(allocationRequest);
+      if (!allocationsResponse.allocations || allocationsResponse.allocations.length === 0) {
+        throw new Error("Failed to allocate units");
+      }
+
+      // Deduct credits from wallet
       setWallet((prev) =>
         prev ? { ...prev, units: prev.units - totalCost } : null
       );
@@ -408,7 +430,7 @@ const Subscription: React.FC = () => {
       setSmsQuantity(0);
       setSmsError("");
       setIsPackageDetailsModalOpen(false);
-      showAlert("success", `Successfully purchased ${smsQuantity.toLocaleString()} SMS for ${totalCost} units!`);
+      showAlert("success", `Successfully purchased ${smsQuantity.toLocaleString()} SMS for ${totalCost} units! Transaction ID: ${transactionId}`);
     } catch (error) {
       console.error("Package purchase failed:", error);
       showAlert("error", "Failed to purchase package. Please try again.");
