@@ -5,7 +5,7 @@ import Alert from "../components/Alert";
 import {
   getAccountBalance,
   initiateUnitsPayment,
-  allocateBatch,
+  createAllocation,
   getTransactions,
   getPlans,
   getBalanceUsageLogs,
@@ -17,10 +17,12 @@ interface Package {
   id: string;
   name: string;
   description: string;
-  units: number;
-  unitPrice: number;
-  minSms: number;
-  maxSms: number;
+  totalPrice: number;
+  services: Array<{
+    service_id: string;
+    units_allocated: number;
+    unit_cost_at_purchase: number;
+  }>;
   allocation: {
     sms: number;
     whatsapp: number;
@@ -83,8 +85,8 @@ const Subscription: React.FC = () => {
   const [purchasingPackageId, setPurchasingPackageId] = useState<string | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [isPackageDetailsModalOpen, setIsPackageDetailsModalOpen] = useState(false);
-  const [smsQuantity, setSmsQuantity] = useState<number>(0);
-  const [smsError, setSmsError] = useState<string>("");
+  const [selectedUnits, setSelectedUnits] = useState<number>(0);
+  const [unitError, setUnitError] = useState<string>("");
 
   const [alertState, setAlertState] = useState<{
     isOpen: boolean;
@@ -127,30 +129,33 @@ const Subscription: React.FC = () => {
         setLoading((prev) => ({ ...prev, packages: true }));
         const plans = await getPlans();
 
-        // Sort plans by minimum SMS to ensure proper ordering
-        const sortedPlans = [...plans].sort((a, b) => a.minimum_sms_purchase - b.minimum_sms_purchase);
+        const transformedPackages = plans
+          .filter(plan => plan && plan.package_id && plan.services && plan.services.length > 0)
+          .map((plan) => {
+            // Calculate total units from all services
+            const totalUnits = plan.services.reduce((sum, service) => sum + service.units_allocated, 0);
+            
+            // Get voice service units (most packages seem to have voice services)
+            const voiceService = plan.services.find(s => s.service_id === 'cc08b078-59d5-4d03-963e-e6f7a45ec867');
+            const smsUnits = voiceService ? voiceService.units_allocated : totalUnits;
 
-        const transformedPackages = sortedPlans.map((plan, index) => {
-          // Max SMS of current package = Min SMS of next package - 1
-          const maxSms = index < sortedPlans.length - 1 
-            ? sortedPlans[index + 1].minimum_sms_purchase - 1
-            : plan.minimum_sms_purchase + 100000;
-
-          return {
-            id: plan.plan_id,
-            name: plan.name,
-            description: plan.description,
-            units: parseFloat(plan.sms_unit_price),
-            unitPrice: parseFloat(plan.sms_unit_price),
-            minSms: plan.minimum_sms_purchase,
-            maxSms: maxSms,
-            allocation: {
-              sms: plan.minimum_sms_purchase,
-              whatsapp: 0,
-              voice: 0,
-            },
-          };
-        });
+            return {
+              id: plan.package_id,
+              name: plan.name || 'Unnamed Package',
+              description: plan.description || '',
+              totalPrice: plan.total_price || 0,
+              services: plan.services.map(service => ({
+                service_id: service.service_id,
+                units_allocated: service.units_allocated,
+                unit_cost_at_purchase: service.unit_cost_at_purchase,
+              })),
+              allocation: {
+                sms: smsUnits,
+                whatsapp: 0,
+                voice: smsUnits,
+              },
+            };
+          });
 
         setPackages(transformedPackages);
         console.log("Loaded packages from API:", transformedPackages);
@@ -366,59 +371,38 @@ const Subscription: React.FC = () => {
     }
   };
 
-  // -------------------- SMS QUANTITY VALIDATION --------------------
-  const validateSmsQuantity = (quantity: number, pkg: Package): string => {
-    if (!quantity || quantity <= 0) {
-      return "Please enter a valid SMS quantity";
-    }
-    if (quantity < pkg.minSms) {
-      return `Minimum SMS for this package is ${pkg.minSms.toLocaleString()}`;
-    }
-    if (quantity > pkg.maxSms) {
-      return `Maximum SMS for this package is ${pkg.maxSms.toLocaleString()}`;
-    }
-    return "";
-  };
-
   // -------------------- PACKAGE PURCHASE --------------------
   const handlePurchase = async (pkg: Package) => {
-    const error = validateSmsQuantity(smsQuantity, pkg);
+    const error = validateUnitQuantity(selectedUnits, pkg);
     if (error) {
-      setSmsError(error);
+      setUnitError(error);
       return;
     }
 
     try {
       setPurchasingPackageId(pkg.id);
-      const totalCost = smsQuantity * pkg.unitPrice;
+      
+      // Calculate cost based on first service's unit cost
+      const unitCost = pkg.services[0]?.unit_cost_at_purchase || 1;
+      const totalCost = selectedUnits * unitCost;
 
       if (!wallet || wallet.units < totalCost) {
         showAlert("error", `Not enough credits. You need ${totalCost} units but have ${wallet?.units || 0}`);
         return;
       }
 
-      // Generate a unique transaction ID
-      const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Create allocations for each service in the package
+      const allocationPromises = pkg.services.map((service) =>
+        createAllocation({
+          service_id: service.service_id,
+          units_allocated: selectedUnits,
+        })
+      );
 
-      // Calculate expiration date (30 days from now)
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
-
-      // Prepare allocation batch request
-      const allocationRequest = {
-        items: [
-          {
-            service_id: "sms", // SMS service ID
-            units: smsQuantity,
-            expires_at: expiresAt.toISOString(),
-          },
-        ],
-        transaction_id: transactionId,
-      };
-
-      // Call allocateBatch to allocate units to user
-      const allocationsResponse = await allocateBatch(allocationRequest);
-      if (!allocationsResponse.allocations || allocationsResponse.allocations.length === 0) {
+      const allocationsResponses = await Promise.all(allocationPromises);
+      
+      // Verify all allocations were created successfully
+      if (!allocationsResponses || allocationsResponses.length === 0) {
         throw new Error("Failed to allocate units");
       }
 
@@ -427,10 +411,10 @@ const Subscription: React.FC = () => {
         prev ? { ...prev, units: prev.units - totalCost } : null
       );
 
-      setSmsQuantity(0);
-      setSmsError("");
+      setSelectedUnits(0);
+      setUnitError("");
       setIsPackageDetailsModalOpen(false);
-      showAlert("success", `Successfully purchased ${smsQuantity.toLocaleString()} SMS for ${totalCost} units! Transaction ID: ${transactionId}`);
+      showAlert("success", `Successfully purchased ${selectedUnits.toLocaleString()} units for ${totalCost} units!`);
     } catch (error) {
       console.error("Package purchase failed:", error);
       showAlert("error", "Failed to purchase package. Please try again.");
@@ -453,10 +437,54 @@ const Subscription: React.FC = () => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedHistory = filteredHistory.slice(startIndex, endIndex);
 
+  // -------------------- UNIT RANGE HELPERS --------------------
+  const getPackageUnitRange = (pkg: Package): { min: number; max: number } => {
+    // Get total units allocated from current package services
+    const currentUnits = pkg.services.reduce((sum, service) => sum + service.units_allocated, 0);
+    
+    // Find the next package by sorting by units and finding current package's position
+    const sortedByUnits = [...packages].sort((a, b) => {
+      const aUnits = a.services.reduce((sum, s) => sum + s.units_allocated, 0);
+      const bUnits = b.services.reduce((sum, s) => sum + s.units_allocated, 0);
+      return aUnits - bUnits;
+    });
+    
+    const currentIndex = sortedByUnits.findIndex(p => p.id === pkg.id);
+    const nextPackage = currentIndex !== -1 && currentIndex < sortedByUnits.length - 1 
+      ? sortedByUnits[currentIndex + 1]
+      : null;
+    
+    const nextUnits = nextPackage 
+      ? nextPackage.services.reduce((sum, service) => sum + service.units_allocated, 0)
+      : currentUnits + 100000; // Default fallback
+    
+    return {
+      min: currentUnits,
+      max: nextUnits - 1,
+    };
+  };
+
+  // -------------------- UNIT QUANTITY VALIDATION --------------------
+  const validateUnitQuantity = (quantity: number, pkg: Package): string => {
+    if (!quantity || quantity <= 0) {
+      return "Please enter a valid unit quantity";
+    }
+    
+    const { min, max } = getPackageUnitRange(pkg);
+    
+    if (quantity < min) {
+      return `Minimum units for this package is ${min.toLocaleString()}`;
+    }
+    if (quantity > max) {
+      return `Maximum units for this package is ${max.toLocaleString()}`;
+    }
+    return "";
+  };
+
   const openPackageModal = (pkg: Package) => {
     setSelectedPackage(pkg);
-    setSmsQuantity(0);
-    setSmsError("");
+    setSelectedUnits(0);
+    setUnitError("");
     setIsPackageDetailsModalOpen(true);
   };
 
@@ -565,15 +593,15 @@ const Subscription: React.FC = () => {
                       : pkg.description}
                   </p>
                   <div className="bg-gray-50 p-3 rounded-md mb-3">
-                    <p className="text-xs text-gray-600 mb-1">Price per SMS</p>
+                    <p className="text-xs text-gray-600 mb-1">Package Price</p>
                     <p className="text-xl font-bold text-[#00333e]">
-                      {pkg.unitPrice} Units
+                      {(pkg.totalPrice || 0).toLocaleString()} Units
                     </p>
                   </div>
                   <div className="bg-blue-50 p-3 rounded-md">
-                    <p className="text-xs text-gray-600 mb-1">SMS Range</p>
+                    <p className="text-xs text-gray-600 mb-1">Units Allocated</p>
                     <p className="text-sm font-medium text-[#00333e]">
-                      {pkg.minSms.toLocaleString()} - {pkg.maxSms.toLocaleString()} SMS
+                      {(pkg.allocation?.sms || 0).toLocaleString()} Units
                     </p>
                   </div>
                 </div>
@@ -598,7 +626,7 @@ const Subscription: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-md max-w-md w-full shadow-lg"
+            className="bg-white rounded-md max-w-2xl w-full shadow-lg"
           >
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
@@ -612,116 +640,152 @@ const Subscription: React.FC = () => {
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-4 max-h-96 overflow-y-auto">
+            <div className="p-6 space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
               {/* Description */}
               <div>
                 <h3 className="text-sm font-medium text-[#00333e] mb-2">Description</h3>
                 <p className="text-gray-600 text-sm">{selectedPackage.description}</p>
               </div>
 
-              {/* Price Info */}
+              {/* Package Price */}
               <div>
-                <h3 className="text-sm font-medium text-[#00333e] mb-2">Price</h3>
+                <h3 className="text-sm font-medium text-[#00333e] mb-2">Package Price</h3>
                 <p className="text-2xl font-bold text-[#00333e]">
-                  {selectedPackage.unitPrice} Units per SMS
+                  {(selectedPackage.totalPrice || 0).toLocaleString()} Units
                 </p>
               </div>
 
-              {/* SMS Range */}
-              <div>
-                <h3 className="text-sm font-medium text-[#00333e] mb-2">Available SMS Range</h3>
-                <p className="text-lg font-semibold text-[#00333e]">
-                  {selectedPackage.minSms.toLocaleString()} - {selectedPackage.maxSms.toLocaleString()} SMS
-                </p>
-              </div>
-
-              {/* SMS Quantity Input */}
-              <div>
-                <label className="block text-sm font-medium text-[#00333e] mb-2">
-                  How many SMS do you want?
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newValue = Math.max(selectedPackage.minSms, smsQuantity - 100);
-                      setSmsQuantity(newValue);
-                      if (newValue > 0) {
-                        setSmsError(validateSmsQuantity(newValue, selectedPackage));
-                      } else {
-                        setSmsError("");
-                      }
-                    }}
-                    className="px-3 py-2 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-bold"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    value={smsQuantity || ""}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 0;
-                      setSmsQuantity(value);
-                      if (value > 0) {
-                        setSmsError(validateSmsQuantity(value, selectedPackage));
-                      } else {
-                        setSmsError("");
-                      }
-                    }}
-                    placeholder="Enter SMS quantity"
-                    min={selectedPackage.minSms}
-                    max={selectedPackage.maxSms}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e] text-center"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newValue = Math.min(selectedPackage.maxSms, smsQuantity + 100);
-                      setSmsQuantity(newValue);
-                      if (newValue > 0) {
-                        setSmsError(validateSmsQuantity(newValue, selectedPackage));
-                      } else {
-                        setSmsError("");
-                      }
-                    }}
-                    className="px-3 py-2 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-bold"
-                  >
-                    +
-                  </button>
+              {/* Services/Units Breakdown */}
+              {selectedPackage.services && selectedPackage.services.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-[#00333e] mb-2">What's Included</h3>
+                  <div className="space-y-2">
+                    {selectedPackage.services.map((service, idx) => (
+                      <div key={idx} className="bg-gray-50 p-3 rounded-md">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Units Allocated:</span>
+                          <span className="font-semibold text-[#00333e]">
+                            {service.units_allocated.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-sm text-gray-600">Unit Cost:</span>
+                          <span className="text-sm text-[#00333e]">
+                            {service.unit_cost_at_purchase} units each
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                {smsError && (
-                  <p className="text-red-500 text-xs mt-2">{smsError}</p>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  Range: {selectedPackage.minSms.toLocaleString()} - {selectedPackage.maxSms.toLocaleString()} SMS
-                </p>
-              </div>
+              )}
+
+              {/* Unit Quantity Input */}
+              {selectedPackage.services && selectedPackage.services.length > 0 && (() => {
+                const { min, max } = getPackageUnitRange(selectedPackage);
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-[#00333e] mb-2">
+                      How many units do you want?
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newValue = Math.max(min, selectedUnits - 100);
+                          setSelectedUnits(newValue);
+                          if (newValue > 0) {
+                            setUnitError(validateUnitQuantity(newValue, selectedPackage));
+                          } else {
+                            setUnitError("");
+                          }
+                        }}
+                        className="px-3 py-2 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-bold"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        value={selectedUnits || ""}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          setSelectedUnits(value);
+                          if (value > 0) {
+                            setUnitError(validateUnitQuantity(value, selectedPackage));
+                          } else {
+                            setUnitError("");
+                          }
+                        }}
+                        placeholder="Enter unit quantity"
+                        min={min}
+                        max={max}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e] text-center"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newValue = Math.min(max, selectedUnits + 100);
+                          setSelectedUnits(newValue);
+                          if (newValue > 0) {
+                            setUnitError(validateUnitQuantity(newValue, selectedPackage));
+                          } else {
+                            setUnitError("");
+                          }
+                        }}
+                        className="px-3 py-2 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                    {unitError && (
+                      <p className="text-red-500 text-xs mt-2">{unitError}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Range: {min.toLocaleString()} - {max.toLocaleString()} units
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Cost Breakdown */}
-              {smsQuantity > 0 && !smsError && (
-                <div className="bg-blue-50 p-4 rounded-md space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">SMS Quantity:</span>
-                    <span className="font-medium text-[#00333e]">{smsQuantity.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Unit Price:</span>
-                    <span className="font-medium text-[#00333e]">{selectedPackage.unitPrice} units/SMS</span>
-                  </div>
-                  <div className="border-t border-blue-200 pt-2 flex justify-between">
-                    <span className="font-semibold text-[#00333e]">Total Cost:</span>
-                    <span className="text-lg font-bold text-[#fddf0d]">
-                      {(smsQuantity * selectedPackage.unitPrice).toLocaleString()} Units
-                    </span>
-                  </div>
-                  {wallet && (
-                    <div className="flex justify-between text-sm pt-2">
-                      <span className="text-gray-600">Wallet Balance:</span>
-                      <span className={wallet.units >= smsQuantity * selectedPackage.unitPrice ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                        {wallet.units.toLocaleString()} Units
+              {selectedUnits > 0 && !unitError && selectedPackage.services.length > 0 && (() => {
+                return (
+                  <div className="bg-blue-50 p-4 rounded-md space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Units to Purchase:</span>
+                      <span className="font-medium text-[#00333e]">{selectedUnits.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Unit Price:</span>
+                      <span className="font-medium text-[#00333e]">{selectedPackage.services[0]?.unit_cost_at_purchase || 0} units each</span>
+                    </div>
+                    <div className="border-t border-blue-200 pt-2 flex justify-between">
+                      <span className="font-semibold text-[#00333e]">Total Cost:</span>
+                      <span className="text-lg font-bold text-[#fddf0d]">
+                        {(selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)).toLocaleString()} Units
                       </span>
                     </div>
-                  )}
+                    {wallet && (
+                      <div className="flex justify-between text-sm pt-2">
+                        <span className="text-gray-600">Wallet Balance:</span>
+                        <span className={wallet.units >= selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0) ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                          {wallet.units.toLocaleString()} Units
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Wallet Balance */}
+              {wallet && !selectedUnits && (
+                <div className="bg-blue-50 p-4 rounded-md">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-[#00333e]">Wallet Balance:</span>
+                    <span className="text-lg font-bold text-[#00333e]">
+                      {wallet.units.toLocaleString()} Units
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -740,9 +804,10 @@ const Subscription: React.FC = () => {
                 disabled={
                   purchasingPackageId === selectedPackage.id ||
                   !wallet ||
-                  smsQuantity <= 0 ||
-                  !!smsError ||
-                  wallet.units < smsQuantity * selectedPackage.unitPrice
+                  selectedUnits <= 0 ||
+                  !!unitError ||
+                  !selectedPackage.services[0] ||
+                  wallet.units < selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)
                 }
               >
                 {purchasingPackageId === selectedPackage.id ? (
@@ -751,7 +816,7 @@ const Subscription: React.FC = () => {
                     Processing...
                   </span>
                 ) : (
-                  `Purchase ${smsQuantity.toLocaleString()} SMS`
+                  `Purchase ${selectedUnits.toLocaleString()} Units`
                 )}
               </button>
             </div>

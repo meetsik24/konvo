@@ -196,14 +196,20 @@ interface LogResponse {
   }[];
 }
 
+interface PackageService {
+  package_service_id: string;
+  package_id: string;
+  service_id: string;
+  units_allocated: number;
+  unit_cost_at_purchase: number;
+}
+
 interface Plan {
+  package_id: string;
   name: string;
   description: string;
-  sms_unit_price: string;
-  call_unit_price: string;
-  minimum_sms_purchase: number;
-  plan_id: string;
-  created_at: string;
+  total_price: number;
+  services: PackageService[];
 }
 
 interface User {
@@ -1154,14 +1160,14 @@ export const changePassword = async (token: string, data: {
   }
 };
 
-// Fetch all plans
+// Fetch all packages
 export const getPlans = async (): Promise<Plan[]> => {
   try {
-    const response = await api.get('/plans');
+    const response = await api.get('/packages');
     console.log('getPlans API response:', response.data);
     return response.data;
   } catch (error: any) {
-    return handleApiError(error, 'Failed to fetch plans');
+    return handleApiError(error, 'Failed to fetch packages');
   }
 };
 
@@ -1234,7 +1240,7 @@ export const initiateUnitsPayment = async (data: InitiateUnitsPaymentRequest): P
 
 export const getAllocations = async (packageId: string): Promise<ServiceAllocationResponse> => {
   try {
-    const response = await api.post('/allocation/batch', {
+    const response = await api.post('/allocation/create', {
       package_id: packageId
     });
     console.log('getAllocations API response:', response.data);
@@ -1876,6 +1882,32 @@ export const getAllocationsSummary = async (): Promise<AllocationsSummaryRespons
     return { allocations: validAllocations };
   } catch (error: any) {
     return handleApiError(error, "Failed to get allocations summary");
+  }
+};
+
+// Allocation create endpoint for purchasing packages with wallet credits
+export interface AllocationCreateRequest {
+  service_id: string;
+  units_allocated: number;
+}
+
+export interface AllocationCreateResponse {
+  allocation_id: string;
+  service_id: string;
+  units_allocated: number;
+  created_at: string;
+  expires_at?: string;
+  last_updated?: string;
+}
+
+export const createAllocation = async (data: AllocationCreateRequest): Promise<AllocationCreateResponse> => {
+  console.log("createAllocation API call initiated with data:", data);
+  try {
+    const response = await api.post("/allocations/create", data);
+    console.log("createAllocation API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to create allocation");
   }
 };
 
