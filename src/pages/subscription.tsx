@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Loader2, Wallet, ChevronRight } from "lucide-react";
+import { FaEnvelope, FaWhatsapp, FaPhone, FaTimes, FaWallet, FaSpinner } from "react-icons/fa";
 import { motion } from "framer-motion";
 import Alert from "../components/Alert";
 import {
@@ -87,6 +87,10 @@ const Subscription: React.FC = () => {
   const [isPackageDetailsModalOpen, setIsPackageDetailsModalOpen] = useState(false);
   const [selectedUnits, setSelectedUnits] = useState<number>(0);
   const [unitError, setUnitError] = useState<string>("");
+  const [selectedService, setSelectedService] = useState<"sms" | "whatsapp" | "voice" | null>(null);
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+  const [userRequiredUnits, setUserRequiredUnits] = useState<number>(0);
+  const [recommendedPackage, setRecommendedPackage] = useState<Package | null>(null);
 
   const [alertState, setAlertState] = useState<{
     isOpen: boolean;
@@ -481,11 +485,52 @@ const Subscription: React.FC = () => {
     return "";
   };
 
-  const openPackageModal = (pkg: Package) => {
-    setSelectedPackage(pkg);
+  // -------------------- SERVICE HELPERS --------------------
+  const getPackagesByService = (service: "sms" | "whatsapp" | "voice" | null): Package[] => {
+    if (!service) return [];
+    
+    const serviceIdMap = {
+      sms: "fa1b30ef-6334-4459-88b9-c9f6762bf5c3", // Voice service
+      whatsapp: "cc08b078-59d5-4d03-963e-e6f7a45ec867", // WhatsApp/SMS service
+      voice: "cc08b078-59d5-4d03-963e-e6f7a45ec867", // Voice service
+    };
+
+    const targetServiceId = serviceIdMap[service];
+    return packages.filter(pkg =>
+      pkg.services.some(svc => svc.service_id === targetServiceId)
+    );
+  };
+
+  const openServiceModal = (service: "sms" | "whatsapp" | "voice") => {
+    setSelectedService(service);
+    setSelectedPackage(null);
     setSelectedUnits(0);
     setUnitError("");
-    setIsPackageDetailsModalOpen(true);
+    setUserRequiredUnits(0);
+    setRecommendedPackage(null);
+    setIsServiceModalOpen(true);
+  };
+
+  const findRecommendedPackage = (requiredUnits: number, service: "sms" | "whatsapp" | "voice" | null) => {
+    if (!requiredUnits || requiredUnits <= 0 || !service) {
+      setRecommendedPackage(null);
+      return;
+    }
+
+    const servicePackages = getPackagesByService(service);
+    
+    // Find the package whose range CONTAINS the user's input
+    const recommended = servicePackages.find(pkg => {
+      const { min, max } = getPackageUnitRange(pkg);
+      return requiredUnits >= min && requiredUnits <= max;
+    });
+
+    setRecommendedPackage(recommended || null);
+  };
+
+  const handleUserUnitInput = (value: number) => {
+    setUserRequiredUnits(value);
+    findRecommendedPackage(value, selectedService);
   };
 
   // -------------------- UI RENDER --------------------
@@ -505,12 +550,12 @@ const Subscription: React.FC = () => {
         className="bg-white p-6 rounded-md border border-gray-100 shadow-sm flex items-center justify-between"
       >
         <div className="flex items-center space-x-4">
-          <Wallet className="w-8 h-8 text-[#00333e]" />
+          <FaWallet className="text-2xl text-[#00333e]" />
           <div>
             <h2 className="text-lg font-semibold text-[#00333e]">Wallet Balance</h2>
             {loading.wallet ? (
               <div className="flex items-center space-x-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <FaSpinner className="animate-spin" />
                 <span>Loading balance...</span>
               </div>
             ) : errors.wallet ? (
@@ -542,7 +587,7 @@ const Subscription: React.FC = () => {
           <p className="text-red-500 text-sm">{errors.usage}</p>
         ) : loading.usage ? (
           <div className="flex items-center justify-center p-6">
-            <Loader2 className="w-5 h-5 animate-spin text-[#00333e]" />
+            <FaSpinner className="text-2xl animate-spin text-[#00333e]" />
           </div>
         ) : (
           <div className="space-y-4">
@@ -569,56 +614,215 @@ const Subscription: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
       >
-        <h3 className="text-xl font-medium text-[#00333e] mb-4">Available Packages</h3>
+        <h3 className="text-xl font-medium text-[#00333e] mb-4">Services</h3>
         {errors.packages ? (
           <p className="text-red-500 text-sm">{errors.packages}</p>
         ) : loading.packages ? (
           <div className="flex items-center justify-center p-8">
-            <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
+            <FaSpinner className="text-3xl animate-spin text-[#00333e]" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {packages.map((pkg) => (
-              <motion.div
-                key={pkg.id}
-                className="bg-white p-6 rounded-md border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
-              >
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {/* SMS Service Tab */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              onClick={() => openServiceModal("sms")}
+              className="bg-gradient-to-br from-[#00333e] to-[#001a24] p-4 rounded-md border-2 border-[#00333e] shadow-sm hover:shadow-md transition-all cursor-pointer"
+            >
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-12 h-12 bg-[#004d66] rounded-full flex items-center justify-center">
+                  <FaEnvelope className="text-2xl text-white" />
+                </div>
                 <div>
-                  <h4 className="text-lg font-semibold text-[#00333e] mb-1">
-                    {pkg.name}
-                  </h4>
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                    {pkg.description?.length > 100 
-                      ? `${pkg.description.substring(0, 100)}...` 
-                      : pkg.description}
+                  <h4 className="text-sm font-semibold text-white">SMS</h4>
+                  <p className="text-xs text-gray-300 mt-0.5">
+                    {getPackagesByService("sms").length} available
                   </p>
-                  <div className="bg-gray-50 p-3 rounded-md mb-3">
-                    <p className="text-xs text-gray-600 mb-1">Package Price</p>
-                    <p className="text-xl font-bold text-[#00333e]">
-                      {(pkg.totalPrice || 0).toLocaleString()} Units
-                    </p>
-                  </div>
-                  <div className="bg-blue-50 p-3 rounded-md">
-                    <p className="text-xs text-gray-600 mb-1">Units Allocated</p>
-                    <p className="text-sm font-medium text-[#00333e]">
-                      {(pkg.allocation?.sms || 0).toLocaleString()} Units
-                    </p>
-                  </div>
                 </div>
-                <div className="space-y-2 mt-4">
-                  <button
-                    onClick={() => openPackageModal(pkg)}
-                    className="w-full px-4 py-2 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                  >
-                    View Details
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+              </div>
+            </motion.button>
+
+            {/* WhatsApp Service Tab */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              onClick={() => openServiceModal("whatsapp")}
+              className="bg-gradient-to-br from-[#003348] to-[#001a24] p-4 rounded-md border-2 border-[#003348] shadow-sm hover:shadow-md transition-all cursor-pointer"
+            >
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-12 h-12 bg-[#005577] rounded-full flex items-center justify-center">
+                  <FaWhatsapp className="text-2xl text-white" />
                 </div>
-              </motion.div>
-            ))}
+                <div>
+                  <h4 className="text-sm font-semibold text-white">WhatsApp</h4>
+                  <p className="text-xs text-gray-300 mt-0.5">
+                    {getPackagesByService("whatsapp").length} available
+                  </p>
+                </div>
+              </div>
+            </motion.button>
+
+            {/* Voice Service Tab */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              onClick={() => openServiceModal("voice")}
+              className="bg-gradient-to-br from-[#002d3d] to-[#001520] p-4 rounded-md border-2 border-[#002d3d] shadow-sm hover:shadow-md transition-all cursor-pointer"
+            >
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-12 h-12 bg-[#004666] rounded-full flex items-center justify-center">
+                  <FaPhone className="text-2xl text-white" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-white">Voice</h4>
+                  <p className="text-xs text-gray-300 mt-0.5">
+                    {getPackagesByService("voice").length} available
+                  </p>
+                </div>
+              </div>
+            </motion.button>
           </div>
         )}
       </motion.div>
+
+      {/* Service Modal - Shows Packages for Selected Service */}
+      {isServiceModalOpen && selectedService && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 md:p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-md max-w-6xl w-full max-h-[90vh] flex flex-col shadow-lg"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-100 gap-3">
+              <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                {selectedService === "sms" && <FaEnvelope className="text-xl md:text-2xl text-[#00333e] flex-shrink-0" />}
+                {selectedService === "whatsapp" && <FaWhatsapp className="text-xl md:text-2xl text-[#00333e] flex-shrink-0" />}
+                {selectedService === "voice" && <FaPhone className="text-xl md:text-2xl text-[#00333e] flex-shrink-0" />}
+                <h2 className="text-lg md:text-2xl font-semibold text-[#00333e] truncate">
+                  {selectedService === "sms" && "SMS Packages"}
+                  {selectedService === "whatsapp" && "WhatsApp Packages"}
+                  {selectedService === "voice" && "Voice Packages"}
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsServiceModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+              >
+                <FaTimes className="text-lg md:text-xl" />
+              </button>
+            </div>
+
+            {/* Input Section with Purchase Button */}
+            <div className="p-4 md:p-6 border-b border-gray-100 bg-gray-50 space-y-4">
+              <label className="block text-sm md:text-base font-semibold text-[#00333e]">
+                How many units do you need?
+              </label>
+              <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+                <input
+                  type="number"
+                  value={userRequiredUnits || ""}
+                  onChange={(e) => handleUserUnitInput(parseInt(e.target.value) || 0)}
+                  placeholder="Enter the number of units you need"
+                  min="0"
+                  className="flex-1 px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e] text-sm md:text-base"
+                />
+                <button
+                  onClick={() => {
+                    if (userRequiredUnits > 0 && recommendedPackage) {
+                      setSelectedPackage(recommendedPackage);
+                      setSelectedUnits(userRequiredUnits);
+                      setUnitError("");
+                      setIsServiceModalOpen(false);
+                      setIsPackageDetailsModalOpen(true);
+                    }
+                  }}
+                  disabled={userRequiredUnits <= 0 || !recommendedPackage}
+                  className="px-4 md:px-6 py-2 md:py-3 bg-[#00333e] text-white font-semibold rounded-md hover:bg-[#00262f] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm md:text-base whitespace-nowrap"
+                >
+                  Purchase
+                </button>
+              </div>
+              {userRequiredUnits > 0 && !recommendedPackage && (
+                <p className="text-red-500 text-xs md:text-sm">
+                  No packages available for {userRequiredUnits.toLocaleString()} units. Please enter a lower amount.
+                </p>
+              )}
+            </div>
+
+            {/* Packages List - Horizontal */}
+            <div className="p-4 md:p-6 flex-1 overflow-y-auto">
+              {getPackagesByService(selectedService).length === 0 ? (
+                <p className="text-gray-500 text-center py-8 text-sm md:text-base">No packages available for this service.</p>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs md:text-sm font-semibold text-gray-600 uppercase mb-4">Available Packages</p>
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-3 overflow-x-auto pb-2">
+                    {getPackagesByService(selectedService).map((pkg) => {
+                      const { min, max } = getPackageUnitRange(pkg);
+                      const isRecommended = recommendedPackage?.id === pkg.id;
+
+                      return (
+                        <motion.div
+                          key={pkg.id}
+                          whileHover={{ scale: 1.02 }}
+                          className={`flex-shrink-0 p-4 rounded-md border-2 transition-all cursor-pointer min-w-max md:min-w-0 md:flex-1 ${
+                            isRecommended
+                              ? "bg-gradient-to-br from-[#00333e] to-[#001a24] border-[#00333e] text-white"
+                              : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+                          }`}
+                        >
+                          {/* Recommended Badge */}
+                          {isRecommended && (
+                            <div className="text-xs font-bold mb-2 px-2 py-0.5 bg-white text-[#00333e] rounded inline-block">
+                               RECOMMENDED
+                            </div>
+                          )}
+                          
+                          {/* Package Name */}
+                          <h4 className={`font-semibold text-sm md:text-base mb-2 ${
+                            isRecommended ? "text-white" : "text-[#00333e]"
+                          }`}>
+                            {pkg.name}
+                          </h4>
+
+                          {/* Price */}
+                          <div className={`mb-2 pb-2 border-b ${
+                            isRecommended ? "border-white border-opacity-20" : "border-gray-300"
+                          }`}>
+                            <p className={`text-xs font-semibold mb-1 ${
+                              isRecommended ? "text-gray-200" : "text-gray-600"
+                            }`}>
+                              Price
+                            </p>
+                            <p className={`font-bold text-sm md:text-base ${
+                              isRecommended ? "text-white" : "text-[#00333e]"
+                            }`}>
+                              {(pkg.totalPrice || 0).toLocaleString()} Units
+                            </p>
+                          </div>
+
+                          {/* Range */}
+                          <div>
+                            <p className={`text-xs font-semibold mb-1 ${
+                              isRecommended ? "text-gray-200" : "text-gray-600"
+                            }`}>
+                              Unit Range
+                            </p>
+                            <p className={`font-bold text-xs md:text-sm ${
+                              isRecommended ? "text-white" : "text-[#00333e]"
+                            }`}>
+                              {min.toLocaleString()} - {max.toLocaleString()}
+                            </p>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Package Details Modal */}
       {isPackageDetailsModalOpen && selectedPackage && (
@@ -635,7 +839,7 @@ const Subscription: React.FC = () => {
                 onClick={() => setIsPackageDetailsModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <X className="w-6 h-6" />
+                <FaTimes className="text-xl" />
               </button>
             </div>
 
@@ -812,7 +1016,7 @@ const Subscription: React.FC = () => {
               >
                 {purchasingPackageId === selectedPackage.id ? (
                   <span className="flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    <FaSpinner className="animate-spin mr-2" />
                     Processing...
                   </span>
                 ) : (
@@ -838,7 +1042,7 @@ const Subscription: React.FC = () => {
                 onClick={() => setIsTopUpModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <X className="w-6 h-6" />
+                <FaTimes className="text-xl" />
               </button>
             </div>
             <form onSubmit={handleTopUp} className="p-6 space-y-4">
@@ -943,7 +1147,7 @@ const Subscription: React.FC = () => {
 
           {isTransactionsLoading ? (
             <div className="flex items-center justify-center p-8">
-              <Loader2 className="w-6 h-6 animate-spin text-[#00333e]" />
+              <FaSpinner className="text-3xl animate-spin text-[#00333e]" />
             </div>
           ) : transactionsError ? (
             <p className="text-red-500 text-sm">{transactionsError}</p>
