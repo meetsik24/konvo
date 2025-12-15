@@ -231,19 +231,26 @@ interface LogResponse {
   }[];
 }
 
+interface PackageService {
+  package_service_id: string;
+  package_id: string;
+  service_id: string;
+  units_allocated: number;
+  unit_cost_at_purchase: number;
+}
+
 interface Plan {
+  package_id: string;
   name: string;
   description: string;
-  sms_unit_price: string;
-  call_unit_price: string;
-  minimum_sms_purchase: number;
-  plan_id: string;
-  created_at: string;
+  total_price: number;
+  services: PackageService[];
 }
 
 interface User {
   email: string;
   username: string;
+  userId?: string;
   full_name?: string;
   mobile_number?: string;
   avatar?: string;
@@ -272,18 +279,24 @@ interface PurchaseSmsCreditsResponse {
   requested_sms: number;
 }
 
-interface PaymentStatusRequest {
-  payment_reference: string;
+interface InitiateUnitsPaymentRequest {
+  amount_paid: number;
+  target_phone: string;
+  payment_method: string;
 }
 
-interface PaymentStatusResponse {
+interface InitiateUnitsPaymentResponse {
   success: boolean;
   message: string;
   payment_reference: string;
-  status: string;
-  credits_added: number;
-  total_paid: number;
-  updated_sms_balance: number;
+  provider_response: {
+    message: string;
+    order_id: string;
+    resultcode: string;
+    status: string;
+  };
+  marked_complete?: boolean;
+  units_purchased?: number;
 }
 
 interface SenderId {
@@ -322,6 +335,167 @@ interface ApiKey {
   expires_at: string;
 }
 
+interface AccountBalance {
+  balance: number;
+  balance_id: string;
+  last_updated: string;
+  units: number;
+}
+
+interface BalanceUnits {
+  unit_cost: number;
+}
+
+interface BalanceRefund{
+  usage_id: string,
+ 
+}
+
+interface BalanceUsage{
+  unit_cost: number;
+  usage_id: string,
+  user_id: string,
+  service_id: string,
+  message_id: string,
+  units_used: 0,
+  quantity: 0,
+  usage_description: string,
+  usage_date: string
+}
+
+interface BalanceUsageLogs{
+  usage_id: string,
+  user_id: string,
+  service_id: string,
+  message_id: string,
+  units_used: 0,
+  quantity: 0,
+  usage_description: string,
+  usage_date: string
+}
+
+interface BalanceUsageStats{
+  service_id: string,
+  total_units_used: 0,
+  by_services: {
+    service_id: string,
+    total_units_used: 0,
+  }
+  by_usage_description: {
+    usage_description: string,
+    total_units_used: 0,
+  }
+  by_usage_date: {
+    usage_date: string,
+    total_units_used: 0,
+  }
+}
+
+interface  BalanceServicesCost{
+  service_id: string,
+  total_cost: 0,
+}
+
+export interface AllocationSummary {
+  service_id: string;
+  service_name: string;
+  total_units_allocated: number;
+}
+
+export interface AllocationsSummaryResponse {
+  allocations: AllocationSummary[];
+}
+
+export interface AllocationItem {
+  service_id: string;
+  units: number;
+  expires_at: string;
+}
+
+export interface AllocationBatchRequest {
+  items: AllocationItem[];
+  transaction_id: string;
+}
+
+export interface Allocation {
+  allocation_id: string;
+  transaction_id: string;
+  user_id: string;
+  service_id: string;
+  service_name: string;
+  units_allocated: number;
+  expires_at: string;
+  last_updated: string;
+}
+
+export interface AllocationBatchResponse {
+  allocations: Allocation[];
+}
+
+export interface Transaction {
+  transaction_id: string;
+  user_id: string;
+  total_amount_paid: number;
+  units_purchased: number;
+  payment_method: string;
+  payment_reference: string;
+  transaction_date: string;
+  marked_complete: boolean;
+}
+
+interface TransactionDeposit {
+  transaction_id: string;
+  user_id: string;
+  total_amount_paid: number;
+  units_purchased: number;
+  payment_method: string;
+  payment_reference: string;
+  transaction_date: string;
+  marked_complete: boolean;
+}
+interface getTransactionById {
+  transaction_id: string;
+  user_id: string;
+  total_amount_paid: number;
+  units_purchased: number;
+  payment_method: string;
+  payment_reference: string;
+  transaction_date: string;
+  marked_complete: boolean;
+}
+
+export interface TransactionResponse {
+  transactions: Transaction[];
+  total_count?: number;
+}
+
+//Services Interface
+interface services {
+  
+    service_id: string,
+    name: string,
+    description: string,
+    unit_cost: 0,
+    is_unit_based: true,
+    minimum_purchase: 0,
+    created_at: "string"
+  }
+
+
+
+
+//interface for trasnactions
+
+interface PaymentValidationRequest {
+  transaction_id: string;
+  payment_reference?: string;
+}
+
+interface PaymentValidationResponse {
+  status: boolean;
+  message: string;
+  transaction: Transaction;
+}
 
 // Utility function for consistent error handling
 const handleApiError = (error: unknown, defaultMessage: string): never => {
@@ -577,7 +751,7 @@ export const getMessageLogsV = async (): Promise<MessageLogResponse> => {
           typeof msg.sent_at === 'string' &&
           isValidISODate(msg.sent_at) &&
           typeof msg.recipient === 'string' &&
-          (typeof msg.campaign_name === 'string' || msg.campaign_name === null) && // Allow null
+          (typeof msg.campaign_name === 'string' || msg.campaign_name === null) // Allow null
           typeof msg.sender_id === 'string' &&
           typeof msg.status === 'string';
         if (!isValid) console.warn("Invalid message object:", msg);
@@ -604,10 +778,8 @@ export const createWorkspace = async (name: string): Promise<Workspace> => {
 };
 
 export const getWorkspaces = async (): Promise<Workspace[]> => {
-  console.log("getWorkspaces API call initiated");
   try {
     const response = await api.get("/workspaces/");
-    console.log("getWorkspaces API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch workspaces");
@@ -1006,15 +1178,14 @@ export const getApprovedSenderIds = async (workspaceId: string): Promise<SenderI
 
 // PROFILE
 export const getProfile = async (): Promise<User> => {
-  console.log("getProfile API call initiated");
   try {
     const response = await api.get("/users/me");
-    console.log("getProfile API response:", response.data);
     return {
       email: response.data.email,
       username: response.data.username,
       full_name: response.data.full_name,
       mobile_number: response.data.mobile_number,
+      userId: response.data.user_id,
       avatar: response.data.avatar || undefined,
     };
   } catch (error: any) {
@@ -1027,10 +1198,8 @@ export const updateProfile = async (data: {
   email: string;
   mobile_number: string;
 }): Promise<User> => {
-  console.log("updateProfile API call initiated with data:", data);
   try {
     const response = await api.patch("/users/me", data);
-    console.log("updateProfile API response:", response.data);
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to update user profile");
@@ -1041,7 +1210,6 @@ export const changePassword = async (token: string, data: {
   old_password: string; // Changed from current_password to old_password
   new_password: string;
 }): Promise<void> => {
-  console.log("changePassword API call initiated with data:", data);
   try {
     await api.patch(
       "/users/change-password",
@@ -1058,14 +1226,14 @@ export const changePassword = async (token: string, data: {
   }
 };
 
-// Fetch all plans
+// Fetch all packages
 export const getPlans = async (): Promise<Plan[]> => {
   try {
-    const response = await api.get('/plans');
+    const response = await api.get('/packages');
     console.log('getPlans API response:', response.data);
     return response.data;
   } catch (error: any) {
-    return handleApiError(error, 'Failed to fetch plans');
+    return handleApiError(error, 'Failed to fetch packages');
   }
 };
 
@@ -1099,24 +1267,52 @@ export const getSubscriptionUsage = async (planId: string): Promise<Subscription
 
 
 //PLANS AND SUBSCRIPTIONS
+// Currently moving from purchasing direct sms credits to purchasing units
 
 // Purchase SMS credits
-export const purchaseSmsCredits = async (
-  planId: string,
-  smsQuantity: number,
-  mobileMoneyNumber: string
-): Promise<PurchaseSmsCreditsResponse> => {
-  const payload: PurchaseSmsCreditsRequest = {
-    plan_id: planId,
-    sms_quantity: smsQuantity,
-    mobile_money_number: mobileMoneyNumber,
-  };
+// export const purchaseSmsCredits = async (
+//   planId: string,
+//   smsQuantity: number,
+//   mobileMoneyNumber: string
+// ): Promise<PurchaseSmsCreditsResponse> => {
+//   const payload: PurchaseSmsCreditsRequest = {
+//     plan_id: planId,
+//     sms_quantity: smsQuantity,
+//     mobile_money_number: mobileMoneyNumber,
+//   };
+//   try {
+//     const response = await api.post('/purchase-sms-credits', payload);
+//     console.log('purchaseSmsCredits API response:', response.data);
+//     return response.data;
+//   } catch (error: any) {
+//     return handleApiError(error, 'Failed to purchase SMS credits');
+//   }
+// };
+
+export const initiateUnitsPayment = async (data: InitiateUnitsPaymentRequest): Promise<InitiateUnitsPaymentResponse> => {
+  console.log("initiateUnitsPayment API call initiated with data:", data);
   try {
-    const response = await api.post('/purchase-sms-credits', payload);
-    console.log('purchaseSmsCredits API response:', response.data);
+    const response = await api.post("/transaction/initiate", data);
+    console.log("initiateUnitsPayment API response:", response.data);
     return response.data;
   } catch (error: any) {
-    return handleApiError(error, 'Failed to purchase SMS credits');
+    return handleApiError(error, "Failed to initiate Units payment");
+  }
+};
+
+
+// Add this function before export default api
+
+
+export const getAllocations = async (packageId: string): Promise<ServiceAllocationResponse> => {
+  try {
+    const response = await api.post('/allocation/create', {
+      package_id: packageId
+    });
+    console.log('getAllocations API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, 'Failed to get allocations');
   }
 };
 
@@ -1357,8 +1553,6 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
   }
 };
 
-
-
 // New function to generate an SMS message using the /draft_generate_message endpoint
 export const generateMessage = async (prompt: string): Promise<string> => {
   try {
@@ -1541,11 +1735,10 @@ export const getMetricsV1 = async (dateRange?: 'today' | 'this_week' | 'this_mon
   contacts_count: { total_contacts: number; total_groups: number; groups: { group_id: string; group_name: string; count: number }[] };
   logs_count: { total_sms: number; status_counts: Record<string, number>; daily_counts: Record<string, { pending: number; sent: number; failed: number }> };
 }> => {
-  console.log(`getMetricsV1 API call initiated with dateRange: ${dateRange || 'all'}`);
   try {
     const query = dateRange ? `?dateRange=${dateRange}` : '';
     const response = await api.get(`/v1/metrics${query}`);
-    console.log("getMetricsV1 API response:", JSON.stringify(response.data, null, 2));
+    // console.log("getMetricsV1 API response:", JSON.stringify(response.data, null, 2));
 
     // Basic response validation
     const data = response.data as {
@@ -1576,6 +1769,342 @@ export const getMetricsV1 = async (dateRange?: 'today' | 'this_week' | 'this_mon
   }
 };
 
+// export const getAccountBalance = async (user_id: string): Promise<AccountBalance> => {
+//   console.log("getAccountBalance API call initiated");
+//   try {
+//     const response = await api.get(`/admin/balance/${user_id}/units`);
+//     console.log("getAccountBalance API response:", response.data);
+//     return response.data;
+//   } catch (error: any) {
+//     return handleApiError(error, "Failed to fetch account balance");
+//   }
+// };
+
+// Add these interfaces with the other interfaces
+export enum ServiceName {
+  SMS = "SMS",
+  VOICE = "VOICE",
+  WHATSAPP = "WHATSAPP"
+}
+
+export enum SourceType {
+  ALLOCATION = "ALLOCATION",
+  PURCHASE = "PURCHASE"
+}
+
+export interface UsageLog {
+  usage_id: string;
+  service_id: string;
+  service_name: ServiceName;
+  units_used: number;
+  quantity: number;
+  source_type: SourceType;
+  usage_date: string;
+  message_id: string | null;
+  transaction_id: string | null;
+  usage_description: string;
+}
+
+// Add this function before export default api
+export const getUsageLogs = async (): Promise<UsageLog[]> => {
+  console.log("getUsageLogs API call initiated");
+  try {
+    const response = await api.get("/usage-logs/all-logs");
+    console.log("getUsageLogs API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch usage logs");
+  }
+};
+
+
+
+// === PAYMENT VALIDATION ===
+export const validatePayment = async (data: PaymentValidationRequest): Promise<PaymentValidationResponse> => {
+  console.log("validatePayment API call initiated with data:", data);
+  try {
+    const response = await api.post("/transaction/validate-payment", data);
+    console.log("validatePayment API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to validate payment");
+  }
+};
+
+// === SERVICES CRUD ===
+export const getServices = async (): Promise<services[]> => {
+  console.log("getServices API call initiated");
+  try {
+    const response = await api.get("/services");
+    console.log("getServices API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch services");
+  }
+};
+
+export const getServiceById = async (service_id: string): Promise<services> => {
+  console.log("getServiceById API call initiated for service:", service_id);
+  try {
+    const response = await api.get(`/services/${service_id}`);
+    console.log("getServiceById API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch service");
+  }
+};
+
+export const createService = async (data: services): Promise<services> => {
+  console.log("createService API call initiated with data:", data);
+  try {
+    const response = await api.post("/services", data);
+    console.log("createService API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to create service");
+  }
+};
+
+export const updateService = async (service_id: string, data: services): Promise<services> => {
+  console.log("updateService API call initiated for service:", service_id, "with data:", data);
+  try {
+    const response = await api.put(`/services/${service_id}`, data);
+    console.log("updateService API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to update service");
+  }
+};
+
+export const deleteService = async (service_id: string): Promise<void> => {
+  console.log("deleteService API call initiated for service:", service_id);
+  try {
+    await api.delete(`/services/${service_id}`);
+    console.log("deleteService API response: Service deleted successfully");
+  } catch (error: any) {
+    return handleApiError(error, "Failed to delete service");
+  }
+};
+
+// === BALANCE ENDPOINTS ===
+export const getBalanceUnits = async (): Promise<BalanceUnits> => {
+  console.log("getBalanceUnits API call initiated");
+  try {
+    const response = await api.get("/balance/units");
+    console.log("getBalanceUnits API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance units");
+  }
+};
+
+export const getBalanceRefund = async (): Promise<BalanceRefund> => {
+  console.log("getBalanceRefund API call initiated");
+  try {
+    const response = await api.get("/balance/refund");
+    console.log("getBalanceRefund API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance refund");
+  }
+};
+
+export const getAccountBalance = async (): Promise<AccountBalance> => {
+  console.log("getAccountBalance API call initiated");
+  try {
+    const response = await api.get("/balance/account");
+    console.log("getAccountBalance API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch account balance");
+  }
+};
+
+export const getBalanceUsage = async (): Promise<BalanceUsage> => {
+  console.log("getBalanceUsage API call initiated");
+  try {
+    const response = await api.get("/balance/usage");
+    console.log("getBalanceUsage API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance usage");
+  }
+};
+
+export const getBalanceUsageLogs = async (): Promise<BalanceUsageLogs[]> => {
+  console.log("getBalanceUsageLogs API call initiated");
+  try {
+    const response = await api.get("/balance/usage/logs");
+    console.log("getBalanceUsageLogs API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance usage logs");
+  }
+};
+
+export const getBalanceUsageLogsById = async (usage_id: string): Promise<BalanceUsageLogs> => {
+  console.log("getBalanceUsageLogsById API call initiated for ID:", usage_id);
+  try {
+    const response = await api.get(`/balance/usage/logs/${usage_id}`);
+    console.log("getBalanceUsageLogsById API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance usage log by ID");
+  }
+};
+
+export const getBalanceUsageStats = async (): Promise<BalanceUsageStats> => {
+  console.log("getBalanceUsageStats API call initiated");
+  try {
+    const response = await api.get("/balance/usage/stats");
+    console.log("getBalanceUsageStats API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance usage stats");
+  }
+};
+
+export const getBalanceServicesCost = async (service_id: string): Promise<BalanceServicesCost> => {
+  console.log("getBalanceServicesCost API call initiated for service:", service_id);
+  try {
+    const response = await api.get(`/balance/services/cost/${service_id}`);
+    console.log("getBalanceServicesCost API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to fetch balance services cost");
+  }
+};
+
+// === TRANSACTIONS ===
+export const transactionDeposit = async (data: Transaction): Promise<Transaction> => {
+  console.log("transactionDeposit API call initiated with data:", data);
+  try {
+    const response = await api.post("/transaction/deposit", data);
+    console.log("transactionDeposit API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to create transaction deposit");
+  }
+};
+
+export const getTransactionById = async (transaction_id: string): Promise<Transaction> => {
+  console.log("getTransactionById API call initiated for transaction:", transaction_id);
+  try {
+    const response = await api.get(`/transaction/${transaction_id}`);
+    console.log("getTransactionById API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to get transaction by id");
+  }
+};
+
+export const getTransactions = async (): Promise<Transaction[]> => {
+  console.log("getTransactions API call initiated");
+  try {
+    const response = await api.get("/transaction", {
+      params: { skip: 0, limit: 1000 },
+    });
+    console.log("getTransactions API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to get transactions");
+  }
+};
+
+export const getAllocationsSummary = async (): Promise<AllocationsSummaryResponse> => {
+  console.log("getAllocationsSummary API call initiated");
+  try {
+    const response = await api.get("/allocations/summary");
+    console.log("getAllocationsSummary API response:", response.data);
+    
+    // Validate and normalize response
+    if (!response.data || !Array.isArray(response.data.allocations)) {
+      console.warn("Invalid allocations response structure, returning empty allocations");
+      return { allocations: [] };
+    }
+    
+    // Validate each allocation object
+    const validAllocations = response.data.allocations.filter((alloc: any) =>
+      alloc &&
+      typeof alloc.service_id === 'string' &&
+      typeof alloc.service_name === 'string' &&
+      typeof alloc.total_units_allocated === 'number'
+    );
+    
+    if (validAllocations.length !== response.data.allocations.length) {
+      console.warn(`Filtered out ${response.data.allocations.length - validAllocations.length} invalid allocation objects`);
+    }
+    
+    return { allocations: validAllocations };
+  } catch (error: any) {
+    return handleApiError(error, "Failed to get allocations summary");
+  }
+};
+
+// Allocation create endpoint for purchasing packages with wallet credits
+export interface AllocationCreateRequest {
+  service_id: string;
+  units_allocated: number;
+}
+
+export interface AllocationCreateResponse {
+  allocation_id: string;
+  service_id: string;
+  units_allocated: number;
+  created_at: string;
+  expires_at?: string;
+  last_updated?: string;
+}
+
+export const createAllocation = async (data: AllocationCreateRequest): Promise<AllocationCreateResponse> => {
+  console.log("createAllocation API call initiated with data:", data);
+  try {
+    const response = await api.post("/allocations/create", data);
+    console.log("createAllocation API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to create allocation");
+  }
+};
+
+// Allocation batch endpoint for purchasing packages with wallet credits
+export const allocateBatch = async (data: AllocationBatchRequest): Promise<AllocationBatchResponse> => {
+  console.log("allocateBatch API call initiated with data:", data);
+  try {
+    const response = await api.post("/allocations/batch", data);
+    console.log("allocateBatch API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to allocate batch");
+  }
+};
+
+// Add this interface with the other interfaces
+export interface TransactionCompleteRequest {
+  payment_reference: string;
+  transaction_id: string;
+}
+
+export interface TransactionCompleteResponse {
+  success: boolean;
+  message: string;
+  payment_reference: string;
+  credits_added: number;
+  updated_balance: number;
+}
+
+// Add this function before export default api
+export const completeTransaction = async ( data: TransactionCompleteRequest
+): Promise<TransactionCompleteResponse> => {
+  console.log("completeTransaction API call initiated with data:", data);
+  try {
+    const response = await api.post("/transaction/complete", data);
+    console.log("completeTransaction API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to complete transaction");
+  }
+};
 
 
 // DEVELOPER APPS API
