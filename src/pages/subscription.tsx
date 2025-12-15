@@ -535,7 +535,7 @@ const Subscription: React.FC = () => {
 
   // -------------------- UI RENDER --------------------
   return (
-    <div className="max-w-7xl mx-auto p-6 min-h-screen space-y-8">
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
       <Alert
         type={alertState.type}
         message={alertState.message}
@@ -543,490 +543,261 @@ const Subscription: React.FC = () => {
         onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
       />
 
-      {/* Wallet Section */}
+      {/* Page Header */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-6 rounded-md border border-gray-100 shadow-sm flex items-center justify-between"
       >
-        <div className="flex items-center space-x-4">
-          <FaWallet className="text-2xl text-[#00333e]" />
-          <div>
-            <h2 className="text-lg font-semibold text-[#00333e]">Wallet Balance</h2>
-            {loading.wallet ? (
-              <div className="flex items-center space-x-2">
-                <FaSpinner className="animate-spin" />
-                <span>Loading balance...</span>
-              </div>
-            ) : errors.wallet ? (
-              <p className="text-red-500 text-sm">{errors.wallet}</p>
-            ) : (
-              <p className="text-2xl font-bold text-[#00333e]">
-                {wallet?.units?.toLocaleString()} Units
-              </p>
-            )}
-          </div>
-        </div>
-        <button
-          className="px-4 py-2 bg-[#00333e] text-white rounded-md text-sm hover:bg-[#00262f]"
-          disabled={loading.wallet}
-          onClick={() => setIsTopUpModalOpen(true)}
+        <h2 className="text-2xl font-semibold text-[#004d66] mb-2">Subscription & Billing</h2>
+        <p className="text-sm text-gray-600">Manage your wallet, view allocations, and track transactions</p>
+      </motion.div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Wallet Balance Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-md p-4 border border-gray-200"
         >
-          Top Up
-        </button>
-      </motion.div>
-
-      {/* Usage Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
-      >
-        <h3 className="text-xl font-medium text-[#00333e] mb-4">Current Usage</h3>
-        {errors.usage ? (
-          <p className="text-red-500 text-sm">{errors.usage}</p>
-        ) : loading.usage ? (
-          <div className="flex items-center justify-center p-6">
-            <FaSpinner className="text-2xl animate-spin text-[#00333e]" />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {Object.entries(currentPackage.allocation).map(([key, total]) => {
-              const used = currentPackage.usage[
-                key as keyof typeof currentPackage.usage
-              ];
-              return (
-                <div key={key} className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
-                  <span className="text-gray-600 capitalize font-medium">{key}</span>
-                  <span className="text-[#00333e] font-semibold">
-                    {used.toLocaleString()} / {total.toLocaleString()} units
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </motion.div>
-
-      {/* Packages */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
-      >
-        <h3 className="text-xl font-medium text-[#00333e] mb-4">Services</h3>
-        {errors.packages ? (
-          <p className="text-red-500 text-sm">{errors.packages}</p>
-        ) : loading.packages ? (
-          <div className="flex items-center justify-center p-8">
-            <FaSpinner className="text-3xl animate-spin text-[#00333e]" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {/* SMS Service Tab */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              onClick={() => openServiceModal("sms")}
-              className="bg-gradient-to-br from-[#00333e] to-[#001a24] p-4 rounded-md border-2 border-[#00333e] shadow-sm hover:shadow-md transition-all cursor-pointer"
-            >
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 bg-[#004d66] rounded-full flex items-center justify-center">
-                  <FaEnvelope className="text-2xl text-white" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-white">SMS</h4>
-                  <p className="text-xs text-gray-300 mt-0.5">
-                    {getPackagesByService("sms").length} available
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="p-2 rounded-md bg-gradient-to-r from-[#004d66] to-[#004d66]">
+                <Wallet className="w-6 h-6 text-white" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-gray-600">Wallet Balance</p>
+                {loading.wallet ? (
+                  <p className="text-lg font-medium text-[#004d66]">Loading...</p>
+                ) : errors.wallet ? (
+                  <p className="text-sm text-red-500">{errors.wallet}</p>
+                ) : (
+                  <p className="text-lg font-medium text-[#004d66]">
+                    {wallet?.units?.toLocaleString() || 0} Units
                   </p>
-                </div>
+                )}
               </div>
-            </motion.button>
-
-            {/* WhatsApp Service Tab */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              onClick={() => openServiceModal("whatsapp")}
-              className="bg-gradient-to-br from-[#003348] to-[#001a24] p-4 rounded-md border-2 border-[#003348] shadow-sm hover:shadow-md transition-all cursor-pointer"
-            >
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 bg-[#005577] rounded-full flex items-center justify-center">
-                  <FaWhatsapp className="text-2xl text-white" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-white">WhatsApp</h4>
-                  <p className="text-xs text-gray-300 mt-0.5">
-                    {getPackagesByService("whatsapp").length} available
-                  </p>
-                </div>
-              </div>
-            </motion.button>
-
-            {/* Voice Service Tab */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              onClick={() => openServiceModal("voice")}
-              className="bg-gradient-to-br from-[#002d3d] to-[#001520] p-4 rounded-md border-2 border-[#002d3d] shadow-sm hover:shadow-md transition-all cursor-pointer"
-            >
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 bg-[#004666] rounded-full flex items-center justify-center">
-                  <FaPhone className="text-2xl text-white" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-white">Voice</h4>
-                  <p className="text-xs text-gray-300 mt-0.5">
-                    {getPackagesByService("voice").length} available
-                  </p>
-                </div>
-              </div>
-            </motion.button>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Service Modal - Shows Packages for Selected Service */}
-      {isServiceModalOpen && selectedService && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 md:p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-md max-w-6xl w-full max-h-[90vh] flex flex-col shadow-lg"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-100 gap-3">
-              <div className="flex items-center gap-2 md:gap-3 min-w-0">
-                {selectedService === "sms" && <FaEnvelope className="text-xl md:text-2xl text-[#00333e] flex-shrink-0" />}
-                {selectedService === "whatsapp" && <FaWhatsapp className="text-xl md:text-2xl text-[#00333e] flex-shrink-0" />}
-                {selectedService === "voice" && <FaPhone className="text-xl md:text-2xl text-[#00333e] flex-shrink-0" />}
-                <h2 className="text-lg md:text-2xl font-semibold text-[#00333e] truncate">
-                  {selectedService === "sms" && "SMS Packages"}
-                  {selectedService === "whatsapp" && "WhatsApp Packages"}
-                  {selectedService === "voice" && "Voice Packages"}
-                </h2>
-              </div>
-              <button
-                onClick={() => setIsServiceModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
-              >
-                <FaTimes className="text-lg md:text-xl" />
-              </button>
             </div>
+            <button
+              onClick={() => setIsTopUpModalOpen(true)}
+              disabled={loading.wallet}
+              className="px-3 py-1.5 bg-[#004d66] text-white text-sm rounded-md hover:bg-[#003d52] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Top Up
+            </button>
+          </div>
+        </motion.div>
 
-            {/* Input Section with Purchase Button */}
-            <div className="p-4 md:p-6 border-b border-gray-100 bg-gray-50 space-y-4">
-              <label className="block text-sm md:text-base font-semibold text-[#00333e]">
-                How many units do you need?
-              </label>
-              <div className="flex flex-col md:flex-row gap-3 md:gap-4">
-                <input
-                  type="number"
-                  value={userRequiredUnits || ""}
-                  onChange={(e) => handleUserUnitInput(parseInt(e.target.value) || 0)}
-                  placeholder="Enter the number of units you need"
-                  min="0"
-                  className="flex-1 px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e] text-sm md:text-base"
-                />
-                <button
-                  onClick={() => {
-                    if (userRequiredUnits > 0 && recommendedPackage) {
-                      setSelectedPackage(recommendedPackage);
-                      setSelectedUnits(userRequiredUnits);
-                      setUnitError("");
-                      setIsServiceModalOpen(false);
-                      setIsPackageDetailsModalOpen(true);
-                    }
-                  }}
-                  disabled={userRequiredUnits <= 0 || !recommendedPackage}
-                  className="px-4 md:px-6 py-2 md:py-3 bg-[#00333e] text-white font-semibold rounded-md hover:bg-[#00262f] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm md:text-base whitespace-nowrap"
-                >
-                  Purchase
-                </button>
-              </div>
-              {userRequiredUnits > 0 && !recommendedPackage && (
-                <p className="text-red-500 text-xs md:text-sm">
-                  No packages available for {userRequiredUnits.toLocaleString()} units. Please enter a lower amount.
+        {/* SMS Allocation Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-white rounded-md p-4 border border-gray-200"
+        >
+          <div className="flex items-center">
+            <div className="p-2 rounded-md bg-gradient-to-r from-[#e76f51] to-[#e76f51]">
+              <TrendingUp className="w-6 h-6 text-white" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-gray-600">SMS Allocation</p>
+              {loading.allocation ? (
+                <p className="text-lg font-medium text-[#004d66]">Loading...</p>
+              ) : (
+                <p className="text-lg font-medium text-[#004d66]">
+                  {allocation.sms.toLocaleString()} Units
                 </p>
               )}
             </div>
+          </div>
+        </motion.div>
 
-            {/* Packages List - Horizontal */}
-            <div className="p-4 md:p-6 flex-1 overflow-y-auto">
-              {getPackagesByService(selectedService).length === 0 ? (
-                <p className="text-gray-500 text-center py-8 text-sm md:text-base">No packages available for this service.</p>
+        {/* Voice Allocation Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-md p-4 border border-gray-200"
+        >
+          <div className="flex items-center">
+            <div className="p-2 rounded-md bg-gradient-to-r from-[#f4a261] to-[#f4a261]">
+              <TrendingUp className="w-6 h-6 text-white" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-gray-600">Voice Allocation</p>
+              {loading.allocation ? (
+                <p className="text-lg font-medium text-[#004d66]">Loading...</p>
               ) : (
-                <div className="space-y-3">
-                  <p className="text-xs md:text-sm font-semibold text-gray-600 uppercase mb-4">Available Packages</p>
-                  <div className="flex flex-col md:flex-row gap-2 md:gap-3 overflow-x-auto pb-2">
-                    {getPackagesByService(selectedService).map((pkg) => {
-                      const { min, max } = getPackageUnitRange(pkg);
-                      const isRecommended = recommendedPackage?.id === pkg.id;
+                <p className="text-lg font-medium text-[#004d66]">
+                  {allocation.voice.toLocaleString()} Units
+                </p>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      </div>
 
-                      return (
-                        <motion.div
-                          key={pkg.id}
-                          whileHover={{ scale: 1.02 }}
-                          className={`flex-shrink-0 p-4 rounded-md border-2 transition-all cursor-pointer min-w-max md:min-w-0 md:flex-1 ${
-                            isRecommended
-                              ? "bg-gradient-to-br from-[#00333e] to-[#001a24] border-[#00333e] text-white"
-                              : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+      {/* Transactions Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-white rounded-md p-6 border border-gray-200"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-medium text-[#004d66]">Transaction History</h2>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setTransactionFilter("all");
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                transactionFilter === "all"
+                  ? "bg-[#004d66] text-white"
+                  : "bg-gray-100 text-[#004d66] hover:bg-gray-200"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => {
+                setTransactionFilter("usage");
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                transactionFilter === "usage"
+                  ? "bg-[#004d66] text-white"
+                  : "bg-gray-100 text-[#004d66] hover:bg-gray-200"
+              }`}
+            >
+              Usage
+            </button>
+            <button
+              onClick={() => {
+                setTransactionFilter("topup");
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                transactionFilter === "topup"
+                  ? "bg-[#004d66] text-white"
+                  : "bg-gray-100 text-[#004d66] hover:bg-gray-200"
+              }`}
+            >
+              Top-Up
+            </button>
+          </div>
+        </div>
+
+        {loading.transactions ? (
+          <div className="flex items-center justify-center py-12">
+            <Clock className="w-6 h-6 animate-spin text-[#004d66]" />
+            <span className="ml-2 text-gray-600">Loading transactions...</span>
+          </div>
+        ) : errors.transactions ? (
+          <p className="text-red-500 text-sm py-4">{errors.transactions}</p>
+        ) : filteredTransactions.length === 0 ? (
+          <p className="text-gray-500 text-sm py-4">No transactions found.</p>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Description
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Units
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {paginatedTransactions.map((transaction, index) => (
+                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
+                        {new Date(transaction.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            transaction.type === "topup"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-blue-100 text-blue-800"
                           }`}
                         >
-                          {/* Recommended Badge */}
-                          {isRecommended && (
-                            <div className="text-xs font-bold mb-2 px-2 py-0.5 bg-white text-[#00333e] rounded inline-block">
-                               RECOMMENDED
-                            </div>
-                          )}
-                          
-                          {/* Package Name */}
-                          <h4 className={`font-semibold text-sm md:text-base mb-2 ${
-                            isRecommended ? "text-white" : "text-[#00333e]"
-                          }`}>
-                            {pkg.name}
-                          </h4>
-
-                          {/* Price */}
-                          <div className={`mb-2 pb-2 border-b ${
-                            isRecommended ? "border-white border-opacity-20" : "border-gray-300"
-                          }`}>
-                            <p className={`text-xs font-semibold mb-1 ${
-                              isRecommended ? "text-gray-200" : "text-gray-600"
-                            }`}>
-                              Price
-                            </p>
-                            <p className={`font-bold text-sm md:text-base ${
-                              isRecommended ? "text-white" : "text-[#00333e]"
-                            }`}>
-                              {(pkg.totalPrice || 0).toLocaleString()} Units
-                            </p>
-                          </div>
-
-                          {/* Range */}
-                          <div>
-                            <p className={`text-xs font-semibold mb-1 ${
-                              isRecommended ? "text-gray-200" : "text-gray-600"
-                            }`}>
-                              Unit Range
-                            </p>
-                            <p className={`font-bold text-xs md:text-sm ${
-                              isRecommended ? "text-white" : "text-[#00333e]"
-                            }`}>
-                              {min.toLocaleString()} - {max.toLocaleString()}
-                            </p>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Package Details Modal */}
-      {isPackageDetailsModalOpen && selectedPackage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-md max-w-2xl w-full shadow-lg"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-xl font-semibold text-[#00333e]">{selectedPackage.name}</h2>
-              <button
-                onClick={() => setIsPackageDetailsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FaTimes className="text-xl" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-6 space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
-              {/* Description */}
-              <div>
-                <h3 className="text-sm font-medium text-[#00333e] mb-2">Description</h3>
-                <p className="text-gray-600 text-sm">{selectedPackage.description}</p>
-              </div>
-
-              {/* Package Price */}
-              <div>
-                <h3 className="text-sm font-medium text-[#00333e] mb-2">Package Price</h3>
-                <p className="text-2xl font-bold text-[#00333e]">
-                  {(selectedPackage.totalPrice || 0).toLocaleString()} Units
-                </p>
-              </div>
-
-              {/* Services/Units Breakdown */}
-              {selectedPackage.services && selectedPackage.services.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-[#00333e] mb-2">What's Included</h3>
-                  <div className="space-y-2">
-                    {selectedPackage.services.map((service, idx) => (
-                      <div key={idx} className="bg-gray-50 p-3 rounded-md">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Units Allocated:</span>
-                          <span className="font-semibold text-[#00333e]">
-                            {service.units_allocated.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center mt-1">
-                          <span className="text-sm text-gray-600">Unit Cost:</span>
-                          <span className="text-sm text-[#00333e]">
-                            {service.unit_cost_at_purchase} units each
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Unit Quantity Input */}
-              {selectedPackage.services && selectedPackage.services.length > 0 && (() => {
-                const { min, max } = getPackageUnitRange(selectedPackage);
-                return (
-                  <div>
-                    <label className="block text-sm font-medium text-[#00333e] mb-2">
-                      How many units do you want?
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newValue = Math.max(min, selectedUnits - 100);
-                          setSelectedUnits(newValue);
-                          if (newValue > 0) {
-                            setUnitError(validateUnitQuantity(newValue, selectedPackage));
-                          } else {
-                            setUnitError("");
-                          }
-                        }}
-                        className="px-3 py-2 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-bold"
-                      >
-                        −
-                      </button>
-                      <input
-                        type="number"
-                        value={selectedUnits || ""}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value) || 0;
-                          setSelectedUnits(value);
-                          if (value > 0) {
-                            setUnitError(validateUnitQuantity(value, selectedPackage));
-                          } else {
-                            setUnitError("");
-                          }
-                        }}
-                        placeholder="Enter unit quantity"
-                        min={min}
-                        max={max}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e] text-center"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newValue = Math.min(max, selectedUnits + 100);
-                          setSelectedUnits(newValue);
-                          if (newValue > 0) {
-                            setUnitError(validateUnitQuantity(newValue, selectedPackage));
-                          } else {
-                            setUnitError("");
-                          }
-                        }}
-                        className="px-3 py-2 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-bold"
-                      >
-                        +
-                      </button>
-                    </div>
-                    {unitError && (
-                      <p className="text-red-500 text-xs mt-2">{unitError}</p>
-                    )}
-                    <p className="text-xs text-gray-500 mt-1">
-                      Range: {min.toLocaleString()} - {max.toLocaleString()} units
-                    </p>
-                  </div>
-                );
-              })()}
-
-              {/* Cost Breakdown */}
-              {selectedUnits > 0 && !unitError && selectedPackage.services.length > 0 && (() => {
-                return (
-                  <div className="bg-blue-50 p-4 rounded-md space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Units to Purchase:</span>
-                      <span className="font-medium text-[#00333e]">{selectedUnits.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Unit Price:</span>
-                      <span className="font-medium text-[#00333e]">{selectedPackage.services[0]?.unit_cost_at_purchase || 0} units each</span>
-                    </div>
-                    <div className="border-t border-blue-200 pt-2 flex justify-between">
-                      <span className="font-semibold text-[#00333e]">Total Cost:</span>
-                      <span className="text-lg font-bold text-[#fddf0d]">
-                        {(selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)).toLocaleString()} Units
-                      </span>
-                    </div>
-                    {wallet && (
-                      <div className="flex justify-between text-sm pt-2">
-                        <span className="text-gray-600">Wallet Balance:</span>
-                        <span className={wallet.units >= selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0) ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                          {wallet.units.toLocaleString()} Units
+                          {transaction.type === "topup" ? "Top-Up" : "Usage"}
                         </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {transaction.source}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#004d66]">
+                        {transaction.type === "topup" ? "+" : "-"}
+                        {transaction.units.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {transaction.amount > 0 ? `${transaction.amount.toLocaleString()} Tsh` : "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {transaction.status === "Completed" ? (
+                          <div className="flex items-center text-green-600">
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            <span>Completed</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center text-orange-600">
+                            <Clock className="w-4 h-4 mr-1" />
+                            <span>Pending</span>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-              {/* Wallet Balance */}
-              {wallet && !selectedUnits && (
-                <div className="bg-blue-50 p-4 rounded-md">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-[#00333e]">Wallet Balance:</span>
-                    <span className="text-lg font-bold text-[#00333e]">
-                      {wallet.units.toLocaleString()} Units
-                    </span>
-                  </div>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 bg-gray-100 text-[#004d66] rounded-md text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 bg-gray-100 text-[#004d66] rounded-md text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
                 </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="flex gap-3 p-6 border-t border-gray-100">
-              <button
-                onClick={() => setIsPackageDetailsModalOpen(false)}
-                className="flex-1 px-4 py-2 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => handlePurchase(selectedPackage)}
-                className="flex-1 px-4 py-2 bg-[#fddf0d] text-[#00333e] rounded-md text-sm font-medium hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={
-                  purchasingPackageId === selectedPackage.id ||
-                  !wallet ||
-                  selectedUnits <= 0 ||
-                  !!unitError ||
-                  !selectedPackage.services[0] ||
-                  wallet.units < selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)
-                }
-              >
-                {purchasingPackageId === selectedPackage.id ? (
-                  <span className="flex items-center justify-center">
-                    <FaSpinner className="animate-spin mr-2" />
-                    Processing...
-                  </span>
-                ) : (
-                  `Purchase ${selectedUnits.toLocaleString()} Units`
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+              </div>
+            )}
+          </>
+        )}
+      </motion.div>
 
       {/* Top-Up Modal */}
       {isTopUpModalOpen && (
@@ -1036,18 +807,18 @@ const Subscription: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-md max-w-md w-full shadow-lg"
           >
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-xl font-semibold text-[#00333e]">Top Up Wallet</h2>
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-[#004d66]">Top Up Wallet</h2>
               <button
                 onClick={() => setIsTopUpModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <FaTimes className="text-xl" />
+                <XCircle className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleTopUp} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[#00333e] mb-2">
+                <label className="block text-sm font-medium text-[#004d66] mb-2">
                   Phone Number
                 </label>
                 <input
@@ -1056,171 +827,49 @@ const Subscription: React.FC = () => {
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="Enter mobile money number"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#004d66] text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#00333e] mb-2">
+                <label className="block text-sm font-medium text-[#004d66] mb-2">
                   Amount (Tsh)
                 </label>
                 <input
                   type="number"
                   value={topUpAmount}
-                  onChange={(e) => setTopUpAmount(parseFloat(e.target.value))}
+                  onChange={(e) => setTopUpAmount(e.target.value)}
                   placeholder="Enter amount"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#004d66] text-sm"
                 />
               </div>
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsTopUpModalOpen(false)}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200"
+                  className="flex-1 px-4 py-2 bg-gray-100 text-[#004d66] rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isProcessing}
-                  className="flex-1 px-4 py-2 bg-[#00333e] text-white rounded-md text-sm font-medium hover:bg-[#00262f] disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-[#004d66] text-white rounded-md text-sm font-medium hover:bg-[#003d52] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {isProcessing ? "Processing..." : "Top Up"}
+                  {isProcessing ? (
+                    <span className="flex items-center justify-center">
+                      <Clock className="w-4 h-4 animate-spin mr-2" />
+                      Processing...
+                    </span>
+                  ) : (
+                    "Top Up"
+                  )}
                 </button>
               </div>
             </form>
           </motion.div>
         </div>
       )}
-
-      {/* Transactions */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-6 rounded-md border border-gray-100 shadow-sm"
-      >
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-medium text-[#00333e]">Transaction History</h3>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setTransactionFilter("all");
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  transactionFilter === "all"
-                    ? "bg-[#00333e] text-white"
-                    : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => {
-                  setTransactionFilter("usage");
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  transactionFilter === "usage"
-                    ? "bg-[#00333e] text-white"
-                    : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
-                }`}
-              >
-                Package Usage
-              </button>
-              <button
-                onClick={() => {
-                  setTransactionFilter("topup");
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  transactionFilter === "topup"
-                    ? "bg-[#00333e] text-white"
-                    : "bg-gray-100 text-[#00333e] hover:bg-gray-200"
-                }`}
-              >
-                Top-Up
-              </button>
-            </div>
-          </div>
-
-          {isTransactionsLoading ? (
-            <div className="flex items-center justify-center p-8">
-              <FaSpinner className="text-3xl animate-spin text-[#00333e]" />
-            </div>
-          ) : transactionsError ? (
-            <p className="text-red-500 text-sm">{transactionsError}</p>
-          ) : filteredHistory.length === 0 ? (
-            <p className="text-gray-500 text-sm">No transactions found.</p>
-          ) : (
-            <div>
-              <div className="space-y-4">
-                {paginatedHistory.map((historyItem, index) => (
-                  <div
-                    key={index}
-                    className="bg-white p-4 rounded-md border border-gray-100 shadow-sm"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium text-[#00333e]">
-                          {historyItem.units.toLocaleString()} Units
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {new Date(historyItem.date).toLocaleDateString()}
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        {historyItem.amount > 0 && (
-                          <p className="font-medium text-[#00333e]">
-                            {historyItem.amount.toLocaleString()} Tsh
-                          </p>
-                        )}
-                        <p
-                          className={`text-sm ${
-                            historyItem.status === "Completed"
-                              ? "text-green-500"
-                              : "text-orange-500"
-                          }`}
-                        >
-                          {historyItem.status}
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-gray-500 mt-2">{historyItem.source}</p>
-                  </div>
-                ))}
-              </div>
-
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 bg-gray-100 text-[#00333e] rounded-md text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </motion.div>
     </div>
   );
 };
