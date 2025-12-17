@@ -1088,15 +1088,21 @@ const Subscription: React.FC = () => {
                       </button>
                       <button
                         onClick={() => {
-                          handlePurchase(selectedPackage);
-                          setIsServiceModalOpen(false);
+                          if (wallet && wallet.units < totalCost) {
+                            // Insufficient balance - switch to top-up modal
+                            setIsServiceModalOpen(false);
+                            setIsTopUpModalOpen(true);
+                            setTopUpAmount(totalCost - wallet.units);
+                          } else {
+                            handlePurchase(selectedPackage);
+                            setIsServiceModalOpen(false);
+                          }
                         }}
                         disabled={
                           purchasingPackageId === selectedPackage.id ||
                           !wallet ||
                           selectedUnits <= 0 ||
-                          !!unitError ||
-                          wallet.units < totalCost
+                          !!unitError
                         }
                         className="flex-1 px-3 py-2 bg-[#00333e] text-white rounded-lg text-sm font-medium hover:bg-[#004d5e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
@@ -1105,6 +1111,8 @@ const Subscription: React.FC = () => {
                             <Loader2 className="w-3 h-3 animate-spin" />
                             <span className="hidden sm:inline">Processing...</span>
                           </>
+                        ) : wallet && wallet.units < totalCost ? (
+                          "Top Up Wallet"
                         ) : (
                           "Purchase"
                         )}
