@@ -941,127 +941,91 @@ const Subscription: React.FC = () => {
         </div>
       )}
 
-      {/* Package Details Modal */}
+      {/* Package Details Modal - Receipt Style */}
       {isPackageDetailsModalOpen && selectedPackage && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-md max-w-md w-full border border-gray-200"
+            className="bg-white w-full max-w-sm border border-gray-300"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-base font-medium text-[#00333e]">{selectedPackage.name}</h2>
-              <button
-                onClick={() => setIsPackageDetailsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+            {/* Receipt Header */}
+            <div className="p-6 pb-4 border-b border-dashed border-gray-300">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-bold text-[#00333e] uppercase">Briq</h2>
+                <button
+                  onClick={() => setIsPackageDetailsModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-gray-600">{selectedPackage.name}</p>
             </div>
 
-            {/* Content */}
-            <div className="p-4 space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto">
-              {selectedPackage.description && (
-                <div>
-                  <h3 className="text-xs font-medium text-[#00333e] mb-2 uppercase tracking-wider">Description</h3>
-                  <p className="text-gray-600 text-xs">{selectedPackage.description}</p>
-                </div>
-              )}
-
-              <div>
-                <h3 className="text-xs font-bold text-[#00333e] mb-2 uppercase tracking-wider">Package Price</h3>
-                <p className="text-2xl font-bold text-[#00333e]">
-                  {(selectedPackage.totalPrice || 0).toLocaleString()} Units
-                </p>
-              </div>
-
+            {/* Receipt Body */}
+            <div className="p-6 space-y-4">
+              {/* Quantity Input */}
               {selectedPackage.services?.length > 0 && (() => {
                 const { min, max } = getPackageUnitRange(selectedPackage);
                 return (
                   <div>
-                    <label className="block text-xs font-medium text-[#00333e] mb-2 uppercase tracking-wider">
-                      Quantity (Units)
+                    <label className="block text-xs text-gray-600 mb-2">
+                      Quantity
                     </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          const newValue = Math.max(min, selectedUnits - 100);
-                          setSelectedUnits(newValue);
-                          if (newValue > 0) {
-                            setUnitError(validateUnitQuantity(newValue, selectedPackage));
-                          }
-                        }}
-                        className="w-8 h-8 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-medium flex items-center justify-center"
-                      >
-                        −
-                      </button>
-                      <input
-                        type="number"
-                        value={selectedUnits || ""}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value) || 0;
-                          setSelectedUnits(value);
-                          if (value > 0) {
-                            setUnitError(validateUnitQuantity(value, selectedPackage));
-                          }
-                        }}
-                        placeholder="Enter quantity"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00333e] text-center font-medium text-sm"
-                      />
-                      <button
-                        onClick={() => {
-                          const newValue = Math.min(max, selectedUnits + 100);
-                          setSelectedUnits(newValue);
-                          if (newValue > 0) {
-                            setUnitError(validateUnitQuantity(newValue, selectedPackage));
-                          }
-                        }}
-                        className="w-8 h-8 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-medium flex items-center justify-center">
-                        +
-                      </button>
-                    </div>
+                    <input
+                      type="number"
+                      value={selectedUnits || ""}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 0;
+                        setSelectedUnits(value);
+                        if (value > 0) {
+                          setUnitError(validateUnitQuantity(value, selectedPackage));
+                        }
+                      }}
+                      placeholder={`${min.toLocaleString()} - ${max.toLocaleString()}`}
+                      className="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:border-[#00333e]"
+                    />
                     {unitError && (
-                      <p className="text-red-500 text-xs mt-2 font-medium">{unitError}</p>
+                      <p className="text-red-500 text-xs mt-1">{unitError}</p>
                     )}
-                    <p className="text-xs text-gray-500 mt-2 font-medium">
-                      Range: {min.toLocaleString()} - {max.toLocaleString()} units
-                    </p>
                   </div>
                 );
               })()}
 
+              {/* Receipt Items */}
               {selectedUnits > 0 && !unitError && selectedPackage.services?.length > 0 && (
-                <div className="bg-[#fddf0d]/10 p-4 rounded-xl border border-[#fddf0d]/30 space-y-3">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-700 font-medium">Units to Purchase</span>
-                    <span className="font-bold text-[#00333e]">
-                      {selectedUnits.toLocaleString()}
-                    </span>
+                <div className="space-y-3 pt-3 border-t border-dashed border-gray-300">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Units</span>
+                    <span className="text-[#00333e] font-mono">{selectedUnits.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-700 font-medium">Unit Price</span>
-                    <span className="font-bold text-[#00333e]">
+                  
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Unit Price</span>
+                    <span className="text-[#00333e] font-mono">
                       {selectedPackage.services[0]?.unit_cost_at_purchase || 0}
                     </span>
                   </div>
-                  <div className="border-t border-[#fddf0d]/30 pt-3 flex justify-between items-center">
-                    <span className="font-bold text-[#00333e] text-sm">Total Cost</span>
-                    <span className="text-xl font-bold text-[#00333e]">
+
+                  <div className="border-t border-dashed border-gray-300 pt-3 flex justify-between">
+                    <span className="text-sm font-medium text-[#00333e]">TOTAL</span>
+                    <span className="text-base font-bold text-[#00333e] font-mono">
                       {(selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)).toLocaleString()}
                     </span>
                   </div>
+
                   {wallet && (
                     <div className="flex justify-between text-xs pt-2">
-                      <span className="text-gray-700 font-medium">Wallet Balance</span>
+                      <span className="text-gray-600">Balance</span>
                       <span
                         className={
                           wallet.units >= selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)
-                            ? "text-green-600 font-bold"
-                            : "text-red-600 font-bold"
+                            ? "text-green-600 font-mono"
+                            : "text-red-600 font-mono"
                         }
                       >
-                        {wallet.units.toLocaleString()} Units
+                        {wallet.units.toLocaleString()}
                       </span>
                     </div>
                   )}
@@ -1069,14 +1033,8 @@ const Subscription: React.FC = () => {
               )}
             </div>
 
-            {/* Footer */}
-            <div className="flex gap-2 p-4 border-t">
-              <button
-                onClick={() => setIsPackageDetailsModalOpen(false)}
-                className="flex-1 px-4 py-2 bg-gray-100 text-[#00333e] rounded-md font-medium hover:bg-gray-200 transition-colors text-sm"
-              >
-                Cancel
-              </button>
+            {/* Receipt Footer */}
+            <div className="p-6 pt-4 border-t border-dashed border-gray-300">
               <button
                 onClick={() => handlePurchase(selectedPackage)}
                 disabled={
@@ -1087,7 +1045,7 @@ const Subscription: React.FC = () => {
                   !selectedPackage.services?.[0] ||
                   wallet.units < selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)
                 }
-                className="flex-1 px-4 py-2 bg-[#00333e] text-white rounded-md font-medium hover:bg-[#004d5e] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm"
+                className="w-full px-4 py-2 bg-[#00333e] text-white text-sm font-medium hover:bg-[#004d5e] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {purchasingPackageId === selectedPackage.id ? (
                   <>
@@ -1095,7 +1053,7 @@ const Subscription: React.FC = () => {
                     Processing...
                   </>
                 ) : (
-                  `Purchase ${selectedUnits.toLocaleString()} Units`
+                  "Confirm Purchase"
                 )}
               </button>
             </div>
