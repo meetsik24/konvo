@@ -548,7 +548,7 @@ const Subscription: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-md p-6 border border-gray-200"
+          className="bg-white rounded-xl p-6 border border-gray-200"
         >
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -565,7 +565,7 @@ const Subscription: React.FC = () => {
                 <p className="text-red-500 text-xs">{errors.wallet}</p>
               ) : (
                 <>
-                  <div className="bg-white px-4 py-2 rounded-md border border-gray-200 flex items-center gap-3">
+                  <div className="bg-white px-4 py-2 rounded-xl border border-gray-200 flex items-center gap-3">
                     <div className="p-1.5 bg-green-50 rounded-md">
                       <Wallet className="w-4 h-4 text-green-600" />
                     </div>
@@ -578,7 +578,7 @@ const Subscription: React.FC = () => {
                   </div>
                   <button
                     onClick={() => setIsTopUpModalOpen(true)}
-                    className="flex items-center gap-2 bg-[#00333e] text-white px-4 py-2 rounded-md border border-[#00333e] hover:bg-[#004d5e] transition-colors"
+                    className="flex items-center gap-2 bg-[#00333e] text-white px-4 py-2 rounded-xl border border-[#00333e] hover:bg-[#004d5e] transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                     <div>
@@ -591,69 +591,69 @@ const Subscription: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Current Usage */}
+        {/* Current Allocation & Purchase Units - Combined */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-md p-6 border border-gray-200"
+          className="bg-white rounded-xl p-6 border border-gray-200"
         >
-          <h2 className="text-sm font-bold text-[#00333e] mb-4 uppercase tracking-wider">Current Allocation</h2>
-          {errors.usage ? (
-            <p className="text-red-500 text-xs">{errors.usage}</p>
-          ) : loading.usage ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e]"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="bg-white rounded-md p-4 border border-gray-200 flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-gray-50 text-[#00333e]">
-                  <MessageSquare className="w-6 h-6" />
+          {/* Current Allocation Section */}
+          <div className="mb-6">
+            <h2 className="text-sm font-bold text-[#00333e] mb-4 uppercase tracking-wider">Current Allocation</h2>
+            {errors.usage ? (
+              <p className="text-red-500 text-xs">{errors.usage}</p>
+            ) : loading.usage ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e]"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 flex items-center gap-4">
+                  <div className="p-2 rounded-lg bg-white text-[#00333e]">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-[#00333e]">
+                      {currentPackage.allocation.sms.toLocaleString()}
+                    </h3>
+                    <p className="text-gray-500 text-xs font-medium">SMS Units</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-[#00333e]">
-                    {currentPackage.allocation.sms.toLocaleString()}
-                  </h3>
-                  <p className="text-gray-500 text-xs font-medium">SMS Units</p>
+
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 flex items-center gap-4">
+                  <div className="p-2 rounded-lg bg-white text-[#00333e]">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-[#00333e]">
+                      {currentPackage.allocation.whatsapp.toLocaleString()}
+                    </h3>
+                    <p className="text-gray-500 text-xs font-medium">WhatsApp Units</p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 flex items-center gap-4">
+                  <div className="p-2 rounded-lg bg-white text-[#00333e]">
+                    <Phone className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-[#00333e]">
+                      {currentPackage.allocation.avr.toLocaleString()}
+                    </h3>
+                    <p className="text-gray-500 text-xs font-medium">Voice Units</p>
+                  </div>
                 </div>
               </div>
+            )}
+          </div>
 
-              <div className="bg-white rounded-md p-4 border border-gray-200 flex items-center gap-4">
-                <div className="p-2 rounded-md bg-gray-50 text-[#00333e]">
-                  <MessageSquare className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-[#00333e]">
-                    {currentPackage.allocation.whatsapp.toLocaleString()}
-                  </h3>
-                  <p className="text-gray-500 text-xs font-medium">WhatsApp Units</p>
-                </div>
-              </div>
+          {/* Divider */}
+          <div className="border-t border-gray-200 my-6"></div>
 
-              <div className="bg-white rounded-md p-4 border border-gray-200 flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-gray-50 text-[#00333e]">
-                  <Phone className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-[#00333e]">
-                    {currentPackage.allocation.avr.toLocaleString()}
-                  </h3>
-                  <p className="text-gray-500 text-xs font-medium">Voice Units</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </motion.div>
-
-        {/* Services */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-md p-6 border border-gray-200"
-        >
-          <h2 className="text-sm font-bold text-[#00333e] mb-4 uppercase tracking-wider">Purchase Units</h2>
+          {/* Purchase Units Section */}
+          <div>
+            <h2 className="text-sm font-bold text-[#00333e] mb-4 uppercase tracking-wider">Purchase Units</h2>
           {errors.packages ? (
             <p className="text-red-500 text-xs">{errors.packages}</p>
           ) : loading.packages ? (
@@ -664,10 +664,10 @@ const Subscription: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <button
                 onClick={() => openServiceModal("sms")}
-                className="group relative overflow-hidden bg-[#00333e] p-4 rounded-md border border-[#00333e] hover:bg-[#004d5e] transition-colors"
+                className="group relative overflow-hidden bg-[#00333e] p-4 rounded-xl border border-[#00333e] hover:bg-[#004d5e] transition-colors"
               >
                 <div className="flex items-center gap-3 text-white">
-                  <div className="p-2 rounded-md bg-gradient-to-r from-[#004d66] to-[#004d66]">
+                  <div className="p-2 rounded-lg bg-[#004d66]">
                     <MessageSquare className="w-6 h-6 text-white" />
                   </div>
                   <div className="text-left">
@@ -680,40 +680,41 @@ const Subscription: React.FC = () => {
               </button>
 
               <button
-                onClick={() => openServiceModal("whatsapp")}
-                className="group relative overflow-hidden bg-[#00333e] p-4 rounded-md border border-[#00333e] hover:bg-[#004d5e] transition-colors"
+                disabled
+                className="group relative overflow-hidden bg-gray-300 p-4 rounded-xl border border-gray-300 cursor-not-allowed opacity-60"
               >
-                <div className="flex items-center gap-3 text-white">
-                  <div className="p-2 rounded-md bg-gradient-to-r from-[#004d66] to-[#004d66]">
-                    <MessageSquare className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-3 text-gray-500">
+                  <div className="p-2 rounded-lg bg-gray-400">
+                    <MessageSquare className="w-6 h-6 text-gray-600" />
                   </div>
                   <div className="text-left">
                     <h3 className="text-sm font-medium">WhatsApp</h3>
-                    <p className="text-xs text-gray-300 mt-0.5">
-                      {getPackagesByService("whatsapp").length} packages
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      Not Available
                     </p>
                   </div>
                 </div>
               </button>
 
               <button
-                onClick={() => openServiceModal("voice")}
-                className="group relative overflow-hidden bg-[#00333e] p-4 rounded-md border border-[#00333e] hover:bg-[#004d5e] transition-colors"
+                disabled
+                className="group relative overflow-hidden bg-gray-300 p-4 rounded-xl border border-gray-300 cursor-not-allowed opacity-60"
               >
-                <div className="flex items-center gap-3 text-white">
-                  <div className="p-2 rounded-md bg-gradient-to-r from-[#004d66] to-[#004d66]">
-                    <Phone className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-3 text-gray-500">
+                  <div className="p-2 rounded-lg bg-gray-400">
+                    <Phone className="w-6 h-6 text-gray-600" />
                   </div>
                   <div className="text-left">
                     <h3 className="text-sm font-medium">Voice</h3>
-                    <p className="text-xs text-gray-300 mt-0.5">
-                      {getPackagesByService("voice").length} packages
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      Not Available
                     </p>
                   </div>
                 </div>
               </button>
             </div>
           )}
+          </div>
         </motion.div>
 
         {/* Transaction History */}
@@ -721,7 +722,7 @@ const Subscription: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white rounded-md p-6 border border-gray-200"
+          className="bg-white rounded-xl p-6 border border-gray-200"
         >
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <h2 className="text-lg font-medium text-[#004d66]">Transaction History</h2>
@@ -733,7 +734,7 @@ const Subscription: React.FC = () => {
                     setTransactionFilter(filter as typeof transactionFilter);
                     setCurrentPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                     transactionFilter === filter
                       ? "bg-[#00333e] text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -754,45 +755,89 @@ const Subscription: React.FC = () => {
           ) : filteredHistory.length === 0 ? (
             <p className="text-gray-600">No transactions found</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {paginatedHistory.map((item, index) => (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
-                        {new Date(item.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
-                        {item.type === "topup" ? "Top-Up" : "Usage"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-[#004d66]">{item.source}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#004d66]">
-                        {item.units.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
-                        {item.amount > 0 ? `${item.amount.toLocaleString()} Tsh` : "-"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`inline-flex items-center ${
-                          item.status === "Completed" ? "text-green-600" : "text-orange-600"
-                        }`}>
-                          {item.status}
-                        </span>
-                      </td>
+            <div>
+              {/* Desktop Table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {paginatedHistory.map((item, index) => (
+                      <tr key={index} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
+                          {new Date(item.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
+                          {item.type === "topup" ? "Top-Up" : "Usage"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-[#004d66]">{item.source}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#004d66]">
+                          {item.units.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
+                          {item.amount > 0 ? `${item.amount.toLocaleString()} Tsh` : "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={`inline-flex items-center ${
+                            item.status === "Completed" ? "text-green-600" : "text-orange-600"
+                          }`}>
+                            {item.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="sm:hidden space-y-3">
+                {paginatedHistory.map((item, index) => (
+                  <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="text-xs font-bold text-[#00333e] uppercase tracking-wider">
+                          {item.type === "topup" ? "Top-Up" : "Usage"}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {new Date(item.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <span className={`text-xs font-medium px-2 py-1 rounded ${
+                        item.status === "Completed" 
+                          ? "bg-green-100 text-green-600" 
+                          : "bg-orange-100 text-orange-600"
+                      }`}>
+                        {item.status}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">Description</span>
+                        <span className="text-[#00333e] font-medium text-right">{item.source}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">Units</span>
+                        <span className="text-[#00333e] font-bold">{item.units.toLocaleString()}</span>
+                      </div>
+                      {item.amount > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-600">Amount</span>
+                          <span className="text-[#00333e] font-medium">{item.amount.toLocaleString()} Tsh</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
               {totalPages > 1 && (
                 <div className="mt-4 flex justify-between items-center">
                   <p className="text-sm text-gray-600">
@@ -802,14 +847,14 @@ const Subscription: React.FC = () => {
                     <button
                       onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="px-3 py-1.5 bg-gray-100 text-[#00333e] rounded-md text-xs font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="px-3 py-1.5 bg-gray-100 text-[#00333e] rounded-lg text-xs font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       Previous
                     </button>
                     <button
                       onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1.5 bg-gray-100 text-[#00333e] rounded-md text-xs font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="px-3 py-1.5 bg-gray-100 text-[#00333e] rounded-lg text-xs font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       Next
                     </button>
@@ -821,241 +866,253 @@ const Subscription: React.FC = () => {
         </motion.div>
       </div>
 
-      {/* Service Modal - Shows Packages for Selected Service */}
+      {/* Purchase Modal */}
       {isServiceModalOpen && selectedService && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-md max-w-2xl w-full max-h-[90vh] flex flex-col border border-gray-200"
+            className="bg-white rounded-lg sm:rounded-xl w-full max-w-md sm:max-w-2xl max-h-[98vh] sm:max-h-[90vh] overflow-y-auto border border-gray-200"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b">
-              <div className="flex items-center gap-3">
-                {selectedService === "sms" && <MessageSquare className="w-5 h-5 text-[#00333e]" />}
-                {selectedService === "whatsapp" && <MessageSquare className="w-5 h-5 text-[#00333e]" />}
-                {selectedService === "voice" && <Phone className="w-5 h-5 text-[#00333e]" />}
-                <h2 className="text-base font-medium text-[#00333e]">
-                  {selectedService === "sms" && "SMS Packages"}
-                  {selectedService === "whatsapp" && "WhatsApp Packages"}
-                  {selectedService === "voice" && "Voice Packages"}
-                </h2>
-              </div>
+            <div className="sticky top-0 bg-white flex items-center justify-between p-3 sm:p-6 border-b rounded-t-lg sm:rounded-t-xl z-10">
+              <h2 className="text-xs sm:text-base font-bold text-[#00333e]">
+                Purchase {selectedService === "sms" ? "SMS" : selectedService === "whatsapp" ? "WhatsApp" : "Voice"}
+              </h2>
               <button
-                onClick={() => setIsServiceModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                onClick={() => {
+                  setIsServiceModalOpen(false);
+                  setSelectedPackage(null);
+                  setSelectedUnits(0);
+                  setUnitError("");
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 sm:w-5 h-4 sm:h-5" />
               </button>
             </div>
 
-            {/* Input Section */}
-            <div className="p-4 border-b">
-              <label className="block text-xs font-medium text-[#00333e] mb-2 uppercase tracking-wider">
-                How many units do you need?
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={userRequiredUnits || ""}
-                  onChange={(e) => handleUserUnitInput(parseInt(e.target.value) || 0)}
-                  placeholder="Enter number of units"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00333e] focus:border-transparent text-sm"
-                />
-                <button
-                  onClick={() => {
-                    if (userRequiredUnits > 0 && recommendedPackage) {
-                      setSelectedPackage(recommendedPackage);
-                      setSelectedUnits(userRequiredUnits);
-                      setUnitError("");
-                      setIsServiceModalOpen(false);
-                      setIsPackageDetailsModalOpen(true);
-                    }
-                  }}
-                  disabled={userRequiredUnits <= 0 || !recommendedPackage}
-                  className="px-4 py-2 bg-[#00333e] text-white font-medium rounded-md hover:bg-[#004d5e] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
-                >
-                  Purchase
-                </button>
-              </div>
-              {userRequiredUnits > 0 && !recommendedPackage && (
-                <p className="text-red-500 text-xs mt-2 font-medium">
-                  No packages available for {userRequiredUnits.toLocaleString()} units
-                </p>
-              )}
-            </div>
-
-            {/* Packages Grid */}
-            <div className="p-4 flex-1 overflow-y-auto">
-              {getPackagesByService(selectedService).length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 text-xs">No packages available</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {getPackagesByService(selectedService).map((pkg) => {
+            <div className="p-3 sm:p-6 space-y-3 sm:space-y-6">
+              {/* Package Selection */}
+              <div className={selectedPackage ? "hidden sm:block" : ""}>
+                <label className="block text-xs font-bold text-[#00333e] mb-2 uppercase tracking-wider">
+                  Package
+                </label>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                  {getPackagesByService(selectedService).map((pkg, index) => {
                     const { min, max } = getPackageUnitRange(pkg);
-                    const isRecommended = recommendedPackage?.id === pkg.id;
+                    const isPopular = index === 1;
+                    const isSelected = selectedPackage?.id === pkg.id;
 
                     return (
-                      <motion.div
+                      <button
                         key={pkg.id}
-                        whileHover={{ scale: 1.02 }}
-                        className={`p-3 rounded-md border transition-all cursor-pointer ${
-                          isRecommended
-                            ? "bg-[#fddf0d]/10 border-[#fddf0d]"
-                            : "bg-white border-gray-200 hover:border-[#00333e]"
+                        onClick={() => {
+                          setSelectedPackage(pkg);
+                          const { min } = getPackageUnitRange(pkg);
+                          setSelectedUnits(min);
+                          setUnitError("");
+                        }}
+                        className={`relative p-2 sm:p-4 rounded-lg border-2 transition-all text-left ${
+                          isSelected
+                            ? "border-[#00333e] bg-[#00333e]/5"
+                            : isPopular
+                            ? "border-[#fddf0d] bg-[#fddf0d]/5 hover:bg-[#fddf0d]/10"
+                            : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
-                        {isRecommended && (
-                          <div className="inline-block text-xs font-medium mb-2 px-2 py-0.5 bg-[#fddf0d] text-[#00333e] rounded">
-                            RECOMMENDED
+                        {isPopular && (
+                          <div className="absolute -top-1 sm:-top-2 -right-1 sm:-right-2">
+                            <span className="bg-[#fddf0d] text-[#00333e] text-xs font-bold px-1 sm:px-2 py-0.5 rounded">
+                              ★
+                            </span>
                           </div>
                         )}
-                        
-                        <h4 className="font-medium text-sm text-[#00333e] mb-2">
-                          {pkg.name}
-                        </h4>
-
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-600 font-medium">Price</span>
-                            <span className="font-bold text-[#00333e] text-sm">
-                              {(pkg.totalPrice || 0).toLocaleString()} Units
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-600 font-medium">Range</span>
-                            <span className="font-semibold text-[#00333e] text-xs">
-                              {min.toLocaleString()} - {max.toLocaleString()}
-                            </span>
-                          </div>
+                        <div className="space-y-0.5 sm:space-y-2">
+                          <h4 className="font-bold text-xs text-[#00333e]">{pkg.name}</h4>
+                          <p className="text-xs text-gray-600">
+                            {min.toLocaleString()} - {max === Infinity ? '∞' : max.toLocaleString()}
+                          </p>
                         </div>
-                      </motion.div>
+                      </button>
                     );
                   })}
                 </div>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Package Details Modal - Receipt Style */}
-      {isPackageDetailsModalOpen && selectedPackage && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white w-full max-w-sm border border-gray-300"
-          >
-            {/* Receipt Header */}
-            <div className="p-6 pb-4 border-b border-dashed border-gray-300">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-lg font-bold text-[#00333e] uppercase">Briq</h2>
-                <button
-                  onClick={() => setIsPackageDetailsModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
               </div>
-              <p className="text-xs text-gray-600">{selectedPackage.name}</p>
-            </div>
 
-            {/* Receipt Body */}
-            <div className="p-6 space-y-4">
-              {/* Quantity Input */}
-              {selectedPackage.services?.length > 0 && (() => {
+              {/* Units Input & Summary */}
+              {selectedPackage && selectedPackage.services?.length > 0 && (() => {
                 const { min, max } = getPackageUnitRange(selectedPackage);
+                const unitPrice = selectedPackage.services[0]?.unit_cost_at_purchase || 0;
+                const totalCost = selectedUnits * unitPrice;
+
                 return (
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-2">
-                      Quantity
-                    </label>
-                    <input
-                      type="number"
-                      value={selectedUnits || ""}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value) || 0;
-                        setSelectedUnits(value);
-                        if (value > 0) {
-                          setUnitError(validateUnitQuantity(value, selectedPackage));
-                        }
-                      }}
-                      placeholder={`${min.toLocaleString()} - ${max.toLocaleString()}`}
-                      className="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:border-[#00333e]"
-                    />
-                    {unitError && (
-                      <p className="text-red-500 text-xs mt-1">{unitError}</p>
+                  <>
+                    {/* Selected Package Info - Mobile Only */}
+                    <div className="sm:hidden bg-gray-50 rounded-lg p-3 border border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-gray-600 mb-0.5">Selected Package</p>
+                          <p className="text-sm font-bold text-[#00333e]">{selectedPackage.name}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Range: {min.toLocaleString()} - {max === Infinity ? '∞' : max.toLocaleString()} units
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedPackage(null);
+                            setSelectedUnits(0);
+                            setUnitError("");
+                          }}
+                          className="text-xs text-[#00333e] underline"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Units Input */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#00333e] mb-2 uppercase tracking-wider">
+                        Units
+                      </label>
+                      <input
+                        type="number"
+                        value={selectedUnits || ""}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          setSelectedUnits(value);
+                          
+                          // Auto-select appropriate package based on units entered
+                          if (value > 0 && selectedService) {
+                            const servicePackages = getPackagesByService(selectedService);
+                            const appropriatePackage = servicePackages.find(pkg => {
+                              const { min, max } = getPackageUnitRange(pkg);
+                              return value >= min && value <= max;
+                            });
+                            
+                            if (appropriatePackage && appropriatePackage.id !== selectedPackage?.id) {
+                              setSelectedPackage(appropriatePackage);
+                            }
+                            
+                            const error = appropriatePackage 
+                              ? validateUnitQuantity(value, appropriatePackage)
+                              : "No package available for this quantity";
+                            setUnitError(error);
+                          } else {
+                            setUnitError("");
+                          }
+                        }}
+                        placeholder={`${min.toLocaleString()} - ${max.toLocaleString()}`}
+                        className="w-full px-3 py-2 sm:py-3 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e] focus:border-transparent"
+                      />
+                      {unitError && (
+                        <p className="text-red-500 text-xs mt-1">{unitError}</p>
+                      )}
+                    </div>
+
+                    {/* Cost Summary - Compact on Mobile */}
+                    {selectedUnits > 0 && !unitError && (
+                      <div className="bg-[#00333e]/5 rounded-lg p-3 border border-[#00333e]/20">
+                        {/* Desktop View */}
+                        <div className="hidden sm:block">
+                          <h3 className="text-xs font-bold text-[#00333e] mb-2.5 uppercase tracking-wider">
+                            Summary
+                          </h3>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-600">Package</span>
+                              <span className="text-xs font-bold text-[#00333e]">{selectedPackage.name}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-600">Units</span>
+                              <span className="text-xs font-medium text-[#00333e]">{selectedUnits.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-600">Unit Price</span>
+                              <span className="text-xs font-medium text-[#00333e]">{unitPrice}</span>
+                            </div>
+                            <div className="border-t border-[#00333e]/20 pt-2 flex justify-between items-center">
+                              <span className="text-sm font-bold text-[#00333e]">Total</span>
+                              <span className="text-lg font-bold text-[#00333e]">{totalCost.toLocaleString()}</span>
+                            </div>
+                            {wallet && (
+                              <div className="flex justify-between items-center pt-2 border-t border-[#00333e]/20">
+                                <span className="text-xs text-gray-600">Balance</span>
+                                <span className={`text-xs font-bold ${wallet.units >= totalCost ? "text-green-600" : "text-red-600"}`}>
+                                  {wallet.units.toLocaleString()}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Mobile View - Show Package & Unit Price */}
+                        <div className="sm:hidden space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-600">Package</span>
+                            <span className="text-xs font-bold text-[#00333e]">{selectedPackage.name}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-600">Unit Price</span>
+                            <span className="text-xs font-medium text-[#00333e]">{unitPrice}</span>
+                          </div>
+                          <div className="border-t border-[#00333e]/20 pt-2 flex justify-between items-center">
+                            <span className="text-xs font-bold text-[#00333e]">Total Cost</span>
+                            <span className="text-base font-bold text-[#00333e]">{totalCost.toLocaleString()}</span>
+                          </div>
+                          {wallet && (
+                            <div className="flex justify-between items-center pt-1.5 border-t border-[#00333e]/20">
+                              <span className="text-xs text-gray-600">Balance</span>
+                              <span className={`text-xs font-bold ${wallet.units >= totalCost ? "text-green-600" : "text-red-600"}`}>
+                                {wallet.units.toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
-                  </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => {
+                          setIsServiceModalOpen(false);
+                          setSelectedPackage(null);
+                          setSelectedUnits(0);
+                          setUnitError("");
+                        }}
+                        className="flex-1 px-3 py-2 bg-gray-100 text-[#00333e] rounded-lg text-sm font-medium hover:bg-gray-200"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          handlePurchase(selectedPackage);
+                          setIsServiceModalOpen(false);
+                        }}
+                        disabled={
+                          purchasingPackageId === selectedPackage.id ||
+                          !wallet ||
+                          selectedUnits <= 0 ||
+                          !!unitError ||
+                          wallet.units < totalCost
+                        }
+                        className="flex-1 px-3 py-2 bg-[#00333e] text-white rounded-lg text-sm font-medium hover:bg-[#004d5e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {purchasingPackageId === selectedPackage.id ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span className="hidden sm:inline">Processing...</span>
+                          </>
+                        ) : (
+                          "Purchase"
+                        )}
+                      </button>
+                    </div>
+                  </>
                 );
               })()}
-
-              {/* Receipt Items */}
-              {selectedUnits > 0 && !unitError && selectedPackage.services?.length > 0 && (
-                <div className="space-y-3 pt-3 border-t border-dashed border-gray-300">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Units</span>
-                    <span className="text-[#00333e] font-mono">{selectedUnits.toLocaleString()}</span>
-                  </div>
-                  
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Unit Price</span>
-                    <span className="text-[#00333e] font-mono">
-                      {selectedPackage.services[0]?.unit_cost_at_purchase || 0}
-                    </span>
-                  </div>
-
-                  <div className="border-t border-dashed border-gray-300 pt-3 flex justify-between">
-                    <span className="text-sm font-medium text-[#00333e]">TOTAL</span>
-                    <span className="text-base font-bold text-[#00333e] font-mono">
-                      {(selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)).toLocaleString()}
-                    </span>
-                  </div>
-
-                  {wallet && (
-                    <div className="flex justify-between text-xs pt-2">
-                      <span className="text-gray-600">Balance</span>
-                      <span
-                        className={
-                          wallet.units >= selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)
-                            ? "text-green-600 font-mono"
-                            : "text-red-600 font-mono"
-                        }
-                      >
-                        {wallet.units.toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Receipt Footer */}
-            <div className="p-6 pt-4 border-t border-dashed border-gray-300">
-              <button
-                onClick={() => handlePurchase(selectedPackage)}
-                disabled={
-                  purchasingPackageId === selectedPackage.id ||
-                  !wallet ||
-                  selectedUnits <= 0 ||
-                  !!unitError ||
-                  !selectedPackage.services?.[0] ||
-                  wallet.units < selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)
-                }
-                className="w-full px-4 py-2 bg-[#00333e] text-white text-sm font-medium hover:bg-[#004d5e] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              >
-                {purchasingPackageId === selectedPackage.id ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Confirm Purchase"
-                )}
-              </button>
             </div>
           </motion.div>
         </div>
@@ -1067,7 +1124,7 @@ const Subscription: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-md max-w-sm w-full border border-gray-200"
+            className="bg-white rounded-xl max-w-sm w-full border border-gray-200"
           >
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="text-base font-medium text-[#00333e]">Top Up Wallet</h2>
@@ -1089,7 +1146,7 @@ const Subscription: React.FC = () => {
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="Enter mobile money number"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00333e] focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00333e] focus:border-transparent text-sm"
                 />
               </div>
               <div>
@@ -1102,21 +1159,21 @@ const Subscription: React.FC = () => {
                   onChange={(e) => setTopUpAmount(parseFloat(e.target.value))}
                   placeholder="Enter amount"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00333e] focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00333e] focus:border-transparent text-sm"
                 />
               </div>
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsTopUpModalOpen(false)}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-[#00333e] rounded-md font-medium hover:bg-gray-200 transition-colors text-sm"
+                  className="flex-1 px-4 py-2 bg-gray-100 text-[#00333e] rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isProcessing}
-                  className="flex-1 px-4 py-2 bg-[#00333e] text-white rounded-md font-medium hover:bg-[#004d5e] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-sm"
+                  className="flex-1 px-4 py-2 bg-[#00333e] text-white rounded-lg font-medium hover:bg-[#004d5e] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-sm"
                 >
                   {isProcessing ? (
                     <>
