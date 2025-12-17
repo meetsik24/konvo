@@ -535,7 +535,7 @@ const Subscription: React.FC = () => {
 
   // -------------------- UI RENDER --------------------
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6">
+    <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <Alert
           type={alertState.type}
@@ -548,36 +548,44 @@ const Subscription: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl p-6 shadow-sm"
+          className="bg-white rounded-md p-6 border border-gray-200"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Subscription</h1>
-              <p className="text-gray-500 text-sm mt-1">Manage your units and services</p>
+              <h1 className="text-2xl font-bold text-[#00333e]">Subscription</h1>
+              <p className="text-gray-500 text-xs font-medium mt-1">Manage your units and services</p>
             </div>
-            <div className="text-right">
+            <div className="flex items-center gap-3">
               {loading.wallet ? (
                 <div className="flex items-center gap-2 text-gray-400">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm">Loading...</span>
+                  <span className="text-xs">Loading...</span>
                 </div>
               ) : errors.wallet ? (
-                <p className="text-red-500 text-sm">{errors.wallet}</p>
+                <p className="text-red-500 text-xs">{errors.wallet}</p>
               ) : (
-                <div>
-                  <p className="text-sm text-gray-500 font-medium">Wallet Balance</p>
-                  <p className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                    <Wallet className="w-6 h-6 text-blue-600" />
-                    {wallet?.units?.toLocaleString() || 0}
-                  </p>
+                <>
+                  <div className="bg-white px-4 py-2 rounded-md border border-gray-200 flex items-center gap-3">
+                    <div className="p-1.5 bg-green-50 rounded-md">
+                      <Wallet className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Wallet Balance</p>
+                      <p className="text-sm font-bold text-[#00333e]">
+                        {wallet?.units?.toLocaleString() || 0}
+                      </p>
+                    </div>
+                  </div>
                   <button
                     onClick={() => setIsTopUpModalOpen(true)}
-                    className="mt-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    className="flex items-center gap-2 bg-[#00333e] text-white px-4 py-2 rounded-md border border-[#00333e] hover:bg-[#004d5e] transition-colors"
                   >
                     <Plus className="w-4 h-4" />
-                    Top Up
+                    <div>
+                      <p className="text-xs font-medium">Top Up</p>
+                    </div>
                   </button>
-                </div>
+                </>
               )}
             </div>
           </div>
@@ -588,48 +596,51 @@ const Subscription: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl p-6 shadow-sm"
+          className="bg-white rounded-md p-6 border border-gray-200"
         >
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Current Allocation</h2>
+          <h2 className="text-sm font-bold text-[#00333e] mb-4 uppercase tracking-wider">Current Allocation</h2>
           {errors.usage ? (
-            <p className="text-red-500 text-sm">{errors.usage}</p>
+            <p className="text-red-500 text-xs">{errors.usage}</p>
           ) : loading.usage ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e]"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg">
-                <div className="flex items-center gap-3 mb-2">
-                  <MessageSquare className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm font-medium text-gray-700">SMS</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="bg-white rounded-md p-4 border border-gray-200 flex items-center gap-4">
+                <div className="p-2 rounded-lg bg-gray-50 text-[#00333e]">
+                  <MessageSquare className="w-6 h-6" />
                 </div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {currentPackage.allocation.sms.toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">units allocated</p>
+                <div>
+                  <h3 className="text-lg font-bold text-[#00333e]">
+                    {currentPackage.allocation.sms.toLocaleString()}
+                  </h3>
+                  <p className="text-gray-500 text-xs font-medium">SMS Units</p>
+                </div>
               </div>
 
-              <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg">
-                <div className="flex items-center gap-3 mb-2">
-                  <MessageSquare className="w-5 h-5 text-green-600" />
-                  <span className="text-sm font-medium text-gray-700">WhatsApp</span>
+              <div className="bg-white rounded-md p-4 border border-gray-200 flex items-center gap-4">
+                <div className="p-2 rounded-md bg-gray-50 text-[#00333e]">
+                  <MessageSquare className="w-6 h-6" />
                 </div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {currentPackage.allocation.whatsapp.toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">units allocated</p>
+                <div>
+                  <h3 className="text-lg font-bold text-[#00333e]">
+                    {currentPackage.allocation.whatsapp.toLocaleString()}
+                  </h3>
+                  <p className="text-gray-500 text-xs font-medium">WhatsApp Units</p>
+                </div>
               </div>
 
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg">
-                <div className="flex items-center gap-3 mb-2">
-                  <Phone className="w-5 h-5 text-purple-600" />
-                  <span className="text-sm font-medium text-gray-700">Voice</span>
+              <div className="bg-white rounded-md p-4 border border-gray-200 flex items-center gap-4">
+                <div className="p-2 rounded-lg bg-gray-50 text-[#00333e]">
+                  <Phone className="w-6 h-6" />
                 </div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {currentPackage.allocation.avr.toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">units allocated</p>
+                <div>
+                  <h3 className="text-lg font-bold text-[#00333e]">
+                    {currentPackage.allocation.avr.toLocaleString()}
+                  </h3>
+                  <p className="text-gray-500 text-xs font-medium">Voice Units</p>
+                </div>
               </div>
             </div>
           )}
@@ -640,57 +651,66 @@ const Subscription: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl p-6 shadow-sm"
+          className="bg-white rounded-md p-6 border border-gray-200"
         >
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Purchase Units</h2>
+          <h2 className="text-sm font-bold text-[#00333e] mb-4 uppercase tracking-wider">Purchase Units</h2>
           {errors.packages ? (
-            <p className="text-red-500 text-sm">{errors.packages}</p>
+            <p className="text-red-500 text-xs">{errors.packages}</p>
           ) : loading.packages ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e]"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <button
                 onClick={() => openServiceModal("sms")}
-                className="group relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-xl hover:shadow-lg transition-all duration-300"
+                className="group relative overflow-hidden bg-[#00333e] p-4 rounded-md border border-[#00333e] hover:bg-[#004d5e] transition-colors"
               >
-                <div className="relative z-10 flex flex-col items-center text-white">
-                  <MessageSquare className="w-10 h-10 mb-3" />
-                  <h3 className="text-lg font-semibold">SMS</h3>
-                  <p className="text-sm text-blue-100 mt-1">
-                    {getPackagesByService("sms").length} packages
-                  </p>
+                <div className="flex items-center gap-3 text-white">
+                  <div className="p-2 rounded-md bg-gradient-to-r from-[#004d66] to-[#004d66]">
+                    <MessageSquare className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-sm font-medium">SMS</h3>
+                    <p className="text-xs text-gray-300 mt-0.5">
+                      {getPackagesByService("sms").length} packages
+                    </p>
+                  </div>
                 </div>
-                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
               </button>
 
               <button
                 onClick={() => openServiceModal("whatsapp")}
-                className="group relative overflow-hidden bg-gradient-to-br from-green-600 to-green-700 p-6 rounded-xl hover:shadow-lg transition-all duration-300"
+                className="group relative overflow-hidden bg-[#00333e] p-4 rounded-md border border-[#00333e] hover:bg-[#004d5e] transition-colors"
               >
-                <div className="relative z-10 flex flex-col items-center text-white">
-                  <MessageSquare className="w-10 h-10 mb-3" />
-                  <h3 className="text-lg font-semibold">WhatsApp</h3>
-                  <p className="text-sm text-green-100 mt-1">
-                    {getPackagesByService("whatsapp").length} packages
-                  </p>
+                <div className="flex items-center gap-3 text-white">
+                  <div className="p-2 rounded-md bg-gradient-to-r from-[#004d66] to-[#004d66]">
+                    <MessageSquare className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-sm font-medium">WhatsApp</h3>
+                    <p className="text-xs text-gray-300 mt-0.5">
+                      {getPackagesByService("whatsapp").length} packages
+                    </p>
+                  </div>
                 </div>
-                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
               </button>
 
               <button
                 onClick={() => openServiceModal("voice")}
-                className="group relative overflow-hidden bg-gradient-to-br from-purple-600 to-purple-700 p-6 rounded-xl hover:shadow-lg transition-all duration-300"
+                className="group relative overflow-hidden bg-[#00333e] p-4 rounded-md border border-[#00333e] hover:bg-[#004d5e] transition-colors"
               >
-                <div className="relative z-10 flex flex-col items-center text-white">
-                  <Phone className="w-10 h-10 mb-3" />
-                  <h3 className="text-lg font-semibold">Voice</h3>
-                  <p className="text-sm text-purple-100 mt-1">
-                    {getPackagesByService("voice").length} packages
-                  </p>
+                <div className="flex items-center gap-3 text-white">
+                  <div className="p-2 rounded-md bg-gradient-to-r from-[#004d66] to-[#004d66]">
+                    <Phone className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-sm font-medium">Voice</h3>
+                    <p className="text-xs text-gray-300 mt-0.5">
+                      {getPackagesByService("voice").length} packages
+                    </p>
+                  </div>
                 </div>
-                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
               </button>
             </div>
           )}
@@ -701,10 +721,10 @@ const Subscription: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white rounded-xl p-6 shadow-sm"
+          className="bg-white rounded-md p-6 border border-gray-200"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Transaction History</h2>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+            <h2 className="text-lg font-medium text-[#004d66]">Transaction History</h2>
             <div className="flex gap-2">
               {["all", "usage", "topup"].map((filter) => (
                 <button
@@ -713,9 +733,9 @@ const Subscription: React.FC = () => {
                     setTransactionFilter(filter as typeof transactionFilter);
                     setCurrentPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     transactionFilter === filter
-                      ? "bg-blue-600 text-white"
+                      ? "bg-[#00333e] text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
@@ -727,68 +747,69 @@ const Subscription: React.FC = () => {
 
           {isTransactionsLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e]"></div>
             </div>
           ) : transactionsError ? (
             <p className="text-red-500 text-sm">{transactionsError}</p>
           ) : filteredHistory.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No transactions found</p>
-            </div>
+            <p className="text-gray-600">No transactions found</p>
           ) : (
-            <div className="space-y-3">
-              {paginatedHistory.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">
-                      {item.units.toLocaleString()} Units
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">{item.source}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">
-                      {new Date(item.date).toLocaleDateString()}
-                    </p>
-                    {item.amount > 0 && (
-                      <p className="text-sm font-medium text-gray-900 mt-1">
-                        {item.amount.toLocaleString()} Tsh
-                      </p>
-                    )}
-                    <span
-                      className={`inline-block text-xs font-medium mt-1 px-2 py-1 rounded ${
-                        item.status === "Completed"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-orange-100 text-orange-700"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {paginatedHistory.map((item, index) => (
+                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
+                        {new Date(item.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
+                        {item.type === "topup" ? "Top-Up" : "Usage"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-[#004d66]">{item.source}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#004d66]">
+                        {item.units.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
+                        {item.amount > 0 ? `${item.amount.toLocaleString()} Tsh` : "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`inline-flex items-center ${
+                          item.status === "Completed" ? "text-green-600" : "text-orange-600"
+                        }`}>
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
               {totalPages > 1 && (
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <p className="text-sm text-gray-500">
+                <div className="mt-4 flex justify-between items-center">
+                  <p className="text-sm text-gray-600">
                     Page {currentPage} of {totalPages}
                   </p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="px-3 py-1.5 bg-gray-100 text-[#00333e] rounded-md text-xs font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       Previous
                     </button>
                     <button
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="px-3 py-1.5 bg-gray-100 text-[#00333e] rounded-md text-xs font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       Next
                     </button>
@@ -806,15 +827,15 @@ const Subscription: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl"
+            className="bg-white rounded-md max-w-2xl w-full max-h-[90vh] flex flex-col border border-gray-200"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b">
+            <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center gap-3">
-                {selectedService === "sms" && <MessageSquare className="w-6 h-6 text-blue-600" />}
-                {selectedService === "whatsapp" && <MessageSquare className="w-6 h-6 text-green-600" />}
-                {selectedService === "voice" && <Phone className="w-6 h-6 text-purple-600" />}
-                <h2 className="text-xl font-bold text-gray-900">
+                {selectedService === "sms" && <MessageSquare className="w-5 h-5 text-[#00333e]" />}
+                {selectedService === "whatsapp" && <MessageSquare className="w-5 h-5 text-[#00333e]" />}
+                {selectedService === "voice" && <Phone className="w-5 h-5 text-[#00333e]" />}
+                <h2 className="text-base font-medium text-[#00333e]">
                   {selectedService === "sms" && "SMS Packages"}
                   {selectedService === "whatsapp" && "WhatsApp Packages"}
                   {selectedService === "voice" && "Voice Packages"}
@@ -829,17 +850,17 @@ const Subscription: React.FC = () => {
             </div>
 
             {/* Input Section */}
-            <div className="p-6 border-b bg-gray-50">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+            <div className="p-4 border-b">
+              <label className="block text-xs font-medium text-[#00333e] mb-2 uppercase tracking-wider">
                 How many units do you need?
               </label>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <input
                   type="number"
                   value={userRequiredUnits || ""}
                   onChange={(e) => handleUserUnitInput(parseInt(e.target.value) || 0)}
                   placeholder="Enter number of units"
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00333e] focus:border-transparent text-sm"
                 />
                 <button
                   onClick={() => {
@@ -852,26 +873,26 @@ const Subscription: React.FC = () => {
                     }
                   }}
                   disabled={userRequiredUnits <= 0 || !recommendedPackage}
-                  className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 bg-[#00333e] text-white font-medium rounded-md hover:bg-[#004d5e] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
                 >
                   Purchase
                 </button>
               </div>
               {userRequiredUnits > 0 && !recommendedPackage && (
-                <p className="text-red-500 text-sm mt-2">
+                <p className="text-red-500 text-xs mt-2 font-medium">
                   No packages available for {userRequiredUnits.toLocaleString()} units
                 </p>
               )}
             </div>
 
             {/* Packages Grid */}
-            <div className="p-6 flex-1 overflow-y-auto">
+            <div className="p-4 flex-1 overflow-y-auto">
               {getPackagesByService(selectedService).length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-500">No packages available</p>
+                  <p className="text-gray-500 text-xs">No packages available</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {getPackagesByService(selectedService).map((pkg) => {
                     const { min, max } = getPackageUnitRange(pkg);
                     const isRecommended = recommendedPackage?.id === pkg.id;
@@ -880,32 +901,32 @@ const Subscription: React.FC = () => {
                       <motion.div
                         key={pkg.id}
                         whileHover={{ scale: 1.02 }}
-                        className={`p-5 rounded-xl border-2 transition-all cursor-pointer ${
+                        className={`p-3 rounded-md border transition-all cursor-pointer ${
                           isRecommended
-                            ? "bg-blue-50 border-blue-500 shadow-md"
-                            : "bg-white border-gray-200 hover:border-gray-300"
+                            ? "bg-[#fddf0d]/10 border-[#fddf0d]"
+                            : "bg-white border-gray-200 hover:border-[#00333e]"
                         }`}
                       >
                         {isRecommended && (
-                          <div className="inline-block text-xs font-bold mb-2 px-2 py-1 bg-blue-600 text-white rounded">
+                          <div className="inline-block text-xs font-medium mb-2 px-2 py-0.5 bg-[#fddf0d] text-[#00333e] rounded">
                             RECOMMENDED
                           </div>
                         )}
                         
-                        <h4 className="font-bold text-lg text-gray-900 mb-3">
+                        <h4 className="font-medium text-sm text-[#00333e] mb-2">
                           {pkg.name}
                         </h4>
 
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Price</span>
-                            <span className="font-bold text-gray-900">
+                            <span className="text-xs text-gray-600 font-medium">Price</span>
+                            <span className="font-bold text-[#00333e] text-sm">
                               {(pkg.totalPrice || 0).toLocaleString()} Units
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Range</span>
-                            <span className="font-semibold text-gray-900 text-sm">
+                            <span className="text-xs text-gray-600 font-medium">Range</span>
+                            <span className="font-semibold text-[#00333e] text-xs">
                               {min.toLocaleString()} - {max.toLocaleString()}
                             </span>
                           </div>
@@ -926,11 +947,11 @@ const Subscription: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl max-w-lg w-full shadow-2xl"
+            className="bg-white rounded-md max-w-md w-full border border-gray-200"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-900">{selectedPackage.name}</h2>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-base font-medium text-[#00333e]">{selectedPackage.name}</h2>
               <button
                 onClick={() => setIsPackageDetailsModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -940,17 +961,17 @@ const Subscription: React.FC = () => {
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-6 max-h-[calc(100vh-250px)] overflow-y-auto">
+            <div className="p-4 space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto">
               {selectedPackage.description && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
-                  <p className="text-gray-600 text-sm">{selectedPackage.description}</p>
+                  <h3 className="text-xs font-medium text-[#00333e] mb-2 uppercase tracking-wider">Description</h3>
+                  <p className="text-gray-600 text-xs">{selectedPackage.description}</p>
                 </div>
               )}
 
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Package Price</h3>
-                <p className="text-3xl font-bold text-gray-900">
+                <h3 className="text-xs font-bold text-[#00333e] mb-2 uppercase tracking-wider">Package Price</h3>
+                <p className="text-2xl font-bold text-[#00333e]">
                   {(selectedPackage.totalPrice || 0).toLocaleString()} Units
                 </p>
               </div>
@@ -959,10 +980,10 @@ const Subscription: React.FC = () => {
                 const { min, max } = getPackageUnitRange(selectedPackage);
                 return (
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    <label className="block text-xs font-medium text-[#00333e] mb-2 uppercase tracking-wider">
                       Quantity (Units)
                     </label>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
                           const newValue = Math.max(min, selectedUnits - 100);
@@ -971,7 +992,7 @@ const Subscription: React.FC = () => {
                             setUnitError(validateUnitQuantity(newValue, selectedPackage));
                           }
                         }}
-                        className="w-10 h-10 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-bold flex items-center justify-center"
+                        className="w-8 h-8 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-medium flex items-center justify-center"
                       >
                         −
                       </button>
@@ -986,7 +1007,7 @@ const Subscription: React.FC = () => {
                           }
                         }}
                         placeholder="Enter quantity"
-                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center font-semibold"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00333e] text-center font-medium text-sm"
                       />
                       <button
                         onClick={() => {
@@ -996,15 +1017,14 @@ const Subscription: React.FC = () => {
                             setUnitError(validateUnitQuantity(newValue, selectedPackage));
                           }
                         }}
-                        className="w-10 h-10 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-bold flex items-center justify-center"
-                      >
+                        className="w-8 h-8 bg-gray-200 text-[#00333e] rounded-md hover:bg-gray-300 font-medium flex items-center justify-center">
                         +
                       </button>
                     </div>
                     {unitError && (
-                      <p className="text-red-500 text-sm mt-2">{unitError}</p>
+                      <p className="text-red-500 text-xs mt-2 font-medium">{unitError}</p>
                     )}
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-xs text-gray-500 mt-2 font-medium">
                       Range: {min.toLocaleString()} - {max.toLocaleString()} units
                     </p>
                   </div>
@@ -1012,33 +1032,33 @@ const Subscription: React.FC = () => {
               })()}
 
               {selectedUnits > 0 && !unitError && selectedPackage.services?.length > 0 && (
-                <div className="bg-blue-50 p-4 rounded-xl space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-700">Units to Purchase</span>
-                    <span className="font-semibold text-gray-900">
+                <div className="bg-[#fddf0d]/10 p-4 rounded-xl border border-[#fddf0d]/30 space-y-3">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-700 font-medium">Units to Purchase</span>
+                    <span className="font-bold text-[#00333e]">
                       {selectedUnits.toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-700">Unit Price</span>
-                    <span className="font-semibold text-gray-900">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-700 font-medium">Unit Price</span>
+                    <span className="font-bold text-[#00333e]">
                       {selectedPackage.services[0]?.unit_cost_at_purchase || 0}
                     </span>
                   </div>
-                  <div className="border-t border-blue-200 pt-3 flex justify-between items-center">
-                    <span className="font-bold text-gray-900">Total Cost</span>
-                    <span className="text-2xl font-bold text-blue-600">
+                  <div className="border-t border-[#fddf0d]/30 pt-3 flex justify-between items-center">
+                    <span className="font-bold text-[#00333e] text-sm">Total Cost</span>
+                    <span className="text-xl font-bold text-[#00333e]">
                       {(selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)).toLocaleString()}
                     </span>
                   </div>
                   {wallet && (
-                    <div className="flex justify-between text-sm pt-2">
-                      <span className="text-gray-700">Wallet Balance</span>
+                    <div className="flex justify-between text-xs pt-2">
+                      <span className="text-gray-700 font-medium">Wallet Balance</span>
                       <span
                         className={
                           wallet.units >= selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)
-                            ? "text-green-600 font-semibold"
-                            : "text-red-600 font-semibold"
+                            ? "text-green-600 font-bold"
+                            : "text-red-600 font-bold"
                         }
                       >
                         {wallet.units.toLocaleString()} Units
@@ -1050,10 +1070,10 @@ const Subscription: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="flex gap-3 p-6 border-t">
+            <div className="flex gap-2 p-4 border-t">
               <button
                 onClick={() => setIsPackageDetailsModalOpen(false)}
-                className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                className="flex-1 px-4 py-2 bg-gray-100 text-[#00333e] rounded-md font-medium hover:bg-gray-200 transition-colors text-sm"
               >
                 Cancel
               </button>
@@ -1067,7 +1087,7 @@ const Subscription: React.FC = () => {
                   !selectedPackage.services?.[0] ||
                   wallet.units < selectedUnits * (selectedPackage.services[0]?.unit_cost_at_purchase || 0)
                 }
-                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-[#00333e] text-white rounded-md font-medium hover:bg-[#004d5e] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm"
               >
                 {purchasingPackageId === selectedPackage.id ? (
                   <>
@@ -1089,10 +1109,10 @@ const Subscription: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl max-w-md w-full shadow-2xl"
+            className="bg-white rounded-md max-w-sm w-full border border-gray-200"
           >
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-900">Top Up Wallet</h2>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-base font-medium text-[#00333e]">Top Up Wallet</h2>
               <button
                 onClick={() => setIsTopUpModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -1100,9 +1120,9 @@ const Subscription: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleTopUp} className="p-6 space-y-5">
+            <form onSubmit={handleTopUp} className="p-4 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-[#00333e] mb-2 uppercase tracking-wider">
                   Phone Number
                 </label>
                 <input
@@ -1111,11 +1131,11 @@ const Subscription: React.FC = () => {
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="Enter mobile money number"
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00333e] focus:border-transparent text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-[#00333e] mb-2 uppercase tracking-wider">
                   Amount (Tsh)
                 </label>
                 <input
@@ -1124,21 +1144,21 @@ const Subscription: React.FC = () => {
                   onChange={(e) => setTopUpAmount(parseFloat(e.target.value))}
                   placeholder="Enter amount"
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#00333e] focus:border-transparent text-sm"
                 />
               </div>
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsTopUpModalOpen(false)}
-                  className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                  className="flex-1 px-4 py-2 bg-gray-100 text-[#00333e] rounded-md font-medium hover:bg-gray-200 transition-colors text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isProcessing}
-                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 bg-[#00333e] text-white rounded-md font-medium hover:bg-[#004d5e] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-sm"
                 >
                   {isProcessing ? (
                     <>
