@@ -24,3 +24,9 @@ hs_err_pid*
 replay_pid*
 node_modules
 .qodo
+
+#environemtn
+*.env
+
+#json
+package-lock.json
