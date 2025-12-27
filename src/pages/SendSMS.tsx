@@ -952,13 +952,11 @@ const SendSMS = () => {
                       currentCampaigns.map((campaign) => {
                         const groups = campaignGroups[campaign.campaign_id] || [];
                         const totalContacts = groups.reduce((sum, group) => sum + (group.contact_count || 0), 0);
-                        const isSelected = selectedCampaignId === campaign.campaign_id;
 
                         return (
                           <div
                             key={campaign.campaign_id}
-                            className={`bg-white border rounded-md p-3 transition-all ${isSelected ? 'border-[#004d66] shadow-sm' : 'border-gray-200 hover:border-gray-300'
-                              }`}
+                            className="bg-white border border-gray-200 rounded-md p-3 hover:border-gray-300 transition-all"
                           >
                             <div className="flex items-center justify-between gap-3">
                               {/* Campaign Info */}
@@ -979,37 +977,21 @@ const SendSMS = () => {
                               </div>
 
                               {/* Actions */}
-                              <div className="flex gap-2 flex-shrink-0">
-                                <button
-                                  onClick={() => {
-                                    setSelectedCampaignId(campaign.campaign_id);
-                                    setError(null);
-                                  }}
-                                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${isSelected
-                                      ? 'bg-[#00333e] text-white'
-                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
-                                >
-                                  {isSelected ? 'Selected' : 'Select'}
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    console.log('Re-run button clicked for campaign:', campaign.name);
-                                    const initialData = {
-                                      name: `${campaign.name} (Copy)`,
-                                      description: campaign.description || '',
-                                      selectedGroups: groups.map(g => g.group_id),
-                                    };
-                                    console.log('Setting initial campaign data:', initialData);
-                                    setInitialCampaignData(initialData);
-                                    setIsWizardOpen(true);
-                                  }}
-                                  className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 rounded transition-colors"
-                                  title="Re-run this campaign"
-                                >
-                                  Re-Run
-                                </button>
-                              </div>
+                              <button
+                                onClick={() => {
+                                  const initialData = {
+                                    name: `${campaign.name} (Copy)`,
+                                    description: campaign.description || '',
+                                    selectedGroups: groups.map(g => g.group_id),
+                                  };
+                                  setInitialCampaignData(initialData);
+                                  setIsWizardOpen(true);
+                                }}
+                                className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 rounded transition-colors flex-shrink-0"
+                                title="Re-run this campaign"
+                              >
+                                Re-Run
+                              </button>
                             </div>
                           </div>
                         );
@@ -1044,8 +1026,8 @@ const SendSMS = () => {
                             key={i + 1}
                             onClick={() => setCurrentPage(i + 1)}
                             className={`px-2 py-1 text-xs rounded ${currentPage === i + 1
-                                ? 'bg-[#004d66] text-white'
-                                : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                              ? 'bg-[#004d66] text-white'
+                              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
                               }`}
                           >
                             {i + 1}
