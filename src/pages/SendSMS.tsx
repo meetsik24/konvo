@@ -5,6 +5,7 @@ import PhonePreview from '../modals/PhonePreview';
 import { useWorkspace } from './WorkspaceContext';
 import Modal from '../modals/Modal';
 import CampaignWizard from '../components/campaign/CampaignWizard';
+import CampaignReRunModal from '../components/campaign/CampaignReRunModal';
 import CampaignProgress from '../components/campaign/CampaignProgress';
 import {
   getApprovedSenderIds,
@@ -89,6 +90,8 @@ const SendSMS = () => {
 
   // Campaign Wizard State
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isReRunModalOpen, setIsReRunModalOpen] = useState(false);
+  const [reRunCampaignData, setReRunCampaignData] = useState<{ name: string; groups: Group[] } | null>(null);
   const [userBalance, setUserBalance] = useState(0);
   const [initialCampaignData, setInitialCampaignData] = useState<any>(null);
 
@@ -733,6 +736,56 @@ const SendSMS = () => {
   };
 
 
+  const handleReRunLaunch = async (data: { groups: string[]; message: string; senderId: string }) => {
+    try {
+      setIsSending(true);
+      if (!currentWorkspaceId) {
+        setError('No workspace selected.');
+        return;
+      }
+
+      const campaignData = {
+        workspace_id: currentWorkspaceId,
+        name: reRunCampaignData?.name || 'Re-Run Campaign',
+        description: 'Re-run of previous campaign',
+        type: 'sms',
+        status: 'active',
+      };
+
+      // Create new campaign
+      const newCampaign = await createCampaign(campaignData);
+
+      // Assign groups
+      for (const groupId of data.groups) {
+        await assignGroupToCampaign(newCampaign.campaign_id, groupId);
+      }
+
+      // Send message
+      const messageData = {
+        sender_id: data.senderId,
+        content: data.message,
+        recipients: [],
+        groups: data.groups,
+        campaign_id: newCampaign.campaign_id,
+      };
+
+      await sendInstantMessage(currentWorkspaceId, messageData);
+
+      // Refresh campaigns
+      const campaignsData = await getCampaigns();
+      setCampaigns(campaignsData as unknown as Campaign[]);
+
+      setIsReRunModalOpen(false);
+      setReRunCampaignData(null);
+      alert('Campaign re-run launched successfully!');
+    } catch (error) {
+      console.error('Error re-running campaign:', error);
+      setError('Failed to re-run campaign');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
 
 
   if (isLoading) {
@@ -800,26 +853,31 @@ const SendSMS = () => {
           className="lg:col-span-2 bg-white rounded-md p-6 border border-gray-200"
         >
           <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-600">Sender ID</label>
-              <select
-                value={formData.senderId}
-                onChange={(e) => handleInputChange('senderId', e.target.value)}
-                className="w-full text-sm py-3 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                required
-              >
-                <option value="" className="text-[#004d66]">Select Sender ID</option>
-                {senderIds.map(sender => (
-                  <option
-                    key={sender.sender_id}
-                    value={sender.sender_id}
-                    className="text-[#004d66]"
-                  >
-                    {sender.name} ({sender.sender_id})
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Sender ID Selection - Only for Instant and File modes */}
+            {sendMode !== 'campaign' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-600">Sender ID</label>
+                <select
+                  value={formData.senderId}
+                  onChange={(e) => handleInputChange('senderId', e.target.value)}
+                  className="w-full text-sm py-3 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+                  required
+                >
+                  <option value="" className="text-[#004d66]">Select Sender ID</option>
+                  {senderIds.map(sender => (
+                    <option
+                      key={sender.sender_id}
+                      value={sender.sender_id}
+                      className="text-[#004d66]"
+                    >
+                      {sender.name} ({sender.sender_id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Campaign Mode UI */}
 
             {sendMode === 'instant' && (
               <motion.div
@@ -979,13 +1037,11 @@ const SendSMS = () => {
                               {/* Actions */}
                               <button
                                 onClick={() => {
-                                  const initialData = {
+                                  setReRunCampaignData({
                                     name: `${campaign.name} (Copy)`,
-                                    description: campaign.description || '',
-                                    selectedGroups: groups.map(g => g.group_id),
-                                  };
-                                  setInitialCampaignData(initialData);
-                                  setIsWizardOpen(true);
+                                    groups: groups
+                                  });
+                                  setIsReRunModalOpen(true);
                                 }}
                                 className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 rounded transition-colors flex-shrink-0"
                                 title="Re-run this campaign"
@@ -1182,55 +1238,57 @@ const SendSMS = () => {
               </motion.div>
             )}
 
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.65 }}
-              className="space-y-2"
-            >
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-gray-600">Message</label>
-                <div className="flex gap-2">
-                  {sendMode === 'file' && availableColumns.length > 0 && (
-                    <select
-                      onChange={(e) => insertPlaceholder(e.target.value)}
-                      className="text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+            {sendMode !== 'campaign' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.65 }}
+                className="space-y-2"
+              >
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium text-gray-600">Message</label>
+                  <div className="flex gap-2">
+                    {sendMode === 'file' && availableColumns.length > 0 && (
+                      <select
+                        onChange={(e) => insertPlaceholder(e.target.value)}
+                        className="text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+                      >
+                        <option value="" className="text-[#004d66]">Insert Placeholder</option>
+                        {availableColumns.map(col => (
+                          <option key={col} value={col} className="text-[#004d66]">
+                            {col}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <motion.button
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.7 }}
+                      type="button"
+                      onClick={() => setModal('isAIModalOpen', true)}
+                      className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] flex items-center gap-2 text-sm font-medium transition-colors"
                     >
-                      <option value="" className="text-[#004d66]">Insert Placeholder</option>
-                      {availableColumns.map(col => (
-                        <option key={col} value={col} className="text-[#004d66]">
-                          {col}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  <motion.button
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.7 }}
-                    type="button"
-                    onClick={() => setModal('isAIModalOpen', true)}
-                    className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] flex items-center gap-2 text-sm font-medium transition-colors"
-                  >
-                    <Bot className="w-5 h-5" />
-                    AI Assist
-                  </motion.button>
+                      <Bot className="w-5 h-5" />
+                      AI Assist
+                    </motion.button>
+                  </div>
                 </div>
-              </div>
-              <textarea
-                ref={textareaRef}
-                value={formData.message}
-                onChange={(e) => handleInputChange('message', e.target.value)}
-                rows={6}
-                className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
-                placeholder={sendMode === 'file' ? "Type your message here... (e.g., Hi {name}, your balance is {amount}!)" : "Type your message here..."}
-                required
-              />
-              <div className="flex justify-end gap-3 text-sm text-[#004d66]">
-                <span>{smsCount} SMS</span>
-                <span>{charCount}/160</span>
-              </div>
-            </motion.div>
+                <textarea
+                  ref={textareaRef}
+                  value={formData.message}
+                  onChange={(e) => handleInputChange('message', e.target.value)}
+                  rows={6}
+                  className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
+                  placeholder={sendMode === 'file' ? "Type your message here... (e.g., Hi {name}, your balance is {amount}!)" : "Type your message here..."}
+                  required
+                />
+                <div className="flex justify-end gap-3 text-sm text-[#004d66]">
+                  <span>{smsCount} SMS</span>
+                  <span>{charCount}/160</span>
+                </div>
+              </motion.div>
+            )}
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -1463,8 +1521,27 @@ const SendSMS = () => {
           window.location.href = '/subscription';
         }}
         initialCampaignData={initialCampaignData}
+        senderIds={senderIds}
       />
-    </div>
+
+      {/* Re-Run Modal */}
+      {
+        reRunCampaignData && (
+          <CampaignReRunModal
+            isOpen={isReRunModalOpen}
+            onClose={() => {
+              setIsReRunModalOpen(false);
+              setReRunCampaignData(null);
+            }}
+            campaignName={reRunCampaignData.name}
+            initialGroups={reRunCampaignData.groups}
+            allGroups={groups}
+            senderIds={senderIds}
+            onReRun={handleReRunLaunch}
+          />
+        )
+      }
+    </div >
   );
 };
 

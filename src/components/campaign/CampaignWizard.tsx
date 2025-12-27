@@ -38,12 +38,14 @@ interface InitialCampaignData {
     endDate?: string;
     endTime?: string;
     frequency?: string;
+    senderId?: string;
 }
 
 interface CampaignWizardProps {
     isOpen: boolean;
     onClose: () => void;
     groups: Group[];
+    senderIds: Array<{ sender_id: string; name: string }>;
     userBalance: number;
     onLaunch: (campaignData: any) => void;
     onTopUpClick: () => void;
@@ -64,6 +66,7 @@ const CampaignWizard: React.FC<CampaignWizardProps> = ({
     isOpen,
     onClose,
     groups,
+    senderIds,
     userBalance,
     onLaunch,
     onTopUpClick,
@@ -77,6 +80,7 @@ const CampaignWizard: React.FC<CampaignWizardProps> = ({
     const [campaignName, setCampaignName] = useState(initialCampaignData?.name || '');
     const [campaignDescription, setCampaignDescription] = useState(initialCampaignData?.description || '');
     const [selectedGroups, setSelectedGroups] = useState<string[]>(initialCampaignData?.selectedGroups || []);
+    const [senderId, setSenderId] = useState(initialCampaignData?.senderId || '');
     const [message, setMessage] = useState(initialCampaignData?.message || '');
     const [scheduleType, setScheduleType] = useState<'immediate' | 'scheduled'>(initialCampaignData?.scheduleType || 'immediate');
     const [startDate, setStartDate] = useState(initialCampaignData?.startDate || '');
@@ -130,6 +134,10 @@ const CampaignWizard: React.FC<CampaignWizardProps> = ({
                 break;
             case 3:
                 validation = validateContent(message);
+                if (!senderId) {
+                    validation.isValid = false;
+                    validation.errors.push('Please select a Sender ID');
+                }
                 break;
             case 4:
                 // Cost validation is visual only, always allow proceeding
@@ -180,6 +188,7 @@ const CampaignWizard: React.FC<CampaignWizardProps> = ({
             description: campaignDescription,
             selectedGroups,
             message,
+            senderId,
             scheduleType,
             ...(scheduleType === 'scheduled' && {
                 startDate,
@@ -208,6 +217,7 @@ const CampaignWizard: React.FC<CampaignWizardProps> = ({
         setEndDate('');
         setEndTime('');
         setFrequency('once');
+        setSenderId('');
         setErrors([]);
         setCostEstimate(null);
         onClose();
@@ -271,6 +281,9 @@ const CampaignWizard: React.FC<CampaignWizardProps> = ({
                             <StepContent
                                 message={message}
                                 onMessageChange={setMessage}
+                                senderId={senderId}
+                                onSenderIdChange={setSenderId}
+                                senderIds={senderIds}
                                 onAIGenerateClick={onAIGenerateClick}
                                 errors={errors}
                             />

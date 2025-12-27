@@ -212,6 +212,52 @@ interface Campaign {
   created_at: string;
 }
 
+
+//New campaign infrastructure
+interface createCamppaign {
+
+  campaign_name: string;
+  description: string;
+  launch_date: string;
+  workspace_id: string;
+}
+
+interface listCampaigns {
+  campaign_id: string;
+  name: string;
+  description?: string;
+  launch_date?: string;
+  workspace_id: string;
+  created_at: string;
+}
+
+interface campaignAnalytics {
+  campaign_id: string;
+  name: string;
+  description?: string;
+  launch_date?: string;
+  workspace_id: string;
+  created_at: string;
+}
+
+interface getCampaign {
+  campaign_id: string;
+}
+
+interface updateCampaign {
+  campaign_id: string;
+}
+
+interface deleteCampaign {
+  campaign_id: string;
+}
+
+interface preLaunchInpection {
+  campaign_id: string;
+}
+
+
+
 interface Notification {
   notification_id: string;
   user_id: string;
@@ -346,12 +392,12 @@ interface BalanceUnits {
   unit_cost: number;
 }
 
-interface BalanceRefund{
+interface BalanceRefund {
   usage_id: string,
- 
+
 }
 
-interface BalanceUsage{
+interface BalanceUsage {
   unit_cost: number;
   usage_id: string,
   user_id: string,
@@ -363,7 +409,7 @@ interface BalanceUsage{
   usage_date: string
 }
 
-interface BalanceUsageLogs{
+interface BalanceUsageLogs {
   usage_id: string,
   user_id: string,
   service_id: string,
@@ -374,7 +420,7 @@ interface BalanceUsageLogs{
   usage_date: string
 }
 
-interface BalanceUsageStats{
+interface BalanceUsageStats {
   service_id: string,
   total_units_used: 0,
   by_services: {
@@ -391,7 +437,7 @@ interface BalanceUsageStats{
   }
 }
 
-interface  BalanceServicesCost{
+interface BalanceServicesCost {
   service_id: string,
   total_cost: 0,
 }
@@ -471,15 +517,15 @@ export interface TransactionResponse {
 
 //Services Interface
 interface services {
-  
-    service_id: string,
-    name: string,
-    description: string,
-    unit_cost: 0,
-    is_unit_based: true,
-    minimum_purchase: 0,
-    created_at: "string"
-  }
+
+  service_id: string,
+  name: string,
+  description: string,
+  unit_cost: 0,
+  is_unit_based: true,
+  minimum_purchase: 0,
+  created_at: "string"
+}
 
 
 
@@ -752,7 +798,7 @@ export const getMessageLogsV = async (): Promise<MessageLogResponse> => {
           isValidISODate(msg.sent_at) &&
           typeof msg.recipient === 'string' &&
           (typeof msg.campaign_name === 'string' || msg.campaign_name === null) // Allow null
-          typeof msg.sender_id === 'string' &&
+        typeof msg.sender_id === 'string' &&
           typeof msg.status === 'string';
         if (!isValid) console.warn("Invalid message object:", msg);
         return isValid;
@@ -807,11 +853,23 @@ export const deleteWorkspace = async (id: string): Promise<void> => {
 };
 
 // CAMPAIGNS
-export const getCampaigns = async (): Promise<Campaign[]> => {
-  console.log("getCampaigns API call initiated");
+export const createCampaign = async (data: {
+  name: string;
+  description?: string;
+  launch_date?: string;
+  workspace_id: string;
+}): Promise<Campaign> => {
+  try {
+    const response = await api.post("/campaigns/", data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to create campaign");
+  }
+};
+
+export const listCampaigns = async (): Promise<Campaign[]> => {
   try {
     const response = await api.get("/campaigns/");
-    console.log("getCampaigns API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch campaigns");
@@ -819,45 +877,51 @@ export const getCampaigns = async (): Promise<Campaign[]> => {
   }
 };
 
-export const createCampaign = async (data: {
-  name: string;
-  description?: string;
-  launch_date?: string;
-  workspace_id: string;
-}): Promise<Campaign> => {
-  console.log("createCampaign API call initiated with data:", data);
+export const getCampaignAnalytics = async (): Promise<CampaignAnalyticsResponse> => {
   try {
-    const response = await api.post("/campaigns/", data);
-    console.log("createCampaign API response:", response.data);
+    const response = await api.get("/campaigns/analytics");
     return response.data;
   } catch (error: any) {
-    handleApiError(error, "Failed to create campaign");
+    handleApiError(error, "Failed to fetch campaign analytics");
+    return {};
   }
 };
 
-export const updateCampaign = async (
-  campaignId: string,
-  data: Partial<{ name: string; description?: string; launch_date?: string }>
-): Promise<Campaign> => {
-  console.log("updateCampaign API call initiated for campaign:", campaignId, "with data:", data);
+export const getCampaign = async (campaign_id: string): Promise<Campaign> => {
   try {
-    const response = await api.patch(`/campaigns/${campaignId}`, data);
-    console.log("updateCampaign API response:", response.data);
+    const response = await api.get(`/campaigns/${campaign_id}`);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch campaign");
+  }
+};
+
+export const updateCampaign = async (campaign_id: string, data: Partial<Campaign>): Promise<Campaign> => {
+  try {
+    const response = await api.patch(`/campaigns/${campaign_id}`, data);
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to update campaign");
   }
 };
 
-export const deleteCampaign = async (campaignId: string): Promise<void> => {
-  console.log("deleteCampaign API call initiated for campaign:", campaignId);
+export const deleteCampaign = async (campaign_id: string): Promise<void> => {
   try {
-    await api.delete(`/campaigns/${campaignId}`);
-    console.log("Campaign deleted successfully");
+    await api.delete(`/campaigns/${campaign_id}`);
   } catch (error: any) {
     handleApiError(error, "Failed to delete campaign");
   }
 };
+
+export const preLaunchInspection = async (campaign_id: string): Promise<void> => {
+  try {
+    await api.post(`/campaigns/${campaign_id}/prelaunch-inspect`);
+  } catch (error: any) {
+    handleApiError(error, "Failed to perform pre-launch inspection");
+  }
+};
+
+
 
 // CONTACTS
 export const getContacts = async (
@@ -2016,13 +2080,13 @@ export const getAllocationsSummary = async (): Promise<AllocationsSummaryRespons
   try {
     const response = await api.get("/allocations/summary");
     console.log("getAllocationsSummary API response:", response.data);
-    
+
     // Validate and normalize response
     if (!response.data || !Array.isArray(response.data.allocations)) {
       console.warn("Invalid allocations response structure, returning empty allocations");
       return { allocations: [] };
     }
-    
+
     // Validate each allocation object
     const validAllocations = response.data.allocations.filter((alloc: any) =>
       alloc &&
@@ -2030,11 +2094,11 @@ export const getAllocationsSummary = async (): Promise<AllocationsSummaryRespons
       typeof alloc.service_name === 'string' &&
       typeof alloc.total_units_allocated === 'number'
     );
-    
+
     if (validAllocations.length !== response.data.allocations.length) {
       console.warn(`Filtered out ${response.data.allocations.length - validAllocations.length} invalid allocation objects`);
     }
-    
+
     return { allocations: validAllocations };
   } catch (error: any) {
     return handleApiError(error, "Failed to get allocations summary");
@@ -2094,7 +2158,7 @@ export interface TransactionCompleteResponse {
 }
 
 // Add this function before export default api
-export const completeTransaction = async ( data: TransactionCompleteRequest
+export const completeTransaction = async (data: TransactionCompleteRequest
 ): Promise<TransactionCompleteResponse> => {
   console.log("completeTransaction API call initiated with data:", data);
   try {
@@ -2488,4 +2552,3 @@ export const flake_verify = async (phoneNumber: string, otpCode: string): Promis
 };
 
 
-export default api;

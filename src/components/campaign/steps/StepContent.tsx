@@ -6,6 +6,9 @@ import { calculateMessageParts } from '../utils/campaignCalculator';
 interface StepContentProps {
     message: string;
     onMessageChange: (value: string) => void;
+    senderId: string;
+    onSenderIdChange: (value: string) => void;
+    senderIds: Array<{ sender_id: string; name: string }>;
     onAIGenerateClick?: () => void;
     errors?: string[];
 }
@@ -13,6 +16,9 @@ interface StepContentProps {
 const StepContent: React.FC<StepContentProps> = ({
     message,
     onMessageChange,
+    senderId,
+    onSenderIdChange,
+    senderIds,
     onAIGenerateClick,
     errors = []
 }) => {
@@ -30,7 +36,7 @@ const StepContent: React.FC<StepContentProps> = ({
             <div>
                 <h3 className="text-lg font-semibold text-[#00333e] mb-2">Campaign Content</h3>
                 <p className="text-sm text-gray-600">
-                    Create the message that will be sent to your audience.
+                    Select a sender ID and create the message that will be sent to your audience.
                 </p>
             </div>
 
@@ -45,6 +51,25 @@ const StepContent: React.FC<StepContentProps> = ({
             )}
 
             <div className="space-y-4">
+                {/* Sender ID Selection */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Sender ID <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                        value={senderId}
+                        onChange={(e) => onSenderIdChange(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00333e] focus:border-[#00333e] transition-all text-sm bg-white"
+                    >
+                        <option value="">Select Sender ID</option>
+                        {senderIds.map((sender) => (
+                            <option key={sender.sender_id} value={sender.sender_id}>
+                                {sender.name} ({sender.sender_id})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
                 <div>
                     <div className="flex items-center justify-between mb-2">
                         <label className="block text-sm font-medium text-gray-700">
