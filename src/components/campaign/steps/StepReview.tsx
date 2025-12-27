@@ -20,6 +20,8 @@ interface StepReviewProps {
     frequency?: string;
     endDate?: string;
     costEstimate: CostEstimate;
+    onRunInspection?: () => Promise<void>;
+    inspectionStatus?: 'idle' | 'running' | 'success' | 'failed';
 }
 
 const StepReview: React.FC<StepReviewProps> = ({
@@ -33,6 +35,8 @@ const StepReview: React.FC<StepReviewProps> = ({
     frequency,
     endDate,
     costEstimate,
+    onRunInspection,
+    inspectionStatus = 'idle',
 }) => {
     const totalContacts = selectedGroups.reduce((sum, g) => sum + (g.contact_count || 0), 0);
 
@@ -69,6 +73,38 @@ const StepReview: React.FC<StepReviewProps> = ({
                         </div>
                     ))}
                 </div>
+            </div>
+
+            {/* Inspection Section */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                <div className="flex justify-between items-center mb-4">
+                    <p className="text-sm font-semibold text-[#00333e] flex items-center gap-2">
+                        <AlertCircle className="w-5 h-5 text-[#00333e]" />
+                        Pre-Launch Inspection
+                    </p>
+                    {onRunInspection && (
+                        <button
+                            onClick={onRunInspection}
+                            disabled={inspectionStatus === 'running' || inspectionStatus === 'success'}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${inspectionStatus === 'success'
+                                ? 'bg-green-100 text-green-700 cursor-default'
+                                : 'bg-[#00333e] text-white hover:bg-[#004d66]'
+                                }`}
+                        >
+                            {inspectionStatus === 'running' ? 'Checking...' : inspectionStatus === 'success' ? 'Passed' : 'Run Inspection'}
+                        </button>
+                    )}
+                </div>
+                {inspectionStatus !== 'idle' && (
+                    <div className={`text-sm p-3 rounded-md ${inspectionStatus === 'success' ? 'bg-green-100 text-green-800' :
+                        inspectionStatus === 'failed' ? 'bg-red-100 text-red-800' :
+                            'bg-blue-50 text-blue-800'
+                        }`}>
+                        {inspectionStatus === 'running' && 'Running system checks...'}
+                        {inspectionStatus === 'success' && '✓ All systems ready for launch.'}
+                        {inspectionStatus === 'failed' && '⚠ Issues detected. Please review basic info and cost.'}
+                    </div>
+                )}
             </div>
 
             {/* Campaign Summary */}

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { MessageSquare, Send, Clock, Trash2, Edit, Users, X } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import {
-  getCampaigns,
+  getCampaign,
   createCampaign,
   updateCampaign,
   deleteCampaign,

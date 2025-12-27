@@ -20,6 +20,7 @@ import {
     validateSchedule,
     ValidationResult,
 } from './utils/campaignValidator';
+import { preLaunchInspection } from '../../services/api';
 
 interface Group {
     group_id: string;
@@ -92,6 +93,7 @@ const CampaignWizard: React.FC<CampaignWizardProps> = ({
     // Validation
     const [errors, setErrors] = useState<string[]>([]);
     const [costEstimate, setCostEstimate] = useState<CostEstimate | null>(null);
+    const [inspectionStatus, setInspectionStatus] = useState<'idle' | 'running' | 'success' | 'failed'>('idle');
 
     // Calculate cost estimate whenever relevant data changes
     useEffect(() => {
@@ -154,6 +156,12 @@ const CampaignWizard: React.FC<CampaignWizardProps> = ({
                     validation = {
                         isValid: false,
                         errors: ['Insufficient balance to launch campaign'],
+                    };
+                }
+                if (inspectionStatus !== 'success') {
+                    validation = {
+                        isValid: false,
+                        errors: ['Please run and pass the pre-launch inspection first'],
                     };
                 }
                 break;
@@ -221,6 +229,29 @@ const CampaignWizard: React.FC<CampaignWizardProps> = ({
         setErrors([]);
         setCostEstimate(null);
         onClose();
+    };
+
+    const handleRunInspection = async () => {
+        if (!costEstimate) return;
+
+        setInspectionStatus('running');
+        try {
+            // Calculate total contacts
+            const totalContacts = groups
+                .filter(g => selectedGroups.includes(g.group_id))
+                .reduce((sum, g) => sum + (g.contact_count || 0), 0);
+
+            await preLaunchInspection({
+                campaign_name: campaignName,
+                total_contacts: totalContacts,
+                message_length: message.length,
+                total_cost: costEstimate.totalCost
+            });
+            setInspectionStatus('success');
+        } catch (error) {
+            console.error('Inspection failed:', error);
+            setInspectionStatus('failed');
+        }
     };
 
     if (!isOpen) return null;
@@ -323,6 +354,8 @@ const CampaignWizard: React.FC<CampaignWizardProps> = ({
                                 frequency={frequency}
                                 endDate={endDate}
                                 costEstimate={costEstimate}
+                                onRunInspection={handleRunInspection}
+                                inspectionStatus={inspectionStatus}
                             />
                         )}
                     </AnimatePresence>
@@ -358,7 +391,7 @@ const CampaignWizard: React.FC<CampaignWizardProps> = ({
                             ) : (
                                 <button
                                     onClick={handleLaunch}
-                                    disabled={costEstimate ? !costEstimate.canAfford : true}
+                                    disabled={(costEstimate ? !costEstimate.canAfford : true) || inspectionStatus !== 'success'}
                                     className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-3 sm:py-2 text-sm sm:text-base bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors min-h-[44px]"
                                 >
                                     <Rocket className="w-5 h-5" />

@@ -231,7 +231,7 @@ interface listCampaigns {
   created_at: string;
 }
 
-interface campaignAnalytics {
+interface CampaignAnalyticsResponse {
   campaign_id: string;
   name: string;
   description?: string;
@@ -883,7 +883,7 @@ export const getCampaignAnalytics = async (): Promise<CampaignAnalyticsResponse>
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to fetch campaign analytics");
-    return {};
+    throw error;
   }
 };
 
@@ -893,6 +893,7 @@ export const getCampaign = async (campaign_id: string): Promise<Campaign> => {
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to fetch campaign");
+    throw error; // Ensure return type is satisfied
   }
 };
 
@@ -902,6 +903,7 @@ export const updateCampaign = async (campaign_id: string, data: Partial<Campaign
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to update campaign");
+    throw error;
   }
 };
 
@@ -913,11 +915,17 @@ export const deleteCampaign = async (campaign_id: string): Promise<void> => {
   }
 };
 
-export const preLaunchInspection = async (campaign_id: string): Promise<void> => {
+export const preLaunchInspection = async (data: any): Promise<void> => {
   try {
-    await api.post(`/campaigns/${campaign_id}/prelaunch-inspect`);
+    // If data has campaign_id, use the specific endpoint, otherwise use the general validate endpoint
+    if (typeof data === 'string') {
+      await api.post(`/campaigns/${data}/prelaunch-inspect`);
+    } else {
+      await api.post('/campaigns/prelaunch-inspect', data);
+    }
   } catch (error: any) {
     handleApiError(error, "Failed to perform pre-launch inspection");
+    throw error; // Re-throw to let caller handle it
   }
 };
 
@@ -1383,8 +1391,8 @@ export const getAllocations = async (packageId: string): Promise<ServiceAllocati
 // Check payment status
 export const checkPaymentStatus = async (
   paymentReference: string
-): Promise<PaymentStatusResponse> => {
-  const payload: PaymentStatusRequest = {
+): Promise<any> => {
+  const payload = {
     payment_reference: paymentReference,
   };
   try {
@@ -1461,6 +1469,7 @@ export const sendInstantMessage = async (
     }
 
     handleApiError(error, "Failed to send instant message");
+    throw error;
   }
 };
 
@@ -1539,6 +1548,7 @@ export const sendBulkSMSFile = async (
     console.error('=== sendBulkSMSFile error ===');
     console.error('Error details:', error);
     handleApiError(error, "Failed to send bulk SMS from file");
+    throw error;
   }
 };
 
@@ -1548,6 +1558,7 @@ export const getMessageLogs = async (): Promise<Message[]> => {
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch message logs");
+    throw error;
   }
 };
 
@@ -1558,6 +1569,7 @@ export const getUserMessages = async (): Promise<Message[]> => {
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch user messages");
+    throw error;
   }
 };
 
@@ -1567,6 +1579,7 @@ export const getMessagesByRecipient = async (recipient: string): Promise<Message
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch messages by recipient");
+    throw error;
   }
 };
 
@@ -1576,6 +1589,7 @@ export const getMessageDetail = async (messageId: string): Promise<Message> => {
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to fetch message detail");
+    throw error;
   }
 };
 

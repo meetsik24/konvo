@@ -1,23 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Calendar, Send, Bot } from 'lucide-react';
+import { Users, Send, Bot } from 'lucide-react';
 import PhonePreview from '../modals/PhonePreview';
 import { useWorkspace } from './WorkspaceContext';
 import Modal from '../modals/Modal';
 import CampaignWizard from '../components/campaign/CampaignWizard';
 import CampaignReRunModal from '../components/campaign/CampaignReRunModal';
+import CampaignEditModal from '../components/campaign/CampaignEditModal';
 import CampaignProgress from '../components/campaign/CampaignProgress';
 import {
   getApprovedSenderIds,
-  getCampaigns,
+  listCampaigns,
   getCampaignGroups,
   sendInstantMessage,
   generateMessage,
   getWorkspaceGroups,
   createCampaign,
+  updateCampaign,
+  deleteCampaign,
   assignGroupToCampaign,
   getContacts,
   getAccountBalance,
+  preLaunchInspection,
 } from '../services/api';
 
 interface Campaign {
@@ -95,6 +99,11 @@ const SendSMS = () => {
   const [userBalance, setUserBalance] = useState(0);
   const [initialCampaignData, setInitialCampaignData] = useState<any>(null);
 
+  // Edit & Delete State
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
+
   // Pagination for campaigns
   const [currentPage, setCurrentPage] = useState(1);
   const campaignsPerPage = 5;
@@ -113,7 +122,7 @@ const SendSMS = () => {
         const senderResponse = await getApprovedSenderIds(currentWorkspaceId);
         setSenderIds(senderResponse);
         if (senderResponse.length) setFormData(prev => ({ ...prev, senderId: senderResponse[0].sender_id }));
-        const campaignsData = await getCampaigns();
+        const campaignsData = await listCampaigns();
         setCampaigns(campaignsData as unknown as Campaign[]);
         const groupsData = await getWorkspaceGroups(currentWorkspaceId);
         setGroups(groupsData);
@@ -667,6 +676,37 @@ const SendSMS = () => {
     }));
   };
 
+  const handleUpdateCampaign = async (campaignId: string, data: { name: string; description: string }) => {
+    try {
+      if (!currentWorkspaceId) return;
+      await updateCampaign(campaignId, data);
+
+      // Refresh list
+      const campaignsData = await listCampaigns();
+      setCampaigns(campaignsData as unknown as Campaign[]);
+
+      // Update local state if editing
+      setEditingCampaign(null);
+    } catch (err: unknown) {
+      console.error('Failed to update campaign:', err);
+      // Ideally show a toast or error message here
+    }
+  };
+
+  const handleDeleteCampaign = async (campaignId: string) => {
+    try {
+      await deleteCampaign(campaignId);
+
+      // Refresh list
+      const campaignsData = await listCampaigns();
+      setCampaigns(campaignsData as unknown as Campaign[]);
+
+      setDeleteConfirmation(null);
+    } catch (err: unknown) {
+      console.error('Failed to delete campaign:', err);
+    }
+  };
+
   const handleWizardLaunch = async (campaignData: any) => {
     try {
       if (!currentWorkspaceId) {
@@ -682,13 +722,6 @@ const SendSMS = () => {
         launch_date: campaignData.scheduleType === 'immediate'
           ? new Date().toISOString()
           : `${campaignData.startDate}T${campaignData.startTime}`,
-        ...(campaignData.scheduleType === 'scheduled' && {
-          start_date: campaignData.startDate,
-          start_time: campaignData.startTime,
-          end_date: campaignData.endDate,
-          end_time: campaignData.endTime,
-          schedule_type: campaignData.frequency,
-        }),
       };
 
       const newCampaign = await createCampaign(campaignPayload);
@@ -705,16 +738,29 @@ const SendSMS = () => {
       // Update campaigns list
       setCampaigns(prev => [...prev, newCampaign as Campaign]);
 
-      // If immediate launch, send the message
-      if (campaignData.scheduleType === 'immediate' && formData.senderId) {
-        await sendInstantMessage(currentWorkspaceId, {
-          sender_id: formData.senderId,
-          content: campaignData.message,
-          recipients: [],
-          groups: campaignData.selectedGroups,
-          campaign_id: newCampaign.campaign_id,
-        });
-      }
+      // Run pre-launch inspection
+      await preLaunchInspection(newCampaign.campaign_id);
+
+      // Prepare message payload
+      const messagePayload = {
+        sender_id: formData.senderId,
+        content: campaignData.message,
+        recipients: [],
+        groups: campaignData.selectedGroups,
+        campaign_id: newCampaign.campaign_id,
+        ...(campaignData.scheduleType !== 'immediate' && {
+          schedule: {
+            start_date: campaignData.startDate,
+            start_time: campaignData.startTime,
+            end_date: campaignData.endDate || null,
+            end_time: campaignData.endTime || null,
+            frequency: campaignData.frequency || 'once',
+          }
+        })
+      };
+
+      // Send the message (immediate or scheduled)
+      await sendInstantMessage(currentWorkspaceId, messagePayload);
 
       // Refresh balance after campaign creation
       try {
@@ -748,8 +794,7 @@ const SendSMS = () => {
         workspace_id: currentWorkspaceId,
         name: reRunCampaignData?.name || 'Re-Run Campaign',
         description: 'Re-run of previous campaign',
-        type: 'sms',
-        status: 'active',
+        launch_date: new Date().toISOString(),
       };
 
       // Create new campaign
@@ -759,6 +804,9 @@ const SendSMS = () => {
       for (const groupId of data.groups) {
         await assignGroupToCampaign(newCampaign.campaign_id, groupId);
       }
+
+      // Run pre-launch inspection
+      await preLaunchInspection(newCampaign.campaign_id);
 
       // Send message
       const messageData = {
@@ -772,7 +820,7 @@ const SendSMS = () => {
       await sendInstantMessage(currentWorkspaceId, messageData);
 
       // Refresh campaigns
-      const campaignsData = await getCampaigns();
+      const campaignsData = await listCampaigns();
       setCampaigns(campaignsData as unknown as Campaign[]);
 
       setIsReRunModalOpen(false);
@@ -1035,23 +1083,75 @@ const SendSMS = () => {
                               </div>
 
                               {/* Actions */}
-                              <button
-                                onClick={() => {
-                                  setReRunCampaignData({
-                                    name: `${campaign.name} (Copy)`,
-                                    groups: groups
-                                  });
-                                  setIsReRunModalOpen(true);
-                                }}
-                                className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 rounded transition-colors flex-shrink-0"
-                                title="Re-run this campaign"
-                              >
-                                Re-Run
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const groups = campaignGroups[campaign.campaign_id] || [];
+                                    const initialData = {
+                                      name: `${campaign.name} (Copy)`,
+                                      description: campaign.description,
+                                      selectedGroups: groups.map(g => g.group_id),
+                                    };
+                                    setReRunCampaignData({
+                                      name: `${campaign.name} (Copy)`,
+                                      groups: groups,
+                                    });
+                                    setIsReRunModalOpen(true);
+                                  }}
+                                  className="p-1.5 text-gray-400 hover:text-[#004d66] hover:bg-gray-50 rounded-md transition-colors"
+                                  title="Re-Run Campaign"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingCampaign(campaign);
+                                    setIsEditModalOpen(true);
+                                  }}
+                                  className="p-1.5 text-gray-400 hover:text-[#004d66] hover:bg-gray-50 rounded-md transition-colors"
+                                  title="Edit Campaign"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteConfirmation(campaign.campaign_id);
+                                  }}
+                                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                                  title="Delete Campaign"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCampaignId(campaign.campaign_id === selectedCampaignId ? '' : campaign.campaign_id);
+                                  }}
+                                  className={`ml-1 px-3 py-1 text-xs font-medium rounded-md transition-colors ${selectedCampaignId === campaign.campaign_id
+                                    ? 'bg-[#004d66] text-white shadow-sm'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                >
+                                  {selectedCampaignId === campaign.campaign_id ? 'Selected' : 'Select'}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
                       })
+
                     ) : (
                       <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                         <svg className="mx-auto w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1061,234 +1161,242 @@ const SendSMS = () => {
                         <p className="mt-1 text-xs text-gray-500">Click "New Campaign" to get started</p>
                       </div>
                     )}
-                  </div>
+                  </div >
 
                   {/* Pagination */}
-                  {campaigns.length > campaignsPerPage && (
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                      <p className="text-xs text-gray-500">
-                        Showing {indexOfFirstCampaign + 1}-{Math.min(indexOfLastCampaign, campaigns.length)} of {campaigns.length}
-                      </p>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                          disabled={currentPage === 1}
-                          className="px-2 py-1 text-xs text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Previous
-                        </button>
-                        {[...Array(totalPages)].map((_, i) => (
+                  {
+                    campaigns.length > campaignsPerPage && (
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                        <p className="text-xs text-gray-500">
+                          Showing {indexOfFirstCampaign + 1}-{Math.min(indexOfLastCampaign, campaigns.length)} of {campaigns.length}
+                        </p>
+                        <div className="flex gap-1">
                           <button
-                            key={i + 1}
-                            onClick={() => setCurrentPage(i + 1)}
-                            className={`px-2 py-1 text-xs rounded ${currentPage === i + 1
-                              ? 'bg-[#004d66] text-white'
-                              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                              }`}
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="px-2 py-1 text-xs text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {i + 1}
+                            Previous
                           </button>
-                        ))}
-                        <button
-                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                          disabled={currentPage === totalPages}
-                          className="px-2 py-1 text-xs text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Next
-                        </button>
+                          {[...Array(totalPages)].map((_, i) => (
+                            <button
+                              key={i + 1}
+                              onClick={() => setCurrentPage(i + 1)}
+                              className={`px-2 py-1 text-xs rounded ${currentPage === i + 1
+                                ? 'bg-[#004d66] text-white'
+                                : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                                }`}
+                            >
+                              {i + 1}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className="px-2 py-1 text-xs text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Next
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )
+                  }
 
                   {/* Selected Campaign Info */}
-                  {selectedCampaignId && campaignGroups[selectedCampaignId] && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                      <p className="text-xs text-blue-800">
-                        Campaign selected. Compose your message below to send to {campaignGroups[selectedCampaignId].length} group(s).
-                      </p>
-                    </div>
-                  )}
-                </motion.div>
+                  {
+                    selectedCampaignId && campaignGroups[selectedCampaignId] && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                        <p className="text-xs text-blue-800">
+                          Campaign selected. Compose your message below to send to {campaignGroups[selectedCampaignId].length} group(s).
+                        </p>
+                      </div>
+                    )
+                  }
+                </motion.div >
               );
             })()}
 
 
 
 
-            {sendMode === 'file' && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
-                className="space-y-6"
-              >
-                <div
-                  className={`relative border-2 border-dashed rounded-md p-6 text-center ${uploadedFile
-                    ? 'border-[#004d66] bg-gray-100'
-                    : 'border-gray-200 hover:border-[#004d66] hover:bg-gray-100'
-                    }`}
+            {
+              sendMode === 'file' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  className="space-y-6"
                 >
-                  <input
-                    type="file"
-                    accept=".csv,.txt"
-                    onChange={handleFileSelect}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  {uploadedFile ? (
+                  <div
+                    className={`relative border-2 border-dashed rounded-md p-6 text-center ${uploadedFile
+                      ? 'border-[#004d66] bg-gray-100'
+                      : 'border-gray-200 hover:border-[#004d66] hover:bg-gray-100'
+                      }`}
+                  >
+                    <input
+                      type="file"
+                      accept=".csv,.txt"
+                      onChange={handleFileSelect}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    {uploadedFile ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                      >
+                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                          <svg className="w-6 h-6 text-[#004d66]" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-[#004d66] mb-2">{uploadedFile.name}</p>
+                          <p className="text-sm text-gray-600 mb-3">File uploaded successfully!</p>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                      >
+                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                          <svg className="w-6 h-6 text-[#004d66]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-[#004d66] mb-2">Upload File</p>
+                          <p className="text-sm text-gray-600">Drag and drop your CSV/TXT file here</p>
+                          <p className="text-sm text-gray-600 mt-1">or click to browse</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                  {uploadedData.length > 0 && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
+                      transition={{ delay: 0.45 }}
+                      className="bg-white border border-gray-200 p-4 rounded-md"
                     >
-                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                        <svg className="w-6 h-6 text-[#004d66]" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Users className="w-5 h-5 text-[#004d66]" />
+                        <h3 className="text-lg font-medium text-[#004d66]">File Preview</h3>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-[#004d66] mb-2">{uploadedFile.name}</p>
-                        <p className="text-sm text-gray-600 mb-3">File uploaded successfully!</p>
+                      <div className="space-y-2 mb-3">
+                        <label className="text-sm font-medium text-gray-600">Phone Number Column</label>
+                        <select
+                          value={phoneColumn}
+                          onChange={(e) => setPhoneColumn(e.target.value)}
+                          className="w-full text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+                        >
+                          <option value="" className="text-[#004d66]">Select phone column</option>
+                          {availableColumns.map(col => (
+                            <option key={col} value={col} className="text-[#004d66]">
+                              {col}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                    >
-                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                        <svg className="w-6 h-6 text-[#004d66]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                        </svg>
+                      <div className="space-y-2 mb-3">
+                        <label className="text-sm font-medium text-gray-600">Default Country Code</label>
+                        <input
+                          type="text"
+                          value={defaultCountryCode}
+                          onChange={(e) => setDefaultCountryCode(e.target.value)}
+                          placeholder="e.g., +255"
+                          className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+                        />
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-[#004d66] mb-2">Upload File</p>
-                        <p className="text-sm text-gray-600">Drag and drop your CSV/TXT file here</p>
-                        <p className="text-sm text-gray-600 mt-1">or click to browse</p>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead>
+                            <tr>
+                              {availableColumns.map(column => (
+                                <th key={column} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  {column}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {uploadedData.slice(0, 5).map((row, index) => (
+                              <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                {availableColumns.map(column => (
+                                  <td key={column} className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
+                                    {row[column]}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="mt-3 flex justify-between text-sm text-[#004d66]">
+                        <span>Showing {Math.min(5, uploadedData.length)} of {uploadedData.length} contacts</span>
+                        <span className="text-[#FDD70D]">✓ File validated successfully</span>
                       </div>
                     </motion.div>
                   )}
-                </div>
-                {uploadedData.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.45 }}
-                    className="bg-white border border-gray-200 p-4 rounded-md"
-                  >
-                    <div className="flex items-center gap-2 mb-3">
-                      <Users className="w-5 h-5 text-[#004d66]" />
-                      <h3 className="text-lg font-medium text-[#004d66]">File Preview</h3>
-                    </div>
-                    <div className="space-y-2 mb-3">
-                      <label className="text-sm font-medium text-gray-600">Phone Number Column</label>
-                      <select
-                        value={phoneColumn}
-                        onChange={(e) => setPhoneColumn(e.target.value)}
-                        className="w-full text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                      >
-                        <option value="" className="text-[#004d66]">Select phone column</option>
-                        {availableColumns.map(col => (
-                          <option key={col} value={col} className="text-[#004d66]">
-                            {col}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-2 mb-3">
-                      <label className="text-sm font-medium text-gray-600">Default Country Code</label>
-                      <input
-                        type="text"
-                        value={defaultCountryCode}
-                        onChange={(e) => setDefaultCountryCode(e.target.value)}
-                        placeholder="e.g., +255"
-                        className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                      />
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead>
-                          <tr>
-                            {availableColumns.map(column => (
-                              <th key={column} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                {column}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {uploadedData.slice(0, 5).map((row, index) => (
-                            <tr key={index} className="hover:bg-gray-50 transition-colors">
-                              {availableColumns.map(column => (
-                                <td key={column} className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
-                                  {row[column]}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="mt-3 flex justify-between text-sm text-[#004d66]">
-                      <span>Showing {Math.min(5, uploadedData.length)} of {uploadedData.length} contacts</span>
-                      <span className="text-[#FDD70D]">✓ File validated successfully</span>
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
+                </motion.div>
+              )
+            }
 
-            {sendMode !== 'campaign' && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.65 }}
-                className="space-y-2"
-              >
-                <div className="flex justify-between items-center">
-                  <label className="text-sm font-medium text-gray-600">Message</label>
-                  <div className="flex gap-2">
-                    {sendMode === 'file' && availableColumns.length > 0 && (
-                      <select
-                        onChange={(e) => insertPlaceholder(e.target.value)}
-                        className="text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+            {
+              sendMode !== 'campaign' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.65 }}
+                  className="space-y-2"
+                >
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-gray-600">Message</label>
+                    <div className="flex gap-2">
+                      {sendMode === 'file' && availableColumns.length > 0 && (
+                        <select
+                          onChange={(e) => insertPlaceholder(e.target.value)}
+                          className="text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+                        >
+                          <option value="" className="text-[#004d66]">Insert Placeholder</option>
+                          {availableColumns.map(col => (
+                            <option key={col} value={col} className="text-[#004d66]">
+                              {col}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <motion.button
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.7 }}
+                        type="button"
+                        onClick={() => setModal('isAIModalOpen', true)}
+                        className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] flex items-center gap-2 text-sm font-medium transition-colors"
                       >
-                        <option value="" className="text-[#004d66]">Insert Placeholder</option>
-                        {availableColumns.map(col => (
-                          <option key={col} value={col} className="text-[#004d66]">
-                            {col}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <motion.button
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.7 }}
-                      type="button"
-                      onClick={() => setModal('isAIModalOpen', true)}
-                      className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] flex items-center gap-2 text-sm font-medium transition-colors"
-                    >
-                      <Bot className="w-5 h-5" />
-                      AI Assist
-                    </motion.button>
+                        <Bot className="w-5 h-5" />
+                        AI Assist
+                      </motion.button>
+                    </div>
                   </div>
-                </div>
-                <textarea
-                  ref={textareaRef}
-                  value={formData.message}
-                  onChange={(e) => handleInputChange('message', e.target.value)}
-                  rows={6}
-                  className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
-                  placeholder={sendMode === 'file' ? "Type your message here... (e.g., Hi {name}, your balance is {amount}!)" : "Type your message here..."}
-                  required
-                />
-                <div className="flex justify-end gap-3 text-sm text-[#004d66]">
-                  <span>{smsCount} SMS</span>
-                  <span>{charCount}/160</span>
-                </div>
-              </motion.div>
-            )}
+                  <textarea
+                    ref={textareaRef}
+                    value={formData.message}
+                    onChange={(e) => handleInputChange('message', e.target.value)}
+                    rows={6}
+                    className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
+                    placeholder={sendMode === 'file' ? "Type your message here... (e.g., Hi {name}, your balance is {amount}!)" : "Type your message here..."}
+                    required
+                  />
+                  <div className="flex justify-end gap-3 text-sm text-[#004d66]">
+                    <span>{smsCount} SMS</span>
+                    <span>{charCount}/160</span>
+                  </div>
+                </motion.div>
+              )
+            }
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -1315,8 +1423,8 @@ const SendSMS = () => {
                 )}
               </button>
             </motion.div>
-          </div>
-        </motion.div>
+          </div >
+        </motion.div >
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -1335,7 +1443,7 @@ const SendSMS = () => {
             </div>
           </div>
         </motion.div>
-      </div>
+      </div >
 
       <Modal
         isOpen={modalState.isAIModalOpen}
@@ -1508,6 +1616,29 @@ const SendSMS = () => {
       </Modal>
 
       {/* Campaign Wizard Modal */}
+      <CampaignEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        campaign={editingCampaign}
+        onUpdate={handleUpdateCampaign}
+      />
+
+      {
+        deleteConfirmation && (
+          <Modal
+            isOpen={!!deleteConfirmation}
+            onClose={() => setDeleteConfirmation(null)}
+            title="Delete Campaign"
+            onSubmit={() => handleDeleteCampaign(deleteConfirmation)}
+            submitText="Delete"
+          >
+            <div className="p-4">
+              <p className="text-gray-600">Are you sure you want to delete this campaign? This action cannot be undone.</p>
+            </div>
+          </Modal>
+        )
+      }
+
       <CampaignWizard
         isOpen={isWizardOpen}
         onClose={() => {
