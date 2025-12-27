@@ -4,6 +4,8 @@ import { Users, Calendar, Send, Bot } from 'lucide-react';
 import PhonePreview from '../modals/PhonePreview';
 import { useWorkspace } from './WorkspaceContext';
 import Modal from '../modals/Modal';
+import CampaignWizard from '../components/campaign/CampaignWizard';
+import CampaignProgress from '../components/campaign/CampaignProgress';
 import {
   getApprovedSenderIds,
   getCampaigns,
@@ -14,22 +16,23 @@ import {
   createCampaign,
   assignGroupToCampaign,
   getContacts,
+  getAccountBalance,
 } from '../services/api';
 
-interface Campaign { 
-  campaign_id: string; 
-  workspace_id: string; 
-  name: string; 
+interface Campaign {
+  campaign_id: string;
+  workspace_id: string;
+  name: string;
   description?: string;
   launch_date?: string;
   created_at: string;
 }
 interface Group { group_id: string; name: string; contact_count?: number; }
 interface SenderId { sender_id: string; name: string; is_approved: boolean; }
-interface Contact { 
-  contact_id: string; 
-  workspace_id: string; 
-  phone: string; 
+interface Contact {
+  contact_id: string;
+  workspace_id: string;
+  phone: string;
   name?: string;
   created_at: string;
 }
@@ -84,6 +87,15 @@ const SendSMS = () => {
     isCreateCampaignOpen: false,
   });
 
+  // Campaign Wizard State
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [userBalance, setUserBalance] = useState(0);
+  const [initialCampaignData, setInitialCampaignData] = useState<any>(null);
+
+  // Pagination for campaigns
+  const [currentPage, setCurrentPage] = useState(1);
+  const campaignsPerPage = 5;
+
   useEffect(() => {
     const count = formData.message.length;
     setCharCount(count);
@@ -104,6 +116,15 @@ const SendSMS = () => {
         setGroups(groupsData);
         const contactsData = await getContacts(currentWorkspaceId);
         setAllContacts(contactsData);
+
+        // Fetch user balance for campaign wizard
+        try {
+          const balanceData = await getAccountBalance();
+          setUserBalance(balanceData.balance || 0);
+        } catch (balErr) {
+          console.warn('Failed to fetch balance:', balErr);
+          setUserBalance(0);
+        }
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load data.';
         setError(errorMessage);
@@ -130,7 +151,7 @@ const SendSMS = () => {
         setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: [] }));
       }
     };
-    
+
     if (selectedCampaignId) {
       fetchCampaignGroups();
     }
@@ -190,7 +211,7 @@ const SendSMS = () => {
           reject(new Error('No valid data found in file.'));
           return;
         }
-        
+
         setAvailableColumns(headers);
         resolve(parsedRows);
       };
@@ -244,18 +265,18 @@ const SendSMS = () => {
 
   const isFormValid = () => {
     if (!formData.senderId || !formData.message.trim()) return false;
-    
+
     if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length && !sendToAll) return false;
-    
+
     if (sendMode === 'campaign') {
       if (!selectedCampaignId) return false;
       if (formData.frequency && formData.frequency !== 'once') {
         if (!formData.startDate || !formData.startTime) return false;
       }
     }
-    
+
     if (sendMode === 'file' && (!uploadedFile || !phoneColumn)) return false;
-    
+
     return true;
   };
 
@@ -368,23 +389,23 @@ const SendSMS = () => {
   const handleSendSMS = async () => {
     setIsSending(true);
     setError(null);
-    
+
     console.log('=== handleSendSMS START ===');
     console.log('Send mode:', sendMode);
     console.log('Current workspace ID:', currentWorkspaceId);
     console.log('Form data:', formData);
     console.log('Selected groups:', selectedGroups);
     console.log('Send to all:', sendToAll);
-    
+
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected.');
 
       if (sendMode === 'instant') {
         const recipients: string[] = [];
         const groups: string[] = [];
-        
+
         console.log('=== INSTANT MODE PROCESSING ===');
-        
+
         if (sendToAll) {
           recipients.push(...allContacts.map(c => c.phone));
           console.log('Sending to all contacts:', recipients.length);
@@ -402,7 +423,7 @@ const SendSMS = () => {
             console.log('Groups to send to:', groups);
           }
         }
-        
+
         const instantMessageData = {
           sender_id: formData.senderId,
           content: formData.message,
@@ -410,20 +431,20 @@ const SendSMS = () => {
           ...(groups.length > 0 && { groups }),
           ...(sendToAll && { default_country_code: defaultCountryCode }),
         };
-        
+
         console.log('About to call sendInstantMessage with data:', instantMessageData);
-        
+
         await sendInstantMessage(currentWorkspaceId, instantMessageData);
-        
+
       } else if (sendMode === 'campaign') {
         console.log('=== CAMPAIGN MODE PROCESSING ===');
         const campaignGroupsList = campaignGroups[selectedCampaignId] || [];
         console.log('Campaign groups list:', campaignGroupsList);
-        
+
         if (!campaignGroupsList.length) {
           throw new Error('This campaign has no groups assigned. Please assign groups to the campaign first or create a new campaign with groups.');
         }
-        
+
         const hasScheduleData = formData.startDate && formData.startTime;
         const scheduleData = hasScheduleData ? {
           start_date: formData.startDate,
@@ -432,7 +453,7 @@ const SendSMS = () => {
           end_time: formData.endTime || null,
           frequency: formData.frequency || 'once',
         } : null;
-        
+
         const campaignMessageData = {
           sender_id: formData.senderId,
           content: formData.message,
@@ -441,22 +462,22 @@ const SendSMS = () => {
           campaign_id: selectedCampaignId,
           ...(scheduleData && { schedule: scheduleData }),
         };
-        
+
         console.log('About to call sendInstantMessage with campaign data:', campaignMessageData);
-        
+
         await sendInstantMessage(currentWorkspaceId, campaignMessageData);
-        
+
       } else if (sendMode === 'file') {
         console.log('=== FILE MODE PROCESSING ===');
-        
+
         if (!uploadedFile) {
           throw new Error('No file uploaded. Please select a file first.');
         }
-        
+
         if (!phoneColumn) {
           throw new Error('Please select the phone number column.');
         }
-        
+
         for (const row of uploadedData) {
           const phone = row[phoneColumn];
           if (!phone) continue;
@@ -494,16 +515,16 @@ const SendSMS = () => {
       setAvailableColumns([]);
       setPhoneColumn('');
       setSendToAll(false);
-      
+
     } catch (err: unknown) {
       console.error('=== handleSendSMS ERROR ===');
       console.error('Error object:', err);
-      
+
       let errorMessage = 'Failed to send SMS.';
       if (err instanceof Error) {
         errorMessage = err.message;
       }
-      
+
       console.error('Final error message:', errorMessage);
       setError(errorMessage);
     } finally {
@@ -538,41 +559,41 @@ const SendSMS = () => {
 
   const handleCreateCampaign = async () => {
     setError(null);
-    
+
     if (!formData.campaignName?.trim()) {
       setError('Please enter a campaign name.');
       return;
     }
-    
+
     if (!selectedGroups.length) {
       setError('Please select at least one group.');
       return;
     }
-    
+
     if (!currentWorkspaceId) {
       setError('No workspace selected.');
       return;
     }
-    
+
     try {
       console.log('Creating campaign with:', {
         name: formData.campaignName,
         selectedGroups,
         workspaceId: currentWorkspaceId
       });
-      
+
       const campaignData = {
         name: formData.campaignName.trim(),
         description: `Campaign with ${selectedGroups.length} group(s)`,
         workspace_id: currentWorkspaceId,
         launch_date: new Date().toISOString()
       };
-      
+
       console.log('Sending campaign data to API:', campaignData);
       console.log('Current workspace ID:', currentWorkspaceId);
       console.log('Campaign name:', formData.campaignName);
       console.log('Selected groups:', selectedGroups);
-      
+
       const newCampaign = await createCampaign(campaignData);
       console.log('Created campaign:', newCampaign);
 
@@ -583,32 +604,32 @@ const SendSMS = () => {
 
       setCampaigns(prev => [...prev, newCampaign]);
       setSelectedCampaignId(newCampaign.campaign_id);
-      
+
       const campaignGroupsData = groups.filter(group => selectedGroups.includes(group.group_id));
       setCampaignGroups(prev => ({ ...prev, [newCampaign.campaign_id]: campaignGroupsData }));
 
       setModal('isCreateCampaignOpen', false);
       setFormData(prev => ({ ...prev, campaignName: '' }));
       setSelectedGroups([]);
-      
+
       console.log('Campaign created successfully');
-      
+
     } catch (err: unknown) {
       console.error('Error creating campaign:', err);
-      
+
       let errorMessage = 'Failed to create campaign.';
-      
+
       if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { 
-          response?: { 
-            data?: { detail?: string; message?: string } | string; 
-            status?: number; 
-          } 
+        const axiosError = err as {
+          response?: {
+            data?: { detail?: string; message?: string } | string;
+            status?: number;
+          }
         };
-        
+
         console.error('API Error Response:', axiosError.response?.data);
         console.error('API Error Status:', axiosError.response?.status);
-        
+
         if (axiosError.response?.data && typeof axiosError.response.data === 'object') {
           if ('detail' in axiosError.response.data && axiosError.response.data.detail) {
             errorMessage = axiosError.response.data.detail;
@@ -629,7 +650,7 @@ const SendSMS = () => {
       } else if (err instanceof Error && err.message !== '[object Object]') {
         errorMessage = err.message;
       }
-      
+
       setError(errorMessage);
     }
   };
@@ -642,6 +663,77 @@ const SendSMS = () => {
       [modal]: isOpen,
     }));
   };
+
+  const handleWizardLaunch = async (campaignData: any) => {
+    try {
+      if (!currentWorkspaceId) {
+        setError('No workspace selected.');
+        return;
+      }
+
+      // Create the campaign
+      const campaignPayload = {
+        name: campaignData.name,
+        description: campaignData.description,
+        workspace_id: currentWorkspaceId,
+        launch_date: campaignData.scheduleType === 'immediate'
+          ? new Date().toISOString()
+          : `${campaignData.startDate}T${campaignData.startTime}`,
+        ...(campaignData.scheduleType === 'scheduled' && {
+          start_date: campaignData.startDate,
+          start_time: campaignData.startTime,
+          end_date: campaignData.endDate,
+          end_time: campaignData.endTime,
+          schedule_type: campaignData.frequency,
+        }),
+      };
+
+      const newCampaign = await createCampaign(campaignPayload);
+
+      // Assign selected groups to campaign
+      for (const groupId of campaignData.selectedGroups) {
+        await assignGroupToCampaign(groupId, newCampaign.campaign_id);
+      }
+
+      // Update local campaign group state
+      const campaignGroupsData = groups.filter(group => campaignData.selectedGroups.includes(group.group_id));
+      setCampaignGroups(prev => ({ ...prev, [newCampaign.campaign_id]: campaignGroupsData }));
+
+      // Update campaigns list
+      setCampaigns(prev => [...prev, newCampaign as Campaign]);
+
+      // If immediate launch, send the message
+      if (campaignData.scheduleType === 'immediate' && formData.senderId) {
+        await sendInstantMessage(currentWorkspaceId, {
+          sender_id: formData.senderId,
+          content: campaignData.message,
+          recipients: [],
+          groups: campaignData.selectedGroups,
+          campaign_id: newCampaign.campaign_id,
+        });
+      }
+
+      // Refresh balance after campaign creation
+      try {
+        const balanceData = await getAccountBalance();
+        setUserBalance(balanceData.balance || 0);
+      } catch (balErr) {
+        console.warn('Failed to refresh balance:', balErr);
+      }
+
+      setError(null);
+    } catch (err: unknown) {
+      console.error('Error launching campaign from wizard:', err);
+      let errorMessage = 'Failed to launch campaign.';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
+    }
+  };
+
+
+
 
   if (isLoading) {
     return (
@@ -685,9 +777,8 @@ const SendSMS = () => {
         {['instant', 'campaign', 'file'].map((mode, index) => (
           <button
             key={mode}
-            className={`py-2 px-4 text-sm font-medium ${
-              sendMode === mode ? 'border-b-2 border-[#004d66] text-[#004d66]' : 'text-gray-600 hover:text-[#FDD70D]'
-            }`}
+            className={`py-2 px-4 text-sm font-medium ${sendMode === mode ? 'border-b-2 border-[#004d66] text-[#004d66]' : 'text-gray-600 hover:text-[#FDD70D]'
+              }`}
             onClick={() => setSendMode(mode as 'instant' | 'campaign' | 'file')}
           >
             <motion.span
@@ -821,157 +912,170 @@ const SendSMS = () => {
               </motion.div>
             )}
 
-            {sendMode === 'campaign' && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
-                className="space-y-6"
-              >
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-600">Campaign Action</label>
-                  <div className="flex gap-3">
-                    <motion.button
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                      type="button"
-                      onClick={() => {
-                        setFormData(prev => ({ ...prev, campaignName: '' }));
-                        setSelectedGroups([]);
-                        setError(null);
-                        setModal('isCreateCampaignOpen', true);
-                      }}
-                      className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] text-sm font-medium transition-colors"
-                    >
-                      Create New Campaign
-                    </motion.button>
-                    <select
-                      value={selectedCampaignId}
-                      onChange={(e) => setSelectedCampaignId(e.target.value)}
-                      className="w-1/2 text-sm py-3 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                    >
-                      <option value="" className="text-[#004d66]">Select Existing Campaign</option>
-                      {campaigns.map(campaign => (
-                        <option
-                          key={campaign.campaign_id}
-                          value={campaign.campaign_id}
-                          className="text-[#004d66]"
-                        >
-                          {campaign.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                {selectedCampaignId && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.45 }}
-                    className="space-y-2"
-                  >
-                    <label className="text-sm font-medium text-gray-600">Target Groups</label>
-                    {campaignGroups[selectedCampaignId] && campaignGroups[selectedCampaignId].length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {campaignGroups[selectedCampaignId].map(group => (
-                          <span
-                            key={group.group_id}
-                            className="inline-flex items-center px-3 py-1 bg-gray-100 text-[#004d66] rounded-full text-sm font-medium"
-                          >
-                            <Users className="w-5 h-5 mr-1" />
-                            {group.name}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-                        <div className="flex items-center gap-2 text-yellow-700">
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                          <span className="text-sm font-medium">No groups assigned to this campaign</span>
-                        </div>
-                        <p className="text-sm text-yellow-600 mt-1">
-                          Please create a new campaign with groups or assign groups to this campaign through the Campaigns page.
-                        </p>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="space-y-2"
-                  >
-                    <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-[#004d66]" /> Start Date & Time
-                    </label>
-                    <div className="flex gap-3">
-                      <input
-                        type="date"
-                        value={formData.startDate}
-                        onChange={(e) => handleInputChange('startDate', e.target.value)}
-                        className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                      />
-                      <input
-                        type="time"
-                        value={formData.startTime}
-                        onChange={(e) => handleInputChange('startTime', e.target.value)}
-                        className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                      />
-                    </div>
-                  </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.55 }}
-                    className="space-y-2"
-                  >
-                    <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-[#004d66]" /> End Date & Time
-                    </label>
-                    <div className="flex gap-3">
-                      <input
-                        type="date"
-                        value={formData.endDate}
-                        onChange={(e) => handleInputChange('endDate', e.target.value)}
-                        className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                      />
-                      <input
-                        type="time"
-                        value={formData.endTime}
-                        onChange={(e) => handleInputChange('endTime', e.target.value)}
-                        className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                      />
-                    </div>
-                  </motion.div>
-                </div>
+
+            {sendMode === 'campaign' && (() => {
+              // Pagination logic
+              const indexOfLastCampaign = currentPage * campaignsPerPage;
+              const indexOfFirstCampaign = indexOfLastCampaign - campaignsPerPage;
+              const currentCampaigns = campaigns.slice(indexOfFirstCampaign, indexOfLastCampaign);
+              const totalPages = Math.ceil(campaigns.length / campaignsPerPage);
+
+              return (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
-                  className="space-y-2"
+                  transition={{ delay: 0.35 }}
+                  className="space-y-4"
                 >
-                  <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-[#004d66]" /> Frequency
-                  </label>
-                  <select
-                    value={formData.frequency}
-                    onChange={(e) => handleInputChange('frequency', e.target.value)}
-                    className="w-full text-sm py-3 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                  >
-                    <option value="" className="text-[#004d66]">Select frequency</option>
-                    <option value="once" className="text-[#004d66]">Send Once</option>
-                    <option value="daily" className="text-[#004d66]">Daily</option>
-                    <option value="weekly" className="text-[#004d66]">Weekly</option>
-                    <option value="monthly" className="text-[#004d66]">Monthly</option>
-                  </select>
+                  {/* Header */}
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-medium text-gray-600">Campaigns ({campaigns.length})</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null);
+                        setInitialCampaignData(null);
+                        setIsWizardOpen(true);
+                      }}
+                      className="px-3 py-1.5 bg-[#004d66] text-white rounded-md hover:bg-[#FDD70D] hover:text-[#004d66] text-xs font-medium transition-colors flex items-center gap-1.5"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      New Campaign
+                    </button>
+                  </div>
+
+                  {/* Campaign List */}
+                  <div className="space-y-2">
+                    {campaigns.length > 0 ? (
+                      currentCampaigns.map((campaign) => {
+                        const groups = campaignGroups[campaign.campaign_id] || [];
+                        const totalContacts = groups.reduce((sum, group) => sum + (group.contact_count || 0), 0);
+                        const isSelected = selectedCampaignId === campaign.campaign_id;
+
+                        return (
+                          <div
+                            key={campaign.campaign_id}
+                            className={`bg-white border rounded-md p-3 transition-all ${isSelected ? 'border-[#004d66] shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              {/* Campaign Info */}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-medium text-[#00333e] truncate">{campaign.name}</h4>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <Users className="w-3.5 h-3.5" />
+                                    {groups.length} group{groups.length !== 1 ? 's' : ''}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                    {totalContacts.toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex gap-2 flex-shrink-0">
+                                <button
+                                  onClick={() => {
+                                    setSelectedCampaignId(campaign.campaign_id);
+                                    setError(null);
+                                  }}
+                                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${isSelected
+                                      ? 'bg-[#00333e] text-white'
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                  {isSelected ? 'Selected' : 'Select'}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    console.log('Re-run button clicked for campaign:', campaign.name);
+                                    const initialData = {
+                                      name: `${campaign.name} (Copy)`,
+                                      description: campaign.description || '',
+                                      selectedGroups: groups.map(g => g.group_id),
+                                    };
+                                    console.log('Setting initial campaign data:', initialData);
+                                    setInitialCampaignData(initialData);
+                                    setIsWizardOpen(true);
+                                  }}
+                                  className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 rounded transition-colors"
+                                  title="Re-run this campaign"
+                                >
+                                  Re-Run
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                        <svg className="mx-auto w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                        </svg>
+                        <p className="mt-2 text-sm text-gray-600">No campaigns yet</p>
+                        <p className="mt-1 text-xs text-gray-500">Click "New Campaign" to get started</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pagination */}
+                  {campaigns.length > campaignsPerPage && (
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                      <p className="text-xs text-gray-500">
+                        Showing {indexOfFirstCampaign + 1}-{Math.min(indexOfLastCampaign, campaigns.length)} of {campaigns.length}
+                      </p>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className="px-2 py-1 text-xs text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        {[...Array(totalPages)].map((_, i) => (
+                          <button
+                            key={i + 1}
+                            onClick={() => setCurrentPage(i + 1)}
+                            className={`px-2 py-1 text-xs rounded ${currentPage === i + 1
+                                ? 'bg-[#004d66] text-white'
+                                : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                              }`}
+                          >
+                            {i + 1}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className="px-2 py-1 text-xs text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected Campaign Info */}
+                  {selectedCampaignId && campaignGroups[selectedCampaignId] && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                      <p className="text-xs text-blue-800">
+                        Campaign selected. Compose your message below to send to {campaignGroups[selectedCampaignId].length} group(s).
+                      </p>
+                    </div>
+                  )}
                 </motion.div>
-              </motion.div>
-            )}
+              );
+            })()}
+
+
+
 
             {sendMode === 'file' && (
               <motion.div
@@ -981,11 +1085,10 @@ const SendSMS = () => {
                 className="space-y-6"
               >
                 <div
-                  className={`relative border-2 border-dashed rounded-md p-6 text-center ${
-                    uploadedFile
-                      ? 'border-[#004d66] bg-gray-100'
-                      : 'border-gray-200 hover:border-[#004d66] hover:bg-gray-100'
-                  }`}
+                  className={`relative border-2 border-dashed rounded-md p-6 text-center ${uploadedFile
+                    ? 'border-[#004d66] bg-gray-100'
+                    : 'border-gray-200 hover:border-[#004d66] hover:bg-gray-100'
+                    }`}
                 >
                   <input
                     type="file"
@@ -1335,7 +1438,7 @@ const SendSMS = () => {
             <p className="text-sm font-medium text-[#004d66]">Message Preview:</p>
             <p className="text-sm text-[#004d66] mt-2 break-words">{messagePreview}</p>
           </div>
-          
+
           {sendMode === 'campaign' && formData.startDate && formData.startTime && (
             <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
               <p className="text-sm font-medium text-[#004d66]">Scheduling Information:</p>
@@ -1359,10 +1462,26 @@ const SendSMS = () => {
               </div>
             </div>
           )}
-          
+
           <p className="text-sm">Please confirm to proceed with sending.</p>
         </motion.div>
       </Modal>
+
+      {/* Campaign Wizard Modal */}
+      <CampaignWizard
+        isOpen={isWizardOpen}
+        onClose={() => {
+          setIsWizardOpen(false);
+          setInitialCampaignData(null);
+        }}
+        groups={groups}
+        userBalance={userBalance}
+        onLaunch={handleWizardLaunch}
+        onTopUpClick={() => {
+          window.location.href = '/subscription';
+        }}
+        initialCampaignData={initialCampaignData}
+      />
     </div>
   );
 };
