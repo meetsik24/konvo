@@ -3,7 +3,7 @@ import {
   getApprovedSenderIds,
   getWorkspaceGroups,
   getMessageLogs,
-  getCampaigns,
+  listCampaigns,
 } from '../services/api.tsx';
 
 type DataType = 'senderIds' | 'groups' | 'logs' | 'campaigns';
@@ -23,7 +23,8 @@ const useApi = <T,>(type: DataType): ApiState<T> => {
       let result: any;
       switch (type) {
         case 'senderIds':
-          result = await getApprovedSenderIds();
+          if (!workspaceId) throw new Error('Workspace ID required');
+          result = await getApprovedSenderIds(workspaceId);
           break;
         case 'groups':
           if (!workspaceId) throw new Error('Workspace ID required');
@@ -34,7 +35,7 @@ const useApi = <T,>(type: DataType): ApiState<T> => {
           break;
         case 'campaigns':
           if (!workspaceId) throw new Error('Workspace ID required');
-          result = await getCampaigns();
+          result = await listCampaigns();
           break;
       }
       setData(result);

@@ -1384,7 +1384,8 @@ export const getAllocations = async (packageId: string): Promise<ServiceAllocati
     console.log('getAllocations API response:', response.data);
     return response.data;
   } catch (error: any) {
-    return handleApiError(error, 'Failed to get allocations');
+    handleApiError(error, 'Failed to send bulk SMS file');
+    throw error;
   }
 };
 
@@ -1400,7 +1401,8 @@ export const checkPaymentStatus = async (
     console.log('checkPaymentStatus API response:', response.data);
     return response.data;
   } catch (error: any) {
-    return handleApiError(error, 'Failed to check payment status');
+    handleApiError(error, 'Failed to check payment status');
+    throw error;
   }
 };
 
@@ -1651,6 +1653,7 @@ export const generateMessage = async (prompt: string): Promise<string> => {
     }
   } catch (error: any) {
     handleApiError(error, 'Failed to generate SMS message');
+    throw error;
   }
 };
 
@@ -1891,7 +1894,8 @@ export const getUsageLogs = async (): Promise<UsageLog[]> => {
     console.log("getUsageLogs API response:", response.data);
     return response.data;
   } catch (error: any) {
-    return handleApiError(error, "Failed to fetch usage logs");
+    handleApiError(error, 'Failed to get message logs');
+    throw error;
   }
 };
 

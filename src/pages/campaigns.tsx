@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { MessageSquare, Send, Clock, Trash2, Edit, Users, X } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import {
-  getCampaign,
+  listCampaigns,
   createCampaign,
   updateCampaign,
   deleteCampaign,
@@ -16,13 +16,13 @@ interface Campaign {
   campaign_id: string;
   workspace_id: string;
   name: string;
-  description: string;
-  launch_date: string;
+  description?: string;
+  launch_date?: string;
   schedule_type?: 'daily' | 'weekly' | 'monthly';
   start_date?: string;
   end_date?: string;
   end_time?: string;
-  created_by: string;
+  created_by?: string;
   created_at: string;
 }
 
@@ -57,7 +57,7 @@ const SMSCampaigns: React.FC = () => {
     const fetchData = async () => {
       if (!currentWorkspaceId) return;
       try {
-        const campaignData = await getCampaigns();
+        const campaignData = await listCampaigns();
         const workspaceCampaigns = campaignData.filter(
           (c: Campaign) => c.workspace_id === currentWorkspaceId
         );
@@ -185,15 +185,15 @@ const SMSCampaigns: React.FC = () => {
 
   const handleEditCampaign = (campaign: Campaign) => {
     setEditingCampaign(campaign);
-    setNewCampaign({
+    setNewCampaign((prev) => ({
+      ...prev,
       name: campaign.name,
-      description: campaign.description,
-      launch_date: campaign.launch_date || '',
+      description: campaign.description || '',
       schedule_type: campaign.schedule_type || 'daily',
       start_date: campaign.start_date || '',
       end_date: campaign.end_date || '',
       end_time: campaign.end_time || '',
-    });
+    }));
   };
 
   const handleAssignGroup = async (campaignId: string, groupId: string) => {
@@ -457,9 +457,9 @@ const SMSCampaigns: React.FC = () => {
                       {campaign.name}
                     </h3>
                     <p className="text-xs sm:text-sm text-gray-600">
-                      {campaign.description.length > 30
+                      {campaign.description && (campaign.description.length > 30
                         ? `${campaign.description.substring(0, 30)}...`
-                        : campaign.description}
+                        : campaign.description)}
                     </p>
                     {campaign.launch_date && (
                       <p className="text-xs sm:text-sm text-gray-600">
