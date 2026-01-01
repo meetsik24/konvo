@@ -31,3 +31,6 @@ node_modules
 #json
 package-lock.json
 .DS_Store
+.DS_Store
+[main 5d7da10] Ignore .DS_Store filesecho
+ 1 file changed, 0 insertions(+), 0 deletions(-)
