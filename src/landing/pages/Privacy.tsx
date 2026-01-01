@@ -1,10 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
-import { Footer } from '../components/Footer'; // Import Footer
+import { Footer } from '../components/Footer';
 
 const Privacy = () => {
-  // Animation variants for sections
   const sectionVariants = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: 'easeOut' } },
@@ -16,9 +15,9 @@ const Privacy = () => {
       <Navbar />
 
       {/* Header Section */}
-      <section className="bg-[#00333e] text-white py-20 relative overflow-hidden">
+      <section className="bg-[#00333e] text-white py-24 relative overflow-hidden">
         {/* Animated Texture Background */}
-        <div className="absolute inset-0 z-0 opacity-30">
+        <div className="absolute inset-0 z-0 opacity-40">
           <div className="absolute inset-0 tech-circuit-bg animate-circuit-move" />
           <div className="absolute inset-0 particle-bg animate-particle-move" />
         </div>
@@ -30,182 +29,212 @@ const Privacy = () => {
             transition={{ duration: 1, ease: 'easeOut' }}
             className="text-center"
           >
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">
               Privacy{' '}
-              <span className="text-[#fddf0d] [text-shadow:_0_0_10px_rgba(253,223,13,0.3)]">
+              <span className="text-[#fddf0d] [text-shadow:_0_0_15px_rgba(253,223,13,0.4)]">
                 Policy
               </span>
             </h1>
-            <p className="text-[#6f888c] text-base md:text-lg max-w-2xl mx-auto">
-              At Briq, we are committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our services.
+            <p className="text-[#6f888c] text-lg md:text-xl max-w-3xl mx-auto leading-relaxed">
+              Last updated: January 2026. This policy applies to Briq, a communications platform providing SMS, WhatsApp, OTP, and related messaging services.
             </p>
           </motion.div>
         </div>
       </section>
 
       {/* Content Section */}
-      <section className="flex-grow py-16">
-        <div className="container mx-auto px-4">
-          <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-lg p-10 max-w-5xl mx-auto space-y-12">
-            <motion.section
-              variants={sectionVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-bold text-[#00333e] mb-6 sticky top-0 bg-white/95 py-4 z-10 -mx-10 px-10 shadow-sm">
-                1. Information We Collect
+      <section className="flex-grow py-20 bg-[#1a3c47] relative">
+        {/* Subtle background glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-radial-gradient from-[#00333e]/20 to-transparent pointer-events-none" />
+
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl p-8 md:p-12 max-w-5xl mx-auto space-y-16">
+
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#fddf0d] mb-8 sticky top-[80px] bg-[#1a3c47]/80 backdrop-blur-md py-4 z-10 -mx-4 px-4 md:-mx-12 md:px-12 rounded-lg border-b border-white/5">
+                1. Introduction
               </h2>
-              <p className="text-gray-700 leading-relaxed">
-                We may collect the following types of information when you use Briq's services:
+              <div className="text-gray-300 leading-relaxed text-lg space-y-4">
+                <p>
+                  Briq (“we”, “our”, “us”) respects user privacy and is committed to protecting personal data. This Privacy Policy explains how we collect, use, store, and protect information when clients, partners, or end-users use Briq services.
+                </p>
+                <p>
+                  This document is prepared for <strong>Meta Business Solutions Partner approval</strong> and complies with applicable data protection principles and Meta Platform Policies.
+                </p>
+              </div>
+            </motion.section>
+
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#fddf0d] mb-8 sticky top-[80px] bg-[#1a3c47]/80 backdrop-blur-md py-4 z-10 -mx-4 px-4 md:-mx-12 md:px-12 rounded-lg border-b border-white/5">
+                2. Information We Collect
+              </h2>
+              <p className="text-gray-300 leading-relaxed text-lg mb-6">
+                We may collect the following categories of data:
               </p>
-              <ul className="list-disc list-inside text-gray-700 mt-4 space-y-3">
-                <li>
-                  <strong>Personal Information:</strong> Name, email address, phone number, and payment information when you create an account or make a payment.
+              <ul className="space-y-4">
+                {[
+                  { title: 'Account Information', desc: 'Business name, contact person, email address, phone number.' },
+                  { title: 'Authentication Data', desc: 'API keys, access tokens (securely generated and stored).' },
+                  { title: 'Messaging Data', desc: 'Sender IDs, recipient phone numbers, message content (SMS/WhatsApp), delivery reports.' },
+                  { title: 'Technical Data', desc: 'IP address, device information, browser type, logs, timestamps.' },
+                  { title: 'Billing Data', desc: 'Transaction records, invoices, payment references (we do not store card details).' }
+                ].map((item, i) => (
+                  <li key={i} className="flex gap-4">
+                    <span className="text-[#fddf0d] mt-1.5">•</span>
+                    <p className="text-gray-300 text-lg">
+                      <strong className="text-white">{item.title}:</strong> {item.desc}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </motion.section>
+
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#fddf0d] mb-8 sticky top-[80px] bg-[#1a3c47]/80 backdrop-blur-md py-4 z-10 -mx-4 px-4 md:-mx-12 md:px-12 rounded-lg border-b border-white/5">
+                3. How We Use Information
+              </h2>
+              <p className="text-gray-300 leading-relaxed text-lg mb-6">
+                Collected information is used strictly to:
+              </p>
+              <ul className="grid md:grid-cols-2 gap-4">
+                {[
+                  'Provide and operate messaging services',
+                  'Deliver SMS, WhatsApp, and OTP messages',
+                  'Authenticate API and portal access',
+                  'Monitor delivery, prevent fraud, and ensure compliance',
+                  'Generate reports, analytics, and billing statements',
+                  'Communicate service updates or critical notices'
+                ].map((text, i) => (
+                  <li key={i} className="bg-white/5 p-4 rounded-xl border border-white/5 text-gray-300">
+                    {text}
+                  </li>
+                ))}
+              </ul>
+            </motion.section>
+
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#fddf0d] mb-8 sticky top-[80px] bg-[#1a3c47]/80 backdrop-blur-md py-4 z-10 -mx-4 px-4 md:-mx-12 md:px-12 rounded-lg border-b border-white/5">
+                4. Legal Basis for Processing
+              </h2>
+              <p className="text-gray-300 leading-relaxed text-lg mb-6">
+                We process data based on:
+              </p>
+              <ul className="space-y-3 text-gray-300 text-lg">
+                <li>• Contractual necessity (service delivery)</li>
+                <li>• Legitimate business interests</li>
+                <li>• Legal and regulatory obligations</li>
+                <li>• User or client consent where applicable</li>
+              </ul>
+            </motion.section>
+
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#fddf0d] mb-8 sticky top-[80px] bg-[#1a3c47]/80 backdrop-blur-md py-4 z-10 -mx-4 px-4 md:-mx-12 md:px-12 rounded-lg border-b border-white/5">
+                5. Data Sharing & Disclosure
+              </h2>
+              <div className="bg-[#fddf0d]/10 border-l-4 border-[#fddf0d] p-6 mb-8">
+                <p className="text-white font-bold text-lg">
+                  We do not sell personal data.
+                </p>
+              </div>
+              <p className="text-gray-300 leading-relaxed text-lg mb-6">
+                Data may be shared only with:
+              </p>
+              <ul className="space-y-4 text-gray-300 text-lg">
+                <li>• <strong>Licensed telecom operators and WhatsApp/Meta-approved providers</strong> for message routing</li>
+                <li>• <strong>Trusted infrastructure partners</strong> (hosting, security, monitoring)</li>
+                <li>• <strong>Legal authorities</strong> when required by law</li>
+              </ul>
+              <p className="text-gray-400 italic mt-6">
+                All partners are bound by confidentiality and data protection obligations.
+              </p>
+            </motion.section>
+
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#fddf0d] mb-8 sticky top-[80px] bg-[#1a3c47]/80 backdrop-blur-md py-4 z-10 -mx-4 px-4 md:-mx-12 md:px-12 rounded-lg border-b border-white/5">
+                6. Data Retention
+              </h2>
+              <ul className="space-y-4 text-gray-300 text-lg font-inter">
+                <li className="flex gap-4">
+                  <span className="text-[#fddf0d]">✓</span>
+                  <p>Message logs and delivery reports are retained only as long as necessary for compliance, troubleshooting, and billing.</p>
                 </li>
-                <li>
-                  <strong>Usage Data:</strong> Information about how you use our services, such as the messages you send, API calls, and interaction logs.
-                </li>
-                <li>
-                  <strong>Technical Data:</strong> IP address, browser type, device information, and operating system.
+                <li className="flex gap-4">
+                  <span className="text-[#fddf0d]">✓</span>
+                  <p>Account data is retained while the account is active or as legally required.</p>
                 </li>
               </ul>
             </motion.section>
 
-            <motion.section
-              variants={sectionVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-bold text-[#00333e] mb-6 sticky top-0 bg-white/95 py-4 z-10 -mx-10 px-10 shadow-sm">
-                2. How We Use Your Information
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#fddf0d] mb-8 sticky top-[80px] bg-[#1a3c47]/80 backdrop-blur-md py-4 z-10 -mx-4 px-4 md:-mx-12 md:px-12 rounded-lg border-b border-white/5">
+                7. Data Security
               </h2>
-              <p className="text-gray-700 leading-relaxed">
-                We use the information we collect to:
+              <p className="text-gray-300 leading-relaxed text-lg mb-6">
+                Briq implements industry-standard safeguards including:
               </p>
-              <ul className="list-disc list-inside text-gray-700 mt-4 space-y-3">
-                <li>Provide and improve our services, such as sending Bulk SMS or generating OTPs.</li>
-                <li>Process payments and manage your account.</li>
-                <li>Communicate with you, including sending service-related notifications.</li>
-                <li>Analyze usage patterns to enhance user experience and develop new features.</li>
-                <li>Comply with legal obligations and protect against fraudulent activities.</li>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-300">
+                {['Secure APIs and authentication', 'Encryption in transit and at rest', 'Access control and audit logging', 'Regular monitoring and system hardening'].map((s, i) => (
+                  <div key={i} className="flex items-center gap-3 p-4 bg-white/5 rounded-lg border border-white/5">
+                    <div className="w-2 h-2 rounded-full bg-[#fddf0d]" />
+                    <span>{s}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#fddf0d] mb-8 sticky top-[80px] bg-[#1a3c47]/80 backdrop-blur-md py-4 z-10 -mx-4 px-4 md:-mx-12 md:px-12 rounded-lg border-b border-white/5">
+                8. User Rights
+              </h2>
+              <p className="text-gray-300 leading-relaxed text-lg mb-4">
+                Depending on jurisdiction, users may request to:
+              </p>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-300 text-lg">
+                {['Access their data', 'Correct inaccurate information', 'Request deletion (subject to laws)', 'Restrict or object to processing'].map((r, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#fddf0d]" />
+                    {r}
+                  </li>
+                ))}
               </ul>
-            </motion.section>
-
-            <motion.section
-              variants={sectionVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-bold text-[#00333e] mb-6 sticky top-0 bg-white/95 py-4 z-10 -mx-10 px-10 shadow-sm">
-                3. How We Share Your Information
-              </h2>
-              <p className="text-gray-700 leading-relaxed">
-                We do not sell or rent your personal information. We may share your information with:
-              </p>
-              <ul className="list-disc list-inside text-gray-700 mt-4 space-y-3">
-                <li>
-                  <strong>Service Providers:</strong> Third parties that assist us in delivering our services, such as payment processors and SMS gateways.
-                </li>
-                <li>
-                  <strong>Legal Authorities:</strong> When required by law or to protect our rights, safety, or property.
-                </li>
-              </ul>
-            </motion.section>
-
-            <motion.section
-              variants={sectionVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-bold text-[#00333e] mb-6 sticky top-0 bg-white/95 py-4 z-10 -mx-10 px-10 shadow-sm">
-                4. Data Security
-              </h2>
-              <p className="text-gray-700 leading-relaxed">
-                We implement industry-standard security measures to protect your information, including encryption and secure API key management. However, no method of transmission over the internet is 100% secure, and we cannot guarantee absolute security.
+              <p className="text-gray-400 mt-6">
+                Requests can be submitted via official Briq support channels.
               </p>
             </motion.section>
 
-            <motion.section
-              variants={sectionVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-bold text-[#00333e] mb-6 sticky top-0 bg-white/95 py-4 z-10 -mx-10 px-10 shadow-sm">
-                5. Your Rights
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#fddf0d] mb-8 sticky top-[80px] bg-[#1a3c47]/80 backdrop-blur-md py-4 z-10 -mx-4 px-4 md:-mx-12 md:px-12 rounded-lg border-b border-white/5">
+                9. Cookies & Tracking
               </h2>
-              <p className="text-gray-700 leading-relaxed">
-                You have the right to:
-              </p>
-              <ul className="list-disc list-inside text-gray-700 mt-4 space-y-3">
-                <li>Access, update, or delete your personal information by contacting us.</li>
-                <li>Opt out of marketing communications.</li>
-                <li>Request information about how your data is being used.</li>
-              </ul>
-            </motion.section>
-
-            <motion.section
-              variants={sectionVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-bold text-[#00333e] mb-6 sticky top-0 bg-white/95 py-4 z-10 -mx-10 px-10 shadow-sm">
-                6. Cookies and Tracking
-              </h2>
-              <p className="text-gray-700 leading-relaxed">
-                We use cookies and similar technologies to improve your experience on our website, analyze usage, and deliver personalized content. You can manage your cookie preferences through your browser settings.
+              <p className="text-gray-300 leading-relaxed text-lg">
+                Briq portals may use essential cookies for authentication, security, and performance. We do not use cookies for unauthorized tracking.
               </p>
             </motion.section>
 
-            <motion.section
-              variants={sectionVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-bold text-[#00333e] mb-6 sticky top-0 bg-white/95 py-4 z-10 -mx-10 px-10 shadow-sm">
-                7. Third-Party Links
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#fddf0d] mb-8 sticky top-[80px] bg-[#1a3c47]/80 backdrop-blur-md py-4 z-10 -mx-4 px-4 md:-mx-12 md:px-12 rounded-lg border-b border-white/5">
+                10. Changes to This Policy
               </h2>
-              <p className="text-gray-700 leading-relaxed">
-                Our services may contain links to third-party websites. We are not responsible for the privacy practices or content of these websites. We encourage you to review their privacy policies.
+              <p className="text-gray-300 leading-relaxed text-lg">
+                We may update this Privacy Policy periodically. Updates will be communicated via official channels or the Briq portal.
               </p>
             </motion.section>
 
-            <motion.section
-              variants={sectionVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-bold text-[#00333e] mb-6 sticky top-0 bg-white/95 py-4 z-10 -mx-10 px-10 shadow-sm">
-                8. Changes to This Privacy Policy
+            <motion.section variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <h2 className="text-2xl md:text-3xl font-bold text-[#fddf0d] mb-8 sticky top-[80px] bg-[#1a3c47]/80 backdrop-blur-md py-4 z-10 -mx-4 px-4 md:-mx-12 md:px-12 rounded-lg border-b border-white/5">
+                11. Contact Information
               </h2>
-              <p className="text-gray-700 leading-relaxed">
-                We may update this Privacy Policy from time to time. We will notify you of changes by posting the updated policy on our website. Your continued use of the services after such changes constitutes your acceptance of the new policy.
-              </p>
+              <div className="bg-white/5 p-8 rounded-2xl border border-white/5">
+                <p className="text-white font-bold text-xl mb-4">Briq Solutions</p>
+                <div className="flex flex-col gap-2">
+                  <p className="text-gray-400">Email for privacy-related inquiries:</p>
+                  <a href="mailto:support@briq.co.tz" className="text-[#fddf0d] text-xl hover:underline font-medium">
+                    sms@briq.co.tz
+                  </a>
+                </div>
+              </div>
             </motion.section>
 
-            <motion.section
-              variants={sectionVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              <h2 className="text-2xl font-bold text-[#00333e] mb-6 sticky top-0 bg-white/95 py-4 z-10 -mx-10 px-10 shadow-sm">
-                9. Contact Us
-              </h2>
-              <p className="text-gray-700 leading-relaxed">
-                If you have any questions about this Privacy Policy, please contact us at{' '}
-                <a href="mailto:sms@briq.tz" className="text-[#fddf0d] hover:underline">
-                  sms@briq.tz
-                </a>.
-              </p>
-            </motion.section>
           </div>
         </div>
       </section>
