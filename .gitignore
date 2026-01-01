@@ -30,3 +30,4 @@ node_modules
 
 #json
 package-lock.json
+.DS_Store
