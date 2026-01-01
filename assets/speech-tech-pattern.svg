@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150">
+  <defs>
+    <linearGradient id="speechGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00333e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#004d5a;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#speechGradient)" stroke-width="1" stroke-opacity="0.2">
+    <!-- Speech Bubbles -->
+    <path d="M20 20 Q25 15 30 20 Q35 25 30 30 L25 35 Q20 30 20 20 Z" fill="url(#speechGradient)" fill-opacity="0.1" />
+    <path d="M70 30 Q75 25 80 30 Q85 35 80 40 L75 45 Q70 40 70 30 Z" fill="url(#speechGradient)" fill-opacity="0.1" />
+    <path d="M40 80 Q45 75 50 80 Q55 85 50 90 L45 95 Q40 90 40 80 Z" fill="url(#speechGradient)" fill-opacity="0.1" />
+    <path d="M100 90 Q105 85 110 90 Q115 95 110 100 L105 105 Q100 100 100 90 Z" fill="url(#speechGradient)" fill-opacity="0.1" />
+    <!-- Connecting Lines -->
+    <path d="M25 25 L75 35 M75 35 L45 85 M45 85 L105 95" />
+    <!-- Nodes -->
+    <circle cx="25" cy="25" r="2" fill="#fddf0d" fill-opacity="0.5" />
+    <circle cx="75" cy="35" r="2" fill="#fddf0d" fill-opacity="0.5" />
+    <circle cx="45" cy="85" r="2" fill="#fddf0d" fill-opacity="0.5" />
+    <circle cx="105" cy="95" r="2" fill="#fddf0d" fill-opacity="0.5" />
+  </g>
+</svg>

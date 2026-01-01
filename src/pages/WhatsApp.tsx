@@ -1,0 +1,411 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import {
+  MessageSquare,
+  Shield,
+  FileText,
+  Megaphone,
+  Bot,
+  Lock,
+  CheckCircle,
+  Clock,
+  XCircle
+} from 'lucide-react';
+import { useWorkspace } from './WorkspaceContext';
+import { WABAStatus, WhatsAppTemplate, WhatsAppCampaign, ChatConversation, AutomationFlow } from '../types/whatsapp';
+
+// Import components
+import OnboardingModal from '../components/whatsapp/OnboardingModal';
+import MessagingTab from '../components/whatsapp/MessagingTab';
+import TemplatesTab from '../components/whatsapp/TemplatesTab';
+import CampaignsTab from '../components/whatsapp/CampaignsTab';
+import AutomationTab from '../components/whatsapp/AutomationTab';
+
+const WhatsApp: React.FC = () => {
+  const { currentWorkspaceId } = useWorkspace();
+  const [activeTab, setActiveTab] = useState<'messaging' | 'templates' | 'campaigns' | 'automation'>('messaging');
+  const [wabaStatus, setWabaStatus] = useState<WABAStatus>({
+    status: 'not_connected',
+    last_updated: new Date().toISOString()
+  });
+  const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
+  const [campaigns, setCampaigns] = useState<WhatsAppCampaign[]>([]);
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [flows, setFlows] = useState<AutomationFlow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+
+  useEffect(() => {
+    const fetchWhatsAppData = async () => {
+      setIsLoading(true);
+      try {
+        if (!currentWorkspaceId) throw new Error('No workspace selected.');
+        
+        // Check if user has already completed onboarding
+        const savedWabaStatus = localStorage.getItem('whatsapp_waba_status');
+        if (savedWabaStatus) {
+          const parsedStatus = JSON.parse(savedWabaStatus);
+          setWabaStatus(parsedStatus);
+      } else {
+          // First time user - show onboarding modal
+          setShowOnboardingModal(true);
+        }
+        
+        setTemplates([
+          {
+            id: '1',
+            name: 'Welcome Message',
+            category: 'transactional',
+            status: 'approved',
+            content: 'Welcome to {{business_name}}! How can we help you today?',
+            variables: ['business_name'],
+            created_at: new Date().toISOString(),
+            language: 'en'
+          },
+          {
+            id: '2',
+            name: 'Order Confirmation',
+            category: 'transactional',
+            status: 'approved',
+            content: 'Your order #{{order_id}} has been confirmed. Total: {{amount}}',
+            variables: ['order_id', 'amount'],
+            created_at: new Date().toISOString(),
+            language: 'en'
+          },
+          {
+            id: '3',
+            name: 'Promotional Offer',
+            category: 'marketing',
+            status: 'pending',
+            content: 'Special offer! Get {{discount}}% off on {{product_name}}. Use code: {{coupon_code}}',
+            variables: ['discount', 'product_name', 'coupon_code'],
+            created_at: new Date().toISOString(),
+            language: 'en'
+          }
+        ]);
+        
+        setCampaigns([
+          {
+            id: '1',
+            name: 'Summer Sale Campaign',
+            template_id: '3',
+            status: 'running',
+            audience_count: 1500,
+            sent_count: 1200,
+            delivered_count: 1150,
+            read_count: 800,
+            response_rate: 12,
+            created_at: new Date().toISOString()
+          },
+          {
+            id: '2',
+            name: 'Welcome New Users',
+            template_id: '1',
+            status: 'scheduled',
+            audience_count: 500,
+            sent_count: 0,
+            delivered_count: 0,
+            read_count: 0,
+            response_rate: 0,
+            created_at: new Date().toISOString(),
+            scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+          }
+        ]);
+        
+        setConversations([
+          {
+            id: '1',
+            customer_name: 'John Doe',
+            customer_phone: '+255123456789',
+            last_message: 'Hello, I need help with my order',
+            last_message_time: '2 minutes ago',
+            unread_count: 1,
+            status: 'active',
+            assigned_agent: 'Agent 1',
+            tags: ['support', 'order'],
+            messages: [
+              {
+                id: '1',
+                content: 'Hello, I need help with my order',
+                type: 'text',
+                sender: 'customer',
+                timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString()
+              }
+            ]
+          },
+          {
+            id: '2',
+            customer_name: 'Jane Smith',
+            customer_phone: '+255987654321',
+            last_message: 'Thank you for the quick response!',
+            last_message_time: '1 hour ago',
+            unread_count: 0,
+            status: 'active',
+            assigned_agent: 'Agent 2',
+            tags: ['satisfied'],
+            messages: [
+              {
+                id: '2',
+                content: 'Thank you for the quick response!',
+                type: 'text',
+                sender: 'customer',
+                timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString()
+              }
+            ]
+          }
+        ]);
+        
+        setFlows([
+          {
+            id: '1',
+            name: 'Welcome New Customers',
+            trigger: 'welcome',
+            status: 'active',
+            steps: [
+              {
+                id: '1',
+                type: 'message',
+                content: 'Welcome to our store! How can we help you today?',
+                next_step_id: '2'
+              },
+              {
+                id: '2',
+                type: 'quick_reply',
+                options: ['Browse Products', 'Track Order', 'Contact Support'],
+                next_step_id: '3'
+              }
+            ],
+            created_at: new Date().toISOString()
+          },
+          {
+            id: '2',
+            name: 'Order Status Inquiry',
+            trigger: 'keyword',
+            status: 'inactive',
+            steps: [
+              {
+                id: '1',
+                type: 'message',
+                content: 'Please provide your order number to check status',
+                next_step_id: '2'
+              }
+            ],
+            created_at: new Date().toISOString()
+          }
+        ]);
+        
+    } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load WhatsApp data.';
+      setError(errorMessage);
+    } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchWhatsAppData();
+  }, [currentWorkspaceId]);
+
+  const handleOnboardingComplete = (newWabaStatus: WABAStatus) => {
+    setWabaStatus(newWabaStatus);
+    setShowOnboardingModal(false);
+    // Save to localStorage
+    localStorage.setItem('whatsapp_waba_status', JSON.stringify(newWabaStatus));
+  };
+
+  const handleOpenOnboarding = () => {
+    setShowOnboardingModal(true);
+  };
+
+  const isWhatsAppReady = wabaStatus.status === 'verified' || wabaStatus.status === 'pending';
+
+  const tabs = [
+    { 
+      id: 'messaging', 
+      label: 'Messaging Dashboard', 
+      icon: MessageSquare,
+      description: 'Manage conversations and chat with customers'
+    },
+    { 
+      id: 'templates', 
+      label: 'Template Management', 
+      icon: FileText,
+      description: 'Create and manage message templates'
+    },
+    { 
+      id: 'campaigns', 
+      label: 'Campaign Management', 
+      icon: Megaphone,
+      description: 'Create and run broadcast campaigns'
+    },
+    { 
+      id: 'automation', 
+      label: 'Automation & Flows', 
+      icon: Bot,
+      description: 'Build automated conversation flows'
+    }
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <svg className="animate-spin h-6 w-6 text-[#004d66]" viewBox="0 0 24 24" aria-label="Loading">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+        <p className="ml-3 text-[#004d66] text-sm">Loading WhatsApp Business...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-screen bg-[#f5f5f5] font-inter overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="h-full flex flex-col"
+      >
+        {/* Header - Mobile Responsive */}
+        <div className="flex items-center justify-between p-3 sm:p-4 bg-white border-b border-gray-200">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {/* <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#25D366] rounded-lg flex items-center justify-center flex-shrink-0">
+              <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+            </div> */}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-sm sm:text-lg font-semibold text-[#004d66] truncate">WhatsApp Business</h1>
+              <p className="text-xs text-gray-600 hidden sm:block">Manage your WhatsApp Business communications</p>
+            </div>
+          </div>
+          {/* Status Indicator - Mobile Responsive */}
+          {wabaStatus.status !== 'not_connected' && (
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+              {wabaStatus.status === 'verified' ? (
+                <div className="flex items-center gap-1 px-1.5 sm:px-2 py-1 bg-green-50 text-green-700 rounded text-xs font-medium">
+                  <CheckCircle className="w-3 h-3" />
+                  <span className="hidden sm:inline">Verified</span>
+                </div>
+              ) : wabaStatus.status === 'pending' ? (
+                <div className="flex items-center gap-1 px-1.5 sm:px-2 py-1 bg-yellow-50 text-yellow-700 rounded text-xs font-medium">
+                  <Clock className="w-3 h-3" />
+                  <span className="hidden sm:inline">Pending</span>
+                </div>
+              ) : wabaStatus.status === 'rejected' ? (
+                <div className="flex items-center gap-1 px-1.5 sm:px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">
+                  <XCircle className="w-3 h-3" />
+                  <span className="hidden sm:inline">Rejected</span>
+                </div>
+              ) : null}
+              
+              <button
+                onClick={handleOpenOnboarding}
+                className="p-1 sm:p-1.5 text-[#25D366] hover:bg-gray-50 rounded transition-colors"
+              >
+                <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+
+      {/* Error Message */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="border border-red-200 bg-red-50 p-3 text-red-700 text-sm font-medium rounded-md text-center mb-6"
+        >
+          {error}
+        </motion.div>
+      )}
+
+      {/* Tab Navigation - Mobile Responsive */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="flex overflow-x-auto border-b border-gray-200 bg-white px-2 sm:px-4 scrollbar-hide"
+      >
+        {tabs.map((tab, index) => (
+          <button
+            key={tab.id}
+            className={`py-2 px-2 sm:px-4 text-xs sm:text-sm font-medium rounded-t-lg transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
+              activeTab === tab.id 
+                ? 'bg-gray-50 text-[#004d66] border-b-2 border-[#004d66]' 
+                : 'text-gray-600 hover:text-[#004d66] hover:bg-gray-50'
+            }`}
+            onClick={() => setActiveTab(tab.id as any)}
+          >
+            <motion.span
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 * (index + 1) }}
+            >
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+            </motion.span>
+          </button>
+        ))}
+      </motion.div>
+
+      {/* Tab Content - Mobile Responsive */}
+        <motion.div
+        key={activeTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        className="flex-1 p-2 sm:p-4 overflow-hidden bg-gray-50"
+      >
+        {!isWhatsAppReady ? (
+          <div className="h-full flex items-center justify-center p-4">
+            <div className="text-center max-w-md mx-auto">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
+            </div>
+              <h3 className="text-lg sm:text-xl font-semibold text-[#004d66] mb-3 sm:mb-4">WhatsApp Business Not Set Up</h3>
+              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
+                Complete the WhatsApp Business setup to start using messaging, templates, campaigns, and automation features.
+              </p>
+              <button
+                onClick={handleOpenOnboarding}
+                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[#25D366] text-white rounded-md hover:bg-[#1DA851] transition-colors flex items-center gap-2 mx-auto text-sm sm:text-base"
+              >
+                <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Set Up WhatsApp Business</span>
+                <span className="sm:hidden">Set Up WhatsApp</span>
+              </button>
+            </div>
+          </div>
+                    ) : (
+          <>
+            {activeTab === 'messaging' && (
+              <MessagingTab conversations={conversations} setConversations={setConversations} templates={templates} setTemplates={setTemplates} />
+            )}
+            {activeTab === 'templates' && (
+              <TemplatesTab templates={templates} setTemplates={setTemplates} />
+            )}
+            {activeTab === 'campaigns' && (
+              <>
+                {console.log('Rendering CampaignsTab with props:', { campaigns, templates })}
+                <CampaignsTab campaigns={campaigns} setCampaigns={setCampaigns} templates={templates} />
+              </>
+            )}
+            {activeTab === 'automation' && (
+              <AutomationTab flows={flows} setFlows={setFlows} />
+            )}
+                  </>
+                )}
+            </motion.div>
+        </motion.div>
+
+      {/* Onboarding Modal */}
+      <OnboardingModal
+        isOpen={showOnboardingModal}
+        onClose={() => setShowOnboardingModal(false)}
+        onComplete={handleOnboardingComplete}
+        wabaStatus={wabaStatus}
+      />
+    </div>
+  );
+};
+
+export default WhatsApp;
