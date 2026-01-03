@@ -23,7 +23,8 @@ import {
   getPlans,
   getUserPlan,
   getProfile,
-  getSubscriptionUsage
+  getSubscriptionUsage,
+  getAccountBalance
 } from '../services/api';
 import { SmsStatus, DailyCount } from '../services/metricsInterfaces';
 
@@ -113,8 +114,8 @@ const Dashboard: React.FC = () => {
   const [chartInstanceLine, setChartInstanceLine] = useState<Chart | null>(null);
   const [dateRange, setDateRange] = useState<'today' | 'this_week' | 'this_month' | 'past_3_months' | 'past_6_months' | 'past_9_months' | 'last_year' | 'all_time'>('all_time');
 
-  // Subscription State
-  const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionUsage | null>(null);
+  // Wallet State
+  const [wallet, setWallet] = useState<{ units: number } | null>(null);
 
   // Greeting State
   const [currentGreetingIndex, setCurrentGreetingIndex] = useState(0);
@@ -128,44 +129,20 @@ const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch Credit Balance
+  // Fetch Wallet Balance
   useEffect(() => {
-    const fetchPlansAndCreditBalance = async () => {
+    const fetchWalletBalance = async () => {
       if (!token) return;
       try {
-        const plansData = await getPlans();
-
-        let planId: string | null = null;
-        try {
-          const userPlanData = await getUserPlan();
-          planId = userPlanData.plan_id;
-        } catch (planErr) {
-          try {
-            const userProfile = await getProfile();
-            if (userProfile.plan_id) {
-              planId = userProfile.plan_id;
-            } else if (plansData.length > 0) {
-              planId = plansData[0].plan_id;
-            }
-          } catch (profileErr) {
-            if (plansData.length > 0) {
-              planId = plansData[0].plan_id;
-            }
-          }
-        }
-
-        if (planId) {
-          const creditBalanceData = await getSubscriptionUsage(planId);
-          setSubscriptionDetails(creditBalanceData);
-        }
+        const balance = await getAccountBalance();
+        setWallet({ units: balance.balance });
       } catch (err) {
-        console.error("Error fetching subscription data:", err);
+        console.error("Error fetching wallet balance:", err);
       }
     };
 
-    fetchPlansAndCreditBalance();
+    fetchWalletBalance();
   }, [token]);
-
 
   const fetchMetricsData = useCallback(async () => {
     try {
@@ -405,9 +382,9 @@ const Dashboard: React.FC = () => {
               <Wallet className="w-4 h-4 text-green-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500 font-medium">Credit Balance</p>
+              <p className="text-xs text-gray-500 font-medium">Wallet Balance</p>
               <p className="text-sm font-bold text-[#00333e]">
-                {subscriptionDetails ? subscriptionDetails.sms_credits.toLocaleString() : '---'}
+                {wallet ? wallet.units.toLocaleString() : '---'}
               </p>
             </div>
           </div>
