@@ -137,11 +137,11 @@ const Subscription: React.FC = () => {
           .filter(plan => plan && plan.package_id && plan.services && plan.services.length > 0)
           .map((plan) => {
             // Calculate total units from all services
-            const totalUnits = plan.services.reduce((sum, service) => sum + service.units_allocated, 0);
+            const totalUnits = plan.services.reduce((sum, service) => sum + (service.quantity || 0), 0);
 
             // Get voice service units (most packages seem to have voice services)
             const voiceService = plan.services.find(s => s.service_id === 'cc08b078-59d5-4d03-963e-e6f7a45ec867');
-            const smsUnits = voiceService ? voiceService.units_allocated : totalUnits;
+            const smsUnits = voiceService ? (voiceService.quantity || 0) : totalUnits;
 
             return {
               id: plan.package_id,
@@ -150,8 +150,8 @@ const Subscription: React.FC = () => {
               totalPrice: plan.total_price || 0,
               services: plan.services.map(service => ({
                 service_id: service.service_id,
-                quantity: service.units_allocated,
-                unit_cost_at_purchase: service.unit_cost_at_purchase,
+                quantity: service.quantity || 0,
+                unit_cost_at_purchase: service.unit_cost_at_purchase || 0,
               })),
               allocation: {
                 sms: smsUnits,
@@ -444,12 +444,12 @@ const Subscription: React.FC = () => {
   // -------------------- UNIT RANGE HELPERS --------------------
   const getPackageUnitRange = (pkg: Package): { min: number; max: number } => {
     // Get total units allocated from current package services
-    const currentUnits = pkg.services.reduce((sum, service) => sum + service.units_allocated, 0);
+    const currentUnits = pkg.services.reduce((sum, service) => sum + (service.quantity || 0), 0);
 
     // Find the next package by sorting by units and finding current package's position
     const sortedByUnits = [...packages].sort((a, b) => {
-      const aUnits = a.services.reduce((sum, s) => sum + s.units_allocated, 0);
-      const bUnits = b.services.reduce((sum, s) => sum + s.units_allocated, 0);
+      const aUnits = a.services.reduce((sum, s) => sum + (s.quantity || 0), 0);
+      const bUnits = b.services.reduce((sum, s) => sum + (s.quantity || 0), 0);
       return aUnits - bUnits;
     });
 
@@ -459,7 +459,7 @@ const Subscription: React.FC = () => {
       : null;
 
     const nextUnits = nextPackage
-      ? nextPackage.services.reduce((sum, service) => sum + service.units_allocated, 0)
+      ? nextPackage.services.reduce((sum, service) => sum + (service.quantity || 0), 0)
       : currentUnits + 100000; // Default fallback
 
     return {
@@ -617,7 +617,7 @@ const Subscription: React.FC = () => {
                     <h3 className="text-lg font-bold text-[#00333e]">
                       {currentPackage.allocation.sms.toLocaleString()}
                     </h3>
-                    <p className="text-gray-500 text-xs font-medium">SMS Units</p>
+                    <p className="text-gray-500 text-xs font-medium">SMS</p>
                   </div>
                 </div>
 
@@ -629,7 +629,7 @@ const Subscription: React.FC = () => {
                     <h3 className="text-lg font-bold text-[#00333e]">
                       {currentPackage.allocation.whatsapp.toLocaleString()}
                     </h3>
-                    <p className="text-gray-500 text-xs font-medium">WhatsApp Units</p>
+                    <p className="text-gray-500 text-xs font-medium">WhatsApp Messages</p>
                   </div>
                 </div>
 
@@ -641,7 +641,7 @@ const Subscription: React.FC = () => {
                     <h3 className="text-lg font-bold text-[#00333e]">
                       {currentPackage.allocation.avr.toLocaleString()}
                     </h3>
-                    <p className="text-gray-500 text-xs font-medium">Voice Units</p>
+                    <p className="text-gray-500 text-xs font-medium">Minutes</p>
                   </div>
                 </div>
               </div>
