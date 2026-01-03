@@ -452,7 +452,7 @@ const Subscription: React.FC = () => {
     if (pkg.name === "Kitonga") {
       return {
         min: currentUnits || 1,
-        max: 19999,
+        max: 20000,
       };
     }
 
@@ -486,10 +486,10 @@ const Subscription: React.FC = () => {
           : 0)
       : currentUnits + 100000; // Default fallback
 
-    // max of current package = min of next package (no gaps)
+    // No overlaps: max of current package = min of next package - 1
     return {
       min: currentUnits || 1,
-      max: nextUnits > currentUnits ? nextUnits : (currentUnits + 100000),
+      max: nextUnits > currentUnits ? nextUnits - 1 : (currentUnits + 100000),
     };
   };
 
@@ -501,12 +501,14 @@ const Subscription: React.FC = () => {
 
     const { min, max } = getPackageUnitRange(pkg);
 
-    // Allow any positive quantity; remove strict min/max validation
-    // to allow customers to purchase custom amounts
     if (quantity < min && min > 0) {
-      // Only require minimum if the package has a defined minimum
       return `Minimum units for this package is ${min.toLocaleString()}`;
     }
+    
+    if (quantity > max) {
+      return `Maximum units for this package is ${max.toLocaleString()}`;
+    }
+    
     return "";
   };
 
