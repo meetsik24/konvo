@@ -20,7 +20,7 @@ interface Package {
   totalPrice: number;
   services: Array<{
     service_id: string;
-    units_allocated: number;
+    quantity: number;
     unit_cost_at_purchase: number;
   }>;
   allocation: {
@@ -138,7 +138,6 @@ const Subscription: React.FC = () => {
           .map((plan) => {
             // Calculate total units from all services
             const totalUnits = plan.services.reduce((sum, service) => sum + service.units_allocated, 0);
-            
             // Get voice service units (most packages seem to have voice services)
             const voiceService = plan.services.find(s => s.service_id === 'cc08b078-59d5-4d03-963e-e6f7a45ec867');
             const smsUnits = voiceService ? voiceService.units_allocated : totalUnits;
@@ -150,7 +149,7 @@ const Subscription: React.FC = () => {
               totalPrice: plan.total_price || 0,
               services: plan.services.map(service => ({
                 service_id: service.service_id,
-                units_allocated: service.units_allocated,
+                quantity: service.units_allocated,
                 unit_cost_at_purchase: service.unit_cost_at_purchase,
               })),
               allocation: {
@@ -181,7 +180,6 @@ const Subscription: React.FC = () => {
     const fetchUsageData = async () => {
       try {
         setLoading((prev) => ({ ...prev, usage: true }));
-        
         // Fetch allocations summary only
         const allocationsData = await getAllocationsSummary();
         console.log("Allocations Data:", allocationsData);
@@ -190,11 +188,11 @@ const Subscription: React.FC = () => {
         const allocation = { sms: 0, whatsapp: 0, avr: 0 };
         allocationsData.allocations.forEach((alloc: any) => {
           if (alloc.service_name === "SMS") {
-            allocation.sms = alloc.total_units_allocated;
+            allocation.sms = alloc.total_quantity;
           } else if (alloc.service_name === "WHATSAPP") {
-            allocation.whatsapp = alloc.total_units_allocated;
+            allocation.whatsapp = alloc.total_quantity;
           } else if (alloc.service_name === "VOICE") {
-            allocation.avr = alloc.total_units_allocated;
+            allocation.avr = alloc.total_quantity;
           }
         });
 
@@ -261,7 +259,6 @@ const Subscription: React.FC = () => {
     e.preventDefault();
     try {
       setIsProcessing(true);
-      
       // Step 1: Initiate payment
       const paymentResponse = await initiateUnitsPayment({
         amount_paid: topUpAmount,
@@ -271,10 +268,10 @@ const Subscription: React.FC = () => {
 
       if (paymentResponse.success) {
         console.log("Payment initiated. Payment Reference:", paymentResponse.payment_reference);
-        
+
         // Store payment reference and transaction ID for completion check
         const paymentRef = paymentResponse.payment_reference;
-        
+
         // Show pending status immediately
         showAlert(
           "success",
@@ -303,21 +300,19 @@ const Subscription: React.FC = () => {
 
               if (completeResponse.success) {
                 console.log("Payment completed successfully!", completeResponse);
-                
+
                 // Update wallet balance with the actual balance from response
                 setWallet({ units: completeResponse.updated_balance });
-                
+
                 // Clear form
                 setIsTopUpModalOpen(false);
                 setPhoneNumber("");
                 setTopUpAmount(0);
-                
                 // Show success alert with credit details
                 showAlert(
                   "success",
                   `Payment completed! ${completeResponse.credits_added} units added. New balance: ${completeResponse.updated_balance} units`
                 );
-                
                 paymentCompleted = true;
                 setIsProcessing(false);
                 return;
@@ -342,12 +337,10 @@ const Subscription: React.FC = () => {
               "success",
               `Payment initiated with reference: ${paymentRef}. Credits will be added shortly. Please refresh to check your balance.`
             );
-            
             // Clear form anyway
             setIsTopUpModalOpen(false);
             setPhoneNumber("");
             setTopUpAmount(0);
-            
             setIsProcessing(false);
           }
         };
@@ -385,7 +378,6 @@ const Subscription: React.FC = () => {
 
     try {
       setPurchasingPackageId(pkg.id);
-      
       // Calculate cost based on first service's unit cost
       const unitCost = pkg.services[0]?.unit_cost_at_purchase || 1;
       const totalCost = selectedUnits * unitCost;
@@ -399,12 +391,11 @@ const Subscription: React.FC = () => {
       const allocationPromises = pkg.services.map((service) =>
         createAllocation({
           service_id: service.service_id,
-          units_allocated: selectedUnits,
+          quantity: selectedUnits,
         })
       );
 
       const allocationsResponses = await Promise.all(allocationPromises);
-      
       // Verify all allocations were created successfully
       if (!allocationsResponses || allocationsResponses.length === 0) {
         throw new Error("Failed to allocate units");
@@ -445,23 +436,22 @@ const Subscription: React.FC = () => {
   const getPackageUnitRange = (pkg: Package): { min: number; max: number } => {
     // Get total units allocated from current package services
     const currentUnits = pkg.services.reduce((sum, service) => sum + service.units_allocated, 0);
-    
     // Find the next package by sorting by units and finding current package's position
     const sortedByUnits = [...packages].sort((a, b) => {
       const aUnits = a.services.reduce((sum, s) => sum + s.units_allocated, 0);
       const bUnits = b.services.reduce((sum, s) => sum + s.units_allocated, 0);
       return aUnits - bUnits;
     });
-    
+
     const currentIndex = sortedByUnits.findIndex(p => p.id === pkg.id);
-    const nextPackage = currentIndex !== -1 && currentIndex < sortedByUnits.length - 1 
+    const nextPackage = currentIndex !== -1 && currentIndex < sortedByUnits.length - 1
       ? sortedByUnits[currentIndex + 1]
       : null;
-    
-    const nextUnits = nextPackage 
+
+    const nextUnits = nextPackage
       ? nextPackage.services.reduce((sum, service) => sum + service.units_allocated, 0)
       : currentUnits + 100000; // Default fallback
-    
+
     return {
       min: currentUnits,
       max: nextUnits - 1,
@@ -473,9 +463,9 @@ const Subscription: React.FC = () => {
     if (!quantity || quantity <= 0) {
       return "Please enter a valid unit quantity";
     }
-    
+
     const { min, max } = getPackageUnitRange(pkg);
-    
+
     if (quantity < min) {
       return `Minimum units for this package is ${min.toLocaleString()}`;
     }
@@ -488,7 +478,6 @@ const Subscription: React.FC = () => {
   // -------------------- SERVICE HELPERS --------------------
   const getPackagesByService = (service: "sms" | "whatsapp" | "voice" | null): Package[] => {
     if (!service) return [];
-    
     const serviceIdMap = {
       sms: "fa1b30ef-6334-4459-88b9-c9f6762bf5c3", // Voice service
       whatsapp: "cc08b078-59d5-4d03-963e-e6f7a45ec867", // WhatsApp/SMS service
@@ -518,7 +507,6 @@ const Subscription: React.FC = () => {
     }
 
     const servicePackages = getPackagesByService(service);
-    
     // Find the package whose range CONTAINS the user's input
     const recommended = servicePackages.find(pkg => {
       const { min, max } = getPackageUnitRange(pkg);
@@ -654,66 +642,66 @@ const Subscription: React.FC = () => {
           {/* Purchase Units Section */}
           <div>
             <h2 className="text-sm font-bold text-[#00333e] mb-4 uppercase tracking-wider">Purchase Units</h2>
-          {errors.packages ? (
-            <p className="text-red-500 text-xs">{errors.packages}</p>
-          ) : loading.packages ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e]"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <button
-                onClick={() => openServiceModal("sms")}
-                className="group relative overflow-hidden bg-[#00333e] p-4 rounded-xl border border-[#00333e] hover:bg-[#004d5e] transition-colors"
-              >
-                <div className="flex items-center gap-3 text-white">
-                  <div className="p-2 rounded-lg bg-[#004d66]">
-                    <MessageSquare className="w-6 h-6 text-white" />
+            {errors.packages ? (
+              <p className="text-red-500 text-xs">{errors.packages}</p>
+            ) : loading.packages ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e]"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <button
+                  onClick={() => openServiceModal("sms")}
+                  className="group relative overflow-hidden bg-[#00333e] p-4 rounded-xl border border-[#00333e] hover:bg-[#004d5e] transition-colors"
+                >
+                  <div className="flex items-center gap-3 text-white">
+                    <div className="p-2 rounded-lg bg-[#004d66]">
+                      <MessageSquare className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-sm font-medium">SMS</h3>
+                      <p className="text-xs text-gray-300 mt-0.5">
+                        {getPackagesByService("sms").length} packages
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <h3 className="text-sm font-medium">SMS</h3>
-                    <p className="text-xs text-gray-300 mt-0.5">
-                      {getPackagesByService("sms").length} packages
-                    </p>
-                  </div>
-                </div>
-              </button>
+                </button>
 
-              <button
-                disabled
-                className="group relative overflow-hidden bg-gray-300 p-4 rounded-xl border border-gray-300 cursor-not-allowed opacity-60"
-              >
-                <div className="flex items-center gap-3 text-gray-500">
-                  <div className="p-2 rounded-lg bg-gray-400">
-                    <MessageSquare className="w-6 h-6 text-gray-600" />
+                <button
+                  disabled
+                  className="group relative overflow-hidden bg-gray-300 p-4 rounded-xl border border-gray-300 cursor-not-allowed opacity-60"
+                >
+                  <div className="flex items-center gap-3 text-gray-500">
+                    <div className="p-2 rounded-lg bg-gray-400">
+                      <MessageSquare className="w-6 h-6 text-gray-600" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-sm font-medium">WhatsApp</h3>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        Not Available
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <h3 className="text-sm font-medium">WhatsApp</h3>
-                    <p className="text-xs text-gray-600 mt-0.5">
-                      Not Available
-                    </p>
-                  </div>
-                </div>
-              </button>
+                </button>
 
-              <button
-                disabled
-                className="group relative overflow-hidden bg-gray-300 p-4 rounded-xl border border-gray-300 cursor-not-allowed opacity-60"
-              >
-                <div className="flex items-center gap-3 text-gray-500">
-                  <div className="p-2 rounded-lg bg-gray-400">
-                    <Phone className="w-6 h-6 text-gray-600" />
+                <button
+                  disabled
+                  className="group relative overflow-hidden bg-gray-300 p-4 rounded-xl border border-gray-300 cursor-not-allowed opacity-60"
+                >
+                  <div className="flex items-center gap-3 text-gray-500">
+                    <div className="p-2 rounded-lg bg-gray-400">
+                      <Phone className="w-6 h-6 text-gray-600" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-sm font-medium">Voice</h3>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        Not Available
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <h3 className="text-sm font-medium">Voice</h3>
-                    <p className="text-xs text-gray-600 mt-0.5">
-                      Not Available
-                    </p>
-                  </div>
-                </div>
-              </button>
-            </div>
-          )}
+                </button>
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -734,11 +722,10 @@ const Subscription: React.FC = () => {
                     setTransactionFilter(filter as typeof transactionFilter);
                     setCurrentPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    transactionFilter === filter
-                      ? "bg-[#00333e] text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${transactionFilter === filter
+                    ? "bg-[#00333e] text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
                 >
                   {filter === "all" ? "All" : filter === "usage" ? "Usage" : "Top-Up"}
                 </button>
@@ -786,9 +773,8 @@ const Subscription: React.FC = () => {
                           {item.amount > 0 ? `${item.amount.toLocaleString()} Tsh` : "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`inline-flex items-center ${
-                            item.status === "Completed" ? "text-green-600" : "text-orange-600"
-                          }`}>
+                          <span className={`inline-flex items-center ${item.status === "Completed" ? "text-green-600" : "text-orange-600"
+                            }`}>
                             {item.status}
                           </span>
                         </td>
@@ -811,11 +797,10 @@ const Subscription: React.FC = () => {
                           {new Date(item.date).toLocaleDateString()}
                         </p>
                       </div>
-                      <span className={`text-xs font-medium px-2 py-1 rounded ${
-                        item.status === "Completed" 
-                          ? "bg-green-100 text-green-600" 
-                          : "bg-orange-100 text-orange-600"
-                      }`}>
+                      <span className={`text-xs font-medium px-2 py-1 rounded ${item.status === "Completed"
+                        ? "bg-green-100 text-green-600"
+                        : "bg-orange-100 text-orange-600"
+                        }`}>
                         {item.status}
                       </span>
                     </div>
@@ -913,13 +898,12 @@ const Subscription: React.FC = () => {
                           setSelectedUnits(min);
                           setUnitError("");
                         }}
-                        className={`relative p-2 sm:p-4 rounded-lg border-2 transition-all text-left ${
-                          isSelected
-                            ? "border-[#00333e] bg-[#00333e]/5"
-                            : isPopular
+                        className={`relative p-2 sm:p-4 rounded-lg border-2 transition-all text-left ${isSelected
+                          ? "border-[#00333e] bg-[#00333e]/5"
+                          : isPopular
                             ? "border-[#fddf0d] bg-[#fddf0d]/5 hover:bg-[#fddf0d]/10"
                             : "border-gray-200 hover:border-gray-300"
-                        }`}
+                          }`}
                       >
                         {isPopular && (
                           <div className="absolute -top-1 sm:-top-2 -right-1 sm:-right-2">
@@ -982,7 +966,6 @@ const Subscription: React.FC = () => {
                         onChange={(e) => {
                           const value = parseInt(e.target.value) || 0;
                           setSelectedUnits(value);
-                          
                           // Auto-select appropriate package based on units entered
                           if (value > 0 && selectedService) {
                             const servicePackages = getPackagesByService(selectedService);
@@ -990,12 +973,12 @@ const Subscription: React.FC = () => {
                               const { min, max } = getPackageUnitRange(pkg);
                               return value >= min && value <= max;
                             });
-                            
+
                             if (appropriatePackage && appropriatePackage.id !== selectedPackage?.id) {
                               setSelectedPackage(appropriatePackage);
                             }
-                            
-                            const error = appropriatePackage 
+
+                            const error = appropriatePackage
                               ? validateUnitQuantity(value, appropriatePackage)
                               : "No package available for this quantity";
                             setUnitError(error);

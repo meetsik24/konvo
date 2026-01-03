@@ -235,7 +235,7 @@ interface PackageService {
   package_service_id: string;
   package_id: string;
   service_id: string;
-  units_allocated: number;
+  quantity: number;
   unit_cost_at_purchase: number;
 }
 
@@ -346,12 +346,12 @@ interface BalanceUnits {
   unit_cost: number;
 }
 
-interface BalanceRefund{
+interface BalanceRefund {
   usage_id: string,
- 
+
 }
 
-interface BalanceUsage{
+interface BalanceUsage {
   unit_cost: number;
   usage_id: string,
   user_id: string,
@@ -363,7 +363,7 @@ interface BalanceUsage{
   usage_date: string
 }
 
-interface BalanceUsageLogs{
+interface BalanceUsageLogs {
   usage_id: string,
   user_id: string,
   service_id: string,
@@ -374,7 +374,7 @@ interface BalanceUsageLogs{
   usage_date: string
 }
 
-interface BalanceUsageStats{
+interface BalanceUsageStats {
   service_id: string,
   total_units_used: 0,
   by_services: {
@@ -391,7 +391,7 @@ interface BalanceUsageStats{
   }
 }
 
-interface  BalanceServicesCost{
+interface BalanceServicesCost {
   service_id: string,
   total_cost: 0,
 }
@@ -399,7 +399,7 @@ interface  BalanceServicesCost{
 export interface AllocationSummary {
   service_id: string;
   service_name: string;
-  total_units_allocated: number;
+  total_quantity: number;
 }
 
 export interface AllocationsSummaryResponse {
@@ -423,7 +423,7 @@ export interface Allocation {
   user_id: string;
   service_id: string;
   service_name: string;
-  units_allocated: number;
+  quantity: number;
   expires_at: string;
   last_updated: string;
 }
@@ -471,15 +471,15 @@ export interface TransactionResponse {
 
 //Services Interface
 interface services {
-  
-    service_id: string,
-    name: string,
-    description: string,
-    unit_cost: 0,
-    is_unit_based: true,
-    minimum_purchase: 0,
-    created_at: "string"
-  }
+
+  service_id: string,
+  name: string,
+  description: string,
+  unit_cost: 0,
+  is_unit_based: true,
+  minimum_purchase: 0,
+  created_at: "string"
+}
 
 
 
@@ -752,7 +752,7 @@ export const getMessageLogsV = async (): Promise<MessageLogResponse> => {
           isValidISODate(msg.sent_at) &&
           typeof msg.recipient === 'string' &&
           (typeof msg.campaign_name === 'string' || msg.campaign_name === null) // Allow null
-          typeof msg.sender_id === 'string' &&
+        typeof msg.sender_id === 'string' &&
           typeof msg.status === 'string';
         if (!isValid) console.warn("Invalid message object:", msg);
         return isValid;
@@ -2016,25 +2016,23 @@ export const getAllocationsSummary = async (): Promise<AllocationsSummaryRespons
   try {
     const response = await api.get("/allocations/summary");
     console.log("getAllocationsSummary API response:", response.data);
-    
     // Validate and normalize response
     if (!response.data || !Array.isArray(response.data.allocations)) {
       console.warn("Invalid allocations response structure, returning empty allocations");
       return { allocations: [] };
     }
-    
     // Validate each allocation object
     const validAllocations = response.data.allocations.filter((alloc: any) =>
       alloc &&
       typeof alloc.service_id === 'string' &&
       typeof alloc.service_name === 'string' &&
-      typeof alloc.total_units_allocated === 'number'
+      typeof alloc.total_quantity === 'number'
     );
-    
+
     if (validAllocations.length !== response.data.allocations.length) {
       console.warn(`Filtered out ${response.data.allocations.length - validAllocations.length} invalid allocation objects`);
     }
-    
+
     return { allocations: validAllocations };
   } catch (error: any) {
     return handleApiError(error, "Failed to get allocations summary");
@@ -2044,13 +2042,13 @@ export const getAllocationsSummary = async (): Promise<AllocationsSummaryRespons
 // Allocation create endpoint for purchasing packages with wallet credits
 export interface AllocationCreateRequest {
   service_id: string;
-  units_allocated: number;
+  quantity: number;
 }
 
 export interface AllocationCreateResponse {
   allocation_id: string;
   service_id: string;
-  units_allocated: number;
+  quantity: number;
   created_at: string;
   expires_at?: string;
   last_updated?: string;
@@ -2094,7 +2092,7 @@ export interface TransactionCompleteResponse {
 }
 
 // Add this function before export default api
-export const completeTransaction = async ( data: TransactionCompleteRequest
+export const completeTransaction = async (data: TransactionCompleteRequest
 ): Promise<TransactionCompleteResponse> => {
   console.log("completeTransaction API call initiated with data:", data);
   try {
