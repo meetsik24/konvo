@@ -444,12 +444,34 @@ const Subscription: React.FC = () => {
   // -------------------- UNIT RANGE HELPERS --------------------
   const getPackageUnitRange = (pkg: Package): { min: number; max: number } => {
     // Get total units allocated from current package services
-    const currentUnits = pkg.services.reduce((sum, service) => sum + (service.quantity || 0), 0);
+    const currentUnits = pkg.services && pkg.services.length > 0
+      ? pkg.services.reduce((sum, service) => sum + (service.quantity || 0), 0)
+      : 0;
+
+    // Special case: Kitonga package has a maximum of 19,999
+    if (pkg.name === "Kitonga") {
+      return {
+        min: currentUnits || 1,
+        max: 19999,
+      };
+    }
+
+    // Special case: Paradiso package has a maximum of 5,000,000
+    if (pkg.name === "Paradiso") {
+      return {
+        min: currentUnits || 1,
+        max: 5000000,
+      };
+    }
 
     // Find the next package by sorting by units and finding current package's position
     const sortedByUnits = [...packages].sort((a, b) => {
-      const aUnits = a.services.reduce((sum, s) => sum + (s.quantity || 0), 0);
-      const bUnits = b.services.reduce((sum, s) => sum + (s.quantity || 0), 0);
+      const aUnits = a.services && a.services.length > 0
+        ? a.services.reduce((sum, s) => sum + (s.quantity || 0), 0)
+        : 0;
+      const bUnits = b.services && b.services.length > 0
+        ? b.services.reduce((sum, s) => sum + (s.quantity || 0), 0)
+        : 0;
       return aUnits - bUnits;
     });
 
@@ -459,12 +481,15 @@ const Subscription: React.FC = () => {
       : null;
 
     const nextUnits = nextPackage
-      ? nextPackage.services.reduce((sum, service) => sum + (service.quantity || 0), 0)
+      ? (nextPackage.services && nextPackage.services.length > 0
+          ? nextPackage.services.reduce((sum, service) => sum + (service.quantity || 0), 0)
+          : 0)
       : currentUnits + 100000; // Default fallback
 
+    // max of current package = min of next package (no gaps)
     return {
-      min: currentUnits,
-      max: nextUnits - 1,
+      min: currentUnits || 1,
+      max: nextUnits > currentUnits ? nextUnits : (currentUnits + 100000),
     };
   };
 
@@ -476,11 +501,11 @@ const Subscription: React.FC = () => {
 
     const { min, max } = getPackageUnitRange(pkg);
 
-    if (quantity < min) {
+    // Allow any positive quantity; remove strict min/max validation
+    // to allow customers to purchase custom amounts
+    if (quantity < min && min > 0) {
+      // Only require minimum if the package has a defined minimum
       return `Minimum units for this package is ${min.toLocaleString()}`;
-    }
-    if (quantity > max) {
-      return `Maximum units for this package is ${max.toLocaleString()}`;
     }
     return "";
   };
