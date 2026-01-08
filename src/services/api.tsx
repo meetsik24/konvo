@@ -1054,31 +1054,53 @@ export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> 
   try {
     const response = await api.get(`/workspaces/${workspaceId}/contact-groups`);
     console.log("getWorkspaceGroups API response:", response.data);
+    console.log("getWorkspaceGroups response type:", typeof response.data);
+    console.log("getWorkspaceGroups is array:", Array.isArray(response.data));
+
+    // Handle response that might be wrapped in an object
+    let groupsData = response.data;
+    if (groupsData && typeof groupsData === 'object' && !Array.isArray(groupsData) && 'groups' in groupsData) {
+      groupsData = groupsData.groups;
+      console.log("Extracted groups from response object:", groupsData);
+    }
 
     // Validate the response structure
-    if (!Array.isArray(response.data)) {
-      console.warn("Expected array response but received:", typeof response.data);
+    if (!Array.isArray(groupsData)) {
+      console.warn("Expected array response but received:", typeof groupsData);
+      console.warn("Full response:", response.data);
       return [];
     }
 
-    // Optional: Validate each group object has required properties
-    const validGroups = response.data.filter((group: any) =>
-      group &&
-      typeof group.group_id === 'string' &&
-      typeof group.workspace_id === 'string' &&
-      typeof group.name === 'string' &&
-      typeof group.created_at === 'string' &&
-      typeof group.contact_count === 'number'
+    console.log(`Processing ${groupsData.length} groups from API response`);
 
-    );
+    // Be more lenient with validation - only require essential fields
+    const validGroups = groupsData.filter((group: any) => {
+      if (!group) {
+        console.warn("Skipping null/undefined group");
+        return false;
+      }
+      if (!group.group_id) {
+        console.warn("Skipping group without group_id:", group);
+        return false;
+      }
+      return true;
+    }).map((group: any) => ({
+      group_id: group.group_id,
+      workspace_id: group.workspace_id || '',
+      name: group.name || 'Unnamed Group',
+      created_at: group.created_at || new Date().toISOString(),
+      contact_count: group.contact_count || 0,
+    }));
 
-    if (validGroups.length !== response.data.length) {
-      console.warn(`Filtered out ${response.data.length - validGroups.length} invalid group objects`);
+    console.log(`Successfully processed ${validGroups.length} valid groups`);
+    if (validGroups.length > 0) {
+      console.log("Sample group:", validGroups[0]);
     }
 
     return validGroups;
   } catch (error: any) {
     console.error(`Failed to fetch workspace groups:`, error);
+    console.error("Error details:", error.response?.data || error.message);
     handleApiError(error, "Failed to fetch workspace groups");
     return []; // Return empty array as fallback
   }

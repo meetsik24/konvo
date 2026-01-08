@@ -4,40 +4,21 @@ import { Users, Send, Bot } from 'lucide-react';
 import PhonePreview from '../modals/PhonePreview';
 import { useWorkspace } from './WorkspaceContext';
 import Modal from '../modals/Modal';
-import CampaignWizard from '../components/campaign/CampaignWizard';
-import CampaignReRunModal from '../components/campaign/CampaignReRunModal';
-import CampaignEditModal from '../components/campaign/CampaignEditModal';
-import CampaignProgress from '../components/campaign/CampaignProgress';
 import {
   getApprovedSenderIds,
-  listCampaigns,
-  getCampaignGroups,
   sendInstantMessage,
   generateMessage,
   getWorkspaceGroups,
-  createCampaign,
-  updateCampaign,
-  deleteCampaign,
-  assignGroupToCampaign,
   getContacts,
-  getAccountBalance,
-  preLaunchInspection,
 } from '../services/api';
 
-interface Campaign {
-  campaign_id: string;
-  workspace_id: string;
-  name: string;
-  description?: string;
-  launch_date?: string;
-  created_at: string;
-}
+
 interface Group { group_id: string; name: string; contact_count?: number; }
 interface SenderId { sender_id: string; name: string; is_approved: boolean; }
 interface Contact {
   contact_id: string;
   workspace_id: string;
-  phone: string;
+  phone_number: string;
   name?: string;
   created_at: string;
 }
@@ -45,27 +26,18 @@ interface UploadedRow { [key: string]: string; }
 
 const SendSMS = () => {
   const { currentWorkspaceId } = useWorkspace();
-  const [sendMode, setSendMode] = useState<'instant' | 'campaign' | 'file'>('instant');
+  const [sendMode, setSendMode] = useState<'instant' | 'file'>('instant');
   const [formData, setFormData] = useState({
     senderId: '',
     message: '',
     manualContacts: '',
-    campaignName: '',
-    startDate: '',
-    startTime: '',
-    endDate: '',
-    endTime: '',
-    frequency: '',
-    template: '',
+
   });
   const [charCount, setCharCount] = useState(0);
   const [smsCount, setSmsCount] = useState(1);
   const [senderIds, setSenderIds] = useState<SenderId[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [campaignGroups, setCampaignGroups] = useState<{ [key: string]: Group[] }>({});
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedData, setUploadedData] = useState<UploadedRow[]>([]);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
@@ -74,8 +46,6 @@ const SendSMS = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [keywords, setKeywords] = useState('');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -89,24 +59,7 @@ const SendSMS = () => {
   const [modalState, setModalState] = useState({
     isAIModalOpen: false,
     isGroupModalOpen: false,
-    isCreateCampaignOpen: false,
   });
-
-  // Campaign Wizard State
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [isReRunModalOpen, setIsReRunModalOpen] = useState(false);
-  const [reRunCampaignData, setReRunCampaignData] = useState<{ name: string; groups: Group[] } | null>(null);
-  const [userBalance, setUserBalance] = useState(0);
-  const [initialCampaignData, setInitialCampaignData] = useState<any>(null);
-
-  // Edit & Delete State
-  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
-
-  // Pagination for campaigns
-  const [currentPage, setCurrentPage] = useState(1);
-  const campaignsPerPage = 5;
 
   useEffect(() => {
     const count = formData.message.length;
@@ -119,26 +72,25 @@ const SendSMS = () => {
       setIsLoading(true);
       try {
         if (!currentWorkspaceId) throw new Error('No workspace selected.');
+        console.log('SendSMS fetchData: Starting data fetch for workspace:', currentWorkspaceId);
+
         const senderResponse = await getApprovedSenderIds(currentWorkspaceId);
         setSenderIds(senderResponse);
         if (senderResponse.length) setFormData(prev => ({ ...prev, senderId: senderResponse[0].sender_id }));
-        const campaignsData = await listCampaigns();
-        setCampaigns(campaignsData as unknown as Campaign[]);
-        const groupsData = await getWorkspaceGroups(currentWorkspaceId);
-        setGroups(groupsData);
-        const contactsData = await getContacts(currentWorkspaceId);
-        setAllContacts(contactsData);
 
-        // Fetch user balance for campaign wizard
-        try {
-          const balanceData = await getAccountBalance();
-          setUserBalance(balanceData.balance || 0);
-        } catch (balErr) {
-          console.warn('Failed to fetch balance:', balErr);
-          setUserBalance(0);
-        }
+        console.log('SendSMS fetchData: Fetching groups for workspace:', currentWorkspaceId);
+        const groupsData = await getWorkspaceGroups(currentWorkspaceId);
+        console.log('SendSMS fetchData: Received groups:', groupsData);
+        console.log('SendSMS fetchData: Groups length:', groupsData?.length || 0);
+        setGroups(groupsData || []);
+
+        const contactsData = await getContacts(currentWorkspaceId);
+        setAllContacts(contactsData.contacts || []);
+
+        console.log('SendSMS fetchData: Data fetch completed');
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load data.';
+        console.error('SendSMS fetchData error:', errorMessage);
         setError(errorMessage);
       } finally {
         setIsLoading(false);
@@ -147,27 +99,14 @@ const SendSMS = () => {
     fetchData();
   }, [currentWorkspaceId]);
 
-  useEffect(() => {
-    const fetchCampaignGroups = async () => {
-      if (!selectedCampaignId) {
-        setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: [] }));
-        return;
-      }
-      try {
-        console.log('Fetching groups for campaign:', selectedCampaignId);
-        const groupsData = await getCampaignGroups(selectedCampaignId);
-        console.log('Received groups data:', groupsData);
-        setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: groupsData || [] }));
-      } catch (error) {
-        console.error('Error fetching campaign groups:', error);
-        setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: [] }));
-      }
-    };
 
-    if (selectedCampaignId) {
-      fetchCampaignGroups();
+  // Monitor groups state for debugging
+  useEffect(() => {
+    console.log('SendSMS: Groups state updated. Total groups:', groups.length);
+    if (groups.length > 0) {
+      console.log('SendSMS: First group:', groups[0]);
     }
-  }, [selectedCampaignId, campaigns]);
+  }, [groups]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -280,13 +219,6 @@ const SendSMS = () => {
 
     if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length && !sendToAll) return false;
 
-    if (sendMode === 'campaign') {
-      if (!selectedCampaignId) return false;
-      if (formData.frequency && formData.frequency !== 'once') {
-        if (!formData.startDate || !formData.startTime) return false;
-      }
-    }
-
     if (sendMode === 'file' && (!uploadedFile || !phoneColumn)) return false;
 
     return true;
@@ -324,12 +256,6 @@ const SendSMS = () => {
             recipientCount += groupContacts;
           }
         }
-      } else if (sendMode === 'campaign') {
-        const campaignGroupsList = campaignGroups[selectedCampaignId] || [];
-        if (!campaignGroupsList.length) {
-          throw new Error('This campaign has no groups assigned. Please assign groups to the campaign first or create a new campaign with groups.');
-        }
-        recipientCount = campaignGroupsList.reduce((total, group) => total + (group.contact_count || 0), 0);
       } else if (sendMode === 'file') {
         if (uploadedData.length && phoneColumn) {
           const validPhones = uploadedData
@@ -345,9 +271,6 @@ const SendSMS = () => {
         }
       }
 
-      if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length && !sendToAll) {
-        throw new Error('Please add recipients, select groups, or choose to send to all contacts.');
-      }
       if (sendMode === 'file' && !uploadedFile) {
         throw new Error('Please upload a file.');
       }
@@ -419,7 +342,7 @@ const SendSMS = () => {
         console.log('=== INSTANT MODE PROCESSING ===');
 
         if (sendToAll) {
-          recipients.push(...allContacts.map(c => c.phone));
+          recipients.push(...allContacts.map(c => c.phone_number));
           console.log('Sending to all contacts:', recipients.length);
         } else {
           if (formData.manualContacts.trim()) {
@@ -447,37 +370,6 @@ const SendSMS = () => {
         console.log('About to call sendInstantMessage with data:', instantMessageData);
 
         await sendInstantMessage(currentWorkspaceId, instantMessageData);
-
-      } else if (sendMode === 'campaign') {
-        console.log('=== CAMPAIGN MODE PROCESSING ===');
-        const campaignGroupsList = campaignGroups[selectedCampaignId] || [];
-        console.log('Campaign groups list:', campaignGroupsList);
-
-        if (!campaignGroupsList.length) {
-          throw new Error('This campaign has no groups assigned. Please assign groups to the campaign first or create a new campaign with groups.');
-        }
-
-        const hasScheduleData = formData.startDate && formData.startTime;
-        const scheduleData = hasScheduleData ? {
-          start_date: formData.startDate,
-          start_time: formData.startTime,
-          end_date: formData.endDate || null,
-          end_time: formData.endTime || null,
-          frequency: formData.frequency || 'once',
-        } : null;
-
-        const campaignMessageData = {
-          sender_id: formData.senderId,
-          content: formData.message,
-          recipients: [],
-          groups: campaignGroupsList.map(g => g.group_id),
-          campaign_id: selectedCampaignId,
-          ...(scheduleData && { schedule: scheduleData }),
-        };
-
-        console.log('About to call sendInstantMessage with campaign data:', campaignMessageData);
-
-        await sendInstantMessage(currentWorkspaceId, campaignMessageData);
 
       } else if (sendMode === 'file') {
         console.log('=== FILE MODE PROCESSING ===');
@@ -512,16 +404,8 @@ const SendSMS = () => {
         senderId: senderIds[0]?.sender_id || '',
         message: '',
         manualContacts: '',
-        campaignName: '',
-        startDate: '',
-        startTime: '',
-        endDate: '',
-        endTime: '',
-        frequency: '',
-        template: '',
       });
       setSelectedGroups([]);
-      setSelectedCampaignId('');
       setUploadedFile(null);
       setUploadedData([]);
       setAvailableColumns([]);
@@ -569,270 +453,16 @@ const SendSMS = () => {
     setSelectedGroups(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]);
   };
 
-  const handleCreateCampaign = async () => {
-    setError(null);
-
-    if (!formData.campaignName?.trim()) {
-      setError('Please enter a campaign name.');
-      return;
-    }
-
-    if (!selectedGroups.length) {
-      setError('Please select at least one group.');
-      return;
-    }
-
-    if (!currentWorkspaceId) {
-      setError('No workspace selected.');
-      return;
-    }
-
-    try {
-      console.log('Creating campaign with:', {
-        name: formData.campaignName,
-        selectedGroups,
-        workspaceId: currentWorkspaceId
-      });
-
-      const campaignData = {
-        name: formData.campaignName.trim(),
-        description: `Campaign with ${selectedGroups.length} group(s)`,
-        workspace_id: currentWorkspaceId,
-        launch_date: new Date().toISOString()
-      };
-
-      console.log('Sending campaign data to API:', campaignData);
-      console.log('Current workspace ID:', currentWorkspaceId);
-      console.log('Campaign name:', formData.campaignName);
-      console.log('Selected groups:', selectedGroups);
-
-      const newCampaign = await createCampaign(campaignData);
-      console.log('Created campaign:', newCampaign);
-
-      for (const groupId of selectedGroups) {
-        console.log('Assigning group', groupId, 'to campaign', newCampaign.campaign_id);
-        await assignGroupToCampaign(groupId, newCampaign.campaign_id);
-      }
-
-      setCampaigns(prev => [...prev, newCampaign]);
-      setSelectedCampaignId(newCampaign.campaign_id);
-
-      const campaignGroupsData = groups.filter(group => selectedGroups.includes(group.group_id));
-      setCampaignGroups(prev => ({ ...prev, [newCampaign.campaign_id]: campaignGroupsData }));
-
-      setModal('isCreateCampaignOpen', false);
-      setFormData(prev => ({ ...prev, campaignName: '' }));
-      setSelectedGroups([]);
-
-      console.log('Campaign created successfully');
-
-    } catch (err: unknown) {
-      console.error('Error creating campaign:', err);
-
-      let errorMessage = 'Failed to create campaign.';
-
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as {
-          response?: {
-            data?: { detail?: string; message?: string } | string;
-            status?: number;
-          }
-        };
-
-        console.error('API Error Response:', axiosError.response?.data);
-        console.error('API Error Status:', axiosError.response?.status);
-
-        if (axiosError.response?.data && typeof axiosError.response.data === 'object') {
-          if ('detail' in axiosError.response.data && axiosError.response.data.detail) {
-            errorMessage = axiosError.response.data.detail;
-          } else if ('message' in axiosError.response.data && axiosError.response.data.message) {
-            errorMessage = axiosError.response.data.message;
-          }
-        } else if (typeof axiosError.response?.data === 'string') {
-          errorMessage = axiosError.response.data;
-        } else if (axiosError.response?.status === 400) {
-          errorMessage = 'Invalid campaign data. Please check your inputs.';
-        } else if (axiosError.response?.status === 401) {
-          errorMessage = 'Unauthorized. Please log in again.';
-        } else if (axiosError.response?.status === 403) {
-          errorMessage = 'Permission denied. You may not have access to create campaigns.';
-        } else if (axiosError.response?.status === 500) {
-          errorMessage = 'Server error. Please try again later.';
-        }
-      } else if (err instanceof Error && err.message !== '[object Object]') {
-        errorMessage = err.message;
-      }
-
-      setError(errorMessage);
-    }
-  };
 
   const setModal = (modal: keyof typeof modalState, isOpen: boolean) => {
     setModalState(() => ({
       isAIModalOpen: false,
       isGroupModalOpen: false,
-      isCreateCampaignOpen: false,
       [modal]: isOpen,
     }));
   };
 
-  const handleUpdateCampaign = async (campaignId: string, data: { name: string; description: string }) => {
-    try {
-      if (!currentWorkspaceId) return;
-      await updateCampaign(campaignId, data);
 
-      // Refresh list
-      const campaignsData = await listCampaigns();
-      setCampaigns(campaignsData as unknown as Campaign[]);
-
-      // Update local state if editing
-      setEditingCampaign(null);
-    } catch (err: unknown) {
-      console.error('Failed to update campaign:', err);
-      // Ideally show a toast or error message here
-    }
-  };
-
-  const handleDeleteCampaign = async (campaignId: string) => {
-    try {
-      await deleteCampaign(campaignId);
-
-      // Refresh list
-      const campaignsData = await listCampaigns();
-      setCampaigns(campaignsData as unknown as Campaign[]);
-
-      setDeleteConfirmation(null);
-    } catch (err: unknown) {
-      console.error('Failed to delete campaign:', err);
-    }
-  };
-
-  const handleWizardLaunch = async (campaignData: any) => {
-    try {
-      if (!currentWorkspaceId) {
-        setError('No workspace selected.');
-        return;
-      }
-
-      // Create the campaign
-      const campaignPayload = {
-        name: campaignData.name,
-        description: campaignData.description,
-        workspace_id: currentWorkspaceId,
-        launch_date: campaignData.scheduleType === 'immediate'
-          ? new Date().toISOString()
-          : `${campaignData.startDate}T${campaignData.startTime}`,
-      };
-
-      const newCampaign = await createCampaign(campaignPayload);
-
-      // Assign selected groups to campaign
-      for (const groupId of campaignData.selectedGroups) {
-        await assignGroupToCampaign(groupId, newCampaign.campaign_id);
-      }
-
-      // Update local campaign group state
-      const campaignGroupsData = groups.filter(group => campaignData.selectedGroups.includes(group.group_id));
-      setCampaignGroups(prev => ({ ...prev, [newCampaign.campaign_id]: campaignGroupsData }));
-
-      // Update campaigns list
-      setCampaigns(prev => [...prev, newCampaign as Campaign]);
-
-      // Run pre-launch inspection
-      await preLaunchInspection(newCampaign.campaign_id);
-
-      // Prepare message payload
-      const messagePayload = {
-        sender_id: formData.senderId,
-        content: campaignData.message,
-        recipients: [],
-        groups: campaignData.selectedGroups,
-        campaign_id: newCampaign.campaign_id,
-        ...(campaignData.scheduleType !== 'immediate' && {
-          schedule: {
-            start_date: campaignData.startDate,
-            start_time: campaignData.startTime,
-            end_date: campaignData.endDate || null,
-            end_time: campaignData.endTime || null,
-            frequency: campaignData.frequency || 'once',
-          }
-        })
-      };
-
-      // Send the message (immediate or scheduled)
-      await sendInstantMessage(currentWorkspaceId, messagePayload);
-
-      // Refresh balance after campaign creation
-      try {
-        const balanceData = await getAccountBalance();
-        setUserBalance(balanceData.balance || 0);
-      } catch (balErr) {
-        console.warn('Failed to refresh balance:', balErr);
-      }
-
-      setError(null);
-    } catch (err: unknown) {
-      console.error('Error launching campaign from wizard:', err);
-      let errorMessage = 'Failed to launch campaign.';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
-    }
-  };
-
-
-  const handleReRunLaunch = async (data: { groups: string[]; message: string; senderId: string }) => {
-    try {
-      setIsSending(true);
-      if (!currentWorkspaceId) {
-        setError('No workspace selected.');
-        return;
-      }
-
-      const campaignData = {
-        workspace_id: currentWorkspaceId,
-        name: reRunCampaignData?.name || 'Re-Run Campaign',
-        description: 'Re-run of previous campaign',
-        launch_date: new Date().toISOString(),
-      };
-
-      // Create new campaign
-      const newCampaign = await createCampaign(campaignData);
-
-      // Assign groups
-      for (const groupId of data.groups) {
-        await assignGroupToCampaign(newCampaign.campaign_id, groupId);
-      }
-
-      // Run pre-launch inspection
-      await preLaunchInspection(newCampaign.campaign_id);
-
-      // Send message
-      const messageData = {
-        sender_id: data.senderId,
-        content: data.message,
-        recipients: [],
-        groups: data.groups,
-        campaign_id: newCampaign.campaign_id,
-      };
-
-      await sendInstantMessage(currentWorkspaceId, messageData);
-
-      // Refresh campaigns
-      const campaignsData = await listCampaigns();
-      setCampaigns(campaignsData as unknown as Campaign[]);
-
-      setIsReRunModalOpen(false);
-      setReRunCampaignData(null);
-      alert('Campaign re-run launched successfully!');
-    } catch (error) {
-      console.error('Error re-running campaign:', error);
-      setError('Failed to re-run campaign');
-    } finally {
-      setIsSending(false);
-    }
-  };
 
 
 
@@ -875,19 +505,19 @@ const SendSMS = () => {
         transition={{ delay: 0.2 }}
         className="flex space-x-6 border-b border-gray-300 mb-6"
       >
-        {['instant', 'campaign', 'file'].map((mode, index) => (
+        {['instant', 'file'].map((mode, index) => (
           <button
             key={mode}
             className={`py-2 px-4 text-sm font-medium ${sendMode === mode ? 'border-b-2 border-[#004d66] text-[#004d66]' : 'text-gray-600 hover:text-[#FDD70D]'
               }`}
-            onClick={() => setSendMode(mode as 'instant' | 'campaign' | 'file')}
+            onClick={() => setSendMode(mode as 'instant' | 'file')}
           >
             <motion.span
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * (index + 1) }}
             >
-              {mode === 'instant' ? 'Instant SMS' : mode === 'campaign' ? 'Campaigns' : 'File Upload'}
+              {mode === 'instant' ? 'Instant SMS' : 'File Upload'}
             </motion.span>
           </button>
         ))}
@@ -902,7 +532,7 @@ const SendSMS = () => {
         >
           <div className="space-y-6">
             {/* Sender ID Selection - Only for Instant and File modes */}
-            {sendMode !== 'campaign' && (
+            {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-600">Sender ID</label>
                 <select
@@ -923,9 +553,7 @@ const SendSMS = () => {
                   ))}
                 </select>
               </div>
-            )}
-
-            {/* Campaign Mode UI */}
+            }
 
             {sendMode === 'instant' && (
               <motion.div
@@ -1018,384 +646,180 @@ const SendSMS = () => {
               </motion.div>
             )}
 
-
-            {sendMode === 'campaign' && (() => {
-              // Pagination logic
-              const indexOfLastCampaign = currentPage * campaignsPerPage;
-              const indexOfFirstCampaign = indexOfLastCampaign - campaignsPerPage;
-              const currentCampaigns = campaigns.slice(indexOfFirstCampaign, indexOfLastCampaign);
-              const totalPages = Math.ceil(campaigns.length / campaignsPerPage);
-
-              return (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.35 }}
-                  className="space-y-4"
+            {sendMode === 'file' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="space-y-6"
+              >
+                <div
+                  className={`relative border-2 border-dashed rounded-md p-6 text-center ${uploadedFile
+                    ? 'border-[#004d66] bg-gray-100'
+                    : 'border-gray-200 hover:border-[#004d66] hover:bg-gray-100'
+                    }`}
                 >
-                  {/* Header */}
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-medium text-gray-600">Campaigns ({campaigns.length})</h3>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setError(null);
-                        setInitialCampaignData(null);
-                        setIsWizardOpen(true);
-                      }}
-                      className="px-3 py-1.5 bg-[#004d66] text-white rounded-md hover:bg-[#FDD70D] hover:text-[#004d66] text-xs font-medium transition-colors flex items-center gap-1.5"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      New Campaign
-                    </button>
-                  </div>
-
-                  {/* Campaign List */}
-                  <div className="space-y-2">
-                    {campaigns.length > 0 ? (
-                      currentCampaigns.map((campaign) => {
-                        const groups = campaignGroups[campaign.campaign_id] || [];
-                        const totalContacts = groups.reduce((sum, group) => sum + (group.contact_count || 0), 0);
-
-                        return (
-                          <div
-                            key={campaign.campaign_id}
-                            className="bg-white border border-gray-200 rounded-md p-3 hover:border-gray-300 transition-all"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              {/* Campaign Info */}
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-medium text-[#00333e] truncate">{campaign.name}</h4>
-                                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                                  <span className="flex items-center gap-1">
-                                    <Users className="w-3.5 h-3.5" />
-                                    {groups.length} group{groups.length !== 1 ? 's' : ''}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                    </svg>
-                                    {totalContacts.toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Actions */}
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const groups = campaignGroups[campaign.campaign_id] || [];
-                                    const initialData = {
-                                      name: `${campaign.name} (Copy)`,
-                                      description: campaign.description,
-                                      selectedGroups: groups.map(g => g.group_id),
-                                    };
-                                    setReRunCampaignData({
-                                      name: `${campaign.name} (Copy)`,
-                                      groups: groups,
-                                    });
-                                    setIsReRunModalOpen(true);
-                                  }}
-                                  className="p-1.5 text-gray-400 hover:text-[#004d66] hover:bg-gray-50 rounded-md transition-colors"
-                                  title="Re-Run Campaign"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                  </svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingCampaign(campaign);
-                                    setIsEditModalOpen(true);
-                                  }}
-                                  className="p-1.5 text-gray-400 hover:text-[#004d66] hover:bg-gray-50 rounded-md transition-colors"
-                                  title="Edit Campaign"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeleteConfirmation(campaign.campaign_id);
-                                  }}
-                                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                                  title="Delete Campaign"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedCampaignId(campaign.campaign_id === selectedCampaignId ? '' : campaign.campaign_id);
-                                  }}
-                                  className={`ml-1 px-3 py-1 text-xs font-medium rounded-md transition-colors ${selectedCampaignId === campaign.campaign_id
-                                    ? 'bg-[#004d66] text-white shadow-sm'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
-                                >
-                                  {selectedCampaignId === campaign.campaign_id ? 'Selected' : 'Select'}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-
-                    ) : (
-                      <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                        <svg className="mx-auto w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                        </svg>
-                        <p className="mt-2 text-sm text-gray-600">No campaigns yet</p>
-                        <p className="mt-1 text-xs text-gray-500">Click "New Campaign" to get started</p>
-                      </div>
-                    )}
-                  </div >
-
-                  {/* Pagination */}
-                  {
-                    campaigns.length > campaignsPerPage && (
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                        <p className="text-xs text-gray-500">
-                          Showing {indexOfFirstCampaign + 1}-{Math.min(indexOfLastCampaign, campaigns.length)} of {campaigns.length}
-                        </p>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
-                            className="px-2 py-1 text-xs text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Previous
-                          </button>
-                          {[...Array(totalPages)].map((_, i) => (
-                            <button
-                              key={i + 1}
-                              onClick={() => setCurrentPage(i + 1)}
-                              className={`px-2 py-1 text-xs rounded ${currentPage === i + 1
-                                ? 'bg-[#004d66] text-white'
-                                : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                                }`}
-                            >
-                              {i + 1}
-                            </button>
-                          ))}
-                          <button
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage === totalPages}
-                            className="px-2 py-1 text-xs text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Next
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  }
-
-                  {/* Selected Campaign Info */}
-                  {
-                    selectedCampaignId && campaignGroups[selectedCampaignId] && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                        <p className="text-xs text-blue-800">
-                          Campaign selected. Compose your message below to send to {campaignGroups[selectedCampaignId].length} group(s).
-                        </p>
-                      </div>
-                    )
-                  }
-                </motion.div >
-              );
-            })()}
-
-
-
-
-            {
-              sendMode === 'file' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.35 }}
-                  className="space-y-6"
-                >
-                  <div
-                    className={`relative border-2 border-dashed rounded-md p-6 text-center ${uploadedFile
-                      ? 'border-[#004d66] bg-gray-100'
-                      : 'border-gray-200 hover:border-[#004d66] hover:bg-gray-100'
-                      }`}
-                  >
-                    <input
-                      type="file"
-                      accept=".csv,.txt"
-                      onChange={handleFileSelect}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    {uploadedFile ? (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                      >
-                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                          <svg className="w-6 h-6 text-[#004d66]" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-[#004d66] mb-2">{uploadedFile.name}</p>
-                          <p className="text-sm text-gray-600 mb-3">File uploaded successfully!</p>
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                      >
-                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                          <svg className="w-6 h-6 text-[#004d66]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-[#004d66] mb-2">Upload File</p>
-                          <p className="text-sm text-gray-600">Drag and drop your CSV/TXT file here</p>
-                          <p className="text-sm text-gray-600 mt-1">or click to browse</p>
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
-                  {uploadedData.length > 0 && (
+                  <input
+                    type="file"
+                    accept=".csv,.txt"
+                    onChange={handleFileSelect}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  {uploadedFile ? (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.45 }}
-                      className="bg-white border border-gray-200 p-4 rounded-md"
+                      transition={{ delay: 0.4 }}
                     >
-                      <div className="flex items-center gap-2 mb-3">
-                        <Users className="w-5 h-5 text-[#004d66]" />
-                        <h3 className="text-lg font-medium text-[#004d66]">File Preview</h3>
+                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                        <svg className="w-6 h-6 text-[#004d66]" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
                       </div>
-                      <div className="space-y-2 mb-3">
-                        <label className="text-sm font-medium text-gray-600">Phone Number Column</label>
-                        <select
-                          value={phoneColumn}
-                          onChange={(e) => setPhoneColumn(e.target.value)}
-                          className="w-full text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                        >
-                          <option value="" className="text-[#004d66]">Select phone column</option>
-                          {availableColumns.map(col => (
-                            <option key={col} value={col} className="text-[#004d66]">
-                              {col}
-                            </option>
-                          ))}
-                        </select>
+                      <div>
+                        <p className="text-sm font-medium text-[#004d66] mb-2">{uploadedFile.name}</p>
+                        <p className="text-sm text-gray-600 mb-3">File uploaded successfully!</p>
                       </div>
-                      <div className="space-y-2 mb-3">
-                        <label className="text-sm font-medium text-gray-600">Default Country Code</label>
-                        <input
-                          type="text"
-                          value={defaultCountryCode}
-                          onChange={(e) => setDefaultCountryCode(e.target.value)}
-                          placeholder="e.g., +255"
-                          className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                        />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                        <svg className="w-6 h-6 text-[#004d66]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
                       </div>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead>
-                            <tr>
-                              {availableColumns.map(column => (
-                                <th key={column} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  {column}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {uploadedData.slice(0, 5).map((row, index) => (
-                              <tr key={index} className="hover:bg-gray-50 transition-colors">
-                                {availableColumns.map(column => (
-                                  <td key={column} className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
-                                    {row[column]}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="mt-3 flex justify-between text-sm text-[#004d66]">
-                        <span>Showing {Math.min(5, uploadedData.length)} of {uploadedData.length} contacts</span>
-                        <span className="text-[#FDD70D]">✓ File validated successfully</span>
+                      <div>
+                        <p className="text-sm font-medium text-[#004d66] mb-2">Upload File</p>
+                        <p className="text-sm text-gray-600">Drag and drop your CSV/TXT file here</p>
+                        <p className="text-sm text-gray-600 mt-1">or click to browse</p>
                       </div>
                     </motion.div>
                   )}
-                </motion.div>
-              )
+                </div>
+                {uploadedData.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.45 }}
+                    className="bg-white border border-gray-200 p-4 rounded-md"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <Users className="w-5 h-5 text-[#004d66]" />
+                      <h3 className="text-lg font-medium text-[#004d66]">File Preview</h3>
+                    </div>
+                    <div className="space-y-2 mb-3">
+                      <label className="text-sm font-medium text-gray-600">Phone Number Column</label>
+                      <select
+                        value={phoneColumn}
+                        onChange={(e) => setPhoneColumn(e.target.value)}
+                        className="w-full text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+                      >
+                        <option value="" className="text-[#004d66]">Select phone column</option>
+                        {availableColumns.map(col => (
+                          <option key={col} value={col} className="text-[#004d66]">
+                            {col}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2 mb-3">
+                      <label className="text-sm font-medium text-gray-600">Default Country Code</label>
+                      <input
+                        type="text"
+                        value={defaultCountryCode}
+                        onChange={(e) => setDefaultCountryCode(e.target.value)}
+                        placeholder="e.g., +255"
+                        className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+                      />
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead>
+                          <tr>
+                            {availableColumns.map(column => (
+                              <th key={column} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                {column}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {uploadedData.slice(0, 5).map((row, index) => (
+                            <tr key={index} className="hover:bg-gray-50 transition-colors">
+                              {availableColumns.map(column => (
+                                <td key={column} className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
+                                  {row[column]}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-3 flex justify-between text-sm text-[#004d66]">
+                      <span>Showing {Math.min(5, uploadedData.length)} of {uploadedData.length} contacts</span>
+                      <span className="text-[#FDD70D]">✓ File validated successfully</span>
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
+            )
             }
 
             {
-              sendMode !== 'campaign' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.65 }}
-                  className="space-y-2"
-                >
-                  <div className="flex justify-between items-center">
-                    <label className="text-sm font-medium text-gray-600">Message</label>
-                    <div className="flex gap-2">
-                      {sendMode === 'file' && availableColumns.length > 0 && (
-                        <select
-                          onChange={(e) => insertPlaceholder(e.target.value)}
-                          className="text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                        >
-                          <option value="" className="text-[#004d66]">Insert Placeholder</option>
-                          {availableColumns.map(col => (
-                            <option key={col} value={col} className="text-[#004d66]">
-                              {col}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      <motion.button
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.7 }}
-                        type="button"
-                        onClick={() => setModal('isAIModalOpen', true)}
-                        className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] flex items-center gap-2 text-sm font-medium transition-colors"
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.65 }}
+                className="space-y-2"
+              >
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium text-gray-600">Message</label>
+                  <div className="flex gap-2">
+                    {sendMode === 'file' && availableColumns.length > 0 && (
+                      <select
+                        onChange={(e) => insertPlaceholder(e.target.value)}
+                        className="text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
                       >
-                        <Bot className="w-5 h-5" />
-                        AI Assist
-                      </motion.button>
-                    </div>
+                        <option value="" className="text-[#004d66]">Insert Placeholder</option>
+                        {availableColumns.map(col => (
+                          <option key={col} value={col} className="text-[#004d66]">
+                            {col}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <motion.button
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.7 }}
+                      type="button"
+                      onClick={() => setModal('isAIModalOpen', true)}
+                      className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] flex items-center gap-2 text-sm font-medium transition-colors"
+                    >
+                      <Bot className="w-5 h-5" />
+                      AI Assist
+                    </motion.button>
                   </div>
-                  <textarea
-                    ref={textareaRef}
-                    value={formData.message}
-                    onChange={(e) => handleInputChange('message', e.target.value)}
-                    rows={6}
-                    className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
-                    placeholder={sendMode === 'file' ? "Type your message here... (e.g., Hi {name}, your balance is {amount}!)" : "Type your message here..."}
-                    required
-                  />
-                  <div className="flex justify-end gap-3 text-sm text-[#004d66]">
-                    <span>{smsCount} SMS</span>
-                    <span>{charCount}/160</span>
-                  </div>
-                </motion.div>
-              )
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  value={formData.message}
+                  onChange={(e) => handleInputChange('message', e.target.value)}
+                  rows={6}
+                  className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
+                  placeholder={sendMode === 'file' ? "Type your message here... (e.g., Hi {name}, your balance is {amount}!)" : "Type your message here..."}
+                  required
+                />
+                <div className="flex justify-end gap-3 text-sm text-[#004d66]">
+                  <span>{smsCount} SMS</span>
+                  <span>{charCount}/160</span>
+                </div>
+              </motion.div>
             }
 
             <motion.div
@@ -1413,12 +837,12 @@ const SendSMS = () => {
                 {isSending ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {sendMode === 'instant' ? 'Sending...' : sendMode === 'campaign' ? 'Launching...' : 'Sending...'}
+                    {'Sending...'}
                   </>
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    {sendMode === 'instant' ? 'Send SMS Now' : sendMode === 'campaign' ? 'Launch Campaign' : 'Send from File'}
+                    {sendMode === 'instant' ? 'Send SMS Now' : 'Send from File'}
                   </>
                 )}
               </button>
@@ -1481,6 +905,11 @@ const SendSMS = () => {
           transition={{ delay: 0.1 }}
           className="space-y-2 max-h-48 overflow-y-auto"
         >
+          {(() => {
+            console.log('Rendering group modal. Groups state:', groups);
+            console.log('Groups length:', groups.length);
+            return null;
+          })()}
           {groups.length ? (
             groups.map((group, index) => (
               <motion.label
@@ -1500,70 +929,15 @@ const SendSMS = () => {
               </motion.label>
             ))
           ) : (
-            <p className="text-[#004d66] text-sm text-center py-3">No groups available.</p>
+            <div>
+              <p className="text-[#004d66] text-sm text-center py-3">No groups available.</p>
+              <p className="text-gray-500 text-xs text-center">Debug: groups.length = {groups.length}, currentWorkspaceId = {currentWorkspaceId}</p>
+            </div>
           )}
         </motion.div>
       </Modal>
 
-      <Modal
-        isOpen={modalState.isCreateCampaignOpen}
-        onClose={() => setModal('isCreateCampaignOpen', false)}
-        title="Create Campaign"
-        onSubmit={handleCreateCampaign}
-        submitText="Create"
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="space-y-4"
-        >
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-[#004d66]">Campaign Name</label>
-            <input
-              type="text"
-              value={formData.campaignName}
-              onChange={(e) => handleInputChange('campaignName', e.target.value)}
-              className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-              placeholder="Enter campaign name"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-[#004d66]">Select Groups</label>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {groups.length > 0 ? (
-                groups.map((group, index) => (
-                  <motion.label
-                    key={group.group_id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 * (index + 1) }}
-                    className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-md text-[#004d66] text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedGroups.includes(group.group_id)}
-                      onChange={() => toggleGroupSelection(group.group_id)}
-                      className="w-4 h-4 text-[#004d66] rounded border-gray-200 focus:ring-[#FDD70D]"
-                    />
-                    <span>{group.name}</span>
-                  </motion.label>
-                ))
-              ) : (
-                <div className="text-center py-4 text-gray-500 text-sm">
-                  No groups available. Please create groups first.
-                </div>
-              )}
-            </div>
-            {selectedGroups.length > 0 && (
-              <div className="mt-2 text-sm text-green-600">
-                {selectedGroups.length} group(s) selected
-              </div>
-            )}
-          </div>
-        </motion.div>
-      </Modal>
+
 
       <Modal
         isOpen={isConfirmModalOpen}
@@ -1587,91 +961,10 @@ const SendSMS = () => {
             <p className="text-sm text-[#004d66] mt-2 break-words">{messagePreview}</p>
           </div>
 
-          {sendMode === 'campaign' && formData.startDate && formData.startTime && (
-            <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-              <p className="text-sm font-medium text-[#004d66]">Scheduling Information:</p>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                <div>
-                  <p className="text-xs text-gray-600">Start:</p>
-                  <p className="text-sm text-[#004d66]">{formData.startDate} at {formData.startTime}</p>
-                </div>
-                {formData.endDate && formData.endTime && (
-                  <div>
-                    <p className="text-xs text-gray-600">End:</p>
-                    <p className="text-sm text-[#004d66]">{formData.endDate} at {formData.endTime}</p>
-                  </div>
-                )}
-                {formData.frequency && (
-                  <div className="col-span-2">
-                    <p className="text-xs text-gray-600">Frequency:</p>
-                    <p className="text-sm text-[#004d66] capitalize">{formData.frequency}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           <p className="text-sm">Please confirm to proceed with sending.</p>
         </motion.div>
       </Modal>
 
-      {/* Campaign Wizard Modal */}
-      <CampaignEditModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        campaign={editingCampaign}
-        onUpdate={handleUpdateCampaign}
-      />
-
-      {
-        deleteConfirmation && (
-          <Modal
-            isOpen={!!deleteConfirmation}
-            onClose={() => setDeleteConfirmation(null)}
-            title="Delete Campaign"
-            onSubmit={() => handleDeleteCampaign(deleteConfirmation)}
-            submitText="Delete"
-          >
-            <div className="p-4">
-              <p className="text-gray-600">Are you sure you want to delete this campaign? This action cannot be undone.</p>
-            </div>
-          </Modal>
-        )
-      }
-
-      <CampaignWizard
-        isOpen={isWizardOpen}
-        onClose={() => {
-          setIsWizardOpen(false);
-          setInitialCampaignData(null);
-        }}
-        groups={groups}
-        userBalance={userBalance}
-        onLaunch={handleWizardLaunch}
-        onTopUpClick={() => {
-          window.location.href = '/subscription';
-        }}
-        initialCampaignData={initialCampaignData}
-        senderIds={senderIds}
-      />
-
-      {/* Re-Run Modal */}
-      {
-        reRunCampaignData && (
-          <CampaignReRunModal
-            isOpen={isReRunModalOpen}
-            onClose={() => {
-              setIsReRunModalOpen(false);
-              setReRunCampaignData(null);
-            }}
-            campaignName={reRunCampaignData.name}
-            initialGroups={reRunCampaignData.groups}
-            allGroups={groups}
-            senderIds={senderIds}
-            onReRun={handleReRunLaunch}
-          />
-        )
-      }
     </div >
   );
 };
