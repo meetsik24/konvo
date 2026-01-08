@@ -1,35 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Calendar, Send, Bot } from 'lucide-react';
+import { Users, Send, Bot } from 'lucide-react';
 import PhonePreview from '../modals/PhonePreview';
 import { useWorkspace } from './WorkspaceContext';
 import Modal from '../modals/Modal';
 import {
   getApprovedSenderIds,
-  getCampaigns,
-  getCampaignGroups,
   sendInstantMessage,
   generateMessage,
   getWorkspaceGroups,
-  createCampaign,
-  assignGroupToCampaign,
   getContacts,
 } from '../services/api';
 
-interface Campaign { 
-  campaign_id: string; 
-  workspace_id: string; 
-  name: string; 
-  description?: string;
-  launch_date?: string;
-  created_at: string;
-}
+
 interface Group { group_id: string; name: string; contact_count?: number; }
 interface SenderId { sender_id: string; name: string; is_approved: boolean; }
-interface Contact { 
-  contact_id: string; 
-  workspace_id: string; 
-  phone: string; 
+interface Contact {
+  contact_id: string;
+  workspace_id: string;
+  phone_number: string;
   name?: string;
   created_at: string;
 }
@@ -37,27 +26,18 @@ interface UploadedRow { [key: string]: string; }
 
 const SendSMS = () => {
   const { currentWorkspaceId } = useWorkspace();
-  const [sendMode, setSendMode] = useState<'instant' | 'campaign' | 'file'>('instant');
+  const [sendMode, setSendMode] = useState<'instant' | 'file'>('instant');
   const [formData, setFormData] = useState({
     senderId: '',
     message: '',
     manualContacts: '',
-    campaignName: '',
-    startDate: '',
-    startTime: '',
-    endDate: '',
-    endTime: '',
-    frequency: '',
-    template: '',
+
   });
   const [charCount, setCharCount] = useState(0);
   const [smsCount, setSmsCount] = useState(1);
   const [senderIds, setSenderIds] = useState<SenderId[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [campaignGroups, setCampaignGroups] = useState<{ [key: string]: Group[] }>({});
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedData, setUploadedData] = useState<UploadedRow[]>([]);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
@@ -66,8 +46,6 @@ const SendSMS = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [keywords, setKeywords] = useState('');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -81,7 +59,6 @@ const SendSMS = () => {
   const [modalState, setModalState] = useState({
     isAIModalOpen: false,
     isGroupModalOpen: false,
-    isCreateCampaignOpen: false,
   });
 
   useEffect(() => {
@@ -95,17 +72,25 @@ const SendSMS = () => {
       setIsLoading(true);
       try {
         if (!currentWorkspaceId) throw new Error('No workspace selected.');
+        console.log('SendSMS fetchData: Starting data fetch for workspace:', currentWorkspaceId);
+
         const senderResponse = await getApprovedSenderIds(currentWorkspaceId);
         setSenderIds(senderResponse);
         if (senderResponse.length) setFormData(prev => ({ ...prev, senderId: senderResponse[0].sender_id }));
-        const campaignsData = await getCampaigns();
-        setCampaigns(campaignsData as unknown as Campaign[]);
+
+        console.log('SendSMS fetchData: Fetching groups for workspace:', currentWorkspaceId);
         const groupsData = await getWorkspaceGroups(currentWorkspaceId);
-        setGroups(groupsData);
+        console.log('SendSMS fetchData: Received groups:', groupsData);
+        console.log('SendSMS fetchData: Groups length:', groupsData?.length || 0);
+        setGroups(groupsData || []);
+
         const contactsData = await getContacts(currentWorkspaceId);
-        setAllContacts(contactsData);
+        setAllContacts(contactsData.contacts || []);
+
+        console.log('SendSMS fetchData: Data fetch completed');
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load data.';
+        console.error('SendSMS fetchData error:', errorMessage);
         setError(errorMessage);
       } finally {
         setIsLoading(false);
@@ -114,27 +99,14 @@ const SendSMS = () => {
     fetchData();
   }, [currentWorkspaceId]);
 
+
+  // Monitor groups state for debugging
   useEffect(() => {
-    const fetchCampaignGroups = async () => {
-      if (!selectedCampaignId) {
-        setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: [] }));
-        return;
-      }
-      try {
-        console.log('Fetching groups for campaign:', selectedCampaignId);
-        const groupsData = await getCampaignGroups(selectedCampaignId);
-        console.log('Received groups data:', groupsData);
-        setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: groupsData || [] }));
-      } catch (error) {
-        console.error('Error fetching campaign groups:', error);
-        setCampaignGroups(prev => ({ ...prev, [selectedCampaignId]: [] }));
-      }
-    };
-    
-    if (selectedCampaignId) {
-      fetchCampaignGroups();
+    console.log('SendSMS: Groups state updated. Total groups:', groups.length);
+    if (groups.length > 0) {
+      console.log('SendSMS: First group:', groups[0]);
     }
-  }, [selectedCampaignId, campaigns]);
+  }, [groups]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -190,7 +162,7 @@ const SendSMS = () => {
           reject(new Error('No valid data found in file.'));
           return;
         }
-        
+
         setAvailableColumns(headers);
         resolve(parsedRows);
       };
@@ -244,18 +216,11 @@ const SendSMS = () => {
 
   const isFormValid = () => {
     if (!formData.senderId || !formData.message.trim()) return false;
-    
+
     if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length && !sendToAll) return false;
-    
-    if (sendMode === 'campaign') {
-      if (!selectedCampaignId) return false;
-      if (formData.frequency && formData.frequency !== 'once') {
-        if (!formData.startDate || !formData.startTime) return false;
-      }
-    }
-    
+
     if (sendMode === 'file' && (!uploadedFile || !phoneColumn)) return false;
-    
+
     return true;
   };
 
@@ -291,12 +256,6 @@ const SendSMS = () => {
             recipientCount += groupContacts;
           }
         }
-      } else if (sendMode === 'campaign') {
-        const campaignGroupsList = campaignGroups[selectedCampaignId] || [];
-        if (!campaignGroupsList.length) {
-          throw new Error('This campaign has no groups assigned. Please assign groups to the campaign first or create a new campaign with groups.');
-        }
-        recipientCount = campaignGroupsList.reduce((total, group) => total + (group.contact_count || 0), 0);
       } else if (sendMode === 'file') {
         if (uploadedData.length && phoneColumn) {
           const validPhones = uploadedData
@@ -312,9 +271,6 @@ const SendSMS = () => {
         }
       }
 
-      if (sendMode === 'instant' && !formData.manualContacts.trim() && !selectedGroups.length && !sendToAll) {
-        throw new Error('Please add recipients, select groups, or choose to send to all contacts.');
-      }
       if (sendMode === 'file' && !uploadedFile) {
         throw new Error('Please upload a file.');
       }
@@ -368,25 +324,25 @@ const SendSMS = () => {
   const handleSendSMS = async () => {
     setIsSending(true);
     setError(null);
-    
+
     console.log('=== handleSendSMS START ===');
     console.log('Send mode:', sendMode);
     console.log('Current workspace ID:', currentWorkspaceId);
     console.log('Form data:', formData);
     console.log('Selected groups:', selectedGroups);
     console.log('Send to all:', sendToAll);
-    
+
     try {
       if (!currentWorkspaceId) throw new Error('No workspace selected.');
 
       if (sendMode === 'instant') {
         const recipients: string[] = [];
         const groups: string[] = [];
-        
+
         console.log('=== INSTANT MODE PROCESSING ===');
-        
+
         if (sendToAll) {
-          recipients.push(...allContacts.map(c => c.phone));
+          recipients.push(...allContacts.map(c => c.phone_number));
           console.log('Sending to all contacts:', recipients.length);
         } else {
           if (formData.manualContacts.trim()) {
@@ -402,7 +358,7 @@ const SendSMS = () => {
             console.log('Groups to send to:', groups);
           }
         }
-        
+
         const instantMessageData = {
           sender_id: formData.senderId,
           content: formData.message,
@@ -410,53 +366,22 @@ const SendSMS = () => {
           ...(groups.length > 0 && { groups }),
           ...(sendToAll && { default_country_code: defaultCountryCode }),
         };
-        
+
         console.log('About to call sendInstantMessage with data:', instantMessageData);
-        
+
         await sendInstantMessage(currentWorkspaceId, instantMessageData);
-        
-      } else if (sendMode === 'campaign') {
-        console.log('=== CAMPAIGN MODE PROCESSING ===');
-        const campaignGroupsList = campaignGroups[selectedCampaignId] || [];
-        console.log('Campaign groups list:', campaignGroupsList);
-        
-        if (!campaignGroupsList.length) {
-          throw new Error('This campaign has no groups assigned. Please assign groups to the campaign first or create a new campaign with groups.');
-        }
-        
-        const hasScheduleData = formData.startDate && formData.startTime;
-        const scheduleData = hasScheduleData ? {
-          start_date: formData.startDate,
-          start_time: formData.startTime,
-          end_date: formData.endDate || null,
-          end_time: formData.endTime || null,
-          frequency: formData.frequency || 'once',
-        } : null;
-        
-        const campaignMessageData = {
-          sender_id: formData.senderId,
-          content: formData.message,
-          recipients: [],
-          groups: campaignGroupsList.map(g => g.group_id),
-          campaign_id: selectedCampaignId,
-          ...(scheduleData && { schedule: scheduleData }),
-        };
-        
-        console.log('About to call sendInstantMessage with campaign data:', campaignMessageData);
-        
-        await sendInstantMessage(currentWorkspaceId, campaignMessageData);
-        
+
       } else if (sendMode === 'file') {
         console.log('=== FILE MODE PROCESSING ===');
-        
+
         if (!uploadedFile) {
           throw new Error('No file uploaded. Please select a file first.');
         }
-        
+
         if (!phoneColumn) {
           throw new Error('Please select the phone number column.');
         }
-        
+
         for (const row of uploadedData) {
           const phone = row[phoneColumn];
           if (!phone) continue;
@@ -479,31 +404,23 @@ const SendSMS = () => {
         senderId: senderIds[0]?.sender_id || '',
         message: '',
         manualContacts: '',
-        campaignName: '',
-        startDate: '',
-        startTime: '',
-        endDate: '',
-        endTime: '',
-        frequency: '',
-        template: '',
       });
       setSelectedGroups([]);
-      setSelectedCampaignId('');
       setUploadedFile(null);
       setUploadedData([]);
       setAvailableColumns([]);
       setPhoneColumn('');
       setSendToAll(false);
-      
+
     } catch (err: unknown) {
       console.error('=== handleSendSMS ERROR ===');
       console.error('Error object:', err);
-      
+
       let errorMessage = 'Failed to send SMS.';
       if (err instanceof Error) {
         errorMessage = err.message;
       }
-      
+
       console.error('Final error message:', errorMessage);
       setError(errorMessage);
     } finally {
@@ -536,112 +453,18 @@ const SendSMS = () => {
     setSelectedGroups(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]);
   };
 
-  const handleCreateCampaign = async () => {
-    setError(null);
-    
-    if (!formData.campaignName?.trim()) {
-      setError('Please enter a campaign name.');
-      return;
-    }
-    
-    if (!selectedGroups.length) {
-      setError('Please select at least one group.');
-      return;
-    }
-    
-    if (!currentWorkspaceId) {
-      setError('No workspace selected.');
-      return;
-    }
-    
-    try {
-      console.log('Creating campaign with:', {
-        name: formData.campaignName,
-        selectedGroups,
-        workspaceId: currentWorkspaceId
-      });
-      
-      const campaignData = {
-        name: formData.campaignName.trim(),
-        description: `Campaign with ${selectedGroups.length} group(s)`,
-        workspace_id: currentWorkspaceId,
-        launch_date: new Date().toISOString()
-      };
-      
-      console.log('Sending campaign data to API:', campaignData);
-      console.log('Current workspace ID:', currentWorkspaceId);
-      console.log('Campaign name:', formData.campaignName);
-      console.log('Selected groups:', selectedGroups);
-      
-      const newCampaign = await createCampaign(campaignData);
-      console.log('Created campaign:', newCampaign);
-
-      for (const groupId of selectedGroups) {
-        console.log('Assigning group', groupId, 'to campaign', newCampaign.campaign_id);
-        await assignGroupToCampaign(groupId, newCampaign.campaign_id);
-      }
-
-      setCampaigns(prev => [...prev, newCampaign]);
-      setSelectedCampaignId(newCampaign.campaign_id);
-      
-      const campaignGroupsData = groups.filter(group => selectedGroups.includes(group.group_id));
-      setCampaignGroups(prev => ({ ...prev, [newCampaign.campaign_id]: campaignGroupsData }));
-
-      setModal('isCreateCampaignOpen', false);
-      setFormData(prev => ({ ...prev, campaignName: '' }));
-      setSelectedGroups([]);
-      
-      console.log('Campaign created successfully');
-      
-    } catch (err: unknown) {
-      console.error('Error creating campaign:', err);
-      
-      let errorMessage = 'Failed to create campaign.';
-      
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { 
-          response?: { 
-            data?: { detail?: string; message?: string } | string; 
-            status?: number; 
-          } 
-        };
-        
-        console.error('API Error Response:', axiosError.response?.data);
-        console.error('API Error Status:', axiosError.response?.status);
-        
-        if (axiosError.response?.data && typeof axiosError.response.data === 'object') {
-          if ('detail' in axiosError.response.data && axiosError.response.data.detail) {
-            errorMessage = axiosError.response.data.detail;
-          } else if ('message' in axiosError.response.data && axiosError.response.data.message) {
-            errorMessage = axiosError.response.data.message;
-          }
-        } else if (typeof axiosError.response?.data === 'string') {
-          errorMessage = axiosError.response.data;
-        } else if (axiosError.response?.status === 400) {
-          errorMessage = 'Invalid campaign data. Please check your inputs.';
-        } else if (axiosError.response?.status === 401) {
-          errorMessage = 'Unauthorized. Please log in again.';
-        } else if (axiosError.response?.status === 403) {
-          errorMessage = 'Permission denied. You may not have access to create campaigns.';
-        } else if (axiosError.response?.status === 500) {
-          errorMessage = 'Server error. Please try again later.';
-        }
-      } else if (err instanceof Error && err.message !== '[object Object]') {
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
-    }
-  };
 
   const setModal = (modal: keyof typeof modalState, isOpen: boolean) => {
     setModalState(() => ({
       isAIModalOpen: false,
       isGroupModalOpen: false,
-      isCreateCampaignOpen: false,
       [modal]: isOpen,
     }));
   };
+
+
+
+
 
   if (isLoading) {
     return (
@@ -682,20 +505,19 @@ const SendSMS = () => {
         transition={{ delay: 0.2 }}
         className="flex space-x-6 border-b border-gray-300 mb-6"
       >
-        {['instant', 'campaign', 'file'].map((mode, index) => (
+        {['instant', 'file'].map((mode, index) => (
           <button
             key={mode}
-            className={`py-2 px-4 text-sm font-medium ${
-              sendMode === mode ? 'border-b-2 border-[#004d66] text-[#004d66]' : 'text-gray-600 hover:text-[#FDD70D]'
-            }`}
-            onClick={() => setSendMode(mode as 'instant' | 'campaign' | 'file')}
+            className={`py-2 px-4 text-sm font-medium ${sendMode === mode ? 'border-b-2 border-[#004d66] text-[#004d66]' : 'text-gray-600 hover:text-[#FDD70D]'
+              }`}
+            onClick={() => setSendMode(mode as 'instant' | 'file')}
           >
             <motion.span
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * (index + 1) }}
             >
-              {mode === 'instant' ? 'Instant SMS' : mode === 'campaign' ? 'Campaigns' : 'File Upload'}
+              {mode === 'instant' ? 'Instant SMS' : 'File Upload'}
             </motion.span>
           </button>
         ))}
@@ -709,26 +531,29 @@ const SendSMS = () => {
           className="lg:col-span-2 bg-white rounded-md p-6 border border-gray-200"
         >
           <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-600">Sender ID</label>
-              <select
-                value={formData.senderId}
-                onChange={(e) => handleInputChange('senderId', e.target.value)}
-                className="w-full text-sm py-3 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                required
-              >
-                <option value="" className="text-[#004d66]">Select Sender ID</option>
-                {senderIds.map(sender => (
-                  <option
-                    key={sender.sender_id}
-                    value={sender.sender_id}
-                    className="text-[#004d66]"
-                  >
-                    {sender.name} ({sender.sender_id})
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Sender ID Selection - Only for Instant and File modes */}
+            {
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-600">Sender ID</label>
+                <select
+                  value={formData.senderId}
+                  onChange={(e) => handleInputChange('senderId', e.target.value)}
+                  className="w-full text-sm py-3 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+                  required
+                >
+                  <option value="" className="text-[#004d66]">Select Sender ID</option>
+                  {senderIds.map(sender => (
+                    <option
+                      key={sender.sender_id}
+                      value={sender.sender_id}
+                      className="text-[#004d66]"
+                    >
+                      {sender.name} ({sender.sender_id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            }
 
             {sendMode === 'instant' && (
               <motion.div
@@ -821,158 +646,6 @@ const SendSMS = () => {
               </motion.div>
             )}
 
-            {sendMode === 'campaign' && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
-                className="space-y-6"
-              >
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-600">Campaign Action</label>
-                  <div className="flex gap-3">
-                    <motion.button
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                      type="button"
-                      onClick={() => {
-                        setFormData(prev => ({ ...prev, campaignName: '' }));
-                        setSelectedGroups([]);
-                        setError(null);
-                        setModal('isCreateCampaignOpen', true);
-                      }}
-                      className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] text-sm font-medium transition-colors"
-                    >
-                      Create New Campaign
-                    </motion.button>
-                    <select
-                      value={selectedCampaignId}
-                      onChange={(e) => setSelectedCampaignId(e.target.value)}
-                      className="w-1/2 text-sm py-3 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                    >
-                      <option value="" className="text-[#004d66]">Select Existing Campaign</option>
-                      {campaigns.map(campaign => (
-                        <option
-                          key={campaign.campaign_id}
-                          value={campaign.campaign_id}
-                          className="text-[#004d66]"
-                        >
-                          {campaign.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                {selectedCampaignId && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.45 }}
-                    className="space-y-2"
-                  >
-                    <label className="text-sm font-medium text-gray-600">Target Groups</label>
-                    {campaignGroups[selectedCampaignId] && campaignGroups[selectedCampaignId].length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {campaignGroups[selectedCampaignId].map(group => (
-                          <span
-                            key={group.group_id}
-                            className="inline-flex items-center px-3 py-1 bg-gray-100 text-[#004d66] rounded-full text-sm font-medium"
-                          >
-                            <Users className="w-5 h-5 mr-1" />
-                            {group.name}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-                        <div className="flex items-center gap-2 text-yellow-700">
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                          <span className="text-sm font-medium">No groups assigned to this campaign</span>
-                        </div>
-                        <p className="text-sm text-yellow-600 mt-1">
-                          Please create a new campaign with groups or assign groups to this campaign through the Campaigns page.
-                        </p>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="space-y-2"
-                  >
-                    <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-[#004d66]" /> Start Date & Time
-                    </label>
-                    <div className="flex gap-3">
-                      <input
-                        type="date"
-                        value={formData.startDate}
-                        onChange={(e) => handleInputChange('startDate', e.target.value)}
-                        className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                      />
-                      <input
-                        type="time"
-                        value={formData.startTime}
-                        onChange={(e) => handleInputChange('startTime', e.target.value)}
-                        className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                      />
-                    </div>
-                  </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.55 }}
-                    className="space-y-2"
-                  >
-                    <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-[#004d66]" /> End Date & Time
-                    </label>
-                    <div className="flex gap-3">
-                      <input
-                        type="date"
-                        value={formData.endDate}
-                        onChange={(e) => handleInputChange('endDate', e.target.value)}
-                        className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                      />
-                      <input
-                        type="time"
-                        value={formData.endTime}
-                        onChange={(e) => handleInputChange('endTime', e.target.value)}
-                        className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                      />
-                    </div>
-                  </motion.div>
-                </div>
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
-                  className="space-y-2"
-                >
-                  <label className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-[#004d66]" /> Frequency
-                  </label>
-                  <select
-                    value={formData.frequency}
-                    onChange={(e) => handleInputChange('frequency', e.target.value)}
-                    className="w-full text-sm py-3 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-                  >
-                    <option value="" className="text-[#004d66]">Select frequency</option>
-                    <option value="once" className="text-[#004d66]">Send Once</option>
-                    <option value="daily" className="text-[#004d66]">Daily</option>
-                    <option value="weekly" className="text-[#004d66]">Weekly</option>
-                    <option value="monthly" className="text-[#004d66]">Monthly</option>
-                  </select>
-                </motion.div>
-              </motion.div>
-            )}
-
             {sendMode === 'file' && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -981,11 +654,10 @@ const SendSMS = () => {
                 className="space-y-6"
               >
                 <div
-                  className={`relative border-2 border-dashed rounded-md p-6 text-center ${
-                    uploadedFile
-                      ? 'border-[#004d66] bg-gray-100'
-                      : 'border-gray-200 hover:border-[#004d66] hover:bg-gray-100'
-                  }`}
+                  className={`relative border-2 border-dashed rounded-md p-6 text-center ${uploadedFile
+                    ? 'border-[#004d66] bg-gray-100'
+                    : 'border-gray-200 hover:border-[#004d66] hover:bg-gray-100'
+                    }`}
                 >
                   <input
                     type="file"
@@ -1095,57 +767,60 @@ const SendSMS = () => {
                   </motion.div>
                 )}
               </motion.div>
-            )}
+            )
+            }
 
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.65 }}
-              className="space-y-2"
-            >
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-gray-600">Message</label>
-                <div className="flex gap-2">
-                  {sendMode === 'file' && availableColumns.length > 0 && (
-                    <select
-                      onChange={(e) => insertPlaceholder(e.target.value)}
-                      className="text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+            {
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.65 }}
+                className="space-y-2"
+              >
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium text-gray-600">Message</label>
+                  <div className="flex gap-2">
+                    {sendMode === 'file' && availableColumns.length > 0 && (
+                      <select
+                        onChange={(e) => insertPlaceholder(e.target.value)}
+                        className="text-sm py-2 pl-4 pr-4 border border-gray-200 rounded-md bg-white text-[#004d66] focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
+                      >
+                        <option value="" className="text-[#004d66]">Insert Placeholder</option>
+                        {availableColumns.map(col => (
+                          <option key={col} value={col} className="text-[#004d66]">
+                            {col}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <motion.button
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.7 }}
+                      type="button"
+                      onClick={() => setModal('isAIModalOpen', true)}
+                      className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] flex items-center gap-2 text-sm font-medium transition-colors"
                     >
-                      <option value="" className="text-[#004d66]">Insert Placeholder</option>
-                      {availableColumns.map(col => (
-                        <option key={col} value={col} className="text-[#004d66]">
-                          {col}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  <motion.button
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.7 }}
-                    type="button"
-                    onClick={() => setModal('isAIModalOpen', true)}
-                    className="px-4 py-2 bg-gradient-to-r from-[#004d66] to-[#004d66] text-white rounded-md hover:bg-[#FDD70D] flex items-center gap-2 text-sm font-medium transition-colors"
-                  >
-                    <Bot className="w-5 h-5" />
-                    AI Assist
-                  </motion.button>
+                      <Bot className="w-5 h-5" />
+                      AI Assist
+                    </motion.button>
+                  </div>
                 </div>
-              </div>
-              <textarea
-                ref={textareaRef}
-                value={formData.message}
-                onChange={(e) => handleInputChange('message', e.target.value)}
-                rows={6}
-                className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
-                placeholder={sendMode === 'file' ? "Type your message here... (e.g., Hi {name}, your balance is {amount}!)" : "Type your message here..."}
-                required
-              />
-              <div className="flex justify-end gap-3 text-sm text-[#004d66]">
-                <span>{smsCount} SMS</span>
-                <span>{charCount}/160</span>
-              </div>
-            </motion.div>
+                <textarea
+                  ref={textareaRef}
+                  value={formData.message}
+                  onChange={(e) => handleInputChange('message', e.target.value)}
+                  rows={6}
+                  className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors resize-none"
+                  placeholder={sendMode === 'file' ? "Type your message here... (e.g., Hi {name}, your balance is {amount}!)" : "Type your message here..."}
+                  required
+                />
+                <div className="flex justify-end gap-3 text-sm text-[#004d66]">
+                  <span>{smsCount} SMS</span>
+                  <span>{charCount}/160</span>
+                </div>
+              </motion.div>
+            }
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -1162,18 +837,18 @@ const SendSMS = () => {
                 {isSending ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {sendMode === 'instant' ? 'Sending...' : sendMode === 'campaign' ? 'Launching...' : 'Sending...'}
+                    {'Sending...'}
                   </>
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    {sendMode === 'instant' ? 'Send SMS Now' : sendMode === 'campaign' ? 'Launch Campaign' : 'Send from File'}
+                    {sendMode === 'instant' ? 'Send SMS Now' : 'Send from File'}
                   </>
                 )}
               </button>
             </motion.div>
-          </div>
-        </motion.div>
+          </div >
+        </motion.div >
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -1192,7 +867,7 @@ const SendSMS = () => {
             </div>
           </div>
         </motion.div>
-      </div>
+      </div >
 
       <Modal
         isOpen={modalState.isAIModalOpen}
@@ -1230,6 +905,11 @@ const SendSMS = () => {
           transition={{ delay: 0.1 }}
           className="space-y-2 max-h-48 overflow-y-auto"
         >
+          {(() => {
+            console.log('Rendering group modal. Groups state:', groups);
+            console.log('Groups length:', groups.length);
+            return null;
+          })()}
           {groups.length ? (
             groups.map((group, index) => (
               <motion.label
@@ -1249,70 +929,15 @@ const SendSMS = () => {
               </motion.label>
             ))
           ) : (
-            <p className="text-[#004d66] text-sm text-center py-3">No groups available.</p>
+            <div>
+              <p className="text-[#004d66] text-sm text-center py-3">No groups available.</p>
+              <p className="text-gray-500 text-xs text-center">Debug: groups.length = {groups.length}, currentWorkspaceId = {currentWorkspaceId}</p>
+            </div>
           )}
         </motion.div>
       </Modal>
 
-      <Modal
-        isOpen={modalState.isCreateCampaignOpen}
-        onClose={() => setModal('isCreateCampaignOpen', false)}
-        title="Create Campaign"
-        onSubmit={handleCreateCampaign}
-        submitText="Create"
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="space-y-4"
-        >
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-[#004d66]">Campaign Name</label>
-            <input
-              type="text"
-              value={formData.campaignName}
-              onChange={(e) => handleInputChange('campaignName', e.target.value)}
-              className="w-full p-3 border border-gray-200 rounded-md text-[#004d66] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FDD70D] hover:border-[#004d66] transition-colors"
-              placeholder="Enter campaign name"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-[#004d66]">Select Groups</label>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {groups.length > 0 ? (
-                groups.map((group, index) => (
-                  <motion.label
-                    key={group.group_id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 * (index + 1) }}
-                    className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-md text-[#004d66] text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedGroups.includes(group.group_id)}
-                      onChange={() => toggleGroupSelection(group.group_id)}
-                      className="w-4 h-4 text-[#004d66] rounded border-gray-200 focus:ring-[#FDD70D]"
-                    />
-                    <span>{group.name}</span>
-                  </motion.label>
-                ))
-              ) : (
-                <div className="text-center py-4 text-gray-500 text-sm">
-                  No groups available. Please create groups first.
-                </div>
-              )}
-            </div>
-            {selectedGroups.length > 0 && (
-              <div className="mt-2 text-sm text-green-600">
-                {selectedGroups.length} group(s) selected
-              </div>
-            )}
-          </div>
-        </motion.div>
-      </Modal>
+
 
       <Modal
         isOpen={isConfirmModalOpen}
@@ -1335,35 +960,12 @@ const SendSMS = () => {
             <p className="text-sm font-medium text-[#004d66]">Message Preview:</p>
             <p className="text-sm text-[#004d66] mt-2 break-words">{messagePreview}</p>
           </div>
-          
-          {sendMode === 'campaign' && formData.startDate && formData.startTime && (
-            <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-              <p className="text-sm font-medium text-[#004d66]">Scheduling Information:</p>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                <div>
-                  <p className="text-xs text-gray-600">Start:</p>
-                  <p className="text-sm text-[#004d66]">{formData.startDate} at {formData.startTime}</p>
-                </div>
-                {formData.endDate && formData.endTime && (
-                  <div>
-                    <p className="text-xs text-gray-600">End:</p>
-                    <p className="text-sm text-[#004d66]">{formData.endDate} at {formData.endTime}</p>
-                  </div>
-                )}
-                {formData.frequency && (
-                  <div className="col-span-2">
-                    <p className="text-xs text-gray-600">Frequency:</p>
-                    <p className="text-sm text-[#004d66] capitalize">{formData.frequency}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          
+
           <p className="text-sm">Please confirm to proceed with sending.</p>
         </motion.div>
       </Modal>
-    </div>
+
+    </div >
   );
 };
 
