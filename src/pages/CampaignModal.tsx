@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Calendar, X } from 'lucide-react';
-import { getCampaigns, getCampaignGroups } from '../services/api.tsx';
+import { listCampaigns, getCampaignGroups } from '../services/api.tsx';
 
 interface Campaign {
   campaign_id: string;
@@ -35,9 +35,9 @@ const CampaignModal: React.FC<CampaignModalProps> = ({ isOpen, onClose, onSelect
     if (!isOpen) return;
     setIsLoading(true);
     console.log('Fetching campaigns...');
-    getCampaigns()
-      .then((data) => {
-        const campaignsData = data && (Array.isArray(data) ? data : data.data || []);
+    listCampaigns()
+      .then((data: Campaign[]) => {
+        const campaignsData = Array.isArray(data) ? data : [];
         console.log('Campaigns fetched:', campaignsData);
         setCampaigns(campaignsData);
         setIsLoading(false);
@@ -58,8 +58,8 @@ const CampaignModal: React.FC<CampaignModalProps> = ({ isOpen, onClose, onSelect
     setIsLoading(true);
     console.log(`Fetching groups for campaign ${selectedCampaign}...`);
     getCampaignGroups(selectedCampaign)
-      .then((data) => {
-        const groupsData = data && (Array.isArray(data) ? data : data.data || []);
+      .then((data: Group[]) => {
+        const groupsData = Array.isArray(data) ? data : [];
         const validCampaignGroups = groupsData.filter((group: Group) =>
           validGroups.some((validGroup) => validGroup.group_id === group.group_id)
         );

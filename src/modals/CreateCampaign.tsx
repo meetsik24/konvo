@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Bot, CheckCircle, Users, X, Clock, Trash2, Edit, MessageSquare } from 'lucide-react';
+import { Send, Bot, CheckCircle, Users, X, Trash2, Edit, MessageSquare } from 'lucide-react';
 import { useWorkspace } from '../pages/WorkspaceContext.tsx';
 import {
   sendInstantMessage,
   generateMessage,
-  getCampaigns,
+  listCampaigns,
   createCampaign,
   updateCampaign,
   deleteCampaign,
   assignGroupToCampaign,
   getCampaignGroups,
 } from '../services/api.tsx';
+import { getRecipients, Contact } from '../utils/smsUtils.tsx';
 
 import CampaignModal from '../pages/CampaignModal.tsx';
 
@@ -560,7 +561,7 @@ const CreateCampaign: React.FC<Props> = ({ senderIds, validGroups, campaigns, on
                       Status: {getCampaignStatus(campaign)}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Schedule: {campaign.schedule_type?.charAt(0).toUpperCase() + campaign.schedule_type?.slice(1) || 'N/A'}
+                      Schedule: {campaign.schedule_type ? campaign.schedule_type.charAt(0).toUpperCase() + campaign.schedule_type.slice(1) : 'N/A'}
                     </p>
                     {campaign.start_date && (
                       <p className="text-sm text-gray-600">

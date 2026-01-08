@@ -1,6 +1,6 @@
 import { getContacts, getGroupContacts } from '../services/api.tsx';
 
-interface Contact {
+export interface Contact {
   contact_id: string;
   phone_number: string;
 }
