@@ -1,4 +1,4 @@
-# BriqPilot Frontend
+# BriqPilot Frontend Repository
 
 ## Introduction
 This document provides instructions on how to run the BriqPilot Frontend project.
