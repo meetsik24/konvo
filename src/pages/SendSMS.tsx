@@ -385,7 +385,8 @@ const SendSMS = () => {
         for (const row of uploadedData) {
           const phone = row[phoneColumn];
           if (!phone) continue;
-          const personalizedMessage = generatePersonalizedMessage(row, formData.message);
+          const personalizedMessage = applyPlaceholders(formData.message, row);
+          // const personalizedMessage = generatePersonalizedMessage(row, formData.message);
           const fileMessageData = {
             sender_id: formData.senderId,
             content: personalizedMessage,
