@@ -1,4 +1,4 @@
-name: Paris Operand
+name: Frontend Serve
 
 on:
   push:
@@ -28,16 +28,16 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/briqpilot-frontend:latest
 
-      # Step 5: Deploy on DigitalOcean Droplet via SSH
-      - name: Deploy on DigitalOcean Droplet
+      # Step 5: Deploy on AWS EC2 via SSH
+      - name: Deploy on AWS EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.DROPLET_HOST }}
-          username: ${{ secrets.DROPLET_USER }}
-          password: ${{ secrets.DROPLET_PASSWORD }}
+          host: ${{ secrets.AWS_SSH_HOST }}
+          username: ${{ secrets.AWS_SSH_USER }}
+          key: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
           script: |
             set -e  # Stop on errors
-            echo "Logging into droplet..."
+            echo "Logging into AWS EC2..."
 
             # Navigate to deployment directory
             cd briqFace
@@ -46,11 +46,9 @@ jobs:
             docker stop briqpilot-frontend_frontend_1 || true
             docker rm briqpilot-frontend_frontend_1 || true
 
-             # Clean up unused Docker resources | Aggressive cleanup
+            # Clean up unused Docker resources | Aggressive cleanup
             echo "Cleaning up unused Docker resources..."
             docker system prune -a -f
-
-          
 
             # Pull the latest image from Docker Hub
             docker pull ${{ secrets.DOCKER_USERNAME }}/briqpilot-frontend:latest
