@@ -23,16 +23,16 @@ import type { RootState } from '../store/store';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const adminNavItems = [
-    { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Admin Dashboard' },
-    { to: '/admin/users', icon: Users, label: 'User Management' },
-    { to: '/admin/sender-ids', icon: IdCard, label: 'Sender IDs' },
-    { to: '/admin/workspaces', icon: Building, label: 'Workspaces' },
-    { to: '/admin/financials', icon: DollarSign, label: 'Financials' },
-    { to: '/admin/packages', icon: Package, label: 'Packages' },
-    { to: '/admin/services', icon: Layers, label: 'Services' },
-    { to: '/admin/api-keys', icon: Key, label: 'API Keys' },
-    { to: '/admin/messages', icon: MessageSquare, label: 'Messages' },
-    { to: '/admin/otps', icon: ShieldCheck, label: 'OTP Logs' },
+    { to: '/orange/dashboard', icon: LayoutDashboard, label: 'Admin Dashboard' },
+    { to: '/orange/users', icon: Users, label: 'User Management' },
+    { to: '/orange/sender-ids', icon: IdCard, label: 'Sender IDs' },
+    { to: '/orange/workspaces', icon: Building, label: 'Workspaces' },
+    { to: '/orange/financials', icon: DollarSign, label: 'Financials' },
+    { to: '/orange/packages', icon: Package, label: 'Packages' },
+    { to: '/orange/services', icon: Layers, label: 'Services' },
+    { to: '/orange/api-keys', icon: Key, label: 'API Keys' },
+    { to: '/orange/messages', icon: MessageSquare, label: 'Messages' },
+    { to: '/orange/otps', icon: ShieldCheck, label: 'OTP Logs' },
 ];
 
 interface AdminSidebarProps {

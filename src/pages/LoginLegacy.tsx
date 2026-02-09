@@ -31,9 +31,9 @@ const Login: React.FC = () => {
         setLocalError(null);
 
         try {
-            const { token, user } = await loginUser(formData.username, formData.password);
+            const { user, token } = await loginUser(formData.username, formData.password);
             dispatch(setCredentials({ user, token }));
-            navigate('/dashboard');
+            navigate((user?.orange || user?.role === 'admin') ? '/orange/dashboard' : '/dashboard');
         } catch (err: any) {
             const errorMsg = err.response?.data?.message || 'Invalid credentials or server error';
             setLocalError(errorMsg);

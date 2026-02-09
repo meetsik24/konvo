@@ -113,7 +113,7 @@ const AuthScreen: React.FC = () => {
     try {
       const { token, user } = await loginUser(username, password);
       dispatch(setCredentials({ user, token }));
-      navigate('/dashboard');
+      navigate((user?.orange || user?.role === 'admin') ? '/orange/dashboard' : '/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid credentials or server error');
     } finally {

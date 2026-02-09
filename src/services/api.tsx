@@ -9,8 +9,8 @@ import type {
 } from '../types';
 
 const API_BASE_URL = import.meta.env.MODE === 'development'
-  ? '/api'  // Use proxy in development
-  : import.meta.env.VITE_PRODUCTION_API_URL;
+  ? (import.meta.env.VITE_DEVELOPMENT_API_URL || '/api')
+  : (import.meta.env.VITE_PRODUCTION_API_URL || 'https://briq-pilot-backend.onrender.com');
 
 console.log('API Configuration:', {
   mode: import.meta.env.MODE,
@@ -1149,55 +1149,66 @@ interface GetWorkspacesParams {
   offset?: number;
 }
 
+interface ApiRequestOptions {
+  params?: object;
+  headers?: object;
+  suppressLogging?: boolean;
+}
+
 // === API Service Class ===
 export class ApiService {
-  static async get<T>(endpoint: string, params?: object): Promise<T> {
+  static async get<T>(endpoint: string, options: ApiRequestOptions = {}): Promise<T> {
     try {
-      const response: AxiosResponse<T> = await api.get(endpoint, { params });
+      const response: AxiosResponse<T> = await api.get(endpoint, { params: options.params });
       return response.data;
     } catch (error: any) {
-      handleAdminApiError(error, `GET ${endpoint} failed`);
+      handleAdminApiError(error, `GET ${endpoint} failed`, options.suppressLogging);
+      throw error;
     }
   }
 
-  static async post<T>(endpoint: string, data: object | FormData, headers?: object): Promise<T> {
+  static async post<T>(endpoint: string, data: object | FormData, options: ApiRequestOptions = {}): Promise<T> {
     try {
-      const response: AxiosResponse<T> = await api.post(endpoint, data, { headers });
+      const response: AxiosResponse<T> = await api.post(endpoint, data, { headers: options.headers });
       return response.data;
     } catch (error: any) {
-      handleAdminApiError(error, `POST ${endpoint} failed`);
+      handleAdminApiError(error, `POST ${endpoint} failed`, options.suppressLogging);
+      throw error;
     }
   }
 
-  static async patch<T>(endpoint: string, data: object, params?: object): Promise<T> {
+  static async patch<T>(endpoint: string, data: object, options: ApiRequestOptions = {}): Promise<T> {
     try {
-      const response: AxiosResponse<T> = await api.patch(endpoint, data, { params });
+      const response: AxiosResponse<T> = await api.patch(endpoint, data, { params: options.params });
       return response.data;
     } catch (error: any) {
-      handleAdminApiError(error, `PATCH ${endpoint} failed`);
+      handleAdminApiError(error, `PATCH ${endpoint} failed`, options.suppressLogging);
+      throw error;
     }
   }
 
-  static async put<T>(endpoint: string, data: object, params?: object): Promise<T> {
+  static async put<T>(endpoint: string, data: object, options: ApiRequestOptions = {}): Promise<T> {
     try {
-      const response: AxiosResponse<T> = await api.put(endpoint, data, { params });
+      const response: AxiosResponse<T> = await api.put(endpoint, data, { params: options.params });
       return response.data;
     } catch (error: any) {
-      handleAdminApiError(error, `PUT ${endpoint} failed`);
+      handleAdminApiError(error, `PUT ${endpoint} failed`, options.suppressLogging);
+      throw error;
     }
   }
 
-  static async delete<T>(endpoint: string): Promise<T> {
+  static async delete<T>(endpoint: string, options: ApiRequestOptions = {}): Promise<T> {
     try {
       const response: AxiosResponse<T> = await api.delete(endpoint);
       return response.data;
     } catch (error: any) {
-      handleAdminApiError(error, `DELETE ${endpoint} failed`);
+      handleAdminApiError(error, `DELETE ${endpoint} failed`, options.suppressLogging);
+      throw error;
     }
   }
 }
 
-const handleAdminApiError = (error: AxiosError, defaultMessage: string): never => {
+const handleAdminApiError = (error: AxiosError, defaultMessage: string, suppressLogging: boolean = false): never => {
   let message: string;
   if (error.response?.data) {
     const data = error.response.data as any;
@@ -1219,7 +1230,13 @@ const handleAdminApiError = (error: AxiosError, defaultMessage: string): never =
     data: error.response?.data || null,
     code: error.code || 'N/A',
   };
-  console.error(`${defaultMessage}:`, errorDetails);
+
+  if (!suppressLogging) {
+    console.error(`${defaultMessage}:`, errorDetails);
+  } else {
+    console.debug(`${defaultMessage} (Silenced):`, errorDetails.status);
+  }
+
   throw new Error(`${defaultMessage}: ${message} (Status: ${errorDetails.status})`);
 };
 
@@ -1259,7 +1276,7 @@ const isValidISODate = (dateStr: string): boolean => {
 };
 
 
-export const loginUser = async (identifier: string, password: string): Promise<{ token: string; user: User }> => {
+export const loginUser = async (identifier: string, password: string): Promise<{ token: string; user: User; orange?: boolean }> => {
   try {
     const formData = new FormData();
     formData.append("grant_type", "password");
@@ -1273,14 +1290,45 @@ export const loginUser = async (identifier: string, password: string): Promise<{
       headers: { "Content-Type": "multipart/form-data" },
     });
 
-    const { access_token, user } = response.data;
+    const { access_token, user, orange } = response.data;
     if (access_token) {
       localStorage.setItem("token", access_token);
     }
 
-    return { token: access_token, user };
+    // Handle case where backend returns orange flag but no user object
+    // Create a minimal user object with the orange flag
+    let userWithOrange: User;
+    if (user) {
+      userWithOrange = { ...user, orange: orange ?? user.orange ?? false };
+    } else if (orange) {
+      // Backend didn't return user but returned orange: true
+      // Create minimal user object - profile will be fetched later
+      userWithOrange = {
+        id: '',
+        name: identifier,
+        username: identifier,
+        email: '',
+        phone_number: '',
+        orange: true,
+        role: 'admin', // Assume admin if orange flag is true
+      } as User;
+    } else {
+      // No user and no orange flag - this shouldn't happen but handle gracefully
+      userWithOrange = {
+        id: '',
+        name: identifier,
+        username: identifier,
+        email: '',
+        phone_number: '',
+        orange: false,
+        role: 'user',
+      } as User;
+    }
+
+    return { token: access_token, user: userWithOrange, orange };
   } catch (error: any) {
     handleApiError(error, "Login failed");
+    throw error; // handleApiError throws, but this ensures TypeScript knows we never return
   }
 };
 
@@ -1315,12 +1363,13 @@ export const logoutUser = (): void => {
 };
 
 // LOGS
-export const fetchLogs = async (): Promise<LogResponse> => {
+export const fetchLogs = async (): Promise<any> => {
   try {
     const response = await api.get("/messages/logs");
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to fetch logs");
+    throw error;
   }
 };
 
@@ -1381,6 +1430,7 @@ export const createWorkspace = async (name: string): Promise<Workspace> => {
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to create workspace");
+    throw error;
   }
 };
 
@@ -1400,6 +1450,7 @@ export const updateWorkspace = async (id: string, data: Partial<Workspace>): Pro
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to update workspace");
+    throw error;
   }
 };
 
@@ -1410,6 +1461,7 @@ export const deleteWorkspace = async (id: string): Promise<void> => {
     console.log("Workspace deleted successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to delete workspace");
+    throw error;
   }
 };
 
@@ -1425,6 +1477,7 @@ export const createCampaign = async (data: {
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to create campaign");
+    throw error;
   }
 };
 
@@ -1836,15 +1889,19 @@ export const getProfile = async (): Promise<User> => {
   try {
     const response = await api.get("/users/me");
     return {
+      id: response.data.user_id,
+      name: response.data.full_name || response.data.username || "User",
       email: response.data.email,
       username: response.data.username,
       full_name: response.data.full_name,
       mobile_number: response.data.mobile_number,
-      userId: response.data.user_id,
+      role: response.data.role || 'user',
+      orange: response.data.orange ?? false,
       avatar: response.data.avatar || undefined,
     };
   } catch (error: any) {
     handleApiError(error, "Failed to fetch user profile");
+    throw error;
   }
 };
 
@@ -2137,7 +2194,7 @@ export const sendBulkSMSFile = async (
   }
 };
 
-export const getMessageLogs = async (): Promise<BaseBaseMessage[]> => {
+export const getMessageLogs = async (): Promise<BaseMessage[]> => {
   try {
     const response = await api.get("/messages/logs");
     return Array.isArray(response.data) ? response.data : [];
@@ -2148,7 +2205,7 @@ export const getMessageLogs = async (): Promise<BaseBaseMessage[]> => {
 };
 
 
-export const getUserMessages = async (): Promise<BaseBaseMessage[]> => {
+export const getUserMessages = async (): Promise<BaseMessage[]> => {
   try {
     const response = await api.get("/messages/me");
     return Array.isArray(response.data) ? response.data : [];
@@ -2181,8 +2238,9 @@ export const getBaseMessageDetail = async (messageId: string): Promise<BaseMessa
 // NOTIFICATIONS
 export const fetchNotifications = async (): Promise<Notification[]> => {
   try {
-    if (!api.defaults.baseURL?.startsWith("https://")) {
-      throw new Error("API baseURL must use HTTPS.");
+    // Skip HTTPS check in development mode (proxy handles it)
+    if (import.meta.env.MODE === 'production' && !api.defaults.baseURL?.startsWith("https://")) {
+      throw new Error("API baseURL must use HTTPS in production.");
     }
 
     const response = await api.get("/notifications/");
@@ -3144,14 +3202,14 @@ export const AdminApi = {
     if (status) params.status = status;
     if (limit) params.limit = limit;
     if (offset) params.offset = offset;
-    return ApiService.get<SenderIdListResponse>('/admin/sender-ids/requests', params);
+    return ApiService.get<SenderIdListResponse>('/admin/sender-ids/requests', { params });
   },
 
   getApprovedSenderIds: async (limit?: number, offset?: number): Promise<ApprovedSenderIdListResponse> => {
     const params: any = {};
     if (limit) params.limit = limit;
     if (offset) params.offset = offset;
-    return ApiService.get<ApprovedSenderIdListResponse>('/admin/sender-ids', params);
+    return ApiService.get<ApprovedSenderIdListResponse>('/admin/sender-ids', { params });
   },
 
   reviewSenderIdRequest: async (
@@ -3191,7 +3249,7 @@ export const AdminApi = {
   },
 
   getWorkspaces: async (params?: GetWorkspacesParams): Promise<WorkspaceListResponse> => {
-    return ApiService.get<WorkspaceListResponse>('/admin/workspaces', params);
+    return ApiService.get<WorkspaceListResponse>('/admin/workspaces', { params });
   },
 
   getWorkspaceMetrics: async (): Promise<WorkspaceMetrics> => {
@@ -3207,11 +3265,52 @@ export const AdminApi = {
   },
 
   getOTPCodesMetrics: async (): Promise<OTPMetrics> => {
-    return ApiService.get('/admin/otp-codes/metrics');
+    try {
+      return await ApiService.get('/admin/otp-codes/metrics', { suppressLogging: true });
+    } catch (error: any) {
+      // Return fallback data if endpoint doesn't exist yet (404)
+      const is404 = error.message?.includes('404') || error.response?.status === 404;
+      if (is404) {
+        console.debug('[OTP Metrics] Endpoint not available, using fallback data');
+        return {
+          total_otps_generated: 0,
+          total_otps_used: 0,
+          total_otps_expired: 0,
+          usage_rate_percent: 0,
+          otps_last_24_hours: 0,
+          top_users: [],
+          avg_time_to_use_seconds: 0,
+        };
+      }
+      throw error;
+    }
   },
 
   getFinancialMetrics: async (): Promise<FinancialMetrics> => {
-    return ApiService.get('/admin/financial/metrics');
+    try {
+      return await ApiService.get('/admin/financial/metrics', { suppressLogging: true });
+    } catch (error: any) {
+      // Return fallback data if endpoint doesn't exist yet (404)
+      const is404 = error.message?.includes('404') || error.response?.status === 404;
+      if (is404) {
+        console.debug('[Financial Metrics] Endpoint not available, using fallback data');
+        return {
+          total_revenue: 0,
+          monthly_revenue: 0,
+          total_transactions: 0,
+          completed_transactions: 0,
+          incomplete_transactions: 0,
+          sms_credits_sold: 0,
+          sms_credits_used: 0,
+          call_minutes_sold: 0,
+          call_minutes_used: 0,
+          avg_transaction_value: 0,
+          top_users: [],
+          users_low_balance: [],
+        };
+      }
+      throw error;
+    }
   },
 
   getIncompleteTransactions: async (): Promise<IncompleteTransactionsResponse> => {
@@ -3234,7 +3333,7 @@ export const AdminApi = {
     try {
       const params: any = { page, limit };
       if (search) params.search = search;
-      return await ApiService.get<UserApiResponse[]>('/admin/users', params);
+      return await ApiService.get<UserApiResponse[]>('/admin/users', { params });
     } catch (error: any) {
       console.error('getUsers - Error:', error);
       throw error;

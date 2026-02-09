@@ -156,7 +156,8 @@ const authSlice = createSlice({
       })
       .addCase(fetchUserProfile.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.user = action.payload; // Ensure user is updated with profile data
+        // Merge profile data with existing user to preserve orange flag from login
+        state.user = { ...state.user, ...action.payload, orange: state.user?.orange ?? action.payload?.orange ?? false };
         state.error = null;
       })
       .addCase(fetchUserProfile.rejected, (state, action) => {

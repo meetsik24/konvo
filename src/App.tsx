@@ -56,6 +56,14 @@ import AdminProtectedRoute from './components/AdminProtectedRoute';
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminSenderIds from './pages/admin/AdminSenderIds';
+import AdminWorkspaces from './pages/admin/AdminWorkspaces';
+import AdminFinancials from './pages/admin/AdminFinancials';
+import AdminPackages from './pages/admin/AdminPackages';
+import AdminServices from './pages/admin/AdminServices';
+import AdminApiKeys from './pages/admin/AdminApiKeys';
+import AdminMessages from './pages/admin/AdminMessages';
+import AdminOTPs from './pages/admin/AdminOTPs';
 
 
 
@@ -215,11 +223,20 @@ function App() {
                       </AdminProtectedRoute>
                     }
                   >
-                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                    <Route path="/admin/users" element={<AdminUsers />} />
+                    <Route path="/orange/dashboard" element={<AdminDashboard />} />
+                    <Route path="/orange/users" element={<AdminUsers />} />
+                    <Route path="/orange/sender-ids" element={<AdminSenderIds />} />
+                    <Route path="/orange/workspaces" element={<AdminWorkspaces />} />
+                    <Route path="/orange/financials" element={<AdminFinancials />} />
+                    <Route path="/orange/packages" element={<AdminPackages />} />
+                    <Route path="/orange/services" element={<AdminServices />} />
+                    <Route path="/orange/api-keys" element={<AdminApiKeys />} />
+                    <Route path="/orange/messages" element={<AdminMessages />} />
+                    <Route path="/orange/otps" element={<AdminOTPs />} />
                     {/* Fallback for admin if route doesn't exist */}
-                    <Route path="/admin/*" element={<Navigate to="/admin/dashboard" replace />} />
+                    <Route path="/orange/*" element={<Navigate to="/orange/dashboard" replace />} />
                   </Route>
+                  <Route path="/admin/*" element={<Navigate to="/orange/dashboard" replace />} />
 
                   {/* Catch-All 404 Page */}
                   <Route path="*" element={<NotFound />} />

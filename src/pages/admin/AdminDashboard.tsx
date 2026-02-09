@@ -50,16 +50,56 @@ const AdminDashboard: React.FC = () => {
         const fetchStats = async () => {
             try {
                 setLoading(true);
-                const [finData, senderData, workspaceData, otpData] = await Promise.all([
-                    AdminApi.getFinancialMetrics(),
+
+                // Only call endpoints that exist on the backend
+                const [senderResult, workspaceResult] = await Promise.allSettled([
                     AdminApi.getSenderIdMetrics(),
-                    AdminApi.getWorkspaceMetrics(),
-                    AdminApi.getOTPCodesMetrics()
+                    AdminApi.getWorkspaceMetrics()
                 ]);
-                setFinancials(finData);
-                setSenderIds(senderData);
-                setWorkspaces(workspaceData);
-                setOtps(otpData);
+
+                // Extract successful results or null for failures
+                setSenderIds(senderResult.status === 'fulfilled' ? senderResult.value : null);
+                setWorkspaces(workspaceResult.status === 'fulfilled' ? workspaceResult.value : null);
+
+                // These endpoints don't exist on the backend yet - use placeholder data
+                // TODO: Enable these when backend implements /admin/otp-codes/metrics and /admin/financial/metrics
+                setOtps({
+                    total_otps_generated: 0,
+                    total_otps_used: 0,
+                    total_otps_expired: 0,
+                    usage_rate_percent: 0,
+                    otps_last_24_hours: 0,
+                    top_users: [],
+                    avg_time_to_use_seconds: 0,
+                });
+                setFinancials({
+                    total_revenue: 0,
+                    monthly_revenue: 0,
+                    total_transactions: 0,
+                    completed_transactions: 0,
+                    incomplete_transactions: 0,
+                    sms_credits_sold: 0,
+                    sms_credits_used: 0,
+                    call_minutes_sold: 0,
+                    call_minutes_used: 0,
+                    avg_transaction_value: 0,
+                    top_users: [],
+                    users_low_balance: [],
+                });
+
+                // Check if any requests failed and show a warning
+                const failedRequests = [senderResult, workspaceResult]
+                    .filter(r => r.status === 'rejected');
+
+                if (failedRequests.length > 0) {
+                    console.warn(`${failedRequests.length} dashboard API requests failed:`,
+                        failedRequests.map(r => r.status === 'rejected' ? r.reason?.message : ''));
+                    if (failedRequests.length === 2) {
+                        setError('Failed to load dashboard statistics. Please check if the backend is running.');
+                    } else {
+                        setError('Some dashboard data could not be loaded. Displaying available information.');
+                    }
+                }
             } catch (err: any) {
                 console.error('Failed to fetch admin dashboard data:', err);
                 setError('Failed to load dashboard statistics. Some data might be missing.');

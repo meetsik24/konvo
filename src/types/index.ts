@@ -2,7 +2,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  username?: string;
+  full_name?: string;
+  mobile_number?: string;
   role: 'admin' | 'user';
+  orange?: boolean;
   avatar?: string;
 }
 

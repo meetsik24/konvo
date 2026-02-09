@@ -9,15 +9,6 @@ const persistConfig = {
   key: 'root',
   storage,
   whitelist: ['auth'], // Persist the entire auth slice
-  transforms: [
-    (state) => ({
-      ...state,
-      auth: {
-        ...state.auth,
-        user: state.auth.user ? { ...state.auth.user } : null, // Ensure user is an object or null
-      },
-    }),
-  ],
 };
 
 // Create a persisted reducer
