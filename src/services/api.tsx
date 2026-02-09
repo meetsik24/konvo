@@ -1,10 +1,11 @@
-import axios from 'axios';
+import axios, { AxiosResponse, AxiosError } from 'axios';
 import type {
   DeveloperApp,
   CreateDeveloperAppRequest,
   UpdateDeveloperAppRequest,
   ApiError,
-  ApiResponse
+  ApiResponse,
+  User
 } from '../types';
 
 const API_BASE_URL = import.meta.env.MODE === 'development'
@@ -47,7 +48,7 @@ interface flake_request {
   preferred_channel: string
 }
 
-interface flake_verify {
+export interface flake_verify {
   phone_number: string;
   flake_code: string;
 }
@@ -86,18 +87,12 @@ api.interceptors.response.use(
 );
 
 // Interfaces
-interface User {
-  email: string;
-  username: string;
-  full_name?: string;
-  mobile_number?: string;
-  avatar?: string;
-}
+// BasicUser, DashboardUser etc removed in favor of imported User
 
 //interface for Logs
-interface LogResponse {
+interface LegacyLogResponse {
   analytics: Analytics;
-  messages: Message[];
+  messages: BaseMessage[];
 }
 
 interface Status {
@@ -119,7 +114,7 @@ export interface SmsStatus {
   status: string;
 }
 
-export interface Group {
+export interface LegacyGroup {
   group_id: string;
   group_name: string;
   count: number;
@@ -128,7 +123,7 @@ export interface Group {
 export interface ContactsCount {
   total_contacts: number;
   total_groups: number;
-  groups: Group[];
+  groups: LegacyGroup[];
 }
 
 export interface DailyCount {
@@ -149,7 +144,7 @@ export interface MetricsResponse {
   logs_count: LogsCount;
 }
 
-export interface Message {
+export interface LegacyMessage {
   message: string;
   sent_at: string;
   recipient: string;
@@ -160,7 +155,7 @@ export interface Message {
 
 export interface MessageLogResponse {
   analytics: Analytics;
-  messages: Message[];
+  messages: LegacyMessage[];
 }
 
 
@@ -189,7 +184,7 @@ interface ContactsResponse {
   current_page: number;
 }
 
-interface Group {
+interface BaseGroup {
   group_id: string;
   workspace_id: string;
   name: string;
@@ -266,7 +261,7 @@ interface Notification {
   is_read: boolean;
 }
 
-interface LogResponse {
+interface UserLogResponse {
   user_id: string;
   logs: {
     log_id: string;
@@ -293,15 +288,7 @@ interface Plan {
   services: PackageService[];
 }
 
-interface User {
-  email: string;
-  username: string;
-  userId?: string;
-  full_name?: string;
-  mobile_number?: string;
-  avatar?: string;
-  plan_id?: string;
-}
+// DashboardUser removed in favor of imported User
 
 interface SubscriptionUsage {
   user_id: string;
@@ -360,7 +347,7 @@ interface SenderId {
   use_cases?: string[]; // Array of use cases for the sender ID
 }
 
-interface Message {
+interface BaseMessage {
   message_id: string;
   user_id: string;
   workspace_id: string;
@@ -450,6 +437,12 @@ export interface AllocationSummary {
 
 export interface AllocationsSummaryResponse {
   allocations: AllocationSummary[];
+}
+
+export interface ServiceAllocationResponse {
+  allocations: Allocation[];
+  success?: boolean;
+  message?: string;
 }
 
 export interface AllocationItem {
@@ -657,11 +650,579 @@ interface UpdateWebhookRequest {
   secret?: string;
 }
 
+// === Admin Interfaces ===
+interface SenderIdRequest {
+  request_id: string;
+  user_id: string;
+  username: string;
+  sender_id_requested: string;
+  status: 'pending' | 'rejected';
+  requested_at: string;
+  reviewed_at?: string;
+}
 
+interface AdminSenderId {
+  sender_id: string;
+  name: string;
+  user_id: string;
+  username: string;
+  approved_at: string;
+}
 
+interface SenderIdListResponse {
+  total: number;
+  requests: SenderIdRequest[];
+}
 
+interface ApprovedSenderIdListResponse {
+  total: number;
+  sender_ids: AdminSenderId[];
+}
 
-// AUTHENTICATION
+interface SenderIdMetrics {
+  total_requests: number;
+  pending_requests: number;
+  approved_requests: number;
+  rejected_requests: number;
+  registered_sender_ids: number;
+  avg_approval_time_days: number;
+  requests_last_7_days: number;
+}
+
+interface UserCredits {
+  user_id: string;
+  plan_id: string;
+  sms_credits: number;
+  call_minutes: number;
+  last_updated: string;
+}
+
+interface UserApiResponse {
+  user_id: string;
+  username: string;
+  email: string;
+  full_name?: string;
+  mobile_number?: string;
+  account_status: string;
+  created_at: string;
+  credits: {
+    user_id: string;
+    plan_id: string | null;
+    sms_credits: number;
+    call_minutes: number;
+    last_updated: string;
+  } | null;
+}
+
+interface AdminUser {
+  user_id: string;
+  username: string;
+  email: string;
+  full_name?: string;
+  mobile_number?: string;
+  account_status: string;
+  created_at: string;
+  credits?: UserCredits;
+  active: boolean;
+}
+
+interface NotificationRequest {
+  title: string;
+  message: string;
+  all_users: boolean;
+  recipients: string[];
+  channel: 'SMS' | 'EMAIL' | 'PUSH';
+}
+
+interface NotificationResponse {
+  status: string;
+  message: string;
+}
+
+interface AdminWorkspace {
+  workspace_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  owner: {
+    user_id: string;
+    username: string;
+  };
+  total_contacts: number;
+  total_campaigns: number;
+}
+
+interface WorkspaceListResponse {
+  total: number;
+  workspaces: AdminWorkspace[];
+  limit: number;
+  offset: number;
+}
+
+interface WorkspaceMetrics {
+  total_workspaces: number;
+  avg_contacts_per_workspace: number;
+  avg_campaigns_per_workspace: number;
+  top_workspace_by_contacts: {
+    workspace_id: string;
+    name: string;
+    total_contacts: number;
+  };
+  new_workspaces_last_7_days: number;
+}
+
+interface WorkspaceOverview {
+  workspace_id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  owner: {
+    user_id: string;
+    username: string;
+    email: string;
+    account_status: string;
+  };
+  campaigns: {
+    recent: Array<{
+      launch_date: string;
+      name: string;
+    }>;
+    total: number;
+  };
+}
+
+interface OTPLog {
+  otp_id: string;
+  user_id: string;
+  phone_number: string;
+  code: string;
+  is_used: boolean;
+  created_at: string;
+  expires_at: string;
+  used_at?: string;
+}
+
+interface OTPMetrics {
+  total_otps_generated: number;
+  total_otps_used: number;
+  total_otps_expired: number;
+  usage_rate_percent: number;
+  otps_last_24_hours: number;
+  top_users: Array<{
+    user_id: string;
+    username: string;
+    email: string;
+    otp_count: number;
+  }>;
+  avg_time_to_use_seconds: number;
+}
+
+interface OTPCodesResponse {
+  total: number;
+  otp_logs: OTPLog[];
+}
+
+interface MessagingStats {
+  totalSent: {
+    sms: number;
+    email: number;
+  };
+}
+
+interface AdminLogResponse {
+  logs: Array<{
+    id: string;
+    message: string;
+    timestamp: string;
+  }>;
+}
+
+interface UserTimeseries {
+  date: string;
+  count: number;
+}
+
+interface UserStatus {
+  account_status: string;
+}
+
+interface FinancialMetrics {
+  total_revenue: number;
+  monthly_revenue: number;
+  total_transactions: number;
+  completed_transactions: number;
+  incomplete_transactions: number;
+  sms_credits_sold: number;
+  sms_credits_used: number;
+  call_minutes_sold: number;
+  call_minutes_used: number;
+  avg_transaction_value: number;
+  top_users: Array<{
+    user_id: string;
+    username: string;
+    total_spent: number;
+  }>;
+  users_low_balance: Array<{
+    user_id: string;
+    username: string;
+    sms_credits: number;
+  }>;
+}
+
+interface IncompleteTransaction {
+  transaction_id: string;
+  user_id: string;
+  username: string;
+  plan_id: string;
+  sms_quantity: number;
+  call_minutes_quantity: number;
+  total_amount_paid: number;
+  payment_method: string;
+  payment_reference: string;
+  transaction_date: string;
+}
+
+interface IncompleteTransactionsResponse {
+  transactions: IncompleteTransaction[];
+}
+
+interface CreateServiceRequest {
+  name: string;
+  description: string;
+  unit_cost: number;
+  is_unit_based: boolean;
+  minimum_purchase: number;
+}
+
+export interface Service {
+  service_id: string;
+  name: string;
+  description: string;
+  unit_cost: number;
+  is_unit_based: boolean;
+  minimum_purchase: number;
+  created_at: string;
+}
+
+interface ServiceListResponse {
+  total: number;
+  services: Service[];
+}
+
+interface AdminPackageService {
+  package_service_id: string;
+  package_id: string;
+  service_id: string;
+  units_allocated: number;
+  unit_cost_at_purchase: number;
+}
+
+interface CreatePackageRequest {
+  name: string;
+  description: string;
+  total_price: number;
+  services: Array<{
+    service_id: string;
+    units_allocated: number;
+    unit_cost_at_purchase: number;
+  }>;
+}
+
+export interface Package {
+  package_id: string;
+  name: string;
+  description: string;
+  total_price: number;
+  services: AdminPackageService[];
+}
+
+interface PackageListResponse {
+  total: number;
+  packages: Package[];
+}
+
+interface RevenueTrendData {
+  date: string;
+  week: string;
+  total_revenue: number;
+  pending_revenue: number;
+}
+
+interface RevenueTrendsResponse {
+  interval: string;
+  marked_complete: boolean;
+  data: RevenueTrendData[];
+}
+
+interface TransactionTrendData {
+  date: string;
+  week: string;
+  transactions: number;
+}
+
+interface TransactionTrendsResponse {
+  interval: string;
+  marked_complete: boolean;
+  data: TransactionTrendData[];
+}
+
+interface CumulativeSummary {
+  total_confirmed_revenue: number;
+  total_pending_revenue: number;
+  pending_transactions: number;
+}
+
+interface SendSMSRequest {
+  sender_id: string;
+  recipient: string;
+  message: string;
+}
+
+interface SendSMSResponse {
+  message_id: string;
+  status: string;
+}
+
+interface ApproveTransactionResponse {
+  status: string;
+}
+
+interface CreditRequest {
+  request_id: string;
+  user_id: string;
+  username: string;
+  sms_credits: number;
+  status: 'pending' | 'approved' | 'rejected';
+  requested_at: string;
+}
+
+interface CreditRequestsResponse {
+  requests: CreditRequest[];
+}
+
+interface AddCreditsResponse {
+  status: string;
+  new_balance: number;
+}
+
+interface ReviewCreditRequestResponse {
+  status: string;
+}
+
+interface AdminApiKey {
+  api_key_id: string;
+  user_id: string;
+  username: string;
+  name: string;
+  status: 'active' | 'inactive' | 'suspended';
+  created_at: string;
+  expires_at: string;
+}
+
+interface ApiKeyListResponse {
+  total: number;
+  api_keys: AdminApiKey[];
+}
+
+interface ApiKeyStatusResponse {
+  status: 'active' | 'inactive' | 'suspended';
+}
+
+interface ApiKeyMetrics {
+  total_api_keys: number;
+  active_keys: number;
+  inactive_keys: number;
+  suspended_keys: number;
+  expiring_soon: number;
+  top_users: Array<{
+    user_id: string;
+    username: string;
+    api_key_count: number;
+  }>;
+  avg_key_lifetime_days: number;
+}
+
+interface CreateApiKeyRequest {
+  name: string;
+  expires_at: string;
+  user_id?: string;
+}
+
+interface AdminMessage {
+  message_id: string;
+  user_id: string;
+  recipient: string;
+  status: 'pending' | 'sent' | 'failed';
+  campaign_id: string;
+  channel_id: string;
+  sender_id: string;
+  sent_at: string;
+}
+
+interface AdminMessagesResponse {
+  total: number;
+  messages: AdminMessage[];
+}
+
+interface AdminMessagesMetrics {
+  total_messages: number;
+  sent: number;
+  failed: number;
+  pending: number;
+  messages_today: number;
+  top_users: Array<{
+    user_id: string;
+    message_count: number;
+  }>;
+  top_channels: Array<{
+    channel_id: string;
+    message_count: number;
+  }>;
+  common_failure_reasons: Array<{
+    reason: string;
+    count: number;
+  }>;
+}
+
+interface UserCreditBalance {
+  user_id: string;
+  plan_id: string;
+  sms_credits: number;
+  call_minutes: number;
+  last_updated: string;
+}
+
+interface Plan {
+  plan_id: string;
+  name: string;
+  description: string;
+  sms_unit_price: string;
+  call_unit_price: string;
+  minimum_sms_purchase: number;
+  created_at: string;
+}
+
+interface CreatePlanRequest {
+  name: string;
+  description: string;
+  sms_unit_price: string | number;
+  call_unit_price: string | number;
+  minimum_sms_purchase: number;
+}
+
+interface UpdatePlanRequest {
+  name: string;
+  description: string;
+  sms_unit_price: string | number;
+  call_unit_price: string | number;
+  minimum_sms_purchase: number;
+}
+
+interface SenderIdReviewResponse {
+  message: string;
+}
+
+interface PatchBody {
+  approve: boolean;
+  provider?: string;
+}
+
+export interface CompleteTransaction {
+  transaction_id: string;
+  user_id: string;
+  username: string;
+  plan_id: string;
+  sms_quantity: number;
+  call_minutes_quantity: number;
+  total_amount_paid: number;
+  payment_method: string;
+  payment_reference: string;
+  transaction_date: string;
+}
+
+interface CompleteTransactionsResponse {
+  transactions: CompleteTransaction[];
+}
+
+interface GetWorkspacesParams {
+  limit?: number;
+  offset?: number;
+}
+
+// === API Service Class ===
+export class ApiService {
+  static async get<T>(endpoint: string, params?: object): Promise<T> {
+    try {
+      const response: AxiosResponse<T> = await api.get(endpoint, { params });
+      return response.data;
+    } catch (error: any) {
+      handleAdminApiError(error, `GET ${endpoint} failed`);
+    }
+  }
+
+  static async post<T>(endpoint: string, data: object | FormData, headers?: object): Promise<T> {
+    try {
+      const response: AxiosResponse<T> = await api.post(endpoint, data, { headers });
+      return response.data;
+    } catch (error: any) {
+      handleAdminApiError(error, `POST ${endpoint} failed`);
+    }
+  }
+
+  static async patch<T>(endpoint: string, data: object, params?: object): Promise<T> {
+    try {
+      const response: AxiosResponse<T> = await api.patch(endpoint, data, { params });
+      return response.data;
+    } catch (error: any) {
+      handleAdminApiError(error, `PATCH ${endpoint} failed`);
+    }
+  }
+
+  static async put<T>(endpoint: string, data: object, params?: object): Promise<T> {
+    try {
+      const response: AxiosResponse<T> = await api.put(endpoint, data, { params });
+      return response.data;
+    } catch (error: any) {
+      handleAdminApiError(error, `PUT ${endpoint} failed`);
+    }
+  }
+
+  static async delete<T>(endpoint: string): Promise<T> {
+    try {
+      const response: AxiosResponse<T> = await api.delete(endpoint);
+      return response.data;
+    } catch (error: any) {
+      handleAdminApiError(error, `DELETE ${endpoint} failed`);
+    }
+  }
+}
+
+const handleAdminApiError = (error: AxiosError, defaultMessage: string): never => {
+  let message: string;
+  if (error.response?.data) {
+    const data = error.response.data as any;
+    if (Array.isArray(data.detail)) {
+      message = data.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+    } else if (typeof data.detail === 'object' && data.detail !== null) {
+      message = JSON.stringify(data.detail, null, 2);
+    } else {
+      message = data.detail || data.message || JSON.stringify(data, null, 2);
+    }
+  } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
+    message = 'Network error: Unable to connect to the server. This may be due to a CORS issue or server unavailability.';
+  } else {
+    message = error.message || defaultMessage;
+  }
+  const errorDetails = {
+    message,
+    status: error.response?.status || 'N/A',
+    data: error.response?.data || null,
+    code: error.code || 'N/A',
+  };
+  console.error(`${defaultMessage}:`, errorDetails);
+  throw new Error(`${defaultMessage}: ${message} (Status: ${errorDetails.status})`);
+};
+
 export const registerUser = async (
   username: string,
   fullName: string,
@@ -790,7 +1351,7 @@ export const getMessageLogsV = async (): Promise<MessageLogResponse> => {
       console.warn("Invalid messages array, setting empty array");
       data.messages = [];
     } else {
-      data.messages = data.messages.filter((msg): msg is Message => {
+      data.messages = data.messages.filter((msg): msg is LegacyMessage => {
         const isValid =
           typeof msg === 'object' &&
           typeof msg.message === 'string' &&
@@ -1049,7 +1610,7 @@ export const getContactMetrics = async (): Promise<any> => {
 };
 
 // GROUPS
-export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> => {
+export const getWorkspaceGroups = async (workspaceId: string): Promise<BaseGroup[]> => {
   console.log("getWorkspaceGroups API call initiated for workspace:", workspaceId);
   try {
     const response = await api.get(`/workspaces/${workspaceId}/contact-groups`);
@@ -1074,7 +1635,7 @@ export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> 
     console.log(`Processing ${groupsData.length} groups from API response`);
 
     // Be more lenient with validation - only require essential fields
-    const validGroups = groupsData.filter((group: any) => {
+    const validBaseGroups = groupsData.filter((group: any) => {
       if (!group) {
         console.warn("Skipping null/undefined group");
         return false;
@@ -1087,17 +1648,17 @@ export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> 
     }).map((group: any) => ({
       group_id: group.group_id,
       workspace_id: group.workspace_id || '',
-      name: group.name || 'Unnamed Group',
+      name: group.name || 'Unnamed BaseGroup',
       created_at: group.created_at || new Date().toISOString(),
       contact_count: group.contact_count || 0,
     }));
 
-    console.log(`Successfully processed ${validGroups.length} valid groups`);
-    if (validGroups.length > 0) {
-      console.log("Sample group:", validGroups[0]);
+    console.log(`Successfully processed ${validBaseGroups.length} valid groups`);
+    if (validBaseGroups.length > 0) {
+      console.log("Sample group:", validBaseGroups[0]);
     }
 
-    return validGroups;
+    return validBaseGroups;
   } catch (error: any) {
     console.error(`Failed to fetch workspace groups:`, error);
     console.error("Error details:", error.response?.data || error.message);
@@ -1106,7 +1667,7 @@ export const getWorkspaceGroups = async (workspaceId: string): Promise<Group[]> 
   }
 };
 
-export const getCampaignGroups = async (campaignId: string): Promise<Group[]> => {
+export const getCampaignGroups = async (campaignId: string): Promise<BaseGroup[]> => {
   console.log("getCampaignGroups API call initiated for campaign:", campaignId);
   try {
     const response = await api.get(`/campaigns/${campaignId}/contact-groups`);
@@ -1117,7 +1678,7 @@ export const getCampaignGroups = async (campaignId: string): Promise<Group[]> =>
   }
 };
 
-export const createGroup = async (data: { name: string; workspace_id: string }): Promise<Group> => {
+export const createGroup = async (data: { name: string; workspace_id: string }): Promise<BaseGroup> => {
   console.log("createGroup API call initiated with data:", data);
   try {
     const response = await api.post("/contact-groups/", data);
@@ -1146,7 +1707,7 @@ export const assignGroupToCampaign = async (groupId: string, campaignId: string)
   console.log("assignGroupToCampaign API call initiated for group:", groupId, "to campaign:", campaignId);
   try {
     await api.post(`/contact-groups/${groupId}/assign-to-campaign`, { campaign_id: campaignId });
-    console.log("Group assigned to campaign successfully");
+    console.log("BaseGroup assigned to campaign successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to assign group to campaign");
   }
@@ -1156,7 +1717,7 @@ export const deleteGroup = async (groupId: string): Promise<void> => {
   console.log("deleteGroup API call initiated for group:", groupId);
   try {
     await api.delete(`/contact-groups/${groupId}`);
-    console.log("Group deleted successfully");
+    console.log("BaseGroup deleted successfully");
   } catch (error: any) {
     handleApiError(error, "Failed to delete group");
   }
@@ -1445,7 +2006,7 @@ export const sendInstantMessage = async (
       frequency: string;
     };
   }
-): Promise<Message> => {
+): Promise<BaseMessage> => {
   const payload = {
     // Remove workspace_id as per Swagger documentation
     content: data.content,
@@ -1456,16 +2017,16 @@ export const sendInstantMessage = async (
     ...(data.schedule && { schedule: data.schedule }),
   };
 
-  console.log("sendInstantMessage - payload being sent:", JSON.stringify(payload, null, 2));
+  console.log("sendInstantBaseMessage - payload being sent:", JSON.stringify(payload, null, 2));
   // Still log workspaceId for debugging purposes even though it's not in the payload
-  console.log("sendInstantMessage - workspace ID (not in payload):", workspaceId);
-  console.log("sendInstantMessage - original data:", JSON.stringify(data, null, 2));
+  console.log("sendInstantBaseMessage - workspace ID (not in payload):", workspaceId);
+  console.log("sendInstantBaseMessage - original data:", JSON.stringify(data, null, 2));
 
   try {
     const response = await api.post("/messages/send-instant", payload);
-    console.log("sendInstantMessage - success response:", response.data);
+    console.log("sendInstantBaseMessage - success response:", response.data);
 
-    // Return a properly formatted Message object including the content
+    // Return a properly formatted BaseMessage object including the content
     // This ensures the content is available in the response for UI display
     return {
       ...response.data,
@@ -1475,13 +2036,13 @@ export const sendInstantMessage = async (
       // Preserve other message properties from the response
     };
   } catch (error: any) {
-    console.error("sendInstantMessage - full error object:", error);
-    console.error("sendInstantMessage - error response data:", error.response?.data);
-    console.error("sendInstantMessage - error response status:", error.response?.status);
+    console.error("sendInstantBaseMessage - full error object:", error);
+    console.error("sendInstantBaseMessage - error response data:", error.response?.data);
+    console.error("sendInstantBaseMessage - error response status:", error.response?.status);
 
     // Log validation details if available
     if (error.response?.data?.detail && Array.isArray(error.response.data.detail)) {
-      console.error("sendInstantMessage - validation errors:", error.response.data.detail);
+      console.error("sendInstantBaseMessage - validation errors:", error.response.data.detail);
       error.response.data.detail.forEach((validationError: any, index: number) => {
         console.error(`Validation Error ${index + 1}:`, {
           type: validationError.type,
@@ -1507,7 +2068,7 @@ export const sendBulkSMSFile = async (
     phone_column?: string;
     default_country_code?: string;
   }
-): Promise<Message> => {
+): Promise<BaseMessage> => {
   try {
     console.log('=== sendBulkSMSFile called ===');
     console.log('WorkspaceId:', workspaceId);
@@ -1576,7 +2137,7 @@ export const sendBulkSMSFile = async (
   }
 };
 
-export const getMessageLogs = async (): Promise<Message[]> => {
+export const getMessageLogs = async (): Promise<BaseBaseMessage[]> => {
   try {
     const response = await api.get("/messages/logs");
     return Array.isArray(response.data) ? response.data : [];
@@ -1587,7 +2148,7 @@ export const getMessageLogs = async (): Promise<Message[]> => {
 };
 
 
-export const getUserMessages = async (): Promise<Message[]> => {
+export const getUserMessages = async (): Promise<BaseBaseMessage[]> => {
   try {
     const response = await api.get("/messages/me");
     return Array.isArray(response.data) ? response.data : [];
@@ -1597,7 +2158,7 @@ export const getUserMessages = async (): Promise<Message[]> => {
   }
 };
 
-export const getMessagesByRecipient = async (recipient: string): Promise<Message[]> => {
+export const getMessagesByRecipient = async (recipient: string): Promise<BaseMessage[]> => {
   try {
     const response = await api.get(`/messages/recipient/${recipient}`);
     return Array.isArray(response.data) ? response.data : [];
@@ -1607,7 +2168,7 @@ export const getMessagesByRecipient = async (recipient: string): Promise<Message
   }
 };
 
-export const getMessageDetail = async (messageId: string): Promise<Message> => {
+export const getBaseMessageDetail = async (messageId: string): Promise<BaseMessage> => {
   try {
     const response = await api.get(`/messages/${messageId}`);
     return response.data;
@@ -2562,31 +3123,286 @@ export const flake_request = async (phoneNumber: string, preferredChannel: strin
   }
 };
 
-
-export const flake_verify = async (phoneNumber: string, otpCode: string): Promise<{ token: string; user: User }> => {
+export const flake_verify = async (phoneNumber: string, otp: string): Promise<{ token: string; user: any }> => {
   try {
-    console.log("🔍 flake_verify called with:", { phoneNumber, otpCode });
-
-    const requestBody = {
+    const response = await api.post("/auth/flake/verify", {
       phone_number: phoneNumber,
-      flake_code: otpCode,
-    };
-
-    console.log("📤 Sending request body:", requestBody);
-
-    const response = await api.post("/auth/flake/verify", requestBody);
-
-    const { access_token, user } = response.data;
-    if (access_token) {
-      localStorage.setItem("token", access_token);
-    }
-
+      flake_code: otp,
+    });
     console.log("OTP verified successfully");
-    return { token: access_token, user };
+    return response.data;
   } catch (error: any) {
-    console.error(" flake_verify error:", error);
-    handleApiError(error, "Failed to verify OTP");
+    handleApiError(error, "Invalid or expired code");
   }
 };
+
+
+// === Admin API Endpoints ===
+export const AdminApi = {
+  getSenderIdRequests: async (status?: 'pending' | 'approved' | 'rejected', limit?: number, offset?: number): Promise<SenderIdListResponse> => {
+    const params: any = {};
+    if (status) params.status = status;
+    if (limit) params.limit = limit;
+    if (offset) params.offset = offset;
+    return ApiService.get<SenderIdListResponse>('/admin/sender-ids/requests', params);
+  },
+
+  getApprovedSenderIds: async (limit?: number, offset?: number): Promise<ApprovedSenderIdListResponse> => {
+    const params: any = {};
+    if (limit) params.limit = limit;
+    if (offset) params.offset = offset;
+    return ApiService.get<ApprovedSenderIdListResponse>('/admin/sender-ids', params);
+  },
+
+  reviewSenderIdRequest: async (
+    requestId: string,
+    approve: boolean,
+    provider?: string
+  ): Promise<SenderIdReviewResponse> => {
+    try {
+      const requestBody: PatchBody = { approve };
+      if (approve) {
+        if (typeof provider !== 'string' || provider.trim() === '') {
+          throw new Error('Provider must be a non-empty string when approving a Sender ID request.');
+        }
+        requestBody.provider = provider;
+      }
+      return await ApiService.patch<SenderIdReviewResponse>(
+        `/admin/sender-ids/${requestId}/review`,
+        requestBody
+      );
+    } catch (error: any) {
+      console.error('Review sender ID request failed:', error);
+      throw error;
+    }
+  },
+
+  deleteSenderId: async (senderId: string): Promise<string> => {
+    try {
+      return await ApiService.delete<any>(`/admin/sender-ids/${senderId}`);
+    } catch (error: any) {
+      console.error('Delete sender ID failed:', error);
+      throw error;
+    }
+  },
+
+  getSenderIdMetrics: async (): Promise<SenderIdMetrics> => {
+    return ApiService.get('/admin/sender-ids/metrics');
+  },
+
+  getWorkspaces: async (params?: GetWorkspacesParams): Promise<WorkspaceListResponse> => {
+    return ApiService.get<WorkspaceListResponse>('/admin/workspaces', params);
+  },
+
+  getWorkspaceMetrics: async (): Promise<WorkspaceMetrics> => {
+    return ApiService.get('/admin/workspaces/metrics');
+  },
+
+  getWorkspaceOverview: async (workspaceId: string): Promise<WorkspaceOverview> => {
+    return ApiService.get(`/admin/workspaces/${workspaceId}/overview`);
+  },
+
+  getOTPCodes: async (): Promise<OTPCodesResponse> => {
+    return ApiService.get('/admin/otp-codes');
+  },
+
+  getOTPCodesMetrics: async (): Promise<OTPMetrics> => {
+    return ApiService.get('/admin/otp-codes/metrics');
+  },
+
+  getFinancialMetrics: async (): Promise<FinancialMetrics> => {
+    return ApiService.get('/admin/financial/metrics');
+  },
+
+  getIncompleteTransactions: async (): Promise<IncompleteTransactionsResponse> => {
+    return ApiService.get('/admin/financial/incomplete-transactions');
+  },
+
+  getRevenueTrends: async (): Promise<RevenueTrendsResponse> => {
+    return ApiService.get('/admin/financial/revenue-trends');
+  },
+
+  getTransactionTrends: async (): Promise<TransactionTrendsResponse> => {
+    return ApiService.get('/admin/financial/transaction-trends');
+  },
+
+  getCumulativeSummary: async (): Promise<CumulativeSummary> => {
+    return ApiService.get('/admin/financial/cumulative-summary');
+  },
+
+  getUsers: async ({ page = 0, limit = 5, search }: { page?: number; limit?: number; search?: string }): Promise<UserApiResponse[]> => {
+    try {
+      const params: any = { page, limit };
+      if (search) params.search = search;
+      return await ApiService.get<UserApiResponse[]>('/admin/users', params);
+    } catch (error: any) {
+      console.error('getUsers - Error:', error);
+      throw error;
+    }
+  },
+
+  getUserTimeseries: async (): Promise<UserTimeseries[]> => {
+    return ApiService.get<UserTimeseries[]>('/admin/users/timeseries');
+  },
+
+  getUserDetails: async (userId?: string): Promise<AdminUser> => {
+    const endpoint = userId ? `/admin/users/${userId}` : '/users/me';
+    return ApiService.get(endpoint);
+  },
+
+  updateUserStatus: async (userId: string, accountStatus: string): Promise<UserStatus> => {
+    return ApiService.patch(`/admin/users/${userId}/status`, { account_status: accountStatus });
+  },
+
+  getUserCreditBalance: async (): Promise<UserCreditBalance[]> => {
+    return ApiService.get('/user-credit-balance');
+  },
+
+  fetchUserProfile: async (token: string): Promise<AdminUser> => {
+    const response = await api.get<AdminUser>('/users/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  },
+
+  sendSMS: async (data: SendSMSRequest): Promise<SendSMSResponse> => {
+    return ApiService.post('/messages/send-sms', data);
+  },
+
+  sendNotification: async (data: { title: string; message: string; all_users: boolean; recipients: string[]; channel: string }): Promise<NotificationResponse> => {
+    return ApiService.post('/admin/messages/notification', data);
+  },
+
+  approveTransaction: async (transactionId: string, approve: boolean): Promise<ApproveTransactionResponse> => {
+    return ApiService.patch(`/admin/financial/transactions/${transactionId}/approve`, { approve });
+  },
+
+  addCredits: async (userId: string, sms_credits: number): Promise<AddCreditsResponse> => {
+    return ApiService.patch(`/users/${userId}/credits`, { sms_credits });
+  },
+
+  getCreditRequests: async (): Promise<CreditRequestsResponse> => {
+    return ApiService.get('/credits/requests');
+  },
+
+  reviewCreditRequest: async (requestId: string, approve: boolean): Promise<ReviewCreditRequestResponse> => {
+    return ApiService.patch(`/credits/requests/${requestId}/review`, { approve });
+  },
+
+  getApiKeys: async (): Promise<ApiKeyListResponse> => {
+    return ApiService.get('/api-keys/admin/api-keys');
+  },
+
+  createApiKey: async (data: CreateApiKeyRequest): Promise<AdminApiKey> => {
+    return ApiService.post('/api-keys', data);
+  },
+
+  deleteApiKey: async (apiKeyId: string): Promise<string> => {
+    return ApiService.delete(`/api-keys/${apiKeyId}`);
+  },
+
+  updateApiKeyStatus: async (apiKeyId: string, status: 'active' | 'inactive' | 'suspended'): Promise<ApiKeyStatusResponse> => {
+    return ApiService.patch(`/api-keys/admin/api-keys/${apiKeyId}/status`, { status });
+  },
+
+  revokeApiKey: async (apiKeyId: string): Promise<string> => {
+    return ApiService.patch(`/api-keys/${apiKeyId}/revoke`, {});
+  },
+
+  assignApiKeyToUser: async (apiKeyId: string, userId: string): Promise<string> => {
+    return ApiService.patch(`/api-keys/${apiKeyId}/assign`, { user_id: userId });
+  },
+
+  getApiKeyMetrics: async (): Promise<ApiKeyMetrics> => {
+    return ApiService.get('/api-keys/admin/api-keys/metrics');
+  },
+
+  getAdminMessages: async (params: { offset: number; limit: number }): Promise<AdminMessagesResponse> => {
+    const queryString = new URLSearchParams({
+      offset: params.offset.toString(),
+      limit: params.limit.toString(),
+    }).toString();
+    return ApiService.get(`/admin/messages?${queryString}`);
+  },
+
+  getAdminMessagesMetrics: async (): Promise<AdminMessagesMetrics> => {
+    return ApiService.get('/admin/messages/metrics');
+  },
+
+  getPackages: async (limit: number = 100, skip: number = 0): Promise<Package[]> => {
+    return ApiService.get(`/api/packages?skip=${skip}&limit=${limit}`);
+  },
+
+  createPackage: async (data: CreatePackageRequest): Promise<Package> => {
+    return ApiService.post('/api/packages', data);
+  },
+
+  getPackage: async (packageId: string): Promise<Package> => {
+    return ApiService.get(`/api/packages/${packageId}`);
+  },
+
+  updatePackage: async (packageId: string, data: Partial<CreatePackageRequest>): Promise<Package> => {
+    return ApiService.put(`/api/packages/${packageId}`, data);
+  },
+
+  deletePackage: async (packageId: string): Promise<string> => {
+    return ApiService.delete(`/api/packages/${packageId}`);
+  },
+
+  getPlans: async (): Promise<Plan[]> => {
+    return ApiService.get('/plans');
+  },
+
+  createPlan: async (data: CreatePlanRequest): Promise<Plan> => {
+    return ApiService.post('/plans', {
+      ...data,
+      sms_unit_price: String(data.sms_unit_price),
+      call_unit_price: String(data.call_unit_price),
+    });
+  },
+
+  getPlan: async (planId: string): Promise<Plan> => {
+    return ApiService.get(`/plans/${planId}`);
+  },
+
+  updatePlan: async (planId: string, data: UpdatePlanRequest): Promise<Plan> => {
+    return ApiService.patch(`/plans/${planId}`, {
+      ...data,
+      sms_unit_price: String(data.sms_unit_price),
+      call_unit_price: String(data.call_unit_price),
+    });
+  },
+
+  deletePlan: async (planId: string): Promise<string> => {
+    return ApiService.delete(`/plans/${planId}`);
+  },
+
+  getCompleteTransactions: async (): Promise<CompleteTransactionsResponse> => {
+    return ApiService.get('/admin/financial/complete-transactions');
+  },
+
+  createService: async (data: CreateServiceRequest): Promise<Service> => {
+    return ApiService.post('/services/create', data);
+  },
+
+  getServices: async (limit: number = 100, skip: number = 0): Promise<Service[]> => {
+    return ApiService.get(`/services?skip=${skip}&limit=${limit}`);
+  },
+
+  getService: async (serviceId: string): Promise<Service> => {
+    return ApiService.get(`/services/${serviceId}`);
+  },
+
+  updateService: async (serviceId: string, data: Partial<CreateServiceRequest>): Promise<Service> => {
+    return ApiService.put(`/services/${serviceId}`, data);
+  },
+
+  deleteService: async (serviceId: string): Promise<string> => {
+    return ApiService.delete(`/services/${serviceId}`);
+  },
+};
+
+export { api };
+export type { UserApiResponse };
 
 

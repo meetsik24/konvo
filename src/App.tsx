@@ -51,6 +51,12 @@ import Contacts from './pages/Contacts';
 import ApiKeys from './pages/apikeys';
 import WhatsApp from './pages/WhatsApp';
 
+// Admin Components
+import AdminProtectedRoute from './components/AdminProtectedRoute';
+import AdminLayout from './components/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsers from './pages/admin/AdminUsers';
+
 
 
 // Terms of Service and Privacy Policy Pages
@@ -117,7 +123,7 @@ const Landing = () => {
 //       <DocumentationNavbar />
 //       <div className="flex min-h-[calc(100vh-80px)] transition-all duration-300">
 //         {showSidebar && <DocSidebar />}
-//         <div className={`flex-1 ${showSidebar ? 'p-4 sm:p-6' : ''}`}>
+//         <div className={`flex - 1 ${ showSidebar ? 'p-4 sm:p-6' : '' } `}>
 //           <Routes>
 //             <Route path="/" element={<Navigate to="https://docs.briq.tz/" replace />} />
 //           </Routes>
@@ -147,7 +153,7 @@ function App() {
   // Fetch user profile if authenticated
   useEffect(() => {
     if (token && !user && status !== 'loading') {
-      dispatch(fetchUserProfile()).catch((err) => {
+      dispatch(fetchUserProfile(token)).catch((err) => {
         console.error('Failed to fetch user profile:', err);
         dispatch(logout());
       });
@@ -199,6 +205,20 @@ function App() {
                     <Route path="/contacts" element={<Contacts />} />
                     <Route path="/apikeys" element={<ApiKeys />} />
                     <Route path="/whatsapp" element={<WhatsApp />} />
+                  </Route>
+
+                  {/* Admin Protected Routes */}
+                  <Route
+                    element={
+                      <AdminProtectedRoute>
+                        <AdminLayout />
+                      </AdminProtectedRoute>
+                    }
+                  >
+                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                    <Route path="/admin/users" element={<AdminUsers />} />
+                    {/* Fallback for admin if route doesn't exist */}
+                    <Route path="/admin/*" element={<Navigate to="/admin/dashboard" replace />} />
                   </Route>
 
                   {/* Catch-All 404 Page */}
