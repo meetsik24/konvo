@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
     Users,
     IdCard,
@@ -7,7 +8,8 @@ import {
     TrendingUp,
     TrendingDown,
     Activity,
-    ShieldCheck
+    ShieldCheck,
+    ArrowUpRight
 } from 'lucide-react';
 import { AdminApi } from '../../services/api';
 
@@ -18,24 +20,38 @@ interface StatsCardProps {
     trend?: string;
     trendType?: 'up' | 'down';
     color: string;
+    delay?: number;
 }
 
-const StatsCard: React.FC<StatsCardProps> = ({ title, value, icon: Icon, trend, trendType, color }) => (
-    <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-[#2a2a2a] hover:border-[#3a3a3a] transition-all group">
-        <div className="flex justify-between items-start mb-4">
-            <div className={`p-3 rounded-xl ${color} bg-opacity-10`}>
-                <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
+const StatsCard: React.FC<StatsCardProps> = ({ title, value, icon: Icon, trend, trendType, color, delay = 0 }) => (
+    <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.1 + delay * 0.1 }}
+        className="bg-white rounded-xl p-5 border border-gray-200 hover:shadow-md transition-all"
+    >
+        <div className="flex items-center gap-4">
+            <div className={`p-3 rounded-xl ${color}`}>
+                <Icon className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+                <h3 className="text-2xl font-bold text-[#00333e]">{value}</h3>
+                <p className="text-gray-500 text-xs font-medium">{title}</p>
             </div>
             {trend && (
-                <span className={`text-xs font-medium flex items-center gap-1 ${trendType === 'up' ? 'text-green-500' : 'text-red-500'}`}>
-                    {trendType === 'up' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                <span className={`text-xs font-medium flex items-center gap-1 px-2 py-1 rounded-full ${trendType === 'up'
+                        ? 'bg-green-50 text-green-600'
+                        : trendType === 'down'
+                            ? 'bg-red-50 text-red-500'
+                            : 'bg-yellow-50 text-yellow-600'
+                    }`}>
+                    {trendType === 'up' ? <TrendingUp className="w-3 h-3" /> :
+                        trendType === 'down' ? <TrendingDown className="w-3 h-3" /> : null}
                     {trend}
                 </span>
             )}
         </div>
-        <h3 className="text-gray-400 text-sm font-medium mb-1">{title}</h3>
-        <p className="text-2xl font-bold text-white tracking-tight">{value}</p>
-    </div>
+    </motion.div>
 );
 
 const AdminDashboard: React.FC = () => {
@@ -43,6 +59,7 @@ const AdminDashboard: React.FC = () => {
     const [senderIds, setSenderIds] = useState<any>(null);
     const [workspaces, setWorkspaces] = useState<any>(null);
     const [otps, setOtps] = useState<any>(null);
+    const [totalUsers, setTotalUsers] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -51,54 +68,44 @@ const AdminDashboard: React.FC = () => {
             try {
                 setLoading(true);
 
-                // Only call endpoints that exist on the backend
-                const [senderResult, workspaceResult] = await Promise.allSettled([
+                // Fetch all available stats including user count
+                const [senderResult, workspaceResult, usersResult] = await Promise.allSettled([
                     AdminApi.getSenderIdMetrics(),
-                    AdminApi.getWorkspaceMetrics()
+                    AdminApi.getWorkspaceMetrics(),
+                    AdminApi.getUsers({ page: 0, limit: 1 }) // Just to get count
                 ]);
 
                 // Extract successful results or null for failures
                 setSenderIds(senderResult.status === 'fulfilled' ? senderResult.value : null);
                 setWorkspaces(workspaceResult.status === 'fulfilled' ? workspaceResult.value : null);
 
+                // For user count, we'll fetch all users once to get total
+                if (usersResult.status === 'fulfilled') {
+                    // Fetch all users to count (TODO: backend should provide this)
+                    const allUsers = await AdminApi.getUsers({ page: 0, limit: 1000 });
+                    setTotalUsers(allUsers.length);
+                }
+
                 // These endpoints don't exist on the backend yet - use placeholder data
-                // TODO: Enable these when backend implements /admin/otp-codes/metrics and /admin/financial/metrics
                 setOtps({
                     total_otps_generated: 0,
                     total_otps_used: 0,
                     total_otps_expired: 0,
                     usage_rate_percent: 0,
                     otps_last_24_hours: 0,
-                    top_users: [],
-                    avg_time_to_use_seconds: 0,
+                    otps_last_7_days: 0,
+                    daily_usage: []
                 });
                 setFinancials({
                     total_revenue: 0,
-                    monthly_revenue: 0,
-                    total_transactions: 0,
-                    completed_transactions: 0,
-                    incomplete_transactions: 0,
                     sms_credits_sold: 0,
-                    sms_credits_used: 0,
-                    call_minutes_sold: 0,
-                    call_minutes_used: 0,
                     avg_transaction_value: 0,
-                    top_users: [],
-                    users_low_balance: [],
+                    top_users: []
                 });
 
-                // Check if any requests failed and show a warning
-                const failedRequests = [senderResult, workspaceResult]
-                    .filter(r => r.status === 'rejected');
-
-                if (failedRequests.length > 0) {
-                    console.warn(`${failedRequests.length} dashboard API requests failed:`,
-                        failedRequests.map(r => r.status === 'rejected' ? r.reason?.message : ''));
-                    if (failedRequests.length === 2) {
-                        setError('Failed to load dashboard statistics. Please check if the backend is running.');
-                    } else {
-                        setError('Some dashboard data could not be loaded. Displaying available information.');
-                    }
+                // Check if any critical data failed
+                if (senderResult.status === 'rejected' && workspaceResult.status === 'rejected') {
+                    setError('Some dashboard data could not be loaded. Displaying available information.');
                 }
             } catch (err: any) {
                 console.error('Failed to fetch admin dashboard data:', err);
@@ -114,33 +121,60 @@ const AdminDashboard: React.FC = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[60vh]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00333e]"></div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
+            {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Admin Dashboard</h1>
-                <p className="text-gray-400">Overview of the BriqPilot platform statistics and performance.</p>
+                <h1 className="text-2xl font-bold text-[#00333e] tracking-tight mb-1">Admin Dashboard</h1>
+                <p className="text-gray-500 text-sm">Overview of the BriqPilot platform statistics and performance.</p>
             </div>
 
             {error && (
-                <div className="bg-red-900/20 border border-red-900/50 p-4 rounded-xl text-red-400 text-sm">
+                <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl text-yellow-700 text-sm">
                     {error}
                 </div>
             )}
 
+            {/* Hero Section */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-[#00333e] rounded-xl p-6 text-white relative overflow-hidden border"
+            >
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#fddf0d] opacity-5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                <div className="relative z-10 flex justify-between items-center">
+                    <div>
+                        <h2 className="text-gray-300 text-xs font-medium mb-1 uppercase tracking-wider">Platform Overview</h2>
+                        <div className="flex items-baseline gap-3">
+                            <span className="text-3xl font-bold tracking-tight">{totalUsers} Users</span>
+                            <span className="flex items-center text-[#fddf0d] text-xs font-medium bg-[#fddf0d]/10 px-2 py-0.5 rounded-full">
+                                <ArrowUpRight className="w-3 h-3 mr-1" />
+                                Active
+                            </span>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-gray-400 text-xs">Total Workspaces</p>
+                        <p className="text-xl font-bold">{workspaces?.total_workspaces || 0}</p>
+                    </div>
+                </div>
+            </motion.div>
+
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatsCard
-                    title="Total Revenue"
-                    value={`$${financials?.total_revenue?.toLocaleString() || '0'}`}
-                    icon={DollarSign}
-                    trend="+12.5%"
+                    title="Total Users"
+                    value={totalUsers}
+                    icon={Users}
+                    trend="+12%"
                     trendType="up"
-                    color="bg-green-500"
+                    color="bg-blue-50 text-blue-600"
+                    delay={0}
                 />
                 <StatsCard
                     title="Active Workspaces"
@@ -148,89 +182,102 @@ const AdminDashboard: React.FC = () => {
                     icon={Building}
                     trend="+5.2%"
                     trendType="up"
-                    color="bg-blue-500"
+                    color="bg-green-50 text-green-600"
+                    delay={1}
                 />
                 <StatsCard
-                    title="Sender ID Requests"
+                    title="Pending Sender IDs"
                     value={senderIds?.pending_requests || '0'}
                     icon={IdCard}
                     trend="Pending"
-                    color="bg-yellow-500"
+                    color="bg-yellow-50 text-yellow-600"
+                    delay={2}
                 />
                 <StatsCard
                     title="OTP Success Rate"
                     value={`${otps?.usage_rate_percent?.toFixed(1) || '0'}%`}
                     icon={ShieldCheck}
-                    trend="-2.1%"
-                    trendType="down"
-                    color="bg-purple-500"
+                    trend="N/A"
+                    color="bg-purple-50 text-purple-600"
+                    delay={3}
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Recent Activity or detailed stats could go here */}
-                <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6">
-                    <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-red-500" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Platform Activity */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="bg-white border border-gray-200 rounded-xl p-6"
+                >
+                    <h2 className="text-lg font-bold text-[#00333e] mb-6 flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-[#00333e]" />
                         Platform Activity
                     </h2>
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-400">OTPs Generated (24h)</span>
-                            <span className="text-white font-medium">{otps?.otps_last_24_hours || 0}</span>
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center text-sm py-3 border-b border-gray-100">
+                            <span className="text-gray-500">OTPs Generated (24h)</span>
+                            <span className="text-[#00333e] font-semibold">{otps?.otps_last_24_hours || 0}</span>
                         </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-400">New Workspaces (7d)</span>
-                            <span className="text-white font-medium">{workspaces?.new_workspaces_last_7_days || 0}</span>
+                        <div className="flex justify-between items-center text-sm py-3 border-b border-gray-100">
+                            <span className="text-gray-500">New Workspaces (7d)</span>
+                            <span className="text-[#00333e] font-semibold">{workspaces?.new_workspaces_last_7_days || 0}</span>
                         </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-400">SMS Credits Sold</span>
-                            <span className="text-white font-medium">{financials?.sms_credits_sold || 0}</span>
+                        <div className="flex justify-between items-center text-sm py-3 border-b border-gray-100">
+                            <span className="text-gray-500">SMS Credits Sold</span>
+                            <span className="text-[#00333e] font-semibold">{financials?.sms_credits_sold || 0}</span>
                         </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-400">Avg. Transaction Value</span>
-                            <span className="text-white font-medium">${financials?.avg_transaction_value?.toFixed(2) || 0}</span>
+                        <div className="flex justify-between items-center text-sm py-3">
+                            <span className="text-gray-500">Total Users</span>
+                            <span className="text-[#00333e] font-semibold">{totalUsers}</span>
                         </div>
                     </div>
-                </div>
+                </motion.div>
 
-                <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6">
-                    <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-green-500" />
+                {/* Top Performance */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="bg-white border border-gray-200 rounded-xl p-6"
+                >
+                    <h2 className="text-lg font-bold text-[#00333e] mb-6 flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-green-600" />
                         Top Performance
                     </h2>
                     <div className="space-y-4">
-                        <p className="text-sm text-gray-400 mb-4">Top workspace by contacts:</p>
+                        <p className="text-sm text-gray-500 mb-4">Top workspace by contacts:</p>
                         {workspaces?.top_workspace_by_contacts ? (
-                            <div className="flex items-center gap-4 bg-[#2a2a2a] p-4 rounded-xl">
-                                <div className="w-10 h-10 bg-red-600/20 rounded-lg flex items-center justify-center text-red-500">
+                            <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl">
+                                <div className="w-10 h-10 bg-[#00333e]/10 rounded-lg flex items-center justify-center text-[#00333e]">
                                     <Building className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h4 className="text-white font-medium">{workspaces.top_workspace_by_contacts.name}</h4>
-                                    <p className="text-xs text-gray-400">{workspaces.top_workspace_by_contacts.total_contacts} contacts</p>
+                                    <h4 className="text-[#00333e] font-medium">{workspaces.top_workspace_by_contacts.name}</h4>
+                                    <p className="text-xs text-gray-500">{workspaces.top_workspace_by_contacts.total_contacts} contacts</p>
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-xs text-gray-500 italic">No data available</p>
+                            <p className="text-xs text-gray-400 italic">No data available</p>
                         )}
 
-                        <p className="text-sm text-gray-400 mt-6 mb-4">Top User by spend:</p>
+                        <p className="text-sm text-gray-500 mt-6 mb-4">Top User by spend:</p>
                         {financials?.top_users?.[0] ? (
-                            <div className="flex items-center gap-4 bg-[#2a2a2a] p-4 rounded-xl">
-                                <div className="w-10 h-10 bg-green-600/20 rounded-lg flex items-center justify-center text-green-500">
+                            <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl">
+                                <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center text-green-600">
                                     <Users className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h4 className="text-white font-medium">{financials.top_users[0].username}</h4>
-                                    <p className="text-xs text-gray-400">${financials.top_users[0].total_spent.toLocaleString()} total spent</p>
+                                    <h4 className="text-[#00333e] font-medium">{financials.top_users[0].username}</h4>
+                                    <p className="text-xs text-gray-500">${financials.top_users[0].total_spent.toLocaleString()} total spent</p>
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-xs text-gray-500 italic">No data available</p>
+                            <p className="text-xs text-gray-400 italic">No data available</p>
                         )}
                     </div>
-                </div>
+                </motion.div>
             </div>
         </div>
     );

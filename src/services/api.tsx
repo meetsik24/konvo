@@ -1295,6 +1295,13 @@ export const loginUser = async (identifier: string, password: string): Promise<{
       localStorage.setItem("token", access_token);
     }
 
+    // Store orange flag in localStorage so it survives page reloads
+    if (orange === true) {
+      localStorage.setItem("isOrangeAdmin", "true");
+    } else {
+      localStorage.removeItem("isOrangeAdmin");
+    }
+
     // Handle case where backend returns orange flag but no user object
     // Create a minimal user object with the orange flag
     let userWithOrange: User;

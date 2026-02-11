@@ -108,6 +108,7 @@ const authSlice = createSlice({
       state.status = 'idle';
       localStorage.removeItem("token");
       localStorage.removeItem("currentWorkspaceId");
+      localStorage.removeItem("isOrangeAdmin"); // Clear admin flag on logout
     },
     updateUserProfile: (state, action) => {
       state.user = { ...state.user, ...action.payload.user };
