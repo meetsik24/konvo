@@ -43,67 +43,61 @@ const AdminOTPs: React.FC = () => {
     }, [fetchLogs]);
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight mb-1">OTP Logs</h1>
-                    <p className="text-gray-400 text-sm">Monitor verification codes and success rates.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="bg-[#1a1a1a] border border-[#2a2a2a] px-4 py-2 rounded-xl flex items-center gap-2">
-                        <span className="text-gray-500 text-xs font-medium uppercase">Success Rate</span>
-                        <span className="text-green-500 font-bold">{metrics?.usage_rate_percent?.toFixed(1) || 0}%</span>
-                    </div>
+                    <h1 className="text-2xl font-bold text-[#00333e] tracking-tight mb-1">OTP Logs</h1>
+                    <p className="text-gray-500 text-sm">Monitor verification codes and success rates.</p>
                 </div>
             </div>
 
             {/* Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-[#2a2a2a]">
-                    <h3 className="text-gray-400 text-xs font-bold uppercase mb-4 tracking-wider">Total Generated</h3>
-                    <p className="text-2xl font-bold text-white mb-2">{metrics?.total_otps_generated || 0}</p>
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Total Generated</h3>
+                    <p className="text-2xl font-bold text-[#00333e] mb-2">{metrics?.total_otps_generated || 0}</p>
                     <div className="text-[10px] text-gray-500">All time platform activity</div>
                 </div>
-                <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-[#2a2a2a]">
-                    <h3 className="text-gray-400 text-xs font-bold uppercase mb-4 tracking-wider">Total Verified</h3>
-                    <p className="text-2xl font-bold text-green-500 mb-2">{metrics?.total_otps_used || 0}</p>
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Total Verified</h3>
+                    <p className="text-2xl font-bold text-green-600 mb-2">{metrics?.total_otps_used || 0}</p>
                     <div className="text-[10px] text-gray-500">Successfully completed verifications</div>
                 </div>
-                <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-[#2a2a2a]">
-                    <h3 className="text-gray-400 text-xs font-bold uppercase mb-4 tracking-wider">Expired / Failed</h3>
-                    <p className="text-2xl font-bold text-red-500 mb-2">{metrics?.total_otps_expired || 0}</p>
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Expired / Failed</h3>
+                    <p className="text-2xl font-bold text-[#c84b31] mb-2">{metrics?.total_otps_expired || 0}</p>
                     <div className="text-[10px] text-gray-500">Codes that were not used in time</div>
                 </div>
             </div>
 
-            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl overflow-hidden">
-                <div className="px-6 py-4 border-b border-[#2a2a2a] bg-[#1d1d1d] flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-white">Recent OTP Activity</h2>
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                    <h2 className="text-sm font-bold text-[#00333e]">Recent OTP Activity</h2>
                     <div className="relative">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
                             placeholder="Filter by phone..."
-                            className="bg-[#2a2a2a] border border-[#3a3a3a] text-white text-xs rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-red-500/50"
+                            className="bg-white border border-gray-200 text-[#00333e] text-xs rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-[#00333e]/50"
                         />
                     </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="border-b border-[#2a2a2a] bg-[#1d1d1d]">
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Recipient</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Code</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Status</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Generated</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Used/Expired</th>
+                            <tr className="border-b border-gray-100 bg-gray-50">
+                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Recipient</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Code</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Status</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Generated</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Used/Expired</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#2a2a2a]">
+                        <tbody className="divide-y divide-gray-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e] mx-auto mb-4"></div>
                                         Loading logs...
                                     </td>
                                 </tr>
@@ -115,29 +109,29 @@ const AdminOTPs: React.FC = () => {
                                 </tr>
                             ) : (
                                 logs.map((log) => (
-                                    <tr key={log.otp_id} className="hover:bg-[#222222] transition-colors">
+                                    <tr key={log.otp_id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center text-gray-400">
+                                                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-600">
                                                     <Smartphone className="w-4 h-4" />
                                                 </div>
                                                 <div>
-                                                    <div className="text-white font-medium">{log.phone_number}</div>
+                                                    <div className="text-[#00333e] font-medium">{log.phone_number}</div>
                                                     <div className="text-gray-500 text-[10px] uppercase">User: {log.user_id.slice(0, 8)}...</div>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="font-mono text-white tracking-widest bg-[#2a2a2a] px-2 py-1 rounded text-sm">
+                                            <span className="font-mono text-[#00333e] tracking-widest bg-gray-100 px-2 py-1 rounded text-sm font-bold">
                                                 {log.code}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${log.is_used
-                                                    ? 'bg-green-500/10 text-green-500'
+                                                    ? 'bg-green-100 text-green-700'
                                                     : new Date(log.expires_at) < new Date()
-                                                        ? 'bg-red-500/10 text-red-500'
-                                                        : 'bg-yellow-500/10 text-yellow-500'
+                                                        ? 'bg-red-100 text-red-700'
+                                                        : 'bg-amber-100 text-amber-700'
                                                 }`}>
                                                 {log.is_used ? (
                                                     <><CheckCircle2 className="w-3 h-3" /> VERIFIED</>
@@ -148,7 +142,7 @@ const AdminOTPs: React.FC = () => {
                                                 )}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-xs text-gray-400">
+                                        <td className="px-6 py-4 text-xs text-gray-500">
                                             {new Date(log.created_at).toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 text-xs text-gray-500">
@@ -161,17 +155,25 @@ const AdminOTPs: React.FC = () => {
                     </table>
                 </div>
 
-                {/* Pagination placeholder */}
-                <div className="px-6 py-4 border-t border-[#2a2a2a] flex items-center justify-between">
-                    <p className="text-xs text-gray-500">
-                        Platform wide OTP audit trailing
+                {/* Pagination */}
+                <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50">
+                    <p className="text-xs text-gray-500 font-medium">
+                        Showing <span className="text-[#00333e]">{logs.length}</span> logs
                     </p>
                     <div className="flex items-center gap-2">
-                        <button disabled className="p-1.5 rounded-lg border border-[#2a2a2a] text-gray-400 opacity-50">
+                        <button
+                            onClick={() => setPage(p => Math.max(0, p - 1))}
+                            disabled={page === 0 || loading}
+                            className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-[#00333e] hover:border-[#00333e]/30 disabled:opacity-50 transition-all bg-white shadow-sm"
+                        >
                             <ChevronLeft className="w-5 h-5" />
                         </button>
-                        <span className="text-sm font-medium text-white px-2">Page 1</span>
-                        <button disabled className="p-1.5 rounded-lg border border-[#2a2a2a] text-gray-400 opacity-50">
+                        <span className="text-sm font-semibold text-[#00333e] px-2">Page {page + 1}</span>
+                        <button
+                            onClick={() => setPage(p => p + 1)}
+                            disabled={logs.length < limit || loading}
+                            className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-[#00333e] hover:border-[#00333e]/30 disabled:opacity-50 transition-all bg-white shadow-sm"
+                        >
                             <ChevronRight className="w-5 h-5" />
                         </button>
                     </div>
