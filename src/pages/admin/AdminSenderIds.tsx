@@ -10,7 +10,7 @@ import {
     Search,
     Filter
 } from 'lucide-react';
-import { AdminApi } from '../../services/api';
+import { AdminApi } from '../../services/admin-api';
 
 const AdminSenderIds: React.FC = () => {
     const [requests, setRequests] = useState<any[]>([]);

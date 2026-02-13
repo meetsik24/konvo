@@ -11,7 +11,7 @@ import {
     User,
     Smartphone
 } from 'lucide-react';
-import { AdminApi } from '../../services/api';
+import { AdminApi } from '../../services/admin-api';
 
 const AdminOTPs: React.FC = () => {
     const [logs, setLogs] = useState<any[]>([]);

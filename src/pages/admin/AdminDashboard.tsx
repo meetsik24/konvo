@@ -11,7 +11,7 @@ import {
     ShieldCheck,
     ArrowUpRight
 } from 'lucide-react';
-import { AdminApi } from '../../services/api';
+import { AdminApi } from '../../services/admin-api';
 
 interface StatsCardProps {
     title: string;

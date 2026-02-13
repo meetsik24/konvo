@@ -1839,14 +1839,28 @@ export const getUserSenderRequests = async (workspaceId: string): Promise<Sender
   }
 };
 
+export const getApprovedSenderIds = async (workspaceId: string): Promise<SenderId[]> => {
+  try {
+    const response = await api.get(`/sender-ids/approved?workspace_id=${workspaceId}`);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    if (error.response && error.response.status === 404) {
+      console.warn("No approved sender IDs found (404), returning empty array.");
+      return [];
+    } else {
+      handleApiError(error, "Failed to fetch approved sender IDs");
+      return [];
+    }
+  }
+};
+
 export const getAdminSenderRequests = async (workspaceId: string): Promise<SenderId[]> => {
-  console.log("getAdminSenderRequests API call initiated for workspace:", workspaceId);
   try {
     const response = await api.get(`/admin/sender-ids/requests?workspace_id=${workspaceId}`);
-    console.log("getAdminSenderRequests API response:", response.data);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
     handleApiError(error, "Failed to fetch admin sender requests");
+    return [];
   }
 };
 
@@ -1855,39 +1869,65 @@ export const reviewSenderIdRequest = async (
   requestId: string,
   data: { status: "approved" | "rejected" }
 ): Promise<SenderId> => {
-  console.log("reviewSenderIdRequest API call initiated for request:", requestId, "with data:", data);
   try {
     const response = await api.patch(`/admin/sender-ids/${requestId}/review`, {
       ...data,
       workspace_id: workspaceId,
     });
-    console.log("reviewSenderIdRequest API response:", response.data);
     return response.data;
   } catch (error: any) {
     handleApiError(error, "Failed to review sender ID request");
+    throw error;
   }
 };
 
-export const getApprovedSenderIds = async (workspaceId: string): Promise<SenderId[]> => {
-  console.log("getApprovedSenderIds API call initiated for workspace:", workspaceId); // Added console log for consistency
+// USER API KEY MANAGEMENT
+export const listApiKeys = async (): Promise<ApiKey[]> => {
   try {
-    const response = await api.get(`/sender-ids/approved?workspace_id=${workspaceId}`);
-    console.log("getApprovedSenderIds API response:", response.data); // Added console log for consistency
-    // Ensure it's an array before returning
+    const response = await api.get("/api-keys/");
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    // Check if the error is specifically a 'Not Found' error (e.g., 404)
-    // The exact check depends on your 'api' instance (e.g., axios)
-    if (error.response && error.response.status === 404) {
-      console.warn("No approved sender IDs found (404), returning empty array.");
-      return []; // Return an empty array gracefully
-    } else {
-      // For any other type of error, let the handler manage it
-      console.error("Error fetching approved sender IDs:", error); // Log the unexpected error
-      handleApiError(error, "Failed to fetch approved sender IDs");
-      // It's safer to return [] here too, in case handleApiError doesn't throw
-      return [];
-    }
+    handleApiError(error, "Failed to fetch API keys");
+    return [];
+  }
+};
+
+export const createApiKey = async (data: { name: string; expires_at?: string }): Promise<ApiKey> => {
+  try {
+    const response = await api.post("/api-keys/", data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to create API key");
+    throw error;
+  }
+};
+
+export const getApiKey = async (keyId: string): Promise<ApiKey> => {
+  try {
+    const response = await api.get(`/api-keys/${keyId}`);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to fetch API key");
+    throw error;
+  }
+};
+
+export const updateApiKey = async (keyId: string, data: { name?: string; status?: "active" | "inactive" }): Promise<ApiKey> => {
+  try {
+    const response = await api.put(`/api-keys/${keyId}`, data);
+    return response.data;
+  } catch (error: any) {
+    handleApiError(error, "Failed to update API key");
+    throw error;
+  }
+};
+
+export const deleteApiKey = async (keyId: string): Promise<void> => {
+  try {
+    await api.delete(`/api-keys/${keyId}`);
+  } catch (error: any) {
+    handleApiError(error, "Failed to delete API key");
+    throw error;
   }
 };
 
@@ -2302,62 +2342,6 @@ export const generateMessage = async (prompt: string): Promise<string> => {
   } catch (error: any) {
     handleApiError(error, 'Failed to generate SMS message');
     throw error;
-  }
-};
-
-
-// API KEYS
-export const listApiKeys = async (): Promise<ApiKey[]> => {
-  try {
-    console.log("Fetching API keys from:", "/api-keys/");
-    const response = await api.get("/api-keys/");
-    console.log("listApiKeys API response:", response.data);
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (error: any) {
-    console.error("listApiKeys error:", error);
-    console.error("Error response:", error.response?.data);
-    console.error("Error status:", error.response?.status);
-    handleApiError(error, "Failed to fetch API keys");
-    return [];
-  }
-};
-
-export const createApiKey = async (data: { name: string; expires_at?: string }): Promise<ApiKey> => {
-  try {
-    const response = await api.post("/api-keys/", data);
-    console.log("createApiKey API response:", response.data);
-    return response.data;
-  } catch (error: any) {
-    handleApiError(error, "Failed to create API key");
-  }
-};
-
-export const getApiKey = async (keyId: string): Promise<ApiKey> => {
-  try {
-    const response = await api.get(`/api-keys/${keyId}`);
-    console.log("getApiKey API response:", response.data);
-    return response.data;
-  } catch (error: any) {
-    handleApiError(error, "Failed to fetch API key");
-  }
-};
-
-export const updateApiKey = async (keyId: string, data: { name?: string; status?: "active" | "inactive" }): Promise<ApiKey> => {
-  try {
-    const response = await api.put(`/api-keys/${keyId}`, data);
-    console.log("updateApiKey API response:", response.data);
-    return response.data;
-  } catch (error: any) {
-    handleApiError(error, "Failed to update API key");
-  }
-};
-
-export const deleteApiKey = async (keyId: string): Promise<void> => {
-  try {
-    await api.delete(`/api-keys/${keyId}`);
-    console.log("API key deleted successfully");
-  } catch (error: any) {
-    handleApiError(error, "Failed to delete API key");
   }
 };
 
@@ -3201,312 +3185,7 @@ export const flake_verify = async (phoneNumber: string, otp: string): Promise<{ 
   }
 };
 
-
-// === Admin API Endpoints ===
-export const AdminApi = {
-  getSenderIdRequests: async (status?: 'pending' | 'approved' | 'rejected', limit?: number, offset?: number): Promise<SenderIdListResponse> => {
-    const params: any = {};
-    if (status) params.status = status;
-    if (limit) params.limit = limit;
-    if (offset) params.offset = offset;
-    return ApiService.get<SenderIdListResponse>('/admin/sender-ids/requests', { params });
-  },
-
-  getApprovedSenderIds: async (limit?: number, offset?: number): Promise<ApprovedSenderIdListResponse> => {
-    const params: any = {};
-    if (limit) params.limit = limit;
-    if (offset) params.offset = offset;
-    return ApiService.get<ApprovedSenderIdListResponse>('/admin/sender-ids', { params });
-  },
-
-  reviewSenderIdRequest: async (
-    requestId: string,
-    approve: boolean,
-    provider?: string
-  ): Promise<SenderIdReviewResponse> => {
-    try {
-      const requestBody: PatchBody = { approve };
-      if (approve) {
-        if (typeof provider !== 'string' || provider.trim() === '') {
-          throw new Error('Provider must be a non-empty string when approving a Sender ID request.');
-        }
-        requestBody.provider = provider;
-      }
-      return await ApiService.patch<SenderIdReviewResponse>(
-        `/admin/sender-ids/${requestId}/review`,
-        requestBody
-      );
-    } catch (error: any) {
-      console.error('Review sender ID request failed:', error);
-      throw error;
-    }
-  },
-
-  deleteSenderId: async (senderId: string): Promise<string> => {
-    try {
-      return await ApiService.delete<any>(`/admin/sender-ids/${senderId}`);
-    } catch (error: any) {
-      console.error('Delete sender ID failed:', error);
-      throw error;
-    }
-  },
-
-  getSenderIdMetrics: async (): Promise<SenderIdMetrics> => {
-    return ApiService.get('/admin/sender-ids/metrics');
-  },
-
-  getWorkspaces: async (params?: GetWorkspacesParams): Promise<WorkspaceListResponse> => {
-    return ApiService.get<WorkspaceListResponse>('/admin/workspaces', { params });
-  },
-
-  getWorkspaceMetrics: async (): Promise<WorkspaceMetrics> => {
-    return ApiService.get('/admin/workspaces/metrics');
-  },
-
-  getWorkspaceOverview: async (workspaceId: string): Promise<WorkspaceOverview> => {
-    return ApiService.get(`/admin/workspaces/${workspaceId}/overview`);
-  },
-
-  getOTPCodes: async (): Promise<OTPCodesResponse> => {
-    return ApiService.get('/admin/otp-codes');
-  },
-
-  getOTPCodesMetrics: async (): Promise<OTPMetrics> => {
-    try {
-      return await ApiService.get('/admin/otp-codes/metrics', { suppressLogging: true });
-    } catch (error: any) {
-      // Return fallback data if endpoint doesn't exist yet (404)
-      const is404 = error.message?.includes('404') || error.response?.status === 404;
-      if (is404) {
-        console.debug('[OTP Metrics] Endpoint not available, using fallback data');
-        return {
-          total_otps_generated: 0,
-          total_otps_used: 0,
-          total_otps_expired: 0,
-          usage_rate_percent: 0,
-          otps_last_24_hours: 0,
-          top_users: [],
-          avg_time_to_use_seconds: 0,
-        };
-      }
-      throw error;
-    }
-  },
-
-  getFinancialMetrics: async (): Promise<FinancialMetrics> => {
-    try {
-      return await ApiService.get('/admin/financial/metrics', { suppressLogging: true });
-    } catch (error: any) {
-      // Return fallback data if endpoint doesn't exist yet (404)
-      const is404 = error.message?.includes('404') || error.response?.status === 404;
-      if (is404) {
-        console.debug('[Financial Metrics] Endpoint not available, using fallback data');
-        return {
-          total_revenue: 0,
-          monthly_revenue: 0,
-          total_transactions: 0,
-          completed_transactions: 0,
-          incomplete_transactions: 0,
-          sms_credits_sold: 0,
-          sms_credits_used: 0,
-          call_minutes_sold: 0,
-          call_minutes_used: 0,
-          avg_transaction_value: 0,
-          top_users: [],
-          users_low_balance: [],
-        };
-      }
-      throw error;
-    }
-  },
-
-  getIncompleteTransactions: async (): Promise<IncompleteTransactionsResponse> => {
-    return ApiService.get('/admin/financial/incomplete-transactions');
-  },
-
-  getRevenueTrends: async (): Promise<RevenueTrendsResponse> => {
-    return ApiService.get('/admin/financial/revenue-trends');
-  },
-
-  getTransactionTrends: async (): Promise<TransactionTrendsResponse> => {
-    return ApiService.get('/admin/financial/transaction-trends');
-  },
-
-  getCumulativeSummary: async (): Promise<CumulativeSummary> => {
-    return ApiService.get('/admin/financial/cumulative-summary');
-  },
-
-  getUsers: async ({ page = 0, limit = 5, search }: { page?: number; limit?: number; search?: string }): Promise<UserApiResponse[]> => {
-    try {
-      const params: any = { page, limit };
-      if (search) params.search = search;
-      return await ApiService.get<UserApiResponse[]>('/admin/users', { params });
-    } catch (error: any) {
-      console.error('getUsers - Error:', error);
-      throw error;
-    }
-  },
-
-  getUserTimeseries: async (): Promise<UserTimeseries[]> => {
-    return ApiService.get<UserTimeseries[]>('/admin/users/timeseries');
-  },
-
-  getUserDetails: async (userId?: string): Promise<AdminUser> => {
-    const endpoint = userId ? `/admin/users/${userId}` : '/users/me';
-    return ApiService.get(endpoint);
-  },
-
-  updateUserStatus: async (userId: string, accountStatus: string): Promise<UserStatus> => {
-    return ApiService.patch(`/admin/users/${userId}/status`, { account_status: accountStatus });
-  },
-
-  getUserCreditBalance: async (): Promise<UserCreditBalance[]> => {
-    return ApiService.get('/user-credit-balance');
-  },
-
-  fetchUserProfile: async (token: string): Promise<AdminUser> => {
-    const response = await api.get<AdminUser>('/users/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.data;
-  },
-
-  sendSMS: async (data: SendSMSRequest): Promise<SendSMSResponse> => {
-    return ApiService.post('/messages/send-sms', data);
-  },
-
-  sendNotification: async (data: { title: string; message: string; all_users: boolean; recipients: string[]; channel: string }): Promise<NotificationResponse> => {
-    return ApiService.post('/admin/messages/notification', data);
-  },
-
-  approveTransaction: async (transactionId: string, approve: boolean): Promise<ApproveTransactionResponse> => {
-    return ApiService.patch(`/admin/financial/transactions/${transactionId}/approve`, { approve });
-  },
-
-  addCredits: async (userId: string, sms_credits: number): Promise<AddCreditsResponse> => {
-    return ApiService.patch(`/users/${userId}/credits`, { sms_credits });
-  },
-
-  getCreditRequests: async (): Promise<CreditRequestsResponse> => {
-    return ApiService.get('/credits/requests');
-  },
-
-  reviewCreditRequest: async (requestId: string, approve: boolean): Promise<ReviewCreditRequestResponse> => {
-    return ApiService.patch(`/credits/requests/${requestId}/review`, { approve });
-  },
-
-  getApiKeys: async (): Promise<ApiKeyListResponse> => {
-    return ApiService.get('/api-keys/admin/api-keys');
-  },
-
-  createApiKey: async (data: CreateApiKeyRequest): Promise<AdminApiKey> => {
-    return ApiService.post('/api-keys', data);
-  },
-
-  deleteApiKey: async (apiKeyId: string): Promise<string> => {
-    return ApiService.delete(`/api-keys/${apiKeyId}`);
-  },
-
-  updateApiKeyStatus: async (apiKeyId: string, status: 'active' | 'inactive' | 'suspended'): Promise<ApiKeyStatusResponse> => {
-    return ApiService.patch(`/api-keys/admin/api-keys/${apiKeyId}/status`, { status });
-  },
-
-  revokeApiKey: async (apiKeyId: string): Promise<string> => {
-    return ApiService.patch(`/api-keys/${apiKeyId}/revoke`, {});
-  },
-
-  assignApiKeyToUser: async (apiKeyId: string, userId: string): Promise<string> => {
-    return ApiService.patch(`/api-keys/${apiKeyId}/assign`, { user_id: userId });
-  },
-
-  getApiKeyMetrics: async (): Promise<ApiKeyMetrics> => {
-    return ApiService.get('/api-keys/admin/api-keys/metrics');
-  },
-
-  getAdminMessages: async (params: { offset: number; limit: number }): Promise<AdminMessagesResponse> => {
-    const queryString = new URLSearchParams({
-      offset: params.offset.toString(),
-      limit: params.limit.toString(),
-    }).toString();
-    return ApiService.get(`/admin/messages?${queryString}`);
-  },
-
-  getAdminMessagesMetrics: async (): Promise<AdminMessagesMetrics> => {
-    return ApiService.get('/admin/messages/metrics');
-  },
-
-  getPackages: async (limit: number = 100, skip: number = 0): Promise<Package[]> => {
-    return ApiService.get(`/api/packages?skip=${skip}&limit=${limit}`);
-  },
-
-  createPackage: async (data: CreatePackageRequest): Promise<Package> => {
-    return ApiService.post('/api/packages', data);
-  },
-
-  getPackage: async (packageId: string): Promise<Package> => {
-    return ApiService.get(`/api/packages/${packageId}`);
-  },
-
-  updatePackage: async (packageId: string, data: Partial<CreatePackageRequest>): Promise<Package> => {
-    return ApiService.put(`/api/packages/${packageId}`, data);
-  },
-
-  deletePackage: async (packageId: string): Promise<string> => {
-    return ApiService.delete(`/api/packages/${packageId}`);
-  },
-
-  getPlans: async (): Promise<Plan[]> => {
-    return ApiService.get('/plans');
-  },
-
-  createPlan: async (data: CreatePlanRequest): Promise<Plan> => {
-    return ApiService.post('/plans', {
-      ...data,
-      sms_unit_price: String(data.sms_unit_price),
-      call_unit_price: String(data.call_unit_price),
-    });
-  },
-
-  getPlan: async (planId: string): Promise<Plan> => {
-    return ApiService.get(`/plans/${planId}`);
-  },
-
-  updatePlan: async (planId: string, data: UpdatePlanRequest): Promise<Plan> => {
-    return ApiService.patch(`/plans/${planId}`, {
-      ...data,
-      sms_unit_price: String(data.sms_unit_price),
-      call_unit_price: String(data.call_unit_price),
-    });
-  },
-
-  deletePlan: async (planId: string): Promise<string> => {
-    return ApiService.delete(`/plans/${planId}`);
-  },
-
-  getCompleteTransactions: async (): Promise<CompleteTransactionsResponse> => {
-    return ApiService.get('/admin/financial/complete-transactions');
-  },
-
-  createService: async (data: CreateServiceRequest): Promise<Service> => {
-    return ApiService.post('/services/create', data);
-  },
-
-  getServices: async (limit: number = 100, skip: number = 0): Promise<Service[]> => {
-    return ApiService.get(`/services?skip=${skip}&limit=${limit}`);
-  },
-
-  getService: async (serviceId: string): Promise<Service> => {
-    return ApiService.get(`/services/${serviceId}`);
-  },
-
-  updateService: async (serviceId: string, data: Partial<CreateServiceRequest>): Promise<Service> => {
-    return ApiService.put(`/services/${serviceId}`, data);
-  },
-
-  deleteService: async (serviceId: string): Promise<string> => {
-    return ApiService.delete(`/services/${serviceId}`);
-  },
-};
+// Admin API endpoints have been moved to admin-api.tsx
 
 export { api };
 export type { UserApiResponse };

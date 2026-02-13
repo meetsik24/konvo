@@ -12,7 +12,7 @@ import {
     Filter,
     TrendingUp
 } from 'lucide-react';
-import { AdminApi, UserApiResponse } from '../../services/api';
+import { AdminApi, UserApiResponse } from '../../services/admin-api';
 
 interface UserStats {
     total: number;

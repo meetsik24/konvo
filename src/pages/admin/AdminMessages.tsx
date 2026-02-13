@@ -15,7 +15,7 @@ import {
     Mail,
     MoreVertical
 } from 'lucide-react';
-import { AdminApi } from '../../services/api';
+import { AdminApi } from '../../services/admin-api';
 
 const AdminMessages: React.FC = () => {
     const [messages, setMessages] = useState<any[]>([]);
@@ -57,20 +57,20 @@ const AdminMessages: React.FC = () => {
             {/* Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">SMS (24h)</h3>
-                    <p className="text-2xl font-bold text-[#00333e]">{metrics?.sms_sent_24h || 0}</p>
+                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Total Messages</h3>
+                    <p className="text-2xl font-bold text-[#00333e]">{metrics?.total_messages || 0}</p>
                 </div>
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Email (24h)</h3>
-                    <p className="text-2xl font-bold text-[#00333e]">{metrics?.email_sent_24h || 0}</p>
+                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Sent (Today)</h3>
+                    <p className="text-2xl font-bold text-[#00333e]">{metrics?.messages_today || 0}</p>
                 </div>
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Delivery Rate</h3>
-                    <p className="text-2xl font-bold text-green-600">{metrics?.delivery_success_rate || 0}%</p>
+                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Delivered</h3>
+                    <p className="text-2xl font-bold text-green-600">{metrics?.sent || 0}</p>
                 </div>
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Failed</h3>
-                    <p className="text-2xl font-bold text-[#c84b31]">{metrics?.delivery_failed_count || 0}</p>
+                    <p className="text-2xl font-bold text-[#c84b31]">{metrics?.failed || 0}</p>
                 </div>
             </div>
 

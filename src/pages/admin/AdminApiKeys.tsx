@@ -15,7 +15,7 @@ import {
     User,
     ExternalLink
 } from 'lucide-react';
-import { AdminApi } from '../../services/api';
+import { AdminApi } from '../../services/admin-api';
 
 const AdminApiKeys: React.FC = () => {
     const [keys, setKeys] = useState<any[]>([]);

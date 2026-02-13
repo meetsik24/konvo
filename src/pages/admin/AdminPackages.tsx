@@ -9,15 +9,21 @@ import {
     X,
     Layers,
     DollarSign,
-    Info
+    Info,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
-import { AdminApi, Service } from '../../services/api';
+import { AdminApi, Service } from '../../services/admin-api';
 
 const AdminPackages: React.FC = () => {
     const [packages, setPackages] = useState<any[]>([]);
+    const [allPackages, setAllPackages] = useState<any[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
+    const [page, setPage] = useState(0);
+    const [limit] = useState(10);
+    const [search, setSearch] = useState('');
     const [newPackage, setNewPackage] = useState({
         name: '',
         description: '',
@@ -29,17 +35,21 @@ const AdminPackages: React.FC = () => {
         try {
             setLoading(true);
             const [pkgsData, svcsData] = await Promise.all([
-                AdminApi.getPackages(),
+                AdminApi.getPackages(limit, page * limit),
                 AdminApi.getServices()
             ]);
-            setPackages(pkgsData.packages || []);
+            console.log('Packages data:', pkgsData);
+            // Handle both array and object with packages property
+            const packagesList = Array.isArray(pkgsData) ? pkgsData : (pkgsData.packages || []);
+            setAllPackages(packagesList);
+            setPackages(packagesList);
             setServices(svcsData.services || []);
         } catch (err: any) {
             console.error('Failed to fetch packages/services:', err);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [page, limit]);
 
     useEffect(() => {
         fetchData();
@@ -86,6 +96,18 @@ const AdminPackages: React.FC = () => {
         }));
     };
 
+    // Filter packages by search
+    const filteredPackages = allPackages.filter((pkg: any) =>
+        pkg.name?.toLowerCase().includes(search.toLowerCase()) ||
+        pkg.description?.toLowerCase().includes(search.toLowerCase())
+    );
+
+    // Pagination logic
+    const totalPages = Math.ceil(filteredPackages.length / limit);
+    const startIndex = page * limit;
+    const endIndex = startIndex + limit;
+    const paginatedPackages = filteredPackages.slice(startIndex, endIndex);
+
     return (
         <div className="max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -93,13 +115,28 @@ const AdminPackages: React.FC = () => {
                     <h1 className="text-2xl font-bold text-[#00333e] tracking-tight mb-1">Packages</h1>
                     <p className="text-gray-500 text-sm">Configure subscription and credit bundles.</p>
                 </div>
-                <button
-                    onClick={() => setIsCreating(true)}
-                    className="flex items-center gap-2 bg-[#00333e] hover:bg-[#00333e]/90 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-sm"
-                >
-                    <Plus className="w-5 h-5" />
-                    Create Package
-                </button>
+                <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search packages..."
+                            value={search}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                setPage(0);
+                            }}
+                            className="bg-white border border-gray-200 text-[#00333e] text-xs rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-[#00333e]/50"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setIsCreating(true)}
+                        className="flex items-center gap-2 bg-[#00333e] hover:bg-[#00333e]/90 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-sm"
+                    >
+                        <Plus className="w-5 h-5" />
+                        Create Package
+                    </button>
+                </div>
             </div>
 
             {isCreating && (
@@ -204,13 +241,13 @@ const AdminPackages: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {loading ? (
                     [1, 2, 3].map(i => <div key={i} className="h-64 bg-gray-100 border border-gray-200 rounded-xl animate-pulse"></div>)
-                ) : packages.length === 0 ? (
+                ) : filteredPackages.length === 0 ? (
                     <div className="col-span-full py-12 text-center text-gray-500 bg-gray-50 rounded-xl border border-gray-200">
                         <Package className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                        <p>No packages configured yet.</p>
+                        <p>No packages found.</p>
                     </div>
                 ) : (
-                    packages.map(pkg => (
+                    paginatedPackages.map(pkg => (
                         <div key={pkg.package_id} className="bg-white border border-gray-200 rounded-xl p-6 hover:border-[#00333e]/30 hover:shadow-md transition-all group">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="p-3 bg-[#00333e]/5 rounded-lg group-hover:scale-110 transition-transform">
@@ -242,6 +279,32 @@ const AdminPackages: React.FC = () => {
                     ))
                 )}
             </div>
+
+            {/* Pagination */}
+            {filteredPackages.length > 0 && (
+                <div className="px-6 py-4 border border-gray-100 rounded-xl bg-gray-50 flex items-center justify-between">
+                    <p className="text-xs text-gray-500 font-medium">
+                        Showing <span className="text-[#00333e]">{startIndex + 1}</span>-<span className="text-[#00333e]">{Math.min(endIndex, filteredPackages.length)}</span> of <span className="text-[#00333e]">{filteredPackages.length}</span>
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setPage(p => Math.max(0, p - 1))}
+                            disabled={page === 0 || loading}
+                            className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-[#00333e] hover:border-[#00333e]/30 disabled:opacity-50 transition-all bg-white shadow-sm"
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <span className="text-sm font-semibold text-[#00333e] px-2">Page {page + 1}</span>
+                        <button
+                            onClick={() => setPage(p => p + 1)}
+                            disabled={paginatedPackages.length < limit || loading}
+                            className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-[#00333e] hover:border-[#00333e]/30 disabled:opacity-50 transition-all bg-white shadow-sm"
+                        >
+                            <ChevronRight className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

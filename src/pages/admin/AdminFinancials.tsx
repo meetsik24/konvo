@@ -5,18 +5,13 @@ import {
     CreditCard,
     AlertCircle,
     Calendar,
-    ChevronLeft,
-    ChevronRight,
-    TrendingDown,
-    Activity,
-    User,
+    BarChart3,
     ExternalLink
 } from 'lucide-react';
-import { AdminApi } from '../../services/api';
+import { AdminApi } from '../../services/admin-api';
 
 const AdminFinancials: React.FC = () => {
     const [metrics, setMetrics] = useState<any>(null);
-    const [incomplete, setIncomplete] = useState<any[]>([]);
     const [trends, setTrends] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -24,14 +19,14 @@ const AdminFinancials: React.FC = () => {
     const fetchFinancials = useCallback(async () => {
         try {
             setLoading(true);
-            const [metricsData, incompleteData, trendsData] = await Promise.all([
+            setError(null);
+            const [metricsData, trendsData] = await Promise.all([
                 AdminApi.getFinancialMetrics(),
-                AdminApi.getIncompleteTransactions(),
                 AdminApi.getRevenueTrends()
             ]);
+            console.log('Financials Overview Data:', { metricsData, trendsData });
             setMetrics(metricsData);
-            setIncomplete(incompleteData.transactions || []);
-            setTrends(trendsData.revenue_trends || []);
+            setTrends(trendsData.data || []);
         } catch (err: any) {
             console.error('Failed to fetch financial data:', err);
             setError('Failed to load financial statistics.');
@@ -46,114 +41,162 @@ const AdminFinancials: React.FC = () => {
 
     return (
         <div className="max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
+            {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                        <p className="text-sm font-medium text-red-600">{error}</p>
+                        <button 
+                            onClick={fetchFinancials}
+                            className="text-xs text-red-600 hover:text-red-700 underline mt-1"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {loading && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    <p className="text-sm text-blue-600">Loading financial dashboard...</p>
+                </div>
+            )}
+
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-[#00333e] tracking-tight mb-1">Financials</h1>
-                    <p className="text-gray-500 text-sm">Revenue tracking and transaction monitoring.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="bg-white border border-gray-200 px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm">
-                        <span className="text-gray-500 text-xs font-medium uppercase">Avg. Transaction</span>
-                        <span className="text-[#00333e] font-bold">${metrics?.avg_transaction_value?.toFixed(2) || 0}</span>
-                    </div>
+                    <h1 className="text-2xl font-bold text-[#00333e] tracking-tight mb-1">Financial Overview</h1>
+                    <p className="text-gray-500 text-sm">Total revenue, metrics, and trends across the platform.</p>
                 </div>
             </div>
 
-            {/* Metrics Row */}
+            {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Total Revenue</h3>
                     <p className="text-3xl font-bold text-[#00333e] mb-2">${metrics?.total_revenue?.toLocaleString() || 0}</p>
                     <div className="flex items-center gap-1 text-green-600 text-xs font-medium">
                         <TrendingUp className="w-3 h-3" />
-                        +18% from last month
+                        All-time earnings
                     </div>
                 </div>
+
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Monthly Revenue</h3>
                     <p className="text-3xl font-bold text-[#00333e] mb-2">${metrics?.monthly_revenue?.toLocaleString() || 0}</p>
                     <div className="text-[10px] text-gray-500">Current calendar month</div>
                 </div>
+
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Credits Sold</h3>
-                    <p className="text-3xl font-bold text-[#00333e] mb-2">{metrics?.sms_credits_sold?.toLocaleString() || 0}</p>
-                    <div className="text-[10px] text-gray-500">Total SMS units distributed</div>
+                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Avg Transaction</h3>
+                    <p className="text-3xl font-bold text-[#00333e] mb-2">${metrics?.avg_transaction_value?.toFixed(2) || 0}</p>
+                    <div className="text-[10px] text-gray-500">Average order value</div>
                 </div>
+
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Incomplete Trx</h3>
-                    <p className="text-3xl font-bold text-[#c84b31] mb-2">{metrics?.incomplete_transactions || 0}</p>
-                    <div className="text-[10px] text-gray-500">Requires attention</div>
+                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Total Transactions</h3>
+                    <p className="text-3xl font-bold text-[#00333e] mb-2">{metrics?.total_transactions || 0}</p>
+                    <div className="text-[10px] text-gray-500">{metrics?.completed_transactions || 0} completed</div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Top Users Table */}
-                <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-                        <h2 className="text-sm font-bold text-[#00333e]">Top Spending Users</h2>
-                        <TrendingUp className="w-4 h-4 text-green-600" />
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="border-b border-gray-100 bg-gray-50">
-                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase">User</th>
-                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase">Total Spent</th>
-                                    <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {metrics?.top_users?.length === 0 ? (
-                                    <tr><td colSpan={3} className="px-6 py-8 text-center text-gray-500 text-sm">No data available</td></tr>
-                                ) : (
-                                    metrics?.top_users?.map((user: any) => (
-                                        <tr key={user.user_id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-[#00333e]">
-                                                        {user.username.charAt(0).toUpperCase()}
-                                                    </div>
-                                                    <span className="text-[#00333e] text-sm font-medium">{user.username}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="text-[#00333e] font-bold">${user.total_spent.toLocaleString()}</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <button className="text-gray-400 hover:text-[#00333e]">
-                                                    <ExternalLink className="w-4 h-4" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+            {/* Credits Distribution */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">SMS Credits</h3>
+                    <p className="text-2xl font-bold text-[#00333e] mb-4">
+                        <span className="text-green-600">{metrics?.sms_credits_sold?.toLocaleString() || 0}</span>
+                        <span className="text-gray-400 text-sm ml-2">Sold</span>
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>{metrics?.sms_credits_used?.toLocaleString() || 0} used by users</span>
+                        <span className="text-[#00333e] font-semibold">
+                            {metrics?.sms_credits_sold > 0 
+                                ? ((metrics?.sms_credits_used / metrics?.sms_credits_sold) * 100).toFixed(0) 
+                                : 0}% utilization
+                        </span>
                     </div>
                 </div>
 
-                {/* Low Balance Alert */}
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-[#c84b31]" />
-                        <h2 className="text-sm font-bold text-[#00333e]">Low Balance Alert</h2>
-                    </div>
-                    <div className="px-6 py-4 space-y-3">
-                        {metrics?.users_low_balance?.length === 0 ? (
-                            <p className="text-xs text-gray-500 italic text-center py-4">All users healthy</p>
-                        ) : (
-                            metrics?.users_low_balance?.map((user: any) => (
-                                <div key={user.user_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                    <div>
-                                        <p className="text-[#00333e] text-sm font-medium">{user.username}</p>
-                                        <p className="text-[10px] text-gray-500">{user.sms_credits} units left</p>
-                                    </div>
-                                    <div className="w-2 h-2 rounded-full bg-[#c84b31] animate-pulse"></div>
-                                </div>
-                            ))
-                        )}
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Call Minutes</h3>
+                    <p className="text-2xl font-bold text-[#00333e] mb-4">
+                        <span className="text-purple-600">{metrics?.call_minutes_sold?.toLocaleString() || 0}</span>
+                        <span className="text-gray-400 text-sm ml-2">Sold</span>
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>{metrics?.call_minutes_used?.toLocaleString() || 0} used by users</span>
+                        <span className="text-[#00333e] font-semibold">
+                            {metrics?.call_minutes_sold > 0 
+                                ? ((metrics?.call_minutes_used / metrics?.call_minutes_sold) * 100).toFixed(0) 
+                                : 0}% utilization
+                        </span>
                     </div>
                 </div>
+            </div>
+
+            {/* Top Spending Users */}
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <h2 className="text-sm font-bold text-[#00333e] flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4" />
+                        Top 5 Spending Users
+                    </h2>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="border-b border-gray-100 bg-gray-50">
+                                <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase">User</th>
+                                <th className="px-6 py-3 text-[10px] font-bold text-gray-500 uppercase text-right">Total Spent</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {metrics?.top_users?.length === 0 ? (
+                                <tr><td colSpan={2} className="px-6 py-8 text-center text-gray-500 text-sm">No data available</td></tr>
+                            ) : (
+                                metrics?.top_users?.slice(0, 5).map((user: any) => (
+                                    <tr key={user.user_id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-[#00333e]/10 flex items-center justify-center text-xs font-bold text-[#00333e]">
+                                                    {user.username?.charAt(0).toUpperCase()}
+                                                </div>
+                                                <span className="text-[#00333e] text-sm font-medium">{user.username}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <span className="text-[#00333e] font-bold">${user.total_spent?.toLocaleString() || 0}</span>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Quick Links to Related Pages */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <a href="/orange/transactions" className="group bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:border-[#00333e]/30 hover:shadow-md transition-all cursor-pointer">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-[#00333e] font-bold text-sm mb-1 group-hover:text-[#00333e]/80">Transactions</h3>
+                            <p className="text-xs text-gray-500">View detailed transaction history and manage approvals</p>
+                        </div>
+                        <ExternalLink className="w-5 h-5 text-gray-300 group-hover:text-[#00333e] transition-colors" />
+                    </div>
+                </a>
+
+                <a href="/orange/credits-usage" className="group bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:border-[#00333e]/30 hover:shadow-md transition-all cursor-pointer">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-[#00333e] font-bold text-sm mb-1 group-hover:text-[#00333e]/80">Credits Usage</h3>
+                            <p className="text-xs text-gray-500">Monitor credit allocation and consumption patterns</p>
+                        </div>
+                        <ExternalLink className="w-5 h-5 text-gray-300 group-hover:text-[#00333e] transition-colors" />
+                    </div>
+                </a>
             </div>
         </div>
     );

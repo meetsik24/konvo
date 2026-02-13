@@ -59,6 +59,8 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminSenderIds from './pages/admin/AdminSenderIds';
 import AdminWorkspaces from './pages/admin/AdminWorkspaces';
 import AdminFinancials from './pages/admin/AdminFinancials';
+import AdminTransactions from './pages/admin/AdminTransactions';
+import AdminCreditsUsage from './pages/admin/AdminCreditsUsage';
 import AdminPackages from './pages/admin/AdminPackages';
 import AdminServices from './pages/admin/AdminServices';
 import AdminApiKeys from './pages/admin/AdminApiKeys';
@@ -228,6 +230,8 @@ function App() {
                     <Route path="/orange/sender-ids" element={<AdminSenderIds />} />
                     <Route path="/orange/workspaces" element={<AdminWorkspaces />} />
                     <Route path="/orange/financials" element={<AdminFinancials />} />
+                    <Route path="/orange/transactions" element={<AdminTransactions />} />
+                    <Route path="/orange/credits-usage" element={<AdminCreditsUsage />} />
                     <Route path="/orange/packages" element={<AdminPackages />} />
                     <Route path="/orange/services" element={<AdminServices />} />
                     <Route path="/orange/api-keys" element={<AdminApiKeys />} />

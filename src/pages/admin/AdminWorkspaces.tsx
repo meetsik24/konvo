@@ -12,7 +12,7 @@ import {
     MoreVertical,
     Filter
 } from 'lucide-react';
-import { AdminApi } from '../../services/api';
+import { AdminApi } from '../../services/admin-api';
 
 const AdminWorkspaces: React.FC = () => {
     const [workspaces, setWorkspaces] = useState<any[]>([]);
