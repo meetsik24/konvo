@@ -98,7 +98,7 @@ const AdminDashboard: React.FC = () => {
                 });
                 setFinancials({
                     total_revenue: 0,
-                    sms_credits_sold: 0,
+                    total_units_sold: 0,
                     avg_transaction_value: 0,
                     top_users: []
                 });
@@ -225,8 +225,8 @@ const AdminDashboard: React.FC = () => {
                             <span className="text-[#00333e] font-semibold">{workspaces?.new_workspaces_last_7_days || 0}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm py-3 border-b border-gray-100">
-                            <span className="text-gray-500">SMS Credits Sold</span>
-                            <span className="text-[#00333e] font-semibold">{financials?.sms_credits_sold || 0}</span>
+                            <span className="text-gray-500">Universal Units Sold</span>
+                            <span className="text-[#00333e] font-semibold">{financials?.total_units_sold || 0}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm py-3">
                             <span className="text-gray-500">Total Users</span>
@@ -270,7 +270,7 @@ const AdminDashboard: React.FC = () => {
                                 </div>
                                 <div>
                                     <h4 className="text-[#00333e] font-medium">{financials.top_users[0].username}</h4>
-                                    <p className="text-xs text-gray-500">${financials.top_users[0].total_spent.toLocaleString()} total spent</p>
+                                    <p className="text-xs text-gray-500">TShs {financials.top_users[0].total_spent.toLocaleString()} total spent</p>
                                 </div>
                             </div>
                         ) : (

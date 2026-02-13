@@ -74,7 +74,7 @@ const AdminFinancials: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Total Revenue</h3>
-                    <p className="text-3xl font-bold text-[#00333e] mb-2">${metrics?.total_revenue?.toLocaleString() || 0}</p>
+                    <p className="text-3xl font-bold text-[#00333e] mb-2">TShs {metrics?.total_revenue?.toLocaleString() || 0}</p>
                     <div className="flex items-center gap-1 text-green-600 text-xs font-medium">
                         <TrendingUp className="w-3 h-3" />
                         All-time earnings
@@ -83,13 +83,13 @@ const AdminFinancials: React.FC = () => {
 
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Monthly Revenue</h3>
-                    <p className="text-3xl font-bold text-[#00333e] mb-2">${metrics?.monthly_revenue?.toLocaleString() || 0}</p>
+                    <p className="text-3xl font-bold text-[#00333e] mb-2">TShs {metrics?.monthly_revenue?.toLocaleString() || 0}</p>
                     <div className="text-[10px] text-gray-500">Current calendar month</div>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Avg Transaction</h3>
-                    <p className="text-3xl font-bold text-[#00333e] mb-2">${metrics?.avg_transaction_value?.toFixed(2) || 0}</p>
+                    <p className="text-3xl font-bold text-[#00333e] mb-2">TShs {metrics?.avg_transaction_value?.toFixed(2) || 0}</p>
                     <div className="text-[10px] text-gray-500">Average order value</div>
                 </div>
 
@@ -166,7 +166,7 @@ const AdminFinancials: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <span className="text-[#00333e] font-bold">${user.total_spent?.toLocaleString() || 0}</span>
+                                            <span className="text-[#00333e] font-bold">TShs {user.total_spent?.toLocaleString() || 0}</span>
                                         </td>
                                     </tr>
                                 ))

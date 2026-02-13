@@ -852,10 +852,8 @@ interface FinancialMetrics {
   total_transactions: number;
   completed_transactions: number;
   incomplete_transactions: number;
-  sms_credits_sold: number;
-  sms_credits_used: number;
-  call_minutes_sold: number;
-  call_minutes_used: number;
+  total_units_sold: number;
+  total_units_used: number;
   avg_transaction_value: number;
   top_users: Array<{
     user_id: string;
@@ -865,7 +863,7 @@ interface FinancialMetrics {
   users_low_balance: Array<{
     user_id: string;
     username: string;
-    sms_credits: number;
+    universal_credits: number;
   }>;
 }
 
@@ -987,26 +985,9 @@ interface ApproveTransactionResponse {
   status: string;
 }
 
-interface CreditRequest {
-  request_id: string;
-  user_id: string;
-  username: string;
-  sms_credits: number;
-  status: 'pending' | 'approved' | 'rejected';
-  requested_at: string;
-}
-
-interface CreditRequestsResponse {
-  requests: CreditRequest[];
-}
-
 interface AddCreditsResponse {
   status: string;
   new_balance: number;
-}
-
-interface ReviewCreditRequestResponse {
-  status: string;
 }
 
 interface AdminApiKey {

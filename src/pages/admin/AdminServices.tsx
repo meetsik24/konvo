@@ -129,7 +129,7 @@ const AdminServices: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2 tracking-wider">Unit Cost ($)</label>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2 tracking-wider">Unit Cost (TShs)</label>
                                 <input
                                     type="number"
                                     step="0.0001"
@@ -198,7 +198,7 @@ const AdminServices: React.FC = () => {
                                     <Database className="w-5 h-5 text-[#00333e]" />
                                 </div>
                                 <div className="flex flex-col items-end">
-                                    <span className="text-lg font-bold text-[#00333e]">${svc.unit_cost}</span>
+                                    <span className="text-lg font-bold text-[#00333e]">TShs {svc.unit_cost}</span>
                                     <span className="text-[9px] text-gray-500 uppercase font-bold tracking-tighter">Per Unit</span>
                                 </div>
                             </div>

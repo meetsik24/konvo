@@ -1,15 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
     Zap,
-    TrendingUp,
     TrendingDown,
-    Percent,
-    User,
-    Activity,
-    BarChart3,
     AlertCircle,
+    Activity,
     Search,
-    Filter,
     ChevronLeft,
     ChevronRight
 } from 'lucide-react';
@@ -17,7 +12,6 @@ import { AdminApi } from '../../services/admin-api';
 
 const AdminCreditsUsage: React.FC = () => {
     const [balanceStats, setBalanceStats] = useState<any>(null);
-    const [metrics, setMetrics] = useState<any>(null);
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -27,14 +21,13 @@ const AdminCreditsUsage: React.FC = () => {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
-            const [balanceData, metricsData, usersData] = await Promise.all([
+            const [balanceData, , usersData] = await Promise.all([
                 AdminApi.getBalanceUsageStats(),
                 AdminApi.getFinancialMetrics(),
                 AdminApi.getUsers({ page, limit, search })
             ]);
-            console.log('Credits Usage Data:', { balanceData, metricsData, usersData });
+            console.log('Credits Usage Data:', { balanceData, usersData });
             setBalanceStats(balanceData);
-            setMetrics(metricsData);
             setUsers(usersData || []);
         } catch (err: any) {
             console.error('Failed to fetch credits usage data:', err);
@@ -57,7 +50,7 @@ const AdminCreditsUsage: React.FC = () => {
         <div className="max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-[#00333e] tracking-tight mb-1">Credits Usage</h1>
+                    <h1 className="text-2xl font-bold text-[#00333e] tracking-tight mb-1">Universal Credits Usage</h1>
                     <p className="text-gray-500 text-sm">Monitor credit allocation, consumption, and user metrics.</p>
                 </div>
             </div>
@@ -71,7 +64,7 @@ const AdminCreditsUsage: React.FC = () => {
                     </p>
                     <div className="flex items-center gap-1 text-blue-600 text-xs font-medium">
                         <Zap className="w-3 h-3" />
-                        All time issued
+                        Universal Credits issued
                     </div>
                 </div>
 
@@ -113,7 +106,7 @@ const AdminCreditsUsage: React.FC = () => {
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <div className="flex items-start justify-between">
                     <div>
-                        <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Avg Credits Per User</h3>
+                        <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Avg Universal Credits Per User</h3>
                         <p className="text-4xl font-bold text-[#00333e] mb-2">
                             {balanceStats?.average_usage_per_user?.toFixed(0) || 0}
                         </p>
@@ -148,22 +141,21 @@ const AdminCreditsUsage: React.FC = () => {
                             <tr className="border-b border-gray-100 bg-gray-50">
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">SMS Credits</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Call Minutes</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Universal Credits</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Account Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                    <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e] mx-auto mb-4"></div>
                                         Loading users...
                                     </td>
                                 </tr>
                             ) : users.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No users found.</td>
+                                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">No users found.</td>
                                 </tr>
                             ) : (
                                 users.map((user: any) => (
@@ -184,15 +176,7 @@ const AdminCreditsUsage: React.FC = () => {
                                                 <div className="flex-1 bg-gray-100 rounded-full h-1.5 w-20">
                                                     <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: '60%' }}></div>
                                                 </div>
-                                                <span className="text-[#00333e] font-semibold text-xs">{user.credits?.sms_credits || 0}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex-1 bg-gray-100 rounded-full h-1.5 w-20">
-                                                    <div className="bg-purple-600 h-1.5 rounded-full" style={{ width: '40%' }}></div>
-                                                </div>
-                                                <span className="text-[#00333e] font-semibold text-xs">{user.credits?.call_minutes || 0}</span>
+                                                <span className="text-[#00333e] font-semibold text-xs">{user.universal_credits || 0}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">

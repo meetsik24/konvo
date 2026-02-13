@@ -32,18 +32,13 @@ interface SenderIdMetrics {
   rejected: number;
 }
 
-interface UserCredits {
-  sms_credits: number;
-  call_minutes: number;
-}
-
 interface UserApiResponse {
   user_id: string;
   username: string;
   email: string;
   account_status: 'active' | 'suspended' | 'inactive';
   created_at: string;
-  credits?: UserCredits;
+  universal_credits?: number;
 }
 
 interface AdminUser {
@@ -147,10 +142,8 @@ interface FinancialMetrics {
   total_transactions: number;
   completed_transactions: number;
   incomplete_transactions: number;
-  sms_credits_sold: number;
-  sms_credits_used: number;
-  call_minutes_sold: number;
-  call_minutes_used: number;
+  total_units_sold: number;
+  total_units_used: number;
   avg_transaction_value: number;
   top_users: Array<{ user_id: string; total_spent: number }>;
   users_low_balance: Array<{ user_id: string; balance: number }>;
@@ -337,8 +330,7 @@ interface Plan {
   name: string;
   description: string;
   pricing: string;
-  sms_unit_price: string;
-  call_unit_price: string;
+  unit_price: number;
   created_at?: string;
 }
 
@@ -346,16 +338,14 @@ interface CreatePlanRequest {
   name: string;
   description: string;
   pricing: string;
-  sms_unit_price: number;
-  call_unit_price: number;
+  unit_price: number;
 }
 
 interface UpdatePlanRequest {
   name?: string;
   description?: string;
   pricing?: string;
-  sms_unit_price?: number;
-  call_unit_price?: number;
+  unit_price?: number;
 }
 
 interface Service {
@@ -512,10 +502,8 @@ export const AdminApi = {
           total_transactions: 0,
           completed_transactions: 0,
           incomplete_transactions: 0,
-          sms_credits_sold: 0,
-          sms_credits_used: 0,
-          call_minutes_sold: 0,
-          call_minutes_used: 0,
+          total_units_sold: 0,
+          total_units_used: 0,
           avg_transaction_value: 0,
           top_users: [],
           users_low_balance: [],
@@ -568,6 +556,10 @@ export const AdminApi = {
     return ApiService.patch(`/admin/financial/transactions/${transactionId}/approve`, { approve });
   },
 
+  getAdminTransactions: async (limit: number = 10000, skip: number = 0): Promise<any> => {
+    return ApiService.get(`/transaction/admin/?skip=${skip}&limit=${limit}`);
+  },
+
   // User Management
   getUsers: async ({
     page = 0,
@@ -605,8 +597,8 @@ export const AdminApi = {
     return ApiService.get('/user-credit-balance');
   },
 
-  addCredits: async (userId: string, sms_credits: number): Promise<AddCreditsResponse> => {
-    return ApiService.patch(`/users/${userId}/credits`, { sms_credits });
+  addCredits: async (userId: string, universalCredits: number): Promise<AddCreditsResponse> => {
+    return ApiService.patch(`/users/${userId}/credits`, { universal_credits: universalCredits });
   },
 
   // SMS & Notifications
@@ -639,14 +631,7 @@ export const AdminApi = {
     return ApiService.get('/admin/messages/metrics');
   },
 
-  // Credit Management
-  getCreditRequests: async (): Promise<CreditRequestsResponse> => {
-    return ApiService.get('/credits/requests');
-  },
 
-  reviewCreditRequest: async (requestId: string, approve: boolean): Promise<ReviewCreditRequestResponse> => {
-    return ApiService.patch(`/credits/requests/${requestId}/review`, { approve });
-  },
 
   // API Key Management
   getApiKeys: async (): Promise<ApiKeyListResponse> => {
@@ -709,8 +694,7 @@ export const AdminApi = {
   createPlan: async (data: CreatePlanRequest): Promise<Plan> => {
     return ApiService.post('/plans', {
       ...data,
-      sms_unit_price: String(data.sms_unit_price),
-      call_unit_price: String(data.call_unit_price),
+      unit_price: data.unit_price,
     });
   },
 
@@ -721,8 +705,7 @@ export const AdminApi = {
   updatePlan: async (planId: string, data: UpdatePlanRequest): Promise<Plan> => {
     return ApiService.patch(`/plans/${planId}`, {
       ...data,
-      sms_unit_price: String(data.sms_unit_price),
-      call_unit_price: String(data.call_unit_price),
+      unit_price: data.unit_price,
     });
   },
 
@@ -758,7 +741,6 @@ export type {
   SenderIdListResponse,
   ApprovedSenderIdListResponse,
   SenderIdMetrics,
-  UserCredits,
   UserApiResponse,
   AdminUser,
   AdminWorkspace,
@@ -791,9 +773,6 @@ export type {
   NotificationRequest,
   NotificationResponse,
   AddCreditsResponse,
-  CreditRequest,
-  CreditRequestsResponse,
-  ReviewCreditRequestResponse,
   ApiKey,
   AdminApiKey,
   CreateApiKeyRequest,

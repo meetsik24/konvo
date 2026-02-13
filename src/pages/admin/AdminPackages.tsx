@@ -168,7 +168,7 @@ const AdminPackages: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2 tracking-wider">Total Price ($)</label>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2 tracking-wider">Total Price (TShs)</label>
                                 <input
                                     type="number"
                                     className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-[#00333e] focus:outline-none focus:border-[#00333e]/50 focus:ring-2 focus:ring-[#00333e]/10"
@@ -195,7 +195,7 @@ const AdminPackages: React.FC = () => {
                                                 />
                                                 <span className="text-[#00333e] text-sm font-bold">{svc.name}</span>
                                             </div>
-                                            <span className="text-[10px] text-gray-500 uppercase">${svc.unit_cost}/unit</span>
+                                            <span className="text-[10px] text-gray-500 uppercase">TShs {svc.unit_cost}/unit</span>
                                         </div>
                                         {newPackage.services.find(s => s.service_id === svc.service_id) && (
                                             <div className="grid grid-cols-2 gap-3">
@@ -209,7 +209,7 @@ const AdminPackages: React.FC = () => {
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] text-gray-500 uppercase">Unit Cost ($)</label>
+                                                    <label className="text-[10px] text-gray-500 uppercase">Unit Cost (TShs)</label>
                                                     <input
                                                         type="number"
                                                         step="0.001"
@@ -254,7 +254,7 @@ const AdminPackages: React.FC = () => {
                                     <Package className="w-6 h-6 text-[#00333e]" />
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-2xl font-bold text-[#00333e]">${pkg.total_price}</p>
+                                    <p className="text-2xl font-bold text-[#00333e]">TShs {pkg.total_price}</p>
                                     <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Package</p>
                                 </div>
                             </div>

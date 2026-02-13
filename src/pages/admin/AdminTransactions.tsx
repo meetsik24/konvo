@@ -1,64 +1,59 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-    CreditCard,
     Search,
-    Filter,
     ChevronLeft,
     ChevronRight,
-    CheckCircle2,
-    AlertCircle,
-    Clock,
-    User,
-    DollarSign,
-    TrendingUp,
-    MoreVertical
 } from 'lucide-react';
 import { AdminApi } from '../../services/admin-api';
 
 const AdminTransactions: React.FC = () => {
-    const [incompleteTransactions, setIncompleteTransactions] = useState<any[]>([]);
-    const [completeTransactions, setCompleteTransactions] = useState<any[]>([]);
+    const [transactions, setTransactions] = useState<any[]>([]);
+    const [totalCount, setTotalCount] = useState(0);
     const [metrics, setMetrics] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [limit] = useState(10);
     const [search, setSearch] = useState('');
-    const [activeTab, setActiveTab] = useState<'incomplete' | 'complete'>('incomplete');
 
     const fetchTransactions = useCallback(async () => {
         try {
             setLoading(true);
-            const [incompleteData, completeData, metricsData] = await Promise.all([
-                AdminApi.getIncompleteTransactions(),
-                AdminApi.getCompleteTransactions(),
-                AdminApi.getFinancialMetrics()
-            ]);
-            console.log('Transactions Data:', { incompleteData, completeData, metricsData });
-            setIncompleteTransactions(incompleteData.transactions || []);
-            setCompleteTransactions(completeData.transactions || []);
+            const skip = page * limit;
+            const response = await AdminApi.getAdminTransactions(limit, skip);
+            
+            // Handle both array and object responses
+            const transactionsData = Array.isArray(response) ? response : (response?.data || response?.transactions || []);
+            const count = response?.total || response?.count || transactionsData.length;
+            
+            console.log('Transactions Data:', { transactionsData, count });
+            setTransactions(transactionsData);
+            setTotalCount(count);
+            
+            // Fetch metrics separately
+            const metricsData = await AdminApi.getFinancialMetrics();
             setMetrics(metricsData);
         } catch (err: any) {
             console.error('Failed to fetch transactions:', err);
+            setTransactions([]);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [page, limit]);
 
     useEffect(() => {
         fetchTransactions();
     }, [fetchTransactions]);
 
-    const displayTransactions = activeTab === 'incomplete' ? incompleteTransactions : completeTransactions;
+    const displayTransactions = transactions;
     const filteredTransactions = displayTransactions.filter((txn: any) =>
-        txn.username?.toLowerCase().includes(search.toLowerCase()) ||
-        txn.transaction_id?.toLowerCase().includes(search.toLowerCase())
+        txn.transaction_name?.toLowerCase().includes(search.toLowerCase()) ||
+        txn.transaction_id?.toLowerCase().includes(search.toLowerCase()) ||
+        txn.user_id?.toLowerCase().includes(search.toLowerCase())
     );
 
-    // Pagination logic
-    const totalPages = Math.ceil(filteredTransactions.length / limit);
-    const startIndex = page * limit;
-    const endIndex = startIndex + limit;
-    const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
+    // Pagination logic - using API pagination
+    const totalPages = Math.ceil(totalCount / limit);
+    const displayedTransactions = filteredTransactions;
 
     return (
         <div className="max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
@@ -85,7 +80,7 @@ const AdminTransactions: React.FC = () => {
                 </div>
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 tracking-wider">Avg Value</h3>
-                    <p className="text-2xl font-bold text-[#00333e]">${metrics?.avg_transaction_value?.toFixed(2) || 0}</p>
+                    <p className="text-2xl font-bold text-[#00333e]">TShs {metrics?.avg_transaction_value?.toFixed(2) || 0}</p>
                 </div>
             </div>
 
@@ -94,39 +89,17 @@ const AdminTransactions: React.FC = () => {
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
                     {/* Tabs */}
                     <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-1">
-                            <button
-                                onClick={() => setActiveTab('incomplete')}
-                                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                                    activeTab === 'incomplete'
-                                        ? 'bg-[#00333e] text-white'
-                                        : 'bg-white border border-gray-200 text-[#00333e] hover:border-[#00333e]/30'
-                                }`}
-                            >
-                                Incomplete ({incompleteTransactions.length})
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('complete')}
-                                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                                    activeTab === 'complete'
-                                        ? 'bg-[#00333e] text-white'
-                                        : 'bg-white border border-gray-200 text-[#00333e] hover:border-[#00333e]/30'
-                                }`}
-                            >
-                                Complete ({completeTransactions.length})
-                            </button>
-                        </div>
-                        <div className="relative">
+                        <div className="relative flex-1 max-w-md">
                             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                             <input
                                 type="text"
-                                placeholder="Search by username or ID..."
+                                placeholder="Search by username, transaction ID, or user ID..."
                                 value={search}
                                 onChange={(e) => {
                                     setSearch(e.target.value);
                                     setPage(0);
                                 }}
-                                className="bg-white border border-gray-200 text-[#00333e] text-xs rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-[#00333e]/50"
+                                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm text-[#00333e] placeholder-gray-400 focus:outline-none focus:border-[#00333e]/30 focus:ring-1 focus:ring-[#00333e]/20 transition-all"
                             />
                         </div>
                     </div>
@@ -142,25 +115,24 @@ const AdminTransactions: React.FC = () => {
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Items</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment Method</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                                {activeTab === 'incomplete' && <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={activeTab === 'incomplete' ? 7 : 6} className="px-6 py-12 text-center text-gray-400">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e] mx-auto mb-4"></div>
                                         Loading transactions...
                                     </td>
                                 </tr>
-                            ) : filteredTransactions.length === 0 ? (
+                            ) : displayedTransactions.length === 0 ? (
                                 <tr>
-                                    <td colSpan={activeTab === 'incomplete' ? 7 : 6} className="px-6 py-12 text-center text-gray-500">
-                                        No {activeTab} transactions found.
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                        No transactions found.
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedTransactions.map((txn) => (
+                                displayedTransactions.map((txn) => (
                                     <tr key={txn.transaction_id} className="hover:bg-gray-50 transition-colors group">
                                         <td className="px-6 py-4">
                                             <code className="text-[10px] text-gray-500 font-mono">{txn.transaction_id?.slice(0, 8)}...</code>
@@ -168,38 +140,36 @@ const AdminTransactions: React.FC = () => {
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-[#00333e]">
-                                                    {txn.username?.charAt(0).toUpperCase()}
+                                                    {txn.transaction_name?.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <p className="text-[#00333e] text-sm font-medium">{txn.username}</p>
+                                                    <p className="text-[#00333e] text-sm font-medium">{txn.transaction_name}</p>
                                                     <p className="text-[10px] text-gray-500">{txn.user_id?.slice(0, 8)}...</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <p className="text-[#00333e] font-bold">${txn.total_amount_paid?.toLocaleString() || 0}</p>
+                                            <p className="text-[#00333e] font-bold">TShs {txn.total_amount_paid?.toLocaleString() || 0}</p>
                                         </td>
                                         <td className="px-6 py-4 text-xs text-gray-500">
-                                            <div className="space-y-0.5">
-                                                {txn.sms_quantity > 0 && <p>SMS: {txn.sms_quantity}</p>}
-                                                {txn.call_minutes_quantity > 0 && <p>Minutes: {txn.call_minutes_quantity}</p>}
-                                            </div>
+                                            <p>{txn.units_purchased?.toLocaleString() || 0} units</p>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
                                                 {txn.payment_method || 'N/A'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-xs text-gray-500">
-                                            {new Date(txn.transaction_date).toLocaleDateString()}
+                                        <td className="px-6 py-4 text-xs">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                    txn.marked_complete
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : 'bg-yellow-100 text-yellow-700'
+                                                }`}>
+                                                    {txn.marked_complete ? 'Complete' : 'Pending'}
+                                                </span>
+                                            </div>
                                         </td>
-                                        {activeTab === 'incomplete' && (
-                                            <td className="px-6 py-4 text-right">
-                                                <button className="px-3 py-1.5 rounded-lg bg-[#00333e] text-white text-xs font-semibold hover:opacity-90 transition-all">
-                                                    Approve
-                                                </button>
-                                            </td>
-                                        )}
                                     </tr>
                                 ))
                             )}
@@ -210,7 +180,7 @@ const AdminTransactions: React.FC = () => {
                 {/* Pagination */}
                 <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50">
                     <p className="text-xs text-gray-500 font-medium">
-                        Showing <span className="text-[#00333e]">{filteredTransactions.length}</span> transactions
+                        Showing <span className="text-[#00333e]">{displayedTransactions.length}</span> of <span className="text-[#00333e]">{totalCount}</span> transactions
                     </p>
                     <div className="flex items-center gap-2">
                         <button
@@ -220,10 +190,10 @@ const AdminTransactions: React.FC = () => {
                         >
                             <ChevronLeft className="w-5 h-5" />
                         </button>
-                        <span className="text-sm font-semibold text-[#00333e] px-2">Page {page + 1}</span>
+                        <span className="text-sm font-semibold text-[#00333e] px-2">Page {page + 1} of {totalPages}</span>
                         <button
                             onClick={() => setPage(p => p + 1)}
-                            disabled={paginatedTransactions.length < limit || loading}
+                            disabled={displayedTransactions.length < limit || loading || page >= totalPages - 1}
                             className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-[#00333e] hover:border-[#00333e]/30 disabled:opacity-50 transition-all bg-white shadow-sm"
                         >
                             <ChevronRight className="w-5 h-5" />
