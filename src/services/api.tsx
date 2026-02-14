@@ -7,20 +7,14 @@ import type {
   ApiResponse
 } from '../types';
 
-const getRuntimeConfig = (key: string): string | undefined => {
-  return (window as any).APP_CONFIG?.[key];
-};
-
-const API_BASE_URL = getRuntimeConfig('VITE_PRODUCTION_API_URL') ||
-  (import.meta.env.MODE === 'development'
-    ? '/api'
-    : import.meta.env.VITE_PRODUCTION_API_URL);
+const API_BASE_URL = import.meta.env.MODE === 'development'
+  ? (import.meta.env.VITE_DEVELOPMENT_API_URL || '/api')
+  : (import.meta.env.VITE_PRODUCTION_API_URL || 'https://polite-prometheus.briq.tz');
 
 console.log('API Configuration:', {
   mode: import.meta.env.MODE,
   baseURL: API_BASE_URL,
-  productionURL: import.meta.env.VITE_PRODUCTION_API_URL,
-  runtimeConfig: (window as any).APP_CONFIG
+  productionURL: import.meta.env.VITE_PRODUCTION_API_URL
 });
 
 const api = axios.create({

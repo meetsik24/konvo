@@ -14,7 +14,7 @@ RUN npm install --frozen-lockfile
 COPY . .
 
 # Set environment variables for Vite build
-ARG VITE_PRODUCTION_API_URL=https://heading-to-paris-op.briq.tz/
+ARG VITE_PRODUCTION_API_URL=https://polite-prometheus.briq.tz
 ENV VITE_PRODUCTION_API_URL=$VITE_PRODUCTION_API_URL
 
 # Build the Vite project
