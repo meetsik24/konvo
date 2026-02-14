@@ -562,16 +562,16 @@ export const AdminApi = {
 
   // User Management
   getUsers: async ({
-    page = 0,
-    limit = 5,
+    skip = 0,
+    limit = 10,
     search,
   }: {
-    page?: number;
+    skip?: number;
     limit?: number;
     search?: string;
   }): Promise<UserApiResponse[]> => {
     try {
-      const params: any = { page, limit };
+      const params: any = { skip, limit };
       if (search) params.search = search;
       return await ApiService.get<UserApiResponse[]>('/admin/users', { params });
     } catch (error: any) {

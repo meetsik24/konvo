@@ -67,7 +67,7 @@ const AdminUsers: React.FC = () => {
         try {
             setLoading(true);
             // Backend might not support pagination, so fetch all
-            const data = await AdminApi.getUsers({ page: 0, limit: 1000 });
+            const data = await AdminApi.getUsers({ skip: 0, limit: 1000 });
             setAllUsers(data);
 
             // Calculate stats

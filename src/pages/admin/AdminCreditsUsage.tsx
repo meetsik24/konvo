@@ -21,12 +21,13 @@ const AdminCreditsUsage: React.FC = () => {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
+            const skip = page * limit;
             const [balanceData, , usersData] = await Promise.all([
                 AdminApi.getBalanceUsageStats(),
                 AdminApi.getFinancialMetrics(),
-                AdminApi.getUsers({ page, limit, search })
+                AdminApi.getUsers({ skip, limit, search })
             ]);
-            console.log('Credits Usage Data:', { balanceData, usersData });
+            console.log('Credits Usage Data:', { skip, limit, search, usersData });
             setBalanceStats(balanceData);
             setUsers(usersData || []);
         } catch (err: any) {

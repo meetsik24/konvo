@@ -72,7 +72,7 @@ const AdminDashboard: React.FC = () => {
                 const [senderResult, workspaceResult, usersResult] = await Promise.allSettled([
                     AdminApi.getSenderIdMetrics(),
                     AdminApi.getWorkspaceMetrics(),
-                    AdminApi.getUsers({ page: 0, limit: 1 }) // Just to get count
+                    AdminApi.getUsers({ skip: 0, limit: 1 }) // Just to get count
                 ]);
 
                 // Extract successful results or null for failures
@@ -82,7 +82,7 @@ const AdminDashboard: React.FC = () => {
                 // For user count, we'll fetch all users once to get total
                 if (usersResult.status === 'fulfilled') {
                     // Fetch all users to count (TODO: backend should provide this)
-                    const allUsers = await AdminApi.getUsers({ page: 0, limit: 1000 });
+                    const allUsers = await AdminApi.getUsers({ skip: 0, limit: 1000 });
                     setTotalUsers(allUsers.length);
                 }
 
