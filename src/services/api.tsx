@@ -7,14 +7,20 @@ import type {
   ApiResponse
 } from '../types';
 
-const API_BASE_URL = import.meta.env.MODE === 'development'
-  ? '/api'  // Use proxy in development
-  : import.meta.env.VITE_PRODUCTION_API_URL;
+const getRuntimeConfig = (key: string): string | undefined => {
+  return (window as any).APP_CONFIG?.[key];
+};
+
+const API_BASE_URL = getRuntimeConfig('VITE_PRODUCTION_API_URL') ||
+  (import.meta.env.MODE === 'development'
+    ? '/api'
+    : import.meta.env.VITE_PRODUCTION_API_URL);
 
 console.log('API Configuration:', {
   mode: import.meta.env.MODE,
   baseURL: API_BASE_URL,
-  productionURL: import.meta.env.VITE_PRODUCTION_API_URL
+  productionURL: import.meta.env.VITE_PRODUCTION_API_URL,
+  runtimeConfig: (window as any).APP_CONFIG
 });
 
 const api = axios.create({
