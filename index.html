@@ -4,6 +4,20 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/assets/briq.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        try {
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', '/env.json', false);
+          xhr.send(null);
+          if (xhr.status === 200) {
+            window.APP_CONFIG = JSON.parse(xhr.responseText);
+          }
+        } catch (e) {
+          console.error('Failed to load env.json', e);
+        }
+      })();
+    </script>
     <!-- Primary SEO Meta Tags -->
     <title>Bulk SMS Tanzania | SMS API & OTP Services | BRIQ Solutions</title>
     <meta name="description" content="BRIQ Solutions offers fast bulk SMS, SMS API, and OTP services in Tanzania. Follow us on Instagram & Twitter @karibubriq for updates!" />
