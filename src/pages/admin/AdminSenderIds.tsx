@@ -22,6 +22,7 @@ const AdminSenderIds: React.FC = () => {
     const [limit] = useState(10);
     const [isProcessing, setIsProcessing] = useState<string | null>(null);
     const [providerMap, setProviderMap] = useState<Record<string, string>>({});
+    const [search, setSearch] = useState('');
 
     const fetchData = useCallback(async () => {
         try {
@@ -107,6 +108,8 @@ const AdminSenderIds: React.FC = () => {
                         <input
                             type="text"
                             placeholder="Search sender IDs..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
                             className="bg-white border border-gray-200 text-[#00333e] text-sm rounded-xl pl-10 pr-4 py-2.5 w-full md:w-64 focus:outline-none focus:border-[#00333e]/50 focus:ring-2 focus:ring-[#00333e]/10 transition-all"
                         />
                     </div>
@@ -130,21 +133,30 @@ const AdminSenderIds: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e] mx-auto mb-4"></div>
-                                        Loading sender IDs...
-                                    </td>
-                                </tr>
-                            ) : (tab === 'approved' ? approvedList : requests).length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                                        No {tab} sender IDs found.
-                                    </td>
-                                </tr>
-                            ) : (
-                                (tab === 'approved' ? approvedList : requests).map((item) => (
+                            {(() => {
+                                const items = tab === 'approved' ? approvedList : requests;
+                                const filteredItems = items.filter((item: any) => {
+                                    const senderId = tab === 'approved' ? item.name : item.sender_id_requested;
+                                    return senderId?.toLowerCase().includes(search.toLowerCase()) ||
+                                        item.username?.toLowerCase().includes(search.toLowerCase()) ||
+                                        item.user_id?.toLowerCase().includes(search.toLowerCase());
+                                });
+                                if (loading) return (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e] mx-auto mb-4"></div>
+                                            Loading sender IDs...
+                                        </td>
+                                    </tr>
+                                );
+                                if (filteredItems.length === 0) return (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                            No {tab} sender IDs found.
+                                        </td>
+                                    </tr>
+                                );
+                                return filteredItems.map((item: any) => (
                                     <tr key={tab === 'approved' ? item.sender_id : item.request_id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
@@ -211,8 +223,8 @@ const AdminSenderIds: React.FC = () => {
                                             )}
                                         </td>
                                     </tr>
-                                ))
-                            )}
+                                ));
+                            })()}
                         </tbody>
                     </table>
                 </div>

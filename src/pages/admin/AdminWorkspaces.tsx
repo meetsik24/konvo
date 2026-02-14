@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
     Building,
     Search,
@@ -38,6 +38,17 @@ const AdminWorkspaces: React.FC = () => {
     useEffect(() => {
         fetchWorkspaces();
     }, [fetchWorkspaces]);
+
+    // Filter workspaces by search
+    const filteredWorkspaces = useMemo(() => {
+        if (!search.trim()) return workspaces;
+        const searchLower = search.toLowerCase();
+        return workspaces.filter((ws: any) =>
+            ws.name?.toLowerCase().includes(searchLower) ||
+            ws.owner?.username?.toLowerCase().includes(searchLower) ||
+            ws.workspace_id?.toLowerCase().includes(searchLower)
+        );
+    }, [workspaces, search]);
 
     return (
         <div className="max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
@@ -99,14 +110,14 @@ const AdminWorkspaces: React.FC = () => {
                                         Loading workspaces...
                                     </td>
                                 </tr>
-                            ) : workspaces.length === 0 ? (
+                            ) : filteredWorkspaces.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                                         No workspaces found.
                                     </td>
                                 </tr>
                             ) : (
-                                workspaces.map((ws) => (
+                                filteredWorkspaces.map((ws) => (
                                     <tr key={ws.workspace_id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
@@ -151,7 +162,7 @@ const AdminWorkspaces: React.FC = () => {
                 {/* Pagination */}
                 <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50">
                     <p className="text-xs text-gray-500 font-medium">
-                        Showing <span className="text-[#00333e]">{workspaces.length}</span> workspaces
+                        Showing <span className="text-[#00333e]">{filteredWorkspaces.length}</span> workspaces
                     </p>
                     <div className="flex items-center gap-2">
                         <button

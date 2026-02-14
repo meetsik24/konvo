@@ -83,6 +83,8 @@ const AdminMessages: React.FC = () => {
                             <input
                                 type="text"
                                 placeholder="Search message content..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
                                 className="bg-white border border-gray-200 text-[#00333e] text-xs rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-[#00333e]/50"
                             />
                         </div>
@@ -100,19 +102,26 @@ const AdminMessages: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e] mx-auto mb-4"></div>
-                                        Syncing message logs...
-                                    </td>
-                                </tr>
-                            ) : messages.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No messages logged.</td>
-                                </tr>
-                            ) : (
-                                messages.map((msg) => (
+                            {(() => {
+                                const filteredMessages = messages.filter((msg: any) =>
+                                    msg.content?.toLowerCase().includes(search.toLowerCase()) ||
+                                    msg.recipient?.toLowerCase().includes(search.toLowerCase()) ||
+                                    msg.type?.toLowerCase().includes(search.toLowerCase())
+                                );
+                                if (loading) return (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e] mx-auto mb-4"></div>
+                                            Syncing message logs...
+                                        </td>
+                                    </tr>
+                                );
+                                if (filteredMessages.length === 0) return (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No messages found.</td>
+                                    </tr>
+                                );
+                                return filteredMessages.map((msg: any) => (
                                     <tr key={msg.id} className="hover:bg-gray-50 transition-colors group">
                                         <td className="px-6 py-4 capitalize">
                                             <div className="flex items-center gap-2">
@@ -138,8 +147,8 @@ const AdminMessages: React.FC = () => {
                                             {new Date(msg.created_at).toLocaleString()}
                                         </td>
                                     </tr>
-                                ))
-                            )}
+                                ));
+                            })()}
                         </tbody>
                     </table>
                 </div>

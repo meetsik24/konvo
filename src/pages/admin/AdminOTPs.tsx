@@ -20,6 +20,7 @@ const AdminOTPs: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(0);
     const [limit] = useState(10);
+    const [search, setSearch] = useState('');
 
     const fetchLogs = useCallback(async () => {
         try {
@@ -78,6 +79,8 @@ const AdminOTPs: React.FC = () => {
                         <input
                             type="text"
                             placeholder="Filter by phone..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
                             className="bg-white border border-gray-200 text-[#00333e] text-xs rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-[#00333e]/50"
                         />
                     </div>
@@ -94,21 +97,28 @@ const AdminOTPs: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e] mx-auto mb-4"></div>
-                                        Loading logs...
-                                    </td>
-                                </tr>
-                            ) : logs.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                                        No OTP logs found.
-                                    </td>
-                                </tr>
-                            ) : (
-                                logs.map((log) => (
+                            {(() => {
+                                const filteredLogs = logs.filter((log: any) =>
+                                    log.phone_number?.toLowerCase().includes(search.toLowerCase()) ||
+                                    log.user_id?.toLowerCase().includes(search.toLowerCase()) ||
+                                    log.code?.includes(search)
+                                );
+                                if (loading) return (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e] mx-auto mb-4"></div>
+                                            Loading logs...
+                                        </td>
+                                    </tr>
+                                );
+                                if (filteredLogs.length === 0) return (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                            No OTP logs found.
+                                        </td>
+                                    </tr>
+                                );
+                                return filteredLogs.map((log: any) => (
                                     <tr key={log.otp_id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
@@ -149,8 +159,8 @@ const AdminOTPs: React.FC = () => {
                                             {log.used_at ? new Date(log.used_at).toLocaleString() : `Expires: ${new Date(log.expires_at).toLocaleTimeString()}`}
                                         </td>
                                     </tr>
-                                ))
-                            )}
+                                ));
+                            })()}
                         </tbody>
                     </table>
                 </div>

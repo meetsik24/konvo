@@ -23,6 +23,7 @@ const AdminApiKeys: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
 
     const fetchData = useCallback(async () => {
         try {
@@ -100,6 +101,8 @@ const AdminApiKeys: React.FC = () => {
                             <input
                                 type="text"
                                 placeholder="Search by ID or User..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
                                 className="bg-white border border-gray-200 text-[#00333e] text-xs rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-[#00333e]/50"
                             />
                         </div>
@@ -120,19 +123,26 @@ const AdminApiKeys: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e] mx-auto mb-4"></div>
-                                        Loading global keys...
-                                    </td>
-                                </tr>
-                            ) : keys.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No API keys found.</td>
-                                </tr>
-                            ) : (
-                                keys.map((key) => (
+                            {(() => {
+                                const filteredKeys = keys.filter((key: any) =>
+                                    key.api_key_id?.toLowerCase().includes(search.toLowerCase()) ||
+                                    key.owner_username?.toLowerCase().includes(search.toLowerCase()) ||
+                                    key.id?.toLowerCase().includes(search.toLowerCase())
+                                );
+                                if (loading) return (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00333e] mx-auto mb-4"></div>
+                                            Loading global keys...
+                                        </td>
+                                    </tr>
+                                );
+                                if (filteredKeys.length === 0) return (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No API keys found.</td>
+                                    </tr>
+                                );
+                                return filteredKeys.map((key: any) => (
                                     <tr key={key.id} className="hover:bg-gray-50 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
@@ -169,8 +179,8 @@ const AdminApiKeys: React.FC = () => {
                                             </div>
                                         </td>
                                     </tr>
-                                ))
-                            )}
+                                ));
+                            })()}
                         </tbody>
                     </table>
                 </div>
