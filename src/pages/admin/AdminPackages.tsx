@@ -34,16 +34,17 @@ const AdminPackages: React.FC = () => {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
+            const skip = page * limit;
             const [pkgsData, svcsData] = await Promise.all([
-                AdminApi.getPackages(limit, page * limit),
+                AdminApi.getPackages(limit, skip),
                 AdminApi.getServices()
             ]);
-            console.log('Packages data:', pkgsData);
+            console.log('Packages data:', { skip, limit, data: pkgsData });
             // Handle both array and object with packages property
             const packagesList = Array.isArray(pkgsData) ? pkgsData : (pkgsData.packages || []);
             setAllPackages(packagesList);
             setPackages(packagesList);
-            setServices(svcsData.services || []);
+            setServices(svcsData || []);
         } catch (err: any) {
             console.error('Failed to fetch packages/services:', err);
         } finally {
@@ -81,7 +82,7 @@ const AdminPackages: React.FC = () => {
                     ...prev,
                     services: [...prev.services, {
                         service_id: serviceId,
-                        units_allocated: svc?.minimum_purchase || 100,
+                        quantity: svc?.minimum_purchase || 100,
                         unit_cost_at_purchase: svc?.unit_cost || 0.1
                     }]
                 };
@@ -200,12 +201,12 @@ const AdminPackages: React.FC = () => {
                                         {newPackage.services.find(s => s.service_id === svc.service_id) && (
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
-                                                    <label className="text-[10px] text-gray-500 uppercase">Units</label>
+                                                    <label className="text-[10px] text-gray-500 uppercase">Quantity</label>
                                                     <input
                                                         type="number"
                                                         className="w-full bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs text-[#00333e]"
-                                                        value={newPackage.services.find(s => s.service_id === svc.service_id).units_allocated}
-                                                        onChange={e => updateServiceAllocation(svc.service_id, 'units_allocated', parseInt(e.target.value))}
+                                                        value={newPackage.services.find(s => s.service_id === svc.service_id).quantity || newPackage.services.find(s => s.service_id === svc.service_id).units_allocated || 0}
+                                                        onChange={e => updateServiceAllocation(svc.service_id, 'quantity', parseInt(e.target.value))}
                                                     />
                                                 </div>
                                                 <div>
@@ -254,8 +255,14 @@ const AdminPackages: React.FC = () => {
                                     <Package className="w-6 h-6 text-[#00333e]" />
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-2xl font-bold text-[#00333e]">TShs {pkg.total_price}</p>
-                                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Package</p>
+                                    <p className="text-2xl font-bold text-[#00333e]">TShs {pkg.total_price?.toLocaleString() || 0}</p>
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                        pkg.active 
+                                            ? 'bg-green-100 text-green-700' 
+                                            : 'bg-gray-100 text-gray-700'
+                                    }`}>
+                                        {pkg.active ? 'Active' : 'Inactive'}
+                                    </span>
                                 </div>
                             </div>
                             <h3 className="text-lg font-bold text-[#00333e] mb-2">{pkg.name}</h3>
@@ -263,12 +270,14 @@ const AdminPackages: React.FC = () => {
 
                             <div className="space-y-3 mb-6 pb-4 border-b border-gray-100">
                                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Included Services</p>
-                                {pkg.services.map((ps: any) => (
+                                {pkg.services && pkg.services.length > 0 ? pkg.services.map((ps: any) => (
                                     <div key={ps.package_service_id} className="flex items-center justify-between text-xs">
                                         <span className="text-gray-600">{services.find(s => s.service_id === ps.service_id)?.name || 'Service'}</span>
-                                        <span className="text-[#00333e] font-bold">{ps.units_allocated.toLocaleString()} units</span>
+                                        <span className="text-[#00333e] font-bold">{(ps.quantity || ps.units_allocated || 0).toLocaleString()} units</span>
                                     </div>
-                                ))}
+                                )) : (
+                                    <p className="text-xs text-gray-400">No services included</p>
+                                )}
                             </div>
 
                             <div className="flex items-center justify-between pt-3">

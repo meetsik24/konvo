@@ -303,10 +303,13 @@ interface Package {
   name: string;
   description: string;
   total_price: number;
+  active: boolean;
+  message: string | null;
   services: Array<{
     package_service_id: string;
+    package_id: string;
     service_id: string;
-    units_allocated: number;
+    quantity: number;
     unit_cost_at_purchase: number;
   }>;
   created_at?: string;
@@ -314,7 +317,8 @@ interface Package {
 
 interface AdminPackageService {
   service_id: string;
-  units_allocated: number;
+  quantity?: number;
+  units_allocated?: number;
   unit_cost_at_purchase: number;
 }
 
@@ -667,7 +671,7 @@ export const AdminApi = {
 
   // Package Management
   getPackages: async (limit: number = 100, skip: number = 0): Promise<Package[]> => {
-    return ApiService.get(`/api/packages?skip=${skip}&limit=${limit}`);
+    return ApiService.get(`/packages?skip=${skip}&limit=${limit}`);
   },
 
   createPackage: async (data: CreatePackageRequest): Promise<Package> => {
