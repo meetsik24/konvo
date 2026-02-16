@@ -3158,14 +3158,28 @@ export const flake_request = async (phoneNumber: string, preferredChannel: strin
   }
 };
 
-export const flake_verify = async (phoneNumber: string, otp: string): Promise<{ token: string; user: any }> => {
+export const flake_verify = async (phoneNumber: string, otp: string): Promise<{ token: string; user: any; orange?: boolean }> => {
   try {
     const response = await api.post("/auth/flake/verify", {
       phone_number: phoneNumber,
       flake_code: otp,
     });
+
+    const { token, access_token, user, orange } = response.data;
+    const authToken = token || access_token;
+
+    if (authToken) {
+      localStorage.setItem("token", authToken);
+    }
+
+    if (orange === true) {
+      localStorage.setItem("isOrangeAdmin", "true");
+    } else {
+      localStorage.removeItem("isOrangeAdmin");
+    }
+
     console.log("OTP verified successfully");
-    return response.data;
+    return { token: authToken, user, orange };
   } catch (error: any) {
     handleApiError(error, "Invalid or expired code");
   }

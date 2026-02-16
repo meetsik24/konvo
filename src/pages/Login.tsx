@@ -91,9 +91,15 @@ const AuthScreen: React.FC = () => {
 
     try {
       console.log("📞 Calling flake_verify with phoneNumber:", phoneNumber, "otp:", otp);
-      const { token, user } = await flake_verify(phoneNumber, otp);
+      const { token, user, orange } = await flake_verify(phoneNumber, otp);
       dispatch(setCredentials({ user, token }));
-      navigate('/dashboard');
+
+      // Navigate based on user role/orange flag
+      if (orange || user?.orange || user?.role === 'admin') {
+        navigate('/orange/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       setError(err.message || 'Invalid or expired code');
     } finally {
