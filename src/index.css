@@ -20,11 +20,12 @@
     --highlight: #fddf0d;
     --text-primary: #00333e;
     --text-secondary: #6f888c;
-  
+
   }
 
   html {
-    font-family: 'Exo', sans-serif; /* Default to Exo font */
+    font-family: 'Exo', sans-serif;
+    /* Default to Exo font */
     scroll-behavior: smooth;
   }
 
@@ -34,6 +35,7 @@
 }
 
 @layer components {
+
   /* Old components */
   .btn {
     @apply px-6 py-3 rounded-2xl font-medium transition-all duration-200 shadow-sm;
@@ -52,7 +54,12 @@
   }
 
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-[#6f888c] hover:shadow-lg transition-all duration-200 p-6 rounded-2xl hover:shadow-xl;
+    @apply bg-white rounded-2xl border border-gray-200 transition-all duration-300 p-6;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  }
+
+  .card:hover {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
   }
 
   .doodle {
@@ -97,11 +104,9 @@
   }
 
   .hero-pattern {
-    background-image: radial-gradient(
-      circle at 1px 1px,
-      rgb(209 213 219) 1px,
-      transparent 0
-    );
+    background-image: radial-gradient(circle at 1px 1px,
+        rgb(209 213 219) 1px,
+        transparent 0);
     background-size: 40px 40px;
   }
 
@@ -146,9 +151,11 @@
   0% {
     transform: translateY(0px);
   }
+
   50% {
     transform: translateY(-10px);
   }
+
   100% {
     transform: translateY(0px);
   }
@@ -163,6 +170,7 @@
     opacity: 0;
     transform: scale(0.9);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -179,6 +187,7 @@
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: 200px 200px;
   }
@@ -193,6 +202,7 @@
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: -100px -100px;
   }
@@ -207,6 +217,7 @@
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: 100px 100px;
   }
@@ -221,6 +232,7 @@
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: 150px 150px;
   }
@@ -228,11 +240,9 @@
 
 /* Particle Glow Effect */
 .particle-glow {
-  background: radial-gradient(
-    circle,
-    rgba(253, 223, 13, 0.1) 0%,
-    transparent 70%
-  );
+  background: radial-gradient(circle,
+      rgba(253, 223, 13, 0.1) 0%,
+      transparent 70%);
   background-size: 200px 200px;
   background-repeat: repeat;
 }
@@ -242,21 +252,26 @@
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
   }
 }
 
-  .animate-fadeIn {
-    animation: fadeIn 0.3s ease-in-out;
-  }
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-in-out;
+}
 
-  /* Hide scrollbar for mobile tab navigation */
-  .scrollbar-hide {
-    -ms-overflow-style: none;  /* Internet Explorer 10+ */
-    scrollbar-width: none;  /* Firefox */
-  }
-  .scrollbar-hide::-webkit-scrollbar { 
-    display: none;  /* Safari and Chrome */
-  }
+/* Hide scrollbar for mobile tab navigation */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  /* Internet Explorer 10+ */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  /* Safari and Chrome */
+}

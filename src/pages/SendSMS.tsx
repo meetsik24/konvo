@@ -46,7 +46,7 @@ const SendSMS = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [modalErrorMessage, setModalErrorMessage] = useState('');
   const [keywords, setKeywords] = useState('');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [recipientCount, setRecipientCount] = useState(0);
@@ -59,7 +59,79 @@ const SendSMS = () => {
   const [modalState, setModalState] = useState({
     isAIModalOpen: false,
     isGroupModalOpen: false,
+    isErrorModalOpen: false,
   });
+
+  const setModal = (modal: keyof typeof modalState, isOpen: boolean) => {
+    setModalState(prev => ({
+      ...prev,
+      isAIModalOpen: false,
+      isGroupModalOpen: false,
+      isErrorModalOpen: false,
+      [modal]: isOpen,
+    }));
+  };
+
+  const triggerError = (err: unknown, defaultMsg: string = 'Operation failed.') => {
+    console.error('Error triggered:', err);
+    let errorMessage = defaultMsg;
+
+    if (err && typeof err === 'object') {
+      const anyErr = err as any;
+
+      // 1. Handle Axios-style error response
+      if (anyErr.response?.data) {
+        const data = anyErr.response.data;
+
+        // FastAPI style: { detail: "message" } or { detail: [{ msg: "...", ... }] }
+        if (data.detail) {
+          if (Array.isArray(data.detail)) {
+            errorMessage = data.detail.map((d: any) => d.msg || JSON.stringify(d)).join(', ');
+          } else if (typeof data.detail === 'string') {
+            errorMessage = data.detail;
+          } else {
+            errorMessage = JSON.stringify(data.detail);
+          }
+        }
+        // Other common formats: { message: "..." } or { error: "..." }
+        else if (data.message) {
+          errorMessage = typeof data.message === 'string' ? data.message : JSON.stringify(data.message);
+        } else if (data.error) {
+          errorMessage = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
+        } else if (typeof data === 'string') {
+          errorMessage = data;
+        } else {
+          errorMessage = JSON.stringify(data);
+        }
+      }
+      // 2. Handle generic Error objects
+      else if (anyErr.message) {
+        errorMessage = anyErr.message;
+      }
+      // 3. Fallback for other objects
+      else {
+        try {
+          errorMessage = JSON.stringify(err);
+        } catch (e) {
+          errorMessage = defaultMsg;
+        }
+      }
+    } else if (typeof err === 'string') {
+      errorMessage = err;
+    }
+
+    // Protection against [object Object]
+    if (errorMessage === '[object Object]') {
+      errorMessage = defaultMsg;
+    }
+
+    if (typeof errorMessage === 'string' && (errorMessage.toLowerCase().includes('credit') || errorMessage.toLowerCase().includes('balance'))) {
+      errorMessage = "Insufficient credit to send this message. Please recharge your account.";
+    }
+
+    setModalErrorMessage(String(errorMessage));
+    setModal('isErrorModalOpen', true);
+  };
 
   useEffect(() => {
     const count = formData.message.length;
@@ -89,9 +161,7 @@ const SendSMS = () => {
 
         console.log('SendSMS fetchData: Data fetch completed');
       } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load data.';
-        console.error('SendSMS fetchData error:', errorMessage);
-        setError(errorMessage);
+        triggerError(err, 'Failed to load data.');
       } finally {
         setIsLoading(false);
       }
@@ -172,7 +242,6 @@ const SendSMS = () => {
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    setError(null);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.type === 'text/csv' || file.name.endsWith('.txt')) {
@@ -181,11 +250,10 @@ const SendSMS = () => {
           const data = await parseFileRecipients(file);
           setUploadedData(data);
         } catch (err: unknown) {
-          const errorMessage = err instanceof Error ? err.message : 'Failed to parse file.';
-          setError(errorMessage);
+          triggerError(err, 'Failed to parse file.');
         }
       } else {
-        setError('Please upload a CSV or TXT file.');
+        triggerError(null, 'Please upload a CSV or TXT file.');
       }
     }
   };
@@ -225,9 +293,8 @@ const SendSMS = () => {
   };
 
   const prepareSendSMS = async () => {
-    setError(null);
     if (!isFormValid()) {
-      setError('Please fill in all required fields.');
+      triggerError(null, 'Please fill in all required fields.');
       return;
     }
     try {
@@ -282,8 +349,7 @@ const SendSMS = () => {
       setMessagePreview(previewMessage);
       setIsConfirmModalOpen(true);
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to prepare SMS.';
-      setError(errorMessage);
+      triggerError(err, 'Failed to prepare SMS.');
     }
   };
 
@@ -323,7 +389,6 @@ const SendSMS = () => {
 
   const handleSendSMS = async () => {
     setIsSending(true);
-    setError(null);
 
     console.log('=== handleSendSMS START ===');
     console.log('Send mode:', sendMode);
@@ -414,16 +479,7 @@ const SendSMS = () => {
       setSendToAll(false);
 
     } catch (err: unknown) {
-      console.error('=== handleSendSMS ERROR ===');
-      console.error('Error object:', err);
-
-      let errorMessage = 'Failed to send SMS.';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-
-      console.error('Final error message:', errorMessage);
-      setError(errorMessage);
+      triggerError(err, 'Failed to send SMS.');
     } finally {
       setIsSending(false);
       setIsConfirmModalOpen(false);
@@ -433,7 +489,7 @@ const SendSMS = () => {
 
   const generateAIMessage = async () => {
     if (!keywords.trim()) {
-      setError('Please enter a prompt.');
+      triggerError(null, 'Please enter a prompt.');
       return;
     }
     setIsGenerating(true);
@@ -443,8 +499,7 @@ const SendSMS = () => {
       setModal('isAIModalOpen', false);
       setKeywords('');
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to generate message.';
-      setError(errorMessage);
+      triggerError(err, 'Failed to generate message.');
     } finally {
       setIsGenerating(false);
     }
@@ -455,13 +510,6 @@ const SendSMS = () => {
   };
 
 
-  const setModal = (modal: keyof typeof modalState, isOpen: boolean) => {
-    setModalState(() => ({
-      isAIModalOpen: false,
-      isGroupModalOpen: false,
-      [modal]: isOpen,
-    }));
-  };
 
 
 
@@ -488,17 +536,6 @@ const SendSMS = () => {
       >
         <h1 className="text-2xl font-semibold text-[#004d66] mb-8">Send SMS</h1>
       </motion.div>
-
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="border border-red-200 bg-red-50 p-3 text-red-700 text-sm font-medium rounded-md text-center mb-6"
-        >
-          {error}
-        </motion.div>
-      )}
 
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -939,6 +976,34 @@ const SendSMS = () => {
       </Modal>
 
 
+
+      <Modal
+        isOpen={modalState.isErrorModalOpen}
+        onClose={() => setModal('isErrorModalOpen', false)}
+        title="Error"
+      >
+        <div className="space-y-4 py-2">
+          <div className="flex items-center gap-3 text-red-600">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold">Something went wrong</h3>
+          </div>
+          <p className="text-gray-600 text-sm leading-relaxed">
+            {modalErrorMessage}
+          </p>
+          <div className="pt-2">
+            <button
+              onClick={() => setModal('isErrorModalOpen', false)}
+              className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={isConfirmModalOpen}

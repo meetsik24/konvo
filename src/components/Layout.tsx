@@ -26,7 +26,7 @@ const Layout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="flex min-h-screen" style={{ zoom: '90%' }}>
+      <div className="flex min-h-screen">
         {/* Mobile Header with Menu Button and top-right actions */}
         <div className="fixed top-0 left-0 right-0 bg-[#00333e] text-white px-4 py-3 flex items-center gap-3 z-50 md:hidden shadow-md">
           <button

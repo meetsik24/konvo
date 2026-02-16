@@ -274,8 +274,8 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
                 <div
                   key={workspace.workspace_id}
                   className={`flex items-center justify-between p-2 rounded-lg border transition-all ${workspace.workspace_id === currentWorkspaceId
-                      ? 'bg-[#fddf0d]/10 border-[#fddf0d] shadow-sm'
-                      : 'border-gray-100 hover:bg-gray-50'
+                    ? 'bg-[#fddf0d]/10 border-[#fddf0d] shadow-sm'
+                    : 'border-gray-100 hover:bg-gray-50'
                     }`}
                 >
                   <button
@@ -284,8 +284,8 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
                       setIsWorkspaceModalOpen(false);
                     }}
                     className={`flex-1 text-left text-sm flex items-center gap-2 py-2 px-2 rounded touch-manipulation ${workspace.workspace_id === currentWorkspaceId
-                        ? 'text-[#00333e] font-semibold'
-                        : 'text-gray-700'
+                      ? 'text-[#00333e] font-semibold'
+                      : 'text-gray-700'
                       }`}
                     disabled={isLoading || workspaceLoading}
                   >
@@ -316,8 +316,8 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
     <>
       <aside
         className={`bg-[#00333e] flex flex-col shadow-xl overflow-hidden transition-all duration-300 ease-in-out
-          ${isSidebarOpen 
-            ? 'fixed md:sticky top-0 left-0 h-screen w-64 z-50 md:z-0 md:h-[calc(100vh-2rem)] md:m-4 md:rounded-2xl md:top-4' 
+          ${isSidebarOpen
+            ? 'fixed md:sticky top-0 left-0 h-screen w-64 z-50 md:z-0 md:h-[calc(100vh-2rem)] md:m-4 md:rounded-2xl md:top-4'
             : 'fixed md:sticky top-0 left-0 h-screen w-0 md:w-64 -translate-x-full md:translate-x-0 z-50 md:z-0 md:h-[calc(100vh-2rem)] md:m-4 md:rounded-2xl md:top-4'
           }`}
       >
@@ -327,7 +327,7 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
             <img src="/assets/briq.png" alt="Briq Logo" className="w-8 h-8" />
             <h1 className="text-lg font-bold text-white">Briq Solutions</h1>
           </div>
-          
+
           {/* Close button for mobile */}
           <div className="flex md:hidden px-4 mb-4 items-center justify-between">
             <div className="flex items-center gap-3">
@@ -350,11 +350,11 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex items-center px-3 py-3 md:py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group touch-manipulation ${!isWorkspaceSelected
+                  `flex items-center px-3 py-3 md:py-2.5 text-sm font-medium rounded-xl transition-all duration-300 group touch-manipulation ${!isWorkspaceSelected
                     ? 'text-gray-500 cursor-not-allowed'
                     : isActive
-                      ? 'bg-[#fddf0d] text-[#00333e] shadow-lg shadow-[#fddf0d]/20'
-                      : 'text-gray-300 hover:bg-[#004d5c] hover:text-white active:bg-[#004d5c]'
+                      ? 'bg-[#fddf0d] text-[#00333e] shadow-lg shadow-[#fddf0d]/30 scale-[1.02] ring-1 ring-white/10'
+                      : 'text-gray-400 hover:bg-[#004d5c] hover:text-white active:scale-95'
                   }`
                 }
                 onClick={(e) => {
@@ -373,18 +373,17 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
           </nav>
 
           {/* Footer Section (Workspace, User Profile & Actions) */}
-          <div className="mt-auto px-4 pt-4 border-t border-[#004d5c] space-y-4">
-
-            {/* Workspace Selector (Moved to Bottom) */}
-            <div>
+          <div className="mt-auto px-4 pt-6">
+            <div className="mb-4">
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-3 mb-2">Organization</p>
               <button
                 onClick={() => {
                   setIsWorkspaceModalOpen(true);
                   closeSidebar();
                 }}
                 className={`w-full px-3 py-3 md:py-2.5 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-2 touch-manipulation ${isWorkspaceSelected
-                    ? 'text-white bg-[#004d5c] border border-[#fddf0d]/20 hover:bg-[#005a6e] active:bg-[#005a6e]'
-                    : 'text-gray-400 bg-[#002a36] italic'
+                  ? 'text-white bg-[#004d5c] border border-[#fddf0d]/20 hover:bg-[#005a6e] active:bg-[#005a6e]'
+                  : 'text-gray-400 bg-[#002a36] italic'
                   }`}
               >
                 <Building className="w-4 h-4 text-[#fddf0d] flex-shrink-0" />
@@ -415,8 +414,8 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
                   </button>
                 </div>
 
-                <Link 
-                  to="/account" 
+                <Link
+                  to="/account"
                   onClick={closeSidebar}
                   className="p-2.5 md:p-2 text-gray-300 hover:text-white hover:bg-[#004d5c] active:bg-[#004d5c] rounded-lg transition-colors touch-manipulation"
                   aria-label="Account Settings"
@@ -433,31 +432,32 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar, isSidebarOpen }) => {
                 </button>
               </div>
 
-              <div className="flex items-center gap-3 p-2 rounded-xl bg-[#002a36] border border-[#004d5c]">
-                <img
-                  src={avatarUrl}
-                  alt={user?.username}
-                  className="w-9 h-9 rounded-full border border-[#004d5c]"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
-                    {user?.username || 'User'}
-                  </p>
-                  <p className="text-xs text-gray-400 truncate">
-                    {user?.email || 'user@example.com'}
-                  </p>
-                </div>
+            </div>
+
+            <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#002a36]/50 border border-white/5 backdrop-blur-sm">
+              <img
+                src={avatarUrl}
+                alt={user?.username}
+                className="w-10 h-10 rounded-full border-2 border-[#004d5c] shadow-sm"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">
+                  {user?.username || 'User'}
+                </p>
+                <p className="text-[11px] text-gray-400 truncate font-medium">
+                  {user?.email || 'user@example.com'}
+                </p>
               </div>
             </div>
           </div>
         </div>
-      </aside>
+      </aside >
 
       {/* Modals and Panels */}
       <AnimatePresence>
         {isNotificationOpen && notificationPanel}
         {isWorkspaceModalOpen && workspaceModal}
-      </AnimatePresence>
+      </AnimatePresence >
     </>
   );
 };

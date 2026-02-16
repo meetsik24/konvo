@@ -8,14 +8,9 @@ import type {
   User
 } from '../types';
 
-const getRuntimeConfig = (key: string): string | undefined => {
-  return (window as any).APP_CONFIG?.[key];
-};
-
-const API_BASE_URL = getRuntimeConfig('VITE_PRODUCTION_API_URL') ||
-  (import.meta.env.MODE === 'development'
-    ? (import.meta.env.VITE_DEVELOPMENT_API_URL || '/api')
-    : (import.meta.env.VITE_PRODUCTION_API_URL || 'https://polite-prometheus.briq.tz'));
+const API_BASE_URL = import.meta.env.MODE === 'development'
+  ? (import.meta.env.VITE_DEVELOPMENT_API_URL || '/api')
+  : (import.meta.env.VITE_PRODUCTION_API_URL || 'https://polite-prometheus.briq.tz');
 
 console.log('API Configuration:', {
   mode: import.meta.env.MODE,
@@ -567,6 +562,10 @@ const handleApiError = (error: unknown, defaultMessage: string): never => {
             }
             return String(err);
           }).join(', ');
+        } else if (typeof detail === 'object' && detail !== null) {
+          // Handle nested detail object (e.g., FastAPI validation structure)
+          const detailObj = detail as any;
+          message = detailObj.message || detailObj.msg || JSON.stringify(detail);
         } else {
           message = String(detail);
         }
