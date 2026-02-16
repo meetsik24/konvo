@@ -1258,7 +1258,11 @@ export const registerUser = async (
 
 
 const isValidISODate = (dateStr: string): boolean => {
-  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(dateStr);
+  if (!dateStr) return false;
+  const timestamp = Date.parse(dateStr);
+  if (!isNaN(timestamp)) return true;
+  // Support custom format "DD-MM-YYYY, HH:mm"
+  return /^\d{2}-\d{2}-\d{4},\s*\d{2}:\d{2}$/.test(dateStr);
 };
 
 
@@ -1400,8 +1404,8 @@ export const getMessageLogsV = async (): Promise<MessageLogResponse> => {
           typeof msg.sent_at === 'string' &&
           isValidISODate(msg.sent_at) &&
           typeof msg.recipient === 'string' &&
-          (typeof msg.campaign_name === 'string' || msg.campaign_name === null) // Allow null
-        typeof msg.sender_id === 'string' &&
+          (typeof msg.campaign_name === 'string' || msg.campaign_name === null) && // Added missing &&
+          typeof msg.sender_id === 'string' &&
           typeof msg.status === 'string';
         if (!isValid) console.warn("Invalid message object:", msg);
         return isValid;
@@ -3158,14 +3162,28 @@ export const flake_request = async (phoneNumber: string, preferredChannel: strin
   }
 };
 
-export const flake_verify = async (phoneNumber: string, otp: string): Promise<{ token: string; user: any }> => {
+export const flake_verify = async (phoneNumber: string, otp: string): Promise<{ token: string; user: any; orange?: boolean }> => {
   try {
     const response = await api.post("/auth/flake/verify", {
       phone_number: phoneNumber,
       flake_code: otp,
     });
+
+    const { token, access_token, user, orange } = response.data;
+    const authToken = token || access_token;
+
+    if (authToken) {
+      localStorage.setItem("token", authToken);
+    }
+
+    if (orange === true) {
+      localStorage.setItem("isOrangeAdmin", "true");
+    } else {
+      localStorage.removeItem("isOrangeAdmin");
+    }
+
     console.log("OTP verified successfully");
-    return response.data;
+    return { token: authToken, user, orange };
   } catch (error: any) {
     handleApiError(error, "Invalid or expired code");
   }

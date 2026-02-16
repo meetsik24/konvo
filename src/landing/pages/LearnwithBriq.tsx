@@ -1,23 +1,20 @@
-import { useState, useEffect, useRef } from "react";
-import { Play, BookOpen, Video, Users, ArrowRight, CheckCircle } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Play, BookOpen, FileText, Code, ArrowRight, ExternalLink } from "lucide-react";
 import YouTube from "react-youtube";
 import Navbar from "../components/Navbar";
 import { Footer } from "../components/Footer";
 
-const fadeInUp = {
-  hidden: { opacity: 0, y: 30 },
+const fadeIn = {
+  hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
 function LearnWithBriq() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-  const videoSectionRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
-
-  const playVideo = () => {
-    setIsVideoPlaying(true);
-  };
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -30,19 +27,15 @@ function LearnWithBriq() {
       { threshold: 0.5 }
     );
 
-    if (videoSectionRef.current) {
-      observer.observe(videoSectionRef.current);
+    if (videoRef.current) {
+      observer.observe(videoRef.current);
     }
 
-    return () => {
-      if (videoSectionRef.current) {
-        observer.unobserve(videoSectionRef.current);
-      }
-    };
+    return () => observer.disconnect();
   }, []);
 
   const opts = {
-    height: "315",
+    height: "100%",
     width: "100%",
     playerVars: {
       autoplay: isVideoPlaying ? 1 : 0,
@@ -54,118 +47,188 @@ function LearnWithBriq() {
     playerRef.current = event.target;
     if (isVideoPlaying) {
       event.target.playVideo();
-      event.target.mute();
     }
   };
 
-  const tutorials = [
-    { title: "Getting Started with Bulk SMS", duration: "5 min", level: "Beginner" },
-    { title: "Setting Up WhatsApp Business API", duration: "8 min", level: "Intermediate" },
-    { title: "OTP Integration Guide", duration: "12 min", level: "Developer" },
-    { title: "Creating Marketing Campaigns", duration: "10 min", level: "Beginner" },
-    { title: "API Authentication & Webhooks", duration: "15 min", level: "Developer" },
-    { title: "Contact Management Best Practices", duration: "7 min", level: "Beginner" },
+  const resources = [
+    {
+      icon: FileText,
+      title: "Documentation",
+      description: "Comprehensive guides for all Briq products",
+      href: "https://docs.briq.tz",
+      external: true,
+    },
+    {
+      icon: Code,
+      title: "API Reference",
+      description: "Complete API documentation with examples",
+      href: "https://docs.briq.tz/api",
+      external: true,
+    },
+    {
+      icon: BookOpen,
+      title: "Tutorials",
+      description: "Step-by-step integration guides",
+      href: "https://docs.briq.tz/tutorials",
+      external: true,
+    },
   ];
 
-  const resources = [
-    { icon: BookOpen, title: "Documentation", desc: "Comprehensive API docs and guides", link: "/docs" },
-    { icon: Video, title: "Video Tutorials", desc: "Step-by-step visual walkthroughs", link: "https://www.youtube.com/@karibubriq/videos" },
-    { icon: Users, title: "Community", desc: "Connect with other Briq developers", link: "/contact" },
+  const tutorials = [
+    {
+      title: "Getting Started with Bulk SMS",
+      duration: "5 min",
+      category: "Beginner",
+    },
+    {
+      title: "WhatsApp Business API Setup",
+      duration: "8 min",
+      category: "Integration",
+    },
+    {
+      title: "OTP Verification Implementation",
+      duration: "12 min",
+      category: "Developer",
+    },
+    {
+      title: "Managing Campaigns",
+      duration: "6 min",
+      category: "Beginner",
+    },
+    {
+      title: "Webhook Configuration",
+      duration: "10 min",
+      category: "Developer",
+    },
+    {
+      title: "Analytics Dashboard Overview",
+      duration: "4 min",
+      category: "Beginner",
+    },
   ];
 
   return (
-    <div className="bg-white font-sans">
+    <div className="bg-white">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative pt-28 pb-16 bg-gradient-to-br from-[#00333e] via-[#004d5c] to-[#00333e] overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-[#fddf0d] rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-[#fddf0d] rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="container mx-auto px-4 relative">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center max-w-3xl mx-auto"
-          >
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Learn with<span className="text-[#fddf0d]"> Briq</span>
-            </h1>
-            <p className="text-gray-300 text-lg md:text-xl mb-8">
-              Master our platform with video tutorials, documentation, and hands-on guides.
-            </p>
-            <a
-              href="https://www.youtube.com/@karibubriq/videos"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center bg-[#fddf0d] hover:bg-[#e5c90c] text-[#00333e] font-bold px-8 py-4 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all"
-            >
-              Watch Tutorials
-              <Play className="w-5 h-5 ml-2" />
-            </a>
-          </motion.div>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 63" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-            <path d="M1063.35 49.95C1253.44 48.12 1440 22.05 1440 22.05V63H0V0C0 0 181.399 51.3 409.05 51.3C682.705 51.3 841.261 52.088 1063.35 49.95Z" fill="#F8FAF5" />
-          </svg>
+      {/* Hero */}
+      <section className="pt-32 pb-16 bg-white border-b border-gray-100">
+        <div className="container mx-auto px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <motion.div initial="hidden" animate="visible" variants={fadeIn}>
+              <p className="text-[#00333e] font-semibold text-sm tracking-wide uppercase mb-4">
+                Resources
+              </p>
+              <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 leading-tight mb-6">
+                Learn to build with Briq
+              </h1>
+              <p className="text-xl text-gray-600 leading-relaxed">
+                Documentation, tutorials, and guides to help you integrate 
+                our communication APIs quickly and effectively.
+              </p>
+            </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* Featured Video Section */}
-      <section className="py-20 bg-[#F8FAF5]" ref={videoSectionRef}>
-        <div className="container mx-auto px-4">
+      {/* Resources Cards */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-6 lg:px-8">
+          <div className="grid md:grid-cols-3 gap-6">
+            {resources.map((resource, i) => (
+              <motion.a
+                key={i}
+                href={resource.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeIn}
+                className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#00333e] hover:shadow-sm transition-all group"
+              >
+                <resource.icon className="w-8 h-8 text-[#00333e] mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center">
+                  {resource.title}
+                  {resource.external && (
+                    <ExternalLink className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  )}
+                </h3>
+                <p className="text-gray-600 text-sm">{resource.description}</p>
+              </motion.a>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Video Section */}
+      <section className="py-20 bg-white" ref={videoRef}>
+        <div className="container mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}>
-              <span className="inline-block px-4 py-2 bg-[#00333e] text-white rounded-full text-sm font-medium mb-4">
-                Featured Tutorial
-              </span>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                Getting Started with Briq
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeIn}
+            >
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                Watch: Getting Started with Briq
               </h2>
-              <p className="text-gray-600 text-lg mb-6">
-                Learn the basics of the Briq platform in this comprehensive walkthrough.
+              <p className="text-gray-600 mb-6">
+                A quick overview of the Briq platform, from account setup to 
+                sending your first message. Perfect for new users.
               </p>
-              <ul className="space-y-3 mb-8">
-                {["Account setup & configuration", "Sending your first SMS", "Managing contacts", "Understanding analytics"].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-gray-700">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    {item}
-                  </li>
-                ))}
+              <ul className="space-y-3 mb-8 text-sm text-gray-700">
+                <li className="flex items-center">
+                  <span className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-xs font-medium mr-3">1</span>
+                  Account setup and configuration
+                </li>
+                <li className="flex items-center">
+                  <span className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-xs font-medium mr-3">2</span>
+                  Navigating the dashboard
+                </li>
+                <li className="flex items-center">
+                  <span className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-xs font-medium mr-3">3</span>
+                  Sending your first SMS
+                </li>
+                <li className="flex items-center">
+                  <span className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-xs font-medium mr-3">4</span>
+                  Understanding analytics
+                </li>
               </ul>
               <a
                 href="https://www.youtube.com/@karibubriq/videos"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center text-[#00333e] font-semibold hover:text-[#004d5c] transition-colors"
+                className="inline-flex items-center text-[#00333e] font-semibold hover:underline"
               >
-                View all tutorials
-                <ArrowRight className="w-5 h-5 ml-2" />
+                View all tutorials on YouTube
+                <ArrowRight className="w-4 h-4 ml-2" />
               </a>
             </motion.div>
 
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="relative">
-              <div className="bg-[#00333e] rounded-2xl p-4 shadow-2xl">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeIn}
+            >
+              <div className="bg-gray-900 rounded-lg overflow-hidden aspect-video">
                 {isVideoPlaying ? (
                   <YouTube
                     videoId="t1zaDwbPmyo"
                     opts={opts}
                     onReady={onReady}
-                    className="rounded-lg overflow-hidden"
-                    containerClassName="w-full aspect-video"
+                    className="w-full h-full"
+                    iframeClassName="w-full h-full"
                   />
                 ) : (
                   <div
-                    className="w-full aspect-video bg-gray-800 rounded-lg relative cursor-pointer flex items-center justify-center"
-                    onClick={playVideo}
+                    className="w-full h-full flex items-center justify-center cursor-pointer"
+                    onClick={() => setIsVideoPlaying(true)}
                   >
-                    <div className="w-20 h-20 bg-[#fddf0d] rounded-full flex items-center justify-center hover:scale-110 transition-transform">
-                      <Play className="w-8 h-8 text-[#00333e] ml-1" />
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center hover:scale-110 transition-transform">
+                      <Play className="w-6 h-6 text-gray-900 ml-1" />
                     </div>
                   </div>
                 )}
@@ -175,115 +238,66 @@ function LearnWithBriq() {
         </div>
       </section>
 
-      {/* Wave divider */}
-      <div className="bg-[#F8FAF5]">
-        <svg viewBox="0 0 1440 63" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-          <path d="M1063.35 49.95C1253.44 48.12 1440 22.05 1440 22.05V63H0V0C0 0 181.399 51.3 409.05 51.3C682.705 51.3 841.261 52.088 1063.35 49.95Z" fill="white" />
-        </svg>
-      </div>
-
       {/* Tutorial List */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Popular Tutorials</h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              Explore our most-watched tutorials covering everything from basics to advanced features.
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {tutorials.map((tutorial, i) => (
-              <motion.a
-                key={i}
-                href="https://www.youtube.com/@karibubriq/videos"
-                target="_blank"
-                rel="noopener noreferrer"
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={fadeInUp}
-                transition={{ delay: i * 0.1 }}
-                className="bg-gray-50 hover:bg-gray-100 rounded-xl p-6 border border-gray-100 transition-colors group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-[#00333e] rounded-lg flex items-center justify-center group-hover:bg-[#004d5c] transition-colors">
-                    <Play className="w-5 h-5 text-white" />
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
+              Video Tutorials
+            </h2>
+            <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+              {tutorials.map((tutorial, i) => (
+                <a
+                  key={i}
+                  href="https://www.youtube.com/@karibubriq/videos"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center mr-4">
+                      <Play className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">{tutorial.title}</h3>
+                      <p className="text-sm text-gray-500">{tutorial.duration}</p>
+                    </div>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded ${
-                    tutorial.level === "Beginner" ? "bg-green-100 text-green-700" :
-                    tutorial.level === "Intermediate" ? "bg-yellow-100 text-yellow-700" :
-                    "bg-purple-100 text-purple-700"
-                  }`}>
-                    {tutorial.level}
+                  <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    {tutorial.category}
                   </span>
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-2">{tutorial.title}</h3>
-                <p className="text-sm text-gray-500">{tutorial.duration}</p>
-              </motion.a>
-            ))}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       </section>
-
-      {/* Resources Section */}
-      <section className="py-20 bg-[#00333e]">
-        <div className="container mx-auto px-4">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">More Resources</h2>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-              Enhance your learning with additional resources and community support.
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {resources.map((resource, i) => (
-              <motion.a
-                key={i}
-                href={resource.link}
-                target={resource.link.startsWith("http") ? "_blank" : undefined}
-                rel={resource.link.startsWith("http") ? "noopener noreferrer" : undefined}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={fadeInUp}
-                transition={{ delay: i * 0.1 }}
-                className="bg-white/10 backdrop-blur rounded-xl p-8 border border-white/20 hover:bg-white/20 transition-colors text-center"
-              >
-                <div className="w-16 h-16 bg-[#fddf0d]/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <resource.icon className="w-8 h-8 text-[#fddf0d]" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">{resource.title}</h3>
-                <p className="text-gray-400">{resource.desc}</p>
-              </motion.a>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Wave divider */}
-      <div className="bg-[#00333e]">
-        <svg viewBox="0 0 1440 63" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-          <path d="M1063.35 49.95C1253.44 48.12 1440 22.05 1440 22.05V63H0V0C0 0 181.399 51.3 409.05 51.3C682.705 51.3 841.261 52.088 1063.35 49.95Z" fill="white" />
-        </svg>
-      </div>
 
       {/* CTA */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4 text-center">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Ready to Get Started?</h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto mb-8">
-              Put your learning into practice. Sign up for a free trial and start building today.
-            </p>
-            <a
-              href="/register"
-              className="inline-flex items-center bg-[#00333e] hover:bg-[#004d5c] text-white font-bold px-8 py-4 text-lg rounded-lg transition-colors"
+      <section className="py-20 bg-white border-t border-gray-100">
+        <div className="container mx-auto px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            Ready to start building?
+          </h2>
+          <p className="text-gray-600 mb-8 max-w-xl mx-auto">
+            Create a free account and explore our APIs with the sandbox environment.
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link
+              to="/register"
+              className="bg-[#00333e] text-white px-8 py-4 rounded font-semibold hover:bg-[#004d5c] transition-colors"
             >
-              Start Free Trial
-              <ArrowRight className="w-5 h-5 ml-2" />
+              Get Started Free
+            </Link>
+            <a
+              href="https://docs.briq.tz"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded font-semibold hover:border-gray-400 transition-colors"
+            >
+              Read Documentation
             </a>
-          </motion.div>
+          </div>
         </div>
       </section>
 

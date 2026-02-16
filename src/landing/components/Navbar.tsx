@@ -1,335 +1,189 @@
-import React, { useState, useEffect } from "react";
-import { Button } from "../components/ui/button";
-import { Menu, X, ChevronDown, MessageSquare, MessageCircle, Phone, Shield } from "lucide-react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import { Menu, X, ChevronDown } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import logo from "../../../assets/briq.png";
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isServicesOpen, setIsServicesOpen] = useState(false);
+  const [isProductsOpen, setIsProductsOpen] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
 
-  const services = [
-    { icon: MessageSquare, name: "SMS Services", description: "Bulk SMS & messaging", href: "#services" },
-    { icon: MessageCircle, name: "WhatsApp Business", description: "Official WhatsApp API", href: "#services" },
-    { icon: Phone, name: "Voice Services", description: "Voice calls & IVR", href: "#services" },
-    { icon: MessageSquare, name: "Chatbots", description: "Automated support", href: "#services" },
-    { icon: Shield, name: "OTP Verification", description: "Multi-channel OTP", href: "#verification" },
+  const products = [
+    { name: "Bulk SMS", href: "/features", description: "High-throughput messaging" },
+    { name: "WhatsApp Business", href: "/features", description: "Official Meta partner" },
+    { name: "OTP Verification", href: "/features", description: "Bank-grade security" },
+    { name: "AI Chatbots", href: "/features", description: "24/7 automation" },
   ];
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
+      setScrolled(window.scrollY > 10);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-    setIsServicesOpen(false);
-  };
-
-  const handleScrollToSection = (sectionId: string) => {
-    const section = document.getElementById(sectionId);
-    if (section) {
-      const offset = 100;
-      const elementPosition = section.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - offset;
-      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
-    }
-    setIsMobileMenuOpen(false);
-    setIsServicesOpen(false);
-  };
-
-  const handleLoginClick = () => {
-    navigate("/login");
-    setIsMobileMenuOpen(false);
-  };
-
-  const handleRegisterClick = () => {
-    navigate("/register");
-    setIsMobileMenuOpen(false);
-  };
-
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 font-exo ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
         scrolled
-          ? "bg-[#00333e]/95 backdrop-blur-lg shadow-lg py-3"
-          : "bg-transparent py-5"
+          ? "bg-[#0a0a0f]/95 backdrop-blur-md border-b border-gray-800"
+          : "bg-transparent"
       }`}
     >
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between">
+      <div className="container mx-auto px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <img src={logo} alt="Briq Logo" className="h-9 w-auto transition-transform group-hover:scale-105" />
+          <Link to="/" className="flex items-center">
+            <img src={logo} alt="Briq" className="h-8 w-auto brightness-0 invert" />
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-1">
-            {location.pathname === "/" ? (
-              <a
-                href="#home"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleScrollToSection("home");
-                }}
-                className="px-4 py-2 text-white/90 hover:text-white text-sm font-medium transition-colors rounded-lg hover:bg-white/10"
-              >
-                Home
-              </a>
-            ) : (
-              <Link
-                to="/"
-                className="px-4 py-2 text-white/90 hover:text-white text-sm font-medium transition-colors rounded-lg hover:bg-white/10"
-              >
-                Home
-              </Link>
-            )}
-
-            {/* Services Dropdown */}
+          <div className="hidden lg:flex items-center gap-8">
+            {/* Products Dropdown */}
             <div
               className="relative"
-              onMouseEnter={() => setIsServicesOpen(true)}
-              onMouseLeave={() => setIsServicesOpen(false)}
+              onMouseEnter={() => setIsProductsOpen(true)}
+              onMouseLeave={() => setIsProductsOpen(false)}
             >
-              <button
-                className="flex items-center gap-1 px-4 py-2 text-white/90 hover:text-white text-sm font-medium transition-colors rounded-lg hover:bg-white/10"
-              >
-                Services
-                <ChevronDown className={`w-4 h-4 transition-transform ${isServicesOpen ? "rotate-180" : ""}`} />
+              <button className="flex items-center gap-1 text-sm font-medium text-gray-300 hover:text-white transition-colors">
+                Products
+                <ChevronDown className={`w-4 h-4 transition-transform ${isProductsOpen ? "rotate-180" : ""}`} />
               </button>
 
-              <AnimatePresence>
-                {isServicesOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden"
-                  >
-                    <div className="p-2">
-                      {services.map((service, index) => (
-                        <a
-                          key={index}
-                          href={service.href}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleScrollToSection(service.href.replace("#", ""));
-                          }}
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors group"
-                        >
-                          <div className="w-10 h-10 rounded-lg bg-[#00333e]/10 flex items-center justify-center text-[#00333e] group-hover:bg-[#fddf0d] group-hover:text-[#00333e] transition-colors">
-                            <service.icon className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-900 text-sm">{service.name}</div>
-                            <div className="text-xs text-gray-500">{service.description}</div>
-                          </div>
-                        </a>
-                      ))}
-                    </div>
-                    <div className="border-t border-gray-100 p-3 bg-gray-50">
-                      <a
-                        href="#services"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleScrollToSection("services");
-                        }}
-                        className="text-sm text-[#00333e] font-medium hover:text-[#fddf0d] transition-colors flex items-center gap-2"
-                      >
-                        View all services
-                        <Zap className="w-4 h-4" />
-                      </a>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {isProductsOpen && (
+                <div className="absolute top-full left-0 mt-2 w-64 bg-[#111118] rounded-xl shadow-2xl border border-gray-800 py-2">
+                  {products.map((product, i) => (
+                    <Link
+                      key={i}
+                      to={product.href}
+                      className="block px-4 py-3 hover:bg-gray-800/50 transition-colors"
+                    >
+                      <div className="text-sm font-medium text-white">{product.name}</div>
+                      <div className="text-xs text-gray-500">{product.description}</div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <a
-              href="#pricing"
-              onClick={(e) => {
-                e.preventDefault();
-                handleScrollToSection("pricing");
-              }}
-              className="px-4 py-2 text-white/90 hover:text-white text-sm font-medium transition-colors rounded-lg hover:bg-white/10"
+            <Link
+              to="/pricing"
+              className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
             >
               Pricing
-            </a>
+            </Link>
 
             <a
               href="https://docs.briq.tz"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2 text-white/90 hover:text-white text-sm font-medium transition-colors rounded-lg hover:bg-white/10"
+              className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
             >
               Developers
             </a>
 
-            <a
-              href="#footer"
-              onClick={(e) => {
-                e.preventDefault();
-                handleScrollToSection("footer");
-              }}
-              className="px-4 py-2 text-white/90 hover:text-white text-sm font-medium transition-colors rounded-lg hover:bg-white/10"
+            <Link
+              to="/contact"
+              className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
             >
               Contact
-            </a>
+            </Link>
           </div>
 
-          {/* Desktop CTA Buttons */}
-          <div className="hidden lg:flex items-center gap-3">
-            <Button
-              onClick={handleLoginClick}
-              variant="ghost"
-              className="text-white hover:text-white hover:bg-white/10 px-5 py-2 rounded-lg font-medium"
+          {/* Desktop CTA */}
+          <div className="hidden lg:flex items-center gap-4">
+            <button
+              onClick={() => navigate("/login")}
+              className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
             >
               Log in
-            </Button>
-            <Button
-              onClick={handleRegisterClick}
-              className="bg-[#fddf0d] hover:bg-[#f0d000] text-[#00333e] px-6 py-2 rounded-lg font-semibold shadow-lg shadow-[#fddf0d]/20 transition-all hover:scale-105"
+            </button>
+            <button
+              onClick={() => navigate("/register")}
+              className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-black px-5 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
             >
               Get Started
-            </Button>
+            </button>
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            onClick={toggleMobileMenu}
-            className="lg:hidden text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="lg:hidden p-2 text-white"
           >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
-      </div>
 
-      {/* Mobile Menu */}
-      <AnimatePresence>
+        {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="lg:hidden bg-[#00333e] border-t border-white/10 mt-3"
-          >
-            <div className="container mx-auto px-4 py-6 space-y-4">
-              {location.pathname === "/" ? (
-                <a
-                  href="#home"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleScrollToSection("home");
-                  }}
-                  className="block py-3 text-white hover:text-[#fddf0d] font-medium transition-colors"
-                >
-                  Home
-                </a>
-              ) : (
-                <Link
-                  to="/"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block py-3 text-white hover:text-[#fddf0d] font-medium transition-colors"
-                >
-                  Home
-                </Link>
-              )}
-
-              {/* Mobile Services Accordion */}
-              <div>
-                <button
-                  onClick={() => setIsServicesOpen(!isServicesOpen)}
-                  className="w-full flex items-center justify-between py-3 text-white hover:text-[#fddf0d] font-medium transition-colors"
-                >
-                  Services
-                  <ChevronDown className={`w-5 h-5 transition-transform ${isServicesOpen ? "rotate-180" : ""}`} />
-                </button>
-                <AnimatePresence>
-                  {isServicesOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="pl-4 space-y-2 overflow-hidden"
-                    >
-                      {services.map((service, index) => (
-                        <a
-                          key={index}
-                          href={service.href}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleScrollToSection(service.href.replace("#", ""));
-                          }}
-                          className="flex items-center gap-3 py-2 text-gray-300 hover:text-[#fddf0d] transition-colors"
-                        >
-                          <service.icon className="w-5 h-5" />
-                          {service.name}
-                        </a>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+          <div className="lg:hidden bg-[#111118] border-t border-gray-800 py-4 rounded-b-xl">
+            <div className="space-y-3">
+              <div className="px-4">
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Products
+                </div>
+                {products.map((product, i) => (
+                  <Link
+                    key={i}
+                    to={product.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block py-2 text-gray-300 hover:text-white"
+                  >
+                    {product.name}
+                  </Link>
+                ))}
               </div>
-
-              <a
-                href="#pricing"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleScrollToSection("pricing");
-                }}
-                className="block py-3 text-white hover:text-[#fddf0d] font-medium transition-colors"
-              >
-                Pricing
-              </a>
-
-              <a
-                href="https://docs.briq.tz"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block py-3 text-white hover:text-[#fddf0d] font-medium transition-colors"
-              >
-                Developers
-              </a>
-
-              <a
-                href="#footer"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleScrollToSection("footer");
-                }}
-                className="block py-3 text-white hover:text-[#fddf0d] font-medium transition-colors"
-              >
-                Contact
-              </a>
-
-              <div className="pt-4 space-y-3 border-t border-white/10">
-                <Button
-                  onClick={handleLoginClick}
-                  variant="outline"
-                  className="w-full bg-transparent border-white/30 text-white hover:bg-white/10 py-3 rounded-lg font-medium"
+              <div className="border-t border-gray-800 pt-3 px-4 space-y-3">
+                <Link
+                  to="/pricing"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block py-2 text-gray-300 hover:text-white"
+                >
+                  Pricing
+                </Link>
+                <a
+                  href="https://docs.briq.tz"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-2 text-gray-300 hover:text-white"
+                >
+                  Developers
+                </a>
+                <Link
+                  to="/contact"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block py-2 text-gray-300 hover:text-white"
+                >
+                  Contact
+                </Link>
+              </div>
+              <div className="border-t border-gray-800 pt-4 px-4 space-y-3">
+                <button
+                  onClick={() => {
+                    navigate("/login");
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full text-center py-2 text-gray-300 font-medium"
                 >
                   Log in
-                </Button>
-                <Button
-                  onClick={handleRegisterClick}
-                  className="w-full bg-[#fddf0d] hover:bg-[#f0d000] text-[#00333e] py-3 rounded-lg font-semibold"
+                </button>
+                <button
+                  onClick={() => {
+                    navigate("/register");
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-black py-3 rounded-lg font-semibold"
                 >
                   Get Started
-                </Button>
+                </button>
               </div>
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
     </nav>
   );
 }
