@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Chart } from 'chart.js/auto';
 import { CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { getMessageLogsV1 } from '../services/api';
+import { formatToLocalTime } from '../utils/dateUtils';
 
 
 interface Campaign {
@@ -20,7 +21,7 @@ interface Campaign {
 }
 
 const Logs: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'messages'>('campaigns');
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'messages'>('messages');
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -66,14 +67,14 @@ const Logs: React.FC = () => {
               acc.push({
                 id: log.sender_id || `camp-${Math.random().toString(36).substr(2, 9)}`,
                 name: log.campaign_name || 'Unnamed Campaign',
-                startDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
-                endDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
+                startDate: formatToLocalTime(log.sent_at, true),
+                endDate: formatToLocalTime(log.sent_at, true),
                 status: log.status || 'Unknown',
                 recipients: totalRecipients,
-                delivered,
+                delivered: delivered,
                 failed: failed + pending,
-                createDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
-                deliveredDate: log.sent_at ? log.sent_at.split('T')[0] : 'N/A',
+                createDate: formatToLocalTime(log.sent_at, true),
+                deliveredDate: formatToLocalTime(log.sent_at, true),
                 contactGroup: 'Dynamic Group',
               });
             }
@@ -84,7 +85,7 @@ const Logs: React.FC = () => {
         const messageData: Message[] = logs.messages
           .filter(log => !log.campaign_name || log.campaign_name === '') // Include null, undefined, or empty string
           .map(log => ({
-            sent_at: log.sent_at || 'N/A',
+            sent_at: formatToLocalTime(log.sent_at),
             status: log.status || 'Unknown',
             sender_id: log.sender_id || 'Unknown',
             message: log.message || 'No message',
@@ -382,8 +383,7 @@ const Logs: React.FC = () => {
               <thead>
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent At</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -404,7 +404,6 @@ const Logs: React.FC = () => {
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{campaign.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{campaign.startDate}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">{campaign.endDate}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{getStatusIcon(campaign.status)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <button
@@ -584,7 +583,7 @@ const Logs: React.FC = () => {
     const totalRecipients = analytics?.total || 0;
     const totalDelivered = analytics?.statuses.find(s => s.status.toLowerCase() === 'sent')?.counts || 0;
     const totalFailed = (analytics?.statuses.find(s => s.status.toLowerCase() === 'failed')?.counts || 0) +
-                        (analytics?.statuses.find(s => s.status.toLowerCase() === 'pending')?.counts || 0);
+      (analytics?.statuses.find(s => s.status.toLowerCase() === 'pending')?.counts || 0);
 
     return (
       <div className="space-y-8">
@@ -701,9 +700,8 @@ const Logs: React.FC = () => {
               <button
                 onClick={() => paginate(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 text-sm font-medium text-[#004d66] rounded-md ${
-                  currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:text-[#f4a261]'
-                }`}
+                className={`px-4 py-2 text-sm font-medium text-[#004d66] rounded-md ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:text-[#f4a261]'
+                  }`}
               >
                 Previous
               </button>
@@ -712,11 +710,10 @@ const Logs: React.FC = () => {
                   <button
                     key={page}
                     onClick={() => paginate(page)}
-                    className={`px-3 py-1 text-sm font-medium rounded-md ${
-                      currentPage === page
-                        ? 'bg-[#004d66] text-white'
-                        : 'text-[#004d66] hover:text-[#f4a261]'
-                    }`}
+                    className={`px-3 py-1 text-sm font-medium rounded-md ${currentPage === page
+                      ? 'bg-[#004d66] text-white'
+                      : 'text-[#004d66] hover:text-[#f4a261]'
+                      }`}
                   >
                     {page}
                   </button>
@@ -725,9 +722,8 @@ const Logs: React.FC = () => {
               <button
                 onClick={() => paginate(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 text-sm font-medium text-[#004d66] rounded-md ${
-                  currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:text-[#f4a261]'
-                }`}
+                className={`px-4 py-2 text-sm font-medium text-[#004d66] rounded-md ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:text-[#f4a261]'
+                  }`}
               >
                 Next
               </button>
@@ -748,7 +744,7 @@ const Logs: React.FC = () => {
         <p className="ml-3 text-[#00333e] text-sm">Loading Analytical Data</p>
       </div>
     );
-  } 
+  }
   if (error) return <div className="text-red-500 text-center p-6">{error}</div>;
 
   return (

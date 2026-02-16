@@ -448,9 +448,8 @@ const ImportModal: React.FC<ImportModalProps> = ({
         {['Upload File', 'Select Group'].map((label, index) => (
           <div key={label} className="flex items-center min-w-[120px]">
             <div
-              className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                step > index ? 'bg-[#fddf0d] text-[#00333e]' : 'bg-gray-300 text-gray-600'
-              }`}
+              className={`w-6 h-6 rounded-full flex items-center justify-center ${step > index ? 'bg-[#fddf0d] text-[#00333e]' : 'bg-gray-300 text-gray-600'
+                }`}
             >
               {index + 1}
             </div>
@@ -478,9 +477,8 @@ const ImportModal: React.FC<ImportModalProps> = ({
           />
           <label
             htmlFor="file-upload"
-            className={`inline-block text-sm py-2 px-4 bg-[#00333e] text-white rounded-md hover:bg-[#005a6e] ${
-              isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-            }`}
+            className={`inline-block text-sm py-2 px-4 bg-[#00333e] text-white rounded-md hover:bg-[#005a6e] ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+              }`}
           >
             Upload Files (CSV/Excel)
           </label>
@@ -562,9 +560,8 @@ const ImportModal: React.FC<ImportModalProps> = ({
             />
             <button
               onClick={handleCreateGroup}
-              className={`text-sm py-2 px-3 bg-[#005a6e] text-white rounded-md hover:bg-[#00333e] ${
-                isLoading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              className={`text-sm py-2 px-3 bg-[#005a6e] text-white rounded-md hover:bg-[#00333e] ${isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               disabled={isLoading}
             >
               Create
@@ -603,6 +600,38 @@ const ImportModal: React.FC<ImportModalProps> = ({
   );
 };
 
+interface DeleteModalProps extends Omit<ModalProps, 'title' | 'children'> {
+  onConfirm: () => void;
+  message: string;
+  isLoading?: boolean;
+}
+
+const DeleteConfirmationModal: React.FC<DeleteModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  message,
+  isLoading = false,
+}) => {
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Confirm Deletion"
+      onSubmit={onConfirm}
+      submitText={isLoading ? 'Deleting...' : 'Delete'}
+    >
+      <div className="flex flex-col items-center gap-4 py-4">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+          <Trash2 className="w-8 h-8 text-red-600" />
+        </div>
+        <p className="text-center text-gray-700">{message}</p>
+        <p className="text-xs text-red-500 font-medium">This action cannot be undone.</p>
+      </div>
+    </Modal>
+  );
+};
+
 const Contacts: React.FC = () => {
   const { currentWorkspaceId } = useWorkspace();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -613,7 +642,13 @@ const Contacts: React.FC = () => {
     showEditContact: false,
     showAddGroup: false,
     showImportModal: false,
+    showDeleteModal: false,
   });
+  const [deleteConfig, setDeleteConfig] = useState<{
+    contactId?: string;
+    isBulk: boolean;
+    message: string;
+  }>({ isBulk: false, message: '' });
   const [searchQuery, setSearchQuery] = useState('');
   const [newContact, setNewContact] = useState<Partial<Contact>>({});
   const [editContact, setEditContact] = useState<Partial<Contact>>({});
@@ -625,6 +660,8 @@ const Contacts: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalContacts, setTotalContacts] = useState(0);
   const perPage = 10;
+  const [selectedRows, setSelectedRows] = useState<Contact[]>([]);
+  const [toggleCleared, setToggleCleared] = useState(false);
 
   const fetchContactsAndGroups = useCallback(async () => {
     if (!currentWorkspaceId) {
@@ -779,22 +816,53 @@ const Contacts: React.FC = () => {
 
   const handleDeleteContact = useCallback(
     async (contactId: string) => {
-      if (!contactId || !window.confirm('Are you sure you want to delete this contact?')) return;
-      if (!currentWorkspaceId) {
-        setError('No workspace selected.');
-        return;
+      if (!contactId) return;
+      setDeleteConfig({
+        contactId,
+        isBulk: false,
+        message: 'Are you sure you want to delete this contact?',
+      });
+      setModalState((prev) => ({ ...prev, showDeleteModal: true }));
+    },
+    [currentWorkspaceId]
+  );
+
+  const handleBulkDelete = useCallback(async () => {
+    if (!selectedRows.length) return;
+    setDeleteConfig({
+      isBulk: true,
+      message: `Are you sure you want to delete ${selectedRows.length} contacts?`,
+    });
+    setModalState((prev) => ({ ...prev, showDeleteModal: true }));
+  }, [selectedRows]);
+
+  const confirmDelete = useCallback(async () => {
+    if (!currentWorkspaceId) {
+      setError('No workspace selected.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (deleteConfig.isBulk) {
+        await Promise.all(selectedRows.map((contact) => deleteContact(contact.contact_id)));
+        setSelectedRows([]);
+        setToggleCleared(!toggleCleared);
+      } else if (deleteConfig.contactId) {
+        await deleteContact(deleteConfig.contactId);
       }
 
-      try {
-        await deleteContact(contactId);
-        await fetchContactsAndGroups();
-        setError(null);
-      } catch (error: any) {
-        setError(error.message || 'Failed to delete contact.');
-      }
-    },
-    [currentWorkspaceId, fetchContactsAndGroups]
-  );
+      await fetchContactsAndGroups();
+      setModalState((prev) => ({ ...prev, showDeleteModal: false }));
+      setError(null);
+    } catch (error: any) {
+      setError(error.message || 'Failed to delete contact(s).');
+      await fetchContactsAndGroups();
+    } finally {
+      setIsLoading(false);
+    }
+  }, [deleteConfig, currentWorkspaceId, fetchContactsAndGroups, selectedRows, toggleCleared]);
 
   const handleAddGroup = useCallback(
     async (name: string, callback?: (groupId: string) => void) => {
@@ -1012,6 +1080,17 @@ const Contacts: React.FC = () => {
                 <Download className="w-5 h-5" />
                 Template
               </button>
+              {selectedRows.length > 0 && (
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 text-sm py-2 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:opacity-50"
+                  title="Delete Selected Contacts"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  Delete Selected ({selectedRows.length})
+                </button>
+              )}
             </div>
           </div>
           <div className="relative mb-6">
@@ -1106,6 +1185,10 @@ const Contacts: React.FC = () => {
             highlightOnHover
             striped
             responsive
+            selectableRows
+            onSelectedRowsChange={({ selectedRows }) => setSelectedRows(selectedRows)}
+            clearSelectedRows={toggleCleared}
+            selectableRowsHighlight
           />
         </div>
         <ContactModal
@@ -1168,8 +1251,16 @@ const Contacts: React.FC = () => {
           onSubmit={handleImportSubmit}
           groups={groups}
           defaultGroupId={selectedGroup}
+          title="Import Contacts"
           isLoading={isLoading || isGroupCreating}
           onCreateGroup={handleAddGroup}
+        />
+        <DeleteConfirmationModal
+          isOpen={modalState.showDeleteModal}
+          onClose={() => setModalState((prev) => ({ ...prev, showDeleteModal: false }))}
+          onConfirm={confirmDelete}
+          message={deleteConfig.message}
+          isLoading={isLoading}
         />
       </motion.div>
     </ErrorBoundary>
