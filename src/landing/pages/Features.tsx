@@ -1,4 +1,3 @@
-import { MessageSquare, Phone, Bot, Smartphone, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function Features() {
@@ -7,171 +6,160 @@ function Features() {
   const features = [
     {
       id: "sms",
-      icon: MessageSquare,
       title: "Bulk SMS",
       tagline: "Reach every customer instantly",
-      description: "Send thousands of messages per second. Support for all Tanzanian networks with 98.5% delivery success rate.",
+      description: "Send thousands of messages per second to all Tanzanian networks. Custom Sender IDs, Unicode support for Swahili, scheduled campaigns, and detailed delivery reports.",
+      price: "14-17 TZS per SMS",
       capabilities: [
         "Custom Sender IDs",
         "Unicode (Swahili) support",
         "CSV bulk import",
         "Scheduled campaigns",
         "Two-way messaging",
-        "Delivery reports"
-      ],
-      pricing: "14-17 TZS per SMS"
+        "Real-time delivery reports"
+      ]
     },
     {
       id: "whatsapp",
-      icon: Smartphone,
       title: "WhatsApp Business",
-      tagline: "Meet customers where they are",
-      description: "Send bulk WhatsApp messages, automate replies, and manage customer conversations from one dashboard.",
+      tagline: "Connect where your customers are",
+      description: "Send bulk WhatsApp messages, automate customer replies, and manage conversations from one dashboard. Rich media support including images, documents, and location sharing.",
+      price: "Contact for pricing",
       capabilities: [
-        "Bulk messaging",
+        "Bulk messaging campaigns",
         "Rich media (images, PDFs)",
-        "Auto-replies",
+        "Automated responses",
         "Contact management",
-        "Campaign tracking",
+        "Campaign analytics",
         "Cloud API integration"
-      ],
-      pricing: "Contact for pricing"
+      ]
     },
     {
       id: "voice",
-      icon: Phone,
       title: "Voice & OTP",
-      tagline: "Secure authentication made easy",
-      description: "SMS OTP, WhatsApp OTP, and voice calls. Multi-channel fallback ensures every verification succeeds.",
+      tagline: "Secure authentication",
+      description: "SMS OTP, WhatsApp OTP, and voice verification. Multi-channel fallback ensures every authentication succeeds, even when one channel fails.",
+      price: "Per verification pricing",
       capabilities: [
-        "SMS OTP",
+        "SMS OTP delivery",
         "WhatsApp OTP",
-        "Voice OTP",
-        "Auto fallback",
-        "Custom templates",
-        "2FA integration"
-      ],
-      pricing: "Pay per verification"
+        "Voice call OTP",
+        "Automatic fallback",
+        "Custom OTP templates",
+        "2FA integration APIs"
+      ]
     },
     {
       id: "chatbots",
-      icon: Bot,
       title: "AI Chatbots",
-      tagline: "24/7 customer support on autopilot",
-      description: "Intelligent chatbots that understand context, answer questions, and collect leads while you sleep.",
+      tagline: "24/7 automated support",
+      description: "Deploy intelligent chatbots that understand context, answer customer questions, capture leads, and hand off to humans when needed.",
+      price: "From $49/month",
       capabilities: [
-        "Natural language AI",
+        "Natural language understanding",
         "Multi-platform deployment",
-        "Lead capture forms",
-        "Analytics dashboard",
-        "Human handoff",
-        "Custom training"
-      ],
-      pricing: "From $49/month"
+        "Lead capture & qualification",
+        "Analytics & insights",
+        "Human agent handoff",
+        "Custom knowledge training"
+      ]
     }
   ];
 
   return (
-    <div className="min-h-screen bg-[#001f29]">
+    <div className="bg-[#00333e] min-h-screen">
       {/* Hero */}
       <section className="pt-32 pb-20 px-6">
         <div className="container mx-auto max-w-4xl text-center">
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-            Built for modern businesses
+            Everything you need to engage customers
           </h1>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Everything you need to communicate with customers across SMS, WhatsApp, Voice, and AI chatbots.
+          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+            One platform. Multiple channels. Complete messaging infrastructure for your business.
           </p>
         </div>
       </section>
 
       {/* Features */}
       <section className="pb-20 px-6">
-        <div className="container mx-auto max-w-6xl space-y-32">
-          {features.map((feature, index) => {
-            const Icon = feature.icon;
-            return (
-              <div 
-                key={feature.id} 
-                id={feature.id}
-                className={`grid md:grid-cols-2 gap-12 items-center ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}
-              >
-                {/* Content */}
-                <div className={index % 2 === 1 ? 'md:order-2' : ''}>
-                  <div className="w-12 h-12 bg-[#0ea5e9]/20 rounded-lg flex items-center justify-center mb-6">
-                    <Icon className="w-6 h-6 text-[#0ea5e9]" />
-                  </div>
-                  <h2 className="text-4xl font-bold text-white mb-3">{feature.title}</h2>
-                  <p className="text-xl text-[#0ea5e9] mb-4">{feature.tagline}</p>
-                  <p className="text-gray-400 mb-8 text-lg">{feature.description}</p>
-                  
-                  <div className="grid grid-cols-2 gap-3 mb-8">
-                    {feature.capabilities.map((capability, i) => (
-                      <div key={i} className="flex items-center gap-2 text-gray-300">
-                        <Check className="w-4 h-4 text-[#0ea5e9] flex-shrink-0" />
-                        <span className="text-sm">{capability}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => navigate("/register")}
-                      className="bg-[#0ea5e9] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#0284c7] transition-colors"
-                    >
-                      Get started
-                    </button>
-                    <span className="text-gray-400 text-sm">{feature.pricing}</span>
-                  </div>
+        <div className="container mx-auto max-w-5xl space-y-24">
+          {features.map((feature, index) => (
+            <div 
+              key={feature.id} 
+              id={feature.id}
+              className={`grid md:grid-cols-2 gap-12 items-start ${index % 2 === 1 ? 'bg-[#003d4a] -mx-6 px-6 md:-mx-12 md:px-12 py-12 rounded-lg' : ''}`}
+            >
+              <div>
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">{feature.title}</h2>
+                <p className="text-xl text-[#fddf0d] mb-4">{feature.tagline}</p>
+                <p className="text-gray-300 mb-8 leading-relaxed">{feature.description}</p>
+                
+                <div className="space-y-2 mb-8">
+                  {feature.capabilities.map((capability, i) => (
+                    <div key={i} className="flex items-start gap-3 text-gray-300">
+                      <span className="text-[#fddf0d] mt-1">•</span>
+                      <span>{capability}</span>
+                    </div>
+                  ))}
                 </div>
 
-                {/* Mockup */}
-                <div className={`${index % 2 === 1 ? 'md:order-1' : ''}`}>
-                  <div className="bg-white/5 border border-white/10 rounded-lg p-8 backdrop-blur-sm">
-                    <div className="bg-[#002a38] rounded-lg p-6 border border-white/10">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
-                        <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
-                        <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="h-8 bg-white/5 rounded w-3/4"></div>
-                        <div className="h-8 bg-white/5 rounded w-1/2"></div>
-                        <div className="h-20 bg-white/5 rounded"></div>
-                        <div className="h-8 bg-[#0ea5e9]/20 rounded w-1/3"></div>
-                      </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => navigate("/register")}
+                    className="bg-[#fddf0d] text-[#00333e] px-6 py-3 rounded-lg font-semibold hover:bg-[#fce96a] transition-colors"
+                  >
+                    Get started
+                  </button>
+                  <span className="text-gray-400">{feature.price}</span>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-gray-600 rounded-lg p-8">
+                <div className="bg-[#00333e] rounded-lg p-6">
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
+                    <span className="ml-2 text-gray-400 text-sm">{feature.title}</span>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-8 bg-white/5 rounded w-3/4"></div>
+                    <div className="h-8 bg-white/5 rounded w-1/2"></div>
+                    <div className="h-24 bg-white/5 rounded"></div>
+                    <div className="h-10 bg-[#fddf0d]/20 rounded w-1/3 flex items-center justify-center">
+                      <span className="text-[#fddf0d] font-semibold text-sm">Send</span>
                     </div>
                   </div>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Platform capabilities */}
-      <section className="py-20 px-6 bg-[#002a38]">
-        <div className="container mx-auto max-w-6xl">
-          <h2 className="text-4xl font-bold text-white text-center mb-16">
+      {/* Platform */}
+      <section className="py-20 px-6 bg-[#003d4a]">
+        <div className="container mx-auto max-w-5xl">
+          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-12">
             Built for developers and businesses
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="p-6 bg-white/5 rounded-lg border border-white/10">
+            <div className="text-center">
               <h3 className="text-xl font-bold text-white mb-3">REST API</h3>
-              <p className="text-gray-400">
-                Simple, well-documented API. Integrate in minutes with our SDKs for PHP, Python, Node.js, and more.
+              <p className="text-gray-300">
+                Simple API integration with SDKs for PHP, Python, Node.js, and comprehensive documentation.
               </p>
             </div>
-            <div className="p-6 bg-white/5 rounded-lg border border-white/10">
-              <h3 className="text-xl font-bold text-white mb-3">Webhooks</h3>
-              <p className="text-gray-400">
-                Real-time delivery status, incoming messages, and event notifications sent directly to your server.
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-white mb-3">Real-time Webhooks</h3>
+              <p className="text-gray-300">
+                Get delivery status, incoming messages, and event notifications sent to your server instantly.
               </p>
             </div>
-            <div className="p-6 bg-white/5 rounded-lg border border-white/10">
+            <div className="text-center">
               <h3 className="text-xl font-bold text-white mb-3">Dashboard</h3>
-              <p className="text-gray-400">
-                Powerful web interface for campaign management, analytics, and team collaboration. No coding required.
+              <p className="text-gray-300">
+                Manage campaigns, view analytics, and collaborate with your team. No coding required.
               </p>
             </div>
           </div>
@@ -184,12 +172,12 @@ function Features() {
           <h2 className="text-4xl font-bold text-white mb-6">
             Start building today
           </h2>
-          <p className="text-xl text-gray-400 mb-10">
-            Join hundreds of businesses using Briq to connect with customers.
+          <p className="text-xl text-gray-300 mb-10">
+            Join hundreds of businesses using Briq to connect with customers
           </p>
           <button
             onClick={() => navigate("/register")}
-            className="bg-[#0ea5e9] text-white px-10 py-4 rounded-lg text-lg font-medium hover:bg-[#0284c7] transition-colors"
+            className="bg-[#fddf0d] text-[#00333e] px-10 py-4 rounded-lg text-lg font-semibold hover:bg-[#fce96a] transition-colors"
           >
             Create free account
           </button>

@@ -28,20 +28,17 @@ function Navbar() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
         scrolled
-          ? "bg-[#001f29]/95 backdrop-blur-md border-b border-white/10"
+          ? "bg-[#00333e] border-b border-gray-700"
           : "bg-transparent"
       }`}
     >
       <div className="container mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
           <Link to="/" className="flex items-center">
             <img src={logo} alt="Briq" className="h-8 w-auto" />
           </Link>
 
-          {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-8">
-            {/* Products Dropdown */}
             <div
               className="relative"
               onMouseEnter={() => setIsProductsOpen(true)}
@@ -52,12 +49,12 @@ function Navbar() {
                 <ChevronDown className="w-4 h-4" />
               </button>
               {isProductsOpen && (
-                <div className="absolute top-full left-0 mt-2 w-48 bg-[#002a38] rounded-lg shadow-lg border border-white/10 py-2">
+                <div className="absolute top-full left-0 mt-2 w-48 bg-[#003d4a] rounded-lg shadow-lg border border-gray-700 py-2">
                   {products.map((product, i) => (
                     <Link
                       key={i}
                       to={product.href}
-                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
                     >
                       {product.name}
                     </Link>
@@ -66,10 +63,7 @@ function Navbar() {
               )}
             </div>
 
-            <Link
-              to="/pricing"
-              className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
-            >
+            <Link to="/pricing" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">
               Pricing
             </Link>
 
@@ -82,15 +76,11 @@ function Navbar() {
               Docs
             </a>
 
-            <Link
-              to="/contact"
-              className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
-            >
+            <Link to="/contact" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">
               Contact
             </Link>
           </div>
 
-          {/* Desktop CTA */}
           <div className="hidden lg:flex items-center gap-4">
             <button
               onClick={() => navigate("/login")}
@@ -100,13 +90,12 @@ function Navbar() {
             </button>
             <button
               onClick={() => navigate("/register")}
-              className="bg-[#0ea5e9] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#0284c7] transition-colors"
+              className="bg-[#fddf0d] text-[#00333e] px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#fce96a] transition-colors"
             >
               Start free
             </button>
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="lg:hidden p-2 text-gray-300"
@@ -115,9 +104,8 @@ function Navbar() {
           </button>
         </div>
 
-        {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden bg-[#002a38] border-t border-white/10 py-4 rounded-b-xl shadow-lg">
+          <div className="lg:hidden bg-[#003d4a] border-t border-gray-700 py-4 rounded-b-xl">
             <div className="space-y-3">
               <div className="px-4">
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -134,7 +122,7 @@ function Navbar() {
                   </Link>
                 ))}
               </div>
-              <div className="border-t border-white/10 pt-3 px-4 space-y-3">
+              <div className="border-t border-gray-700 pt-3 px-4 space-y-3">
                 <Link
                   to="/pricing"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -158,7 +146,7 @@ function Navbar() {
                   Contact
                 </Link>
               </div>
-              <div className="border-t border-white/10 pt-4 px-4 space-y-3">
+              <div className="border-t border-gray-700 pt-4 px-4 space-y-3">
                 <button
                   onClick={() => {
                     navigate("/login");
@@ -173,7 +161,7 @@ function Navbar() {
                     navigate("/register");
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full bg-[#0ea5e9] text-white py-3 rounded-lg font-medium hover:bg-[#0284c7]"
+                  className="w-full bg-[#fddf0d] text-[#00333e] py-3 rounded-lg font-semibold hover:bg-[#fce96a]"
                 >
                   Start free
                 </button>

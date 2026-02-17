@@ -4,7 +4,7 @@ import Footer from "../components/Footer";
 
 function Privacy() {
   return (
-    <div className="bg-[#001f29] text-white">
+    <div className="bg-[#00333e] text-white">
       <Navbar />
 
       <section className="pt-32 pb-20">
