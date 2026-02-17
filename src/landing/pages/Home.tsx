@@ -10,27 +10,35 @@ function Home() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   const rotatingTexts = [
-    { main: "Bulk SMS", accent: "for Tanzania" },
-    { main: "WhatsApp Business", accent: "made simple" },
-    { main: "AI Chatbots", accent: "that convert" },
-    { main: "Voice & OTP", accent: "secure & fast" }
+    { main: "SMS", tag: "Enterprise", accent: "for Fintechs & Banks" },
+    { main: "WhatsApp", tag: "Business", accent: "for E-commerce" },
+    { main: "Voice & OTP", tag: "Secure", accent: "for Tech Companies" },
+    { main: "AI Chatbots", tag: "Smart", accent: "for Customer Service" }
   ];
 
   const mockups = [
     {
       title: "SMS Campaigns",
       campaigns: [
-        { type: "BULK SMS", name: "Holiday Sale", sent: "5,247", delivered: "4,891", rate: "98.5%" },
-        { type: "PROMOTIONS", name: "Flash Deal", sent: "3,124", delivered: "2,987", rate: "95.6%" },
-        { type: "ALERTS", name: "Stock Alert", sent: "1,856", delivered: "1,851", rate: "99.7%" }
+        { type: "BANK ALERTS", name: "Transaction OTP", sent: "12,847", delivered: "12,801", rate: "99.6%" },
+        { type: "FINTECH", name: "Payment Confirm", sent: "8,124", delivered: "7,987", rate: "98.3%" },
+        { type: "ENTERPRISE", name: "Staff Alerts", sent: "5,856", delivered: "5,842", rate: "99.8%" }
       ]
     },
     {
-      title: "WhatsApp Automation",
+      title: "WhatsApp Business",
       campaigns: [
-        { type: "AUTO-REPLY", name: "Customer Support", sent: "4,321", delivered: "4,298", rate: "99.5%" },
-        { type: "CAMPAIGNS", name: "Product Launch", sent: "2,567", delivered: "2,489", rate: "97.0%" },
-        { type: "FOLLOW-UP", name: "Lead Nurture", sent: "1,234", delivered: "1,221", rate: "98.9%" }
+        { type: "E-COMMERCE", name: "Order Updates", sent: "9,321", delivered: "9,198", rate: "98.7%" },
+        { type: "SUPPORT", name: "Auto Responses", sent: "15,567", delivered: "15,389", rate: "98.9%" },
+        { type: "MARKETING", name: "Flash Sales", sent: "6,234", delivered: "6,121", rate: "98.2%" }
+      ]
+    },
+    {
+      title: "Voice & Chatbots",
+      campaigns: [
+        { type: "VOICE OTP", name: "2FA Verification", sent: "4,521", delivered: "4,498", rate: "99.5%" },
+        { type: "AI CHATBOT", name: "24/7 Support", sent: "18,234", delivered: "18,001", rate: "98.7%" },
+        { type: "IVR", name: "Call Routing", sent: "7,456", delivered: "7,423", rate: "99.6%" }
       ]
     }
   ];
@@ -38,11 +46,11 @@ function Home() {
   useEffect(() => {
     const textInterval = setInterval(() => {
       setActiveText((prev) => (prev + 1) % rotatingTexts.length);
-    }, 3000);
+    }, 2200);
 
     const mockupInterval = setInterval(() => {
       setActiveMockup((prev) => (prev + 1) % mockups.length);
-    }, 5000);
+    }, 4400);
 
     return () => {
       clearInterval(textInterval);
@@ -90,36 +98,40 @@ function Home() {
   ];
 
   const logos = [
-    "Vodacom", "Airtel", "Tigo", "Halotel", "CRDB", "NMB", "Azam"
+    "CRDB Bank", "NMB Bank", "Equity Bank", "Azam Pay", "M-Pesa", "Airtel Money", "Tigo Pesa"
   ];
 
   const trustReasons = [
     {
-      title: "Local Expertise",
-      description: "Get reliable, human support from teams based in Tanzania. We provide onboarding, training, and ongoing assistance in both English and Swahili."
+      title: "Enterprise Security",
+      description: "Bank-grade encryption and compliance. SOC 2, ISO certified infrastructure. Your data stays secure."
     },
     {
-      title: "Optimized for Tanzania",
-      description: "Our systems are optimized for Tanzanian mobile networks, enabling fast message delivery and consistent performance nationwide."
+      title: "Scale with Confidence",
+      description: "Built to handle millions of messages daily. 99.9% uptime SLA. Direct carrier connections across all networks."
     },
     {
-      title: "High Reliability",
-      description: "Our platform achieves up to 99.9% delivery success, ensuring your alerts, reminders, and campaigns reach customers reliably and on time."
+      title: "Local Expert Support",
+      description: "Dedicated account managers and 24/7 technical support. Tanzania-based team that understands your business."
     }
   ];
 
   const solutions = [
     {
       title: "Bulk SMS",
-      description: "Send targeted messages to your customers across Tanzania. 14-17 TZS per SMS. Perfect for promotions, reminders, and alerts."
+      description: "Enterprise-grade SMS for banks, fintechs, and e-commerce. Transaction alerts, OTP, marketing campaigns. 14-17 TZS per SMS."
     },
     {
-      title: "WhatsApp Business",
-      description: "Connect directly with your customers through WhatsApp. Automate replies, send offers, and manage leads efficiently."
+      title: "WhatsApp Business API",
+      description: "Official WhatsApp Business API for customer engagement. Automate order updates, support, and marketing for your business."
     },
     {
       title: "Voice & OTP",
-      description: "Secure authentication via SMS OTP, WhatsApp OTP, and voice calls. Multi-channel fallback ensures delivery."
+      description: "Secure multi-channel authentication. SMS OTP, WhatsApp OTP, Voice calls. Perfect for banks and tech platforms."
+    },
+    {
+      title: "AI Chatbots",
+      description: "Smart conversational AI for 24/7 customer support. Reduce support costs while improving response times."
     }
   ];
 
@@ -148,22 +160,22 @@ function Home() {
 
   const testimonials = [
     {
-      quote: "Briq's Bulk SMS lets us reach farmers about planting dates and deliveries in minutes. Messages are clear and responses come faster.",
-      author: "Elias Leasa",
-      role: "Sales Manager",
-      company: "Agricom Tanzania"
+      quote: "Briq powers our transaction alerts and OTP authentication. 99.8% delivery rate with sub-second latency. Critical for our banking operations.",
+      author: "James Mwakasege",
+      role: "CTO",
+      company: "TanzaPay Digital"
     },
     {
-      quote: "For events, Briq's SMS keeps attendees informed about confirmations and schedule changes. Engagement is higher and check-in moves faster.",
-      author: "Simon Mawole",
-      role: "Technology Consultant",
-      company: "Sahara Ventures"
+      quote: "Integrated WhatsApp Business API in 2 days. Now handling 50K+ order confirmations monthly. Customer satisfaction up 40%.",
+      author: "Sarah Kimaro",
+      role: "Head of Operations",
+      company: "Sokoni E-commerce"
     },
     {
-      quote: "Our logistics team sends dispatch updates and ETAs instantly. Fewer missed calls, smoother handoffs, and deliveries arrive on time.",
-      author: "Thomson Maguru",
-      role: "Digital Manager",
-      company: "Bravo Logistics"
+      quote: "Their AI chatbot reduced our support load by 60%. Handles common queries 24/7 while our team focuses on complex issues.",
+      author: "Michael Hassan",
+      role: "Customer Success Lead",
+      company: "FinTech Solutions TZ"
     }
   ];
 
@@ -210,27 +222,33 @@ function Home() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left: Text Content */}
             <div>
-              <div className="mb-6 overflow-hidden h-[200px] md:h-[240px]">
-                <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight">
-                  <span className="block transition-all duration-500" style={{
-                    transform: `translateY(-${activeText * 100}%)`,
-                  }}>
-                    {rotatingTexts.map((text, i) => (
-                      <span key={i} className="block h-[200px] md:h-[240px]">
+              <div className="inline-block mb-4 px-4 py-2 bg-[#fddf0d]/20 border border-[#fddf0d]/40 rounded-full">
+                <span className="text-[#fddf0d] text-sm font-semibold">Enterprise Communication Platform</span>
+              </div>
+              
+              <div className="mb-6 overflow-hidden h-[280px] md:h-[320px]">
+                <div className="transition-all duration-700 ease-in-out" style={{
+                  transform: `translateY(-${activeText * 100}%)`,
+                }}>
+                  {rotatingTexts.map((text, i) => (
+                    <div key={i} className="h-[280px] md:h-[320px]">
+                      <div className="text-sm md:text-base text-[#fddf0d] font-semibold mb-3 tracking-wider uppercase">{text.tag}</div>
+                      <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight mb-4">
                         {text.main}
-                        <br />
+                      </h1>
+                      <p className="text-2xl md:text-3xl text-gray-300">
                         <span className="text-[#fddf0d]">{text.accent}</span>
-                      </span>
-                    ))}
-                  </span>
-                </h1>
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
               
               <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-xl">
-                Reach your customers instantly. Grow faster.
+                Complete messaging solutions for Banks, Fintechs, E-commerce, and Growing Enterprises
               </p>
               
-              <div className="flex gap-4 flex-wrap mb-12">
+              <div className="flex gap-4 flex-wrap mb-10">
                 <button
                   onClick={() => navigate("/register")}
                   className="bg-[#fddf0d] text-[#00333e] px-8 py-4 rounded-lg text-lg font-semibold hover:bg-[#fce96a] transition-all hover:scale-105 hover:shadow-2xl shadow-lg"
@@ -245,8 +263,21 @@ function Home() {
                 </button>
               </div>
 
+              {/* Service tags */}
+              <div className="flex flex-wrap gap-3 mb-8">
+                {["SMS", "WhatsApp", "Voice", "Chatbots"].map((service, i) => (
+                  <div 
+                    key={i} 
+                    className="px-4 py-2 bg-white/5 border border-gray-600 rounded-lg text-sm text-gray-300 hover:border-[#fddf0d] hover:text-[#fddf0d] transition-all cursor-pointer hover:scale-105"
+                    style={{ animationDelay: `${i * 100}ms` }}
+                  >
+                    {service}
+                  </div>
+                ))}
+              </div>
+
               {/* Stats */}
-              <div className="grid grid-cols-2 gap-4 max-w-lg">
+              <div className="grid grid-cols-2 gap-4 max-w-lg pt-4 border-t border-gray-700">
                 {stats.map((stat, i) => (
                   <div key={i} className="group cursor-pointer">
                     <div className="text-3xl md:text-4xl font-bold text-[#fddf0d] mb-1 group-hover:scale-110 transition-transform">{stat.value}</div>
@@ -270,29 +301,48 @@ function Home() {
                     {/* Phone header */}
                     <div className="bg-[#003d4a] px-4 py-3 border-b border-gray-700">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#fddf0d] flex items-center justify-center text-[#00333e] font-bold">
+                        <div className="w-10 h-10 rounded-full bg-[#fddf0d] flex items-center justify-center text-[#00333e] font-bold text-lg">
                           B
                         </div>
-                        <div>
-                          <div className="text-white font-semibold text-sm">{mockups[activeMockup].title}</div>
-                          <div className="text-gray-400 text-xs">Live Dashboard</div>
+                        <div className="flex-1">
+                          <div className="text-white font-semibold text-sm transition-all duration-500">
+                            {mockups[activeMockup].title}
+                          </div>
+                          <div className="text-gray-400 text-xs">Enterprise Dashboard</div>
+                        </div>
+                        <div className="flex gap-1">
+                          {mockups.map((_, i) => (
+                            <div 
+                              key={i} 
+                              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === activeMockup ? 'bg-[#fddf0d] w-4' : 'bg-gray-600'}`}
+                            />
+                          ))}
                         </div>
                       </div>
                     </div>
 
                     {/* Message preview with transitions */}
-                    <div className="p-4 space-y-3 h-80 overflow-hidden">
+                    <div className="p-4 space-y-3 h-80 overflow-hidden relative">
                       {mockups[activeMockup].campaigns.map((campaign, i) => (
                         <div 
                           key={`${activeMockup}-${i}`}
                           className="bg-white/5 rounded-lg p-3 border border-gray-700 hover:border-[#fddf0d] transition-all cursor-pointer hover:scale-105 animate-fadeIn"
-                          style={{ animationDelay: `${i * 100}ms` }}
+                          style={{ animationDelay: `${i * 150}ms` }}
                         >
-                          <div className="text-[#fddf0d] text-xs font-semibold mb-1">{campaign.type}</div>
-                          <div className="text-white text-sm mb-2">{campaign.name}</div>
-                          <div className="text-gray-400 text-xs mb-2">{campaign.sent} sent · {campaign.delivered} delivered</div>
-                          <div className="bg-[#fddf0d]/20 rounded p-2">
-                            <div className="text-xs text-gray-300">{campaign.rate} delivery rate</div>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-[#fddf0d] text-xs font-semibold">{campaign.type}</div>
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                          </div>
+                          <div className="text-white text-sm mb-2 font-medium">{campaign.name}</div>
+                          <div className="text-gray-400 text-xs mb-2">
+                            <span className="text-white font-semibold">{campaign.sent}</span> sent · <span className="text-green-400 font-semibold">{campaign.delivered}</span> delivered
+                          </div>
+                          <div className="relative bg-[#fddf0d]/20 rounded p-2 overflow-hidden">
+                            <div 
+                              className="absolute left-0 top-0 bottom-0 bg-[#fddf0d]/40 transition-all duration-1000"
+                              style={{ width: campaign.rate }}
+                            ></div>
+                            <div className="relative text-xs text-gray-100 font-semibold">{campaign.rate} delivery</div>
                           </div>
                         </div>
                       ))}
@@ -302,11 +352,16 @@ function Home() {
 
                 {/* Floating stats - animated */}
                 <div className="absolute -left-8 top-1/4 bg-white/10 backdrop-blur-sm border border-gray-600 rounded-lg p-3 shadow-xl hover:scale-110 transition-transform cursor-pointer animate-float-slow">
-                  <div className="text-2xl font-bold text-[#fddf0d]">10K+</div>
-                  <div className="text-xs text-gray-300">Messages/day</div>
+                  <div className="text-2xl font-bold text-[#fddf0d]">50K+</div>
+                  <div className="text-xs text-gray-300">Daily Messages</div>
                 </div>
 
-                <div className="absolute -right-8 bottom-1/4 bg-white/10 backdrop-blur-sm border border-gray-600 rounded-lg p-3 shadow-xl hover:scale-110 transition-transform cursor-pointer animate-float-medium">
+                <div className="absolute -right-8 top-1/2 bg-white/10 backdrop-blur-sm border border-gray-600 rounded-lg p-3 shadow-xl hover:scale-110 transition-transform cursor-pointer animate-float-medium">
+                  <div className="text-2xl font-bold text-[#fddf0d]">24/7</div>
+                  <div className="text-xs text-gray-300">Support</div>
+                </div>
+
+                <div className="absolute -left-8 bottom-1/4 bg-white/10 backdrop-blur-sm border border-gray-600 rounded-lg p-3 shadow-xl hover:scale-110 transition-transform cursor-pointer" style={{ animation: 'floatSlow 5s ease-in-out infinite' }}>
                   <div className="text-2xl font-bold text-[#fddf0d]">99.9%</div>
                   <div className="text-xs text-gray-300">Uptime</div>
                 </div>
@@ -320,7 +375,7 @@ function Home() {
       <section className="py-16 px-6 fade-in-section opacity-0 translate-y-8 transition-all duration-700">
         <div className="container mx-auto max-w-6xl text-center">
           <p className="text-sm text-gray-500 mb-6">
-            Trusted by Tanzania's <span className="text-gray-400 font-medium">leading businesses</span>
+            Powering communication for Tanzania's <span className="text-gray-400 font-medium">leading financial institutions & enterprises</span>
           </p>
           <div className="flex flex-wrap justify-center gap-8 items-center">
             {logos.map((logo, i) => (
@@ -334,7 +389,7 @@ function Home() {
       <section className="py-20 px-6 bg-[#003d4a] fade-in-section opacity-0 translate-y-8 transition-all duration-700">
         <div className="container mx-auto max-w-5xl">
           <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-12">
-            Why trust us
+            Enterprise-ready platform
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             {trustReasons.map((reason, i) => (
@@ -349,18 +404,18 @@ function Home() {
 
       {/* Solutions */}
       <section className="py-20 px-6 fade-in-section opacity-0 translate-y-8 transition-all duration-700">
-        <div className="container mx-auto max-w-5xl">
+        <div className="container mx-auto max-w-6xl">
           <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-4">
-            What we offer
+            Complete Communication Suite
           </h2>
           <p className="text-gray-300 text-center mb-12 text-lg">
-            Messaging made simple
+            Everything your enterprise needs
           </p>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {solutions.map((solution, i) => (
-              <div key={i} className="bg-white/5 p-8 rounded-lg border border-gray-600 hover:border-[#fddf0d] hover:bg-white/10 transition-all duration-300 hover:scale-105 cursor-pointer group" style={{ animationDelay: `${i * 150}ms` }}>
-                <h3 className="text-xl font-bold text-white mb-3 group-hover:text-[#fddf0d] transition-colors">{solution.title}</h3>
-                <p className="text-gray-300 group-hover:text-gray-200 transition-colors">{solution.description}</p>
+              <div key={i} className="bg-white/5 p-6 rounded-lg border border-gray-600 hover:border-[#fddf0d] hover:bg-white/10 transition-all duration-300 hover:scale-105 cursor-pointer group" style={{ animationDelay: `${i * 150}ms` }}>
+                <h3 className="text-lg font-bold text-white mb-3 group-hover:text-[#fddf0d] transition-colors">{solution.title}</h3>
+                <p className="text-gray-300 text-sm group-hover:text-gray-200 transition-colors">{solution.description}</p>
               </div>
             ))}
           </div>
