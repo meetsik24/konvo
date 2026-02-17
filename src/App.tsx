@@ -14,7 +14,7 @@ import Home from './landing/pages/Home';
 import Features from './landing/pages/Features';
 import Pricing from './landing/pages/Pricing';
 import Navbar from './landing/components/Navbar';
-import { Footer } from './landing/components/Footer';
+import Footer from './landing/components/Footer';
 import BlogSection from './landing/pages/blog';
 
 // Documentation Pages

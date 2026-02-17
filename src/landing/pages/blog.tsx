@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Calendar } from "lucide-react";
-import Navbar from "../components/Navbar";
-import { Footer } from "../components/Footer";
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -57,23 +55,22 @@ function Blog() {
 
   return (
     <div className="bg-[#0a0a0f] text-white">
-      <Navbar />
 
       {/* Hero */}
       <section className="pt-32 pb-16 relative overflow-hidden border-b border-gray-800">
         {/* Grid background */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]"></div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#00333e]/20 rounded-full blur-3xl"></div>
 
         <div className="container mx-auto px-6 lg:px-8 relative z-10">
           <div className="max-w-3xl">
             <motion.div initial="hidden" animate="visible" variants={fadeIn}>
-              <p className="text-emerald-400 font-semibold text-sm tracking-wide uppercase mb-4">
+              <p className="text-[#fddf0d] font-semibold text-sm tracking-wide uppercase mb-4">
                 Blog
               </p>
               <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-6">
                 Insights &
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400"> Updates</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#fddf0d] to-[#00333e]"> Updates</span>
               </h1>
               <p className="text-xl text-gray-400 leading-relaxed">
                 News, tutorials, and insights about communication technology 
@@ -111,7 +108,7 @@ function Blog() {
                   viewport={{ once: true }}
                   variants={fadeIn}
                   transition={{ delay: i * 0.1 }}
-                  className="group bg-[#111118] border border-gray-800 rounded-2xl overflow-hidden hover:border-emerald-500/30 transition-all"
+                  className="group bg-[#111118] border border-gray-800 rounded-2xl overflow-hidden hover:border-[#fddf0d]/30 transition-all"
                 >
                   <div className="h-48 overflow-hidden">
                     {post._embedded?.["wp:featuredmedia"]?.[0]?.source_url ? (
@@ -131,7 +128,7 @@ function Blog() {
                       <Calendar className="w-4 h-4 mr-2" />
                       {formatDate(post.date)}
                     </div>
-                    <h2 className="text-lg font-semibold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+                    <h2 className="text-lg font-semibold text-white mb-2 group-hover:text-[#fddf0d] transition-colors">
                       {post.title.rendered}
                     </h2>
                     <p className="text-gray-400 text-sm line-clamp-2">
@@ -153,7 +150,7 @@ function Blog() {
                 href="https://briq.tz/blog"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center text-emerald-400 font-semibold hover:text-emerald-300 transition-colors"
+                className="inline-flex items-center text-[#fddf0d] font-semibold hover:text-[#fddf0d]/80 transition-colors"
               >
                 View all posts
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -176,16 +173,14 @@ function Blog() {
             <input
               type="email"
               placeholder="Enter your email"
-              className="flex-1 px-4 py-3 bg-[#0a0a0f] border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+              className="flex-1 px-4 py-3 bg-[#0a0a0f] border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] outline-none"
             />
-            <button className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-black px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity">
+            <button className="bg-[#fddf0d] text-black px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity">
               Subscribe
             </button>
           </div>
         </div>
       </section>
-
-      <Footer />
     </div>
   );
 }

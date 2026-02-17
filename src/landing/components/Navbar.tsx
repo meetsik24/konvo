@@ -10,10 +10,10 @@ function Navbar() {
   const navigate = useNavigate();
 
   const products = [
-    { name: "Bulk SMS", href: "/features", description: "High-throughput messaging" },
-    { name: "WhatsApp Business", href: "/features", description: "Official Meta partner" },
-    { name: "OTP Verification", href: "/features", description: "Bank-grade security" },
-    { name: "AI Chatbots", href: "/features", description: "24/7 automation" },
+    { name: "Bulk SMS", href: "/features#sms" },
+    { name: "WhatsApp", href: "/features#whatsapp" },
+    { name: "Voice & OTP", href: "/features#voice" },
+    { name: "AI Chatbots", href: "/features#chatbots" },
   ];
 
   useEffect(() => {
@@ -28,7 +28,7 @@ function Navbar() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
         scrolled
-          ? "bg-[#0a0a0f]/95 backdrop-blur-md border-b border-gray-800"
+          ? "bg-[#001f29]/95 backdrop-blur-md border-b border-white/10"
           : "bg-transparent"
       }`}
     >
@@ -36,7 +36,7 @@ function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center">
-            <img src={logo} alt="Briq" className="h-8 w-auto brightness-0 invert" />
+            <img src={logo} alt="Briq" className="h-8 w-auto" />
           </Link>
 
           {/* Desktop Navigation */}
@@ -49,19 +49,17 @@ function Navbar() {
             >
               <button className="flex items-center gap-1 text-sm font-medium text-gray-300 hover:text-white transition-colors">
                 Products
-                <ChevronDown className={`w-4 h-4 transition-transform ${isProductsOpen ? "rotate-180" : ""}`} />
+                <ChevronDown className="w-4 h-4" />
               </button>
-
               {isProductsOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-[#111118] rounded-xl shadow-2xl border border-gray-800 py-2">
+                <div className="absolute top-full left-0 mt-2 w-48 bg-[#002a38] rounded-lg shadow-lg border border-white/10 py-2">
                   {products.map((product, i) => (
                     <Link
                       key={i}
                       to={product.href}
-                      className="block px-4 py-3 hover:bg-gray-800/50 transition-colors"
+                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
                     >
-                      <div className="text-sm font-medium text-white">{product.name}</div>
-                      <div className="text-xs text-gray-500">{product.description}</div>
+                      {product.name}
                     </Link>
                   ))}
                 </div>
@@ -81,7 +79,7 @@ function Navbar() {
               rel="noopener noreferrer"
               className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
             >
-              Developers
+              Docs
             </a>
 
             <Link
@@ -102,16 +100,16 @@ function Navbar() {
             </button>
             <button
               onClick={() => navigate("/register")}
-              className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-black px-5 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+              className="bg-[#0ea5e9] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-[#0284c7] transition-colors"
             >
-              Get Started
+              Start free
             </button>
           </div>
 
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-2 text-white"
+            className="lg:hidden p-2 text-gray-300"
           >
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -119,7 +117,7 @@ function Navbar() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden bg-[#111118] border-t border-gray-800 py-4 rounded-b-xl">
+          <div className="lg:hidden bg-[#002a38] border-t border-white/10 py-4 rounded-b-xl shadow-lg">
             <div className="space-y-3">
               <div className="px-4">
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -136,7 +134,7 @@ function Navbar() {
                   </Link>
                 ))}
               </div>
-              <div className="border-t border-gray-800 pt-3 px-4 space-y-3">
+              <div className="border-t border-white/10 pt-3 px-4 space-y-3">
                 <Link
                   to="/pricing"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -150,7 +148,7 @@ function Navbar() {
                   rel="noopener noreferrer"
                   className="block py-2 text-gray-300 hover:text-white"
                 >
-                  Developers
+                  Docs
                 </a>
                 <Link
                   to="/contact"
@@ -160,13 +158,13 @@ function Navbar() {
                   Contact
                 </Link>
               </div>
-              <div className="border-t border-gray-800 pt-4 px-4 space-y-3">
+              <div className="border-t border-white/10 pt-4 px-4 space-y-3">
                 <button
                   onClick={() => {
                     navigate("/login");
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full text-center py-2 text-gray-300 font-medium"
+                  className="w-full text-center py-2 text-gray-300 font-medium hover:text-white"
                 >
                   Log in
                 </button>
@@ -175,9 +173,9 @@ function Navbar() {
                     navigate("/register");
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-black py-3 rounded-lg font-semibold"
+                  className="w-full bg-[#0ea5e9] text-white py-3 rounded-lg font-medium hover:bg-[#0284c7]"
                 >
-                  Get Started
+                  Start free
                 </button>
               </div>
             </div>

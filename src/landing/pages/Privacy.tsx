@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { Footer } from "../components/Footer";
+import Footer from "../components/Footer";
 
 function Privacy() {
   return (
-    <div className="bg-[#0a0a0f] text-white">
+    <div className="bg-[#001f29] text-white">
       <Navbar />
 
       <section className="pt-32 pb-20">
@@ -110,7 +110,7 @@ function Privacy() {
               </h2>
               <p className="text-gray-400 mb-6">
                 For privacy-related questions, contact our Data Protection Officer at{" "}
-                <a href="mailto:privacy@briq.tz" className="text-emerald-400 hover:underline">
+                <a href="mailto:privacy@briq.tz" className="text-[#fddf0d] hover:underline">
                   privacy@briq.tz
                 </a>
               </p>
@@ -119,7 +119,7 @@ function Privacy() {
             <div className="mt-12 pt-8 border-t border-gray-800">
               <Link
                 to="/"
-                className="text-emerald-400 font-medium hover:text-emerald-300 transition-colors"
+                className="text-[#fddf0d] font-medium hover:text-[#fddf0d]/80 transition-colors"
               >
                 ← Back to Home
               </Link>
