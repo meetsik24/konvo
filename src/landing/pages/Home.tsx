@@ -10,10 +10,10 @@ function Home() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   const rotatingTexts = [
-    { main: "SMS", tag: "Enterprise", accent: "for Fintechs & Banks" },
-    { main: "WhatsApp", tag: "Business", accent: "for E-commerce" },
-    { main: "Voice & OTP", tag: "Secure", accent: "for Tech Companies" },
-    { main: "AI Chatbots", tag: "Smart", accent: "for Customer Service" }
+    { main: "Enterprise SMS Solutions", tag: "ENTERPRISE", accent: "Power Tanzania's Leading Banks" },
+    { main: "WhatsApp Business API", tag: "OFFICIAL", accent: "Drive E-commerce Growth" },
+    { main: "Voice & SMS OTP", tag: "SECURE", accent: "Enterprise-Grade Security" },
+    { main: "AI-Powered Chatbots", tag: "INTELLIGENT", accent: "Automate Customer Support" }
   ];
 
   const mockups = [
@@ -46,11 +46,11 @@ function Home() {
   useEffect(() => {
     const textInterval = setInterval(() => {
       setActiveText((prev) => (prev + 1) % rotatingTexts.length);
-    }, 2200);
+    }, 3500);
 
     const mockupInterval = setInterval(() => {
       setActiveMockup((prev) => (prev + 1) % mockups.length);
-    }, 4400);
+    }, 3500);
 
     return () => {
       clearInterval(textInterval);
@@ -206,84 +206,95 @@ function Home() {
     <div className="bg-[#00333e] min-h-screen overflow-hidden">
       {/* Hero */}
       <section className="min-h-screen flex items-center px-6 pt-20 relative">
-        {/* Parallax background effect */}
-        <div 
-          className="absolute inset-0 opacity-5"
-          style={{
-            transform: `translate(${mousePosition.x}px, ${mousePosition.y}px)`,
-            transition: 'transform 0.3s ease-out'
-          }}
-        >
-          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#fddf0d] rounded-full blur-3xl"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#fddf0d] rounded-full blur-3xl"></div>
+        {/* Dark background with grid pattern */}
+        <div className="absolute inset-0 z-0">
+          {/* Dark gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#00333e] via-[#001f26] to-[#00333e] opacity-100" />
+          
+          {/* Grid background pattern */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]"></div>
+          
+          {/* Subtle top-bottom fade overlay */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#00333e] via-transparent to-[#00333e] opacity-60"></div>
+          
+          {/* Subtle accent glow - much more muted */}
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#00333e]/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#00333e]/10 rounded-full blur-3xl"></div>
         </div>
 
         <div className="container mx-auto max-w-7xl relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left: Text Content */}
-            <div>
-              <div className="inline-block mb-4 px-4 py-2 bg-[#fddf0d]/20 border border-[#fddf0d]/40 rounded-full">
-                <span className="text-[#fddf0d] text-sm font-semibold">Enterprise Communication Platform</span>
+            <div className="space-y-6">
+              <div className="inline-block px-4 py-2 bg-[#fddf0d]/15 border border-[#fddf0d]/30 rounded-full backdrop-blur-sm">
+                <span className="text-[#fddf0d] text-sm font-semibold tracking-wide">ENTERPRISE COMMUNICATION PLATFORM</span>
               </div>
               
-              <div className="mb-6 overflow-hidden h-[280px] md:h-[320px]">
-                <div className="transition-all duration-700 ease-in-out" style={{
-                  transform: `translateY(-${activeText * 100}%)`,
-                }}>
-                  {rotatingTexts.map((text, i) => (
-                    <div key={i} className="h-[280px] md:h-[320px]">
-                      <div className="text-sm md:text-base text-[#fddf0d] font-semibold mb-3 tracking-wider uppercase">{text.tag}</div>
-                      <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight mb-4">
-                        {text.main}
-                      </h1>
-                      <p className="text-2xl md:text-3xl text-gray-300">
-                        <span className="text-[#fddf0d]">{text.accent}</span>
-                      </p>
-                    </div>
-                  ))}
-                </div>
+              <div className="relative overflow-hidden" style={{ height: '220px' }}>
+                {rotatingTexts.map((text, i) => (
+                  <div
+                    key={i}
+                    className={`absolute inset-0 transition-all duration-700 ease-in-out ${
+                      i === activeText 
+                        ? 'opacity-100 translate-y-0' 
+                        : i === (activeText - 1 + rotatingTexts.length) % rotatingTexts.length
+                        ? 'opacity-0 -translate-y-8'
+                        : 'opacity-0 translate-y-8'
+                    }`}
+                  >
+                    <div className="text-xs md:text-sm text-[#fddf0d] font-bold mb-3 tracking-widest">{text.tag}</div>
+                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-100 leading-tight mb-2">
+                      {text.main}
+                    </h1>
+                    <p className="text-lg md:text-xl text-gray-400 font-medium">
+                      {text.accent}
+                    </p>
+                  </div>
+                ))}
               </div>
               
-              <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-xl">
-                Complete messaging solutions for Banks, Fintechs, E-commerce, and Growing Enterprises
+              <p className="text-base md:text-lg text-gray-500 max-w-xl leading-relaxed">
+                Production-ready APIs for Banks, Fintechs & High-growth Startups across Tanzania
               </p>
               
-              <div className="flex gap-4 flex-wrap mb-10">
+              <div className="flex gap-4 flex-wrap pt-2">
                 <button
                   onClick={() => navigate("/register")}
                   className="bg-[#fddf0d] text-[#00333e] px-8 py-4 rounded-lg text-lg font-semibold hover:bg-[#fce96a] transition-all hover:scale-105 hover:shadow-2xl shadow-lg"
                 >
-                  Start free trial
+                  Get API Keys
                 </button>
                 <button
                   onClick={() => navigate("/contact")}
-                  className="bg-white/10 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-white/20 transition-all hover:scale-105 border border-gray-600"
+                  className="bg-white/10 text-gray-300 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-white/20 transition-all hover:scale-105 border border-gray-600 backdrop-blur-sm"
                 >
-                  Talk to sales
+                  Book Demo
                 </button>
               </div>
 
-              {/* Service tags */}
-              <div className="flex flex-wrap gap-3 mb-8">
-                {["SMS", "WhatsApp", "Voice", "Chatbots"].map((service, i) => (
-                  <div 
-                    key={i} 
-                    className="px-4 py-2 bg-white/5 border border-gray-600 rounded-lg text-sm text-gray-300 hover:border-[#fddf0d] hover:text-[#fddf0d] transition-all cursor-pointer hover:scale-105"
-                    style={{ animationDelay: `${i * 100}ms` }}
-                  >
-                    {service}
-                  </div>
-                ))}
-              </div>
+              {/* Integrated service tags and stats */}
+              <div className="pt-8 border-t border-gray-700/30">
+                <div className="flex flex-wrap gap-3 mb-5">
+                  {["SMS API", "WhatsApp API", "Voice OTP", "AI Chatbots"].map((service, i) => (
+                    <div 
+                      key={i} 
+                      className="px-3 py-1.5 bg-white/5 border border-gray-600/50 rounded-md text-xs text-gray-400 hover:border-[#fddf0d] hover:text-[#fddf0d] transition-all cursor-pointer hover:scale-105 backdrop-blur-sm"
+                      style={{ animationDelay: `${i * 100}ms` }}
+                    >
+                      {service}
+                    </div>
+                  ))}
+                </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-2 gap-4 max-w-lg pt-4 border-t border-gray-700">
-                {stats.map((stat, i) => (
-                  <div key={i} className="group cursor-pointer">
-                    <div className="text-3xl md:text-4xl font-bold text-[#fddf0d] mb-1 group-hover:scale-110 transition-transform">{stat.value}</div>
-                    <div className="text-xs md:text-sm text-gray-400">{stat.label}</div>
-                  </div>
-                ))}
+                {/* Inline stats */}
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                  {stats.map((stat, i) => (
+                    <div key={i} className="flex items-baseline gap-2 group cursor-pointer">
+                      <div className="text-2xl font-bold text-[#fddf0d] group-hover:scale-110 transition-transform">{stat.value}</div>
+                      <div className="text-xs text-gray-600">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -294,79 +305,111 @@ function Home() {
                 transition: 'transform 0.3s ease-out'
               }}
             >
+              {/* Subtle glow effect behind mockup */}
+              <div className="absolute inset-0 bg-[#fddf0d]/5 blur-3xl rounded-full scale-110"></div>
+              
               <div className="relative">
-                {/* Phone mockup */}
-                <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-3 shadow-2xl max-w-sm mx-auto border border-gray-700 hover:scale-105 transition-transform duration-500">
-                  <div className="bg-[#00333e] rounded-2xl overflow-hidden">
+                {/* Phone mockup with improved animations */}
+                <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 rounded-3xl p-3 shadow-2xl max-w-sm mx-auto border border-gray-700/50 hover:scale-105 transition-transform duration-500 backdrop-blur-sm">
+                  <div className="bg-gradient-to-b from-[#00333e] to-[#002831] rounded-2xl overflow-hidden shadow-inner">
                     {/* Phone header */}
-                    <div className="bg-[#003d4a] px-4 py-3 border-b border-gray-700">
+                    <div className="bg-gradient-to-r from-[#003d4a] to-[#00333e] px-4 py-3 border-b border-gray-700/50">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#fddf0d] flex items-center justify-center text-[#00333e] font-bold text-lg">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#fddf0d] to-[#e5c900] flex items-center justify-center text-[#00333e] font-bold text-lg shadow-lg">
                           B
                         </div>
-                        <div className="flex-1">
-                          <div className="text-white font-semibold text-sm transition-all duration-500">
-                            {mockups[activeMockup].title}
-                          </div>
-                          <div className="text-gray-400 text-xs">Enterprise Dashboard</div>
+                        <div className="flex-1 min-w-0">
+                          {mockups.map((mockup, i) => (
+                            <div
+                              key={i}
+                              className={`transition-all duration-500 ${
+                                i === activeMockup ? 'opacity-100' : 'opacity-0 absolute'
+                              }`}
+                            >
+                              <div className="text-white font-semibold text-sm">
+                                {mockup.title}
+                              </div>
+                              <div className="text-gray-400 text-xs">Live Analytics</div>
+                            </div>
+                          ))}
                         </div>
                         <div className="flex gap-1">
                           {mockups.map((_, i) => (
                             <div 
                               key={i} 
-                              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === activeMockup ? 'bg-[#fddf0d] w-4' : 'bg-gray-600'}`}
+                              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === activeMockup ? 'bg-[#fddf0d] w-4' : 'bg-gray-600/50'}`}
                             />
                           ))}
                         </div>
                       </div>
                     </div>
 
-                    {/* Message preview with transitions */}
-                    <div className="p-4 space-y-3 h-80 overflow-hidden relative">
-                      {mockups[activeMockup].campaigns.map((campaign, i) => (
+                    {/* Message preview - fade transitions */}
+                    <div className="p-4 h-80 overflow-hidden relative">
+                      {mockups.map((mockup, mockupIdx) => (
                         <div 
-                          key={`${activeMockup}-${i}`}
-                          className="bg-white/5 rounded-lg p-3 border border-gray-700 hover:border-[#fddf0d] transition-all cursor-pointer hover:scale-105 animate-fadeIn"
-                          style={{ animationDelay: `${i * 150}ms` }}
+                          key={mockupIdx}
+                          className={`absolute inset-0 p-4 space-y-3 transition-all duration-500 ${
+                            mockupIdx === activeMockup 
+                              ? 'opacity-100 translate-x-0' 
+                              : mockupIdx < activeMockup
+                              ? 'opacity-0 -translate-x-8'
+                              : 'opacity-0 translate-x-8'
+                          }`}
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="text-[#fddf0d] text-xs font-semibold">{campaign.type}</div>
-                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                          </div>
-                          <div className="text-white text-sm mb-2 font-medium">{campaign.name}</div>
-                          <div className="text-gray-400 text-xs mb-2">
-                            <span className="text-white font-semibold">{campaign.sent}</span> sent · <span className="text-green-400 font-semibold">{campaign.delivered}</span> delivered
-                          </div>
-                          <div className="relative bg-[#fddf0d]/20 rounded p-2 overflow-hidden">
+                          {mockup.campaigns.map((campaign, i) => (
                             <div 
-                              className="absolute left-0 top-0 bottom-0 bg-[#fddf0d]/40 transition-all duration-1000"
-                              style={{ width: campaign.rate }}
-                            ></div>
-                            <div className="relative text-xs text-gray-100 font-semibold">{campaign.rate} delivery</div>
-                          </div>
+                              key={`${mockupIdx}-${i}`}
+                              className="bg-white/5 rounded-lg p-3 border border-gray-700/50 hover:border-[#fddf0d]/50 transition-all cursor-pointer hover:scale-105 backdrop-blur-sm hover:bg-white/10"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="text-[#fddf0d] text-xs font-semibold">{campaign.type}</div>
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50"></div>
+                              </div>
+                              <div className="text-white text-sm mb-2 font-medium">{campaign.name}</div>
+                              <div className="text-gray-400 text-xs mb-2">
+                                <span className="text-white font-semibold">{campaign.sent}</span> sent · <span className="text-green-400 font-semibold">{campaign.delivered}</span> delivered
+                              </div>
+                              <div className="relative bg-[#fddf0d]/10 rounded p-2 overflow-hidden border border-[#fddf0d]/20">
+                                <div 
+                                  className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-[#fddf0d]/40 to-[#fddf0d]/20 transition-all duration-1000"
+                                  style={{ width: campaign.rate }}
+                                ></div>
+                                <div className="relative text-xs text-gray-100 font-semibold">{campaign.rate}</div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
 
-                {/* Floating stats - animated */}
-                <div className="absolute -left-8 top-1/4 bg-white/10 backdrop-blur-sm border border-gray-600 rounded-lg p-3 shadow-xl hover:scale-110 transition-transform cursor-pointer animate-float-slow">
-                  <div className="text-2xl font-bold text-[#fddf0d]">50K+</div>
-                  <div className="text-xs text-gray-300">Daily Messages</div>
+                {/* Floating stats - more prominent with better contrast */}
+                <div className="absolute -left-12 top-1/4 bg-gradient-to-br from-[#003d4a]/95 to-[#00333e]/95 backdrop-blur-md border border-[#fddf0d]/40 rounded-xl p-4 shadow-2xl hover:scale-110 transition-all cursor-pointer animate-float-slow hover:border-[#fddf0d]/60">
+                  <div className="text-3xl font-bold text-[#fddf0d]">50K+</div>
+                  <div className="text-xs text-gray-300 font-medium">Daily SMS</div>
                 </div>
 
-                <div className="absolute -right-8 top-1/2 bg-white/10 backdrop-blur-sm border border-gray-600 rounded-lg p-3 shadow-xl hover:scale-110 transition-transform cursor-pointer animate-float-medium">
-                  <div className="text-2xl font-bold text-[#fddf0d]">24/7</div>
-                  <div className="text-xs text-gray-300">Support</div>
+                <div className="absolute -right-12 top-1/2 bg-gradient-to-br from-[#003d4a]/95 to-[#00333e]/95 backdrop-blur-md border border-[#fddf0d]/40 rounded-xl p-4 shadow-2xl hover:scale-110 transition-all cursor-pointer animate-float-medium hover:border-[#fddf0d]/60">
+                  <div className="text-3xl font-bold text-[#fddf0d]">24/7</div>
+                  <div className="text-xs text-gray-300 font-medium">Support</div>
                 </div>
 
-                <div className="absolute -left-8 bottom-1/4 bg-white/10 backdrop-blur-sm border border-gray-600 rounded-lg p-3 shadow-xl hover:scale-110 transition-transform cursor-pointer" style={{ animation: 'floatSlow 5s ease-in-out infinite' }}>
-                  <div className="text-2xl font-bold text-[#fddf0d]">99.9%</div>
-                  <div className="text-xs text-gray-300">Uptime</div>
+                <div className="absolute -left-12 bottom-1/4 bg-gradient-to-br from-[#003d4a]/95 to-[#00333e]/95 backdrop-blur-md border border-[#fddf0d]/40 rounded-xl p-4 shadow-2xl hover:scale-110 transition-all cursor-pointer hover:border-[#fddf0d]/60" style={{ animation: 'floatSlow 5s ease-in-out infinite' }}>
+                  <div className="text-3xl font-bold text-[#fddf0d]">99.9%</div>
+                  <div className="text-xs text-gray-300 font-medium">Uptime SLA</div>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce cursor-pointer z-10">
+          <div className="flex flex-col items-center gap-2 text-gray-500 hover:text-[#fddf0d] transition-colors">
+            <span className="text-xs font-medium tracking-wider">SCROLL</span>
+            <ChevronDown className="w-5 h-5" />
           </div>
         </div>
       </section>
@@ -491,18 +534,26 @@ function Home() {
       {/* CTA */}
       <section className="py-20 px-6 fade-in-section opacity-0 translate-y-8 transition-all duration-700">
         <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">
-            Ready to scale?
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            Built for Tanzania's Future
           </h2>
           <p className="text-xl text-gray-300 mb-10">
-            Join hundreds of Tanzanian businesses
+            Join 500+ enterprises powering growth with our APIs
           </p>
-          <button
-            onClick={() => navigate("/register")}
-            className="bg-[#fddf0d] text-[#00333e] px-10 py-4 rounded-lg text-lg font-semibold hover:bg-[#fce96a] transition-all hover:scale-110 hover:shadow-2xl shadow-lg"
-          >
-            Start free trial
-          </button>
+          <div className="flex gap-4 justify-center flex-wrap">
+            <button
+              onClick={() => navigate("/register")}
+              className="bg-[#fddf0d] text-[#00333e] px-10 py-4 rounded-lg text-lg font-semibold hover:bg-[#fce96a] transition-all hover:scale-110 hover:shadow-2xl shadow-lg"
+            >
+              Get Started Free
+            </button>
+            <button
+              onClick={() => navigate("/contact")}
+              className="bg-white/10 text-white px-10 py-4 rounded-lg text-lg font-semibold hover:bg-white/20 transition-all hover:scale-105 border border-gray-600"
+            >
+              Request Demo
+            </button>
+          </div>
         </div>
       </section>
     </div>

@@ -28,7 +28,7 @@ function Navbar() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
         scrolled
-          ? "bg-[#00333e] border-b border-gray-700"
+          ? "bg-white/10 backdrop-blur-md border-b border-white/10"
           : "bg-transparent"
       }`}
     >
@@ -49,7 +49,7 @@ function Navbar() {
                 <ChevronDown className="w-4 h-4" />
               </button>
               {isProductsOpen && (
-                <div className="absolute top-full left-0 mt-2 w-48 bg-[#003d4a] rounded-lg shadow-lg border border-gray-700 py-2">
+                <div className="absolute top-full left-0 mt-2 w-48 bg-white/10 backdrop-blur-md rounded-lg shadow-lg border border-white/10 py-2">
                   {products.map((product, i) => (
                     <Link
                       key={i}
@@ -105,7 +105,7 @@ function Navbar() {
         </div>
 
         {isMobileMenuOpen && (
-          <div className="lg:hidden bg-[#003d4a] border-t border-gray-700 py-4 rounded-b-xl">
+          <div className="lg:hidden bg-white/10 backdrop-blur-md border-t border-white/10 py-4 rounded-b-xl">
             <div className="space-y-3">
               <div className="px-4">
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -122,7 +122,7 @@ function Navbar() {
                   </Link>
                 ))}
               </div>
-              <div className="border-t border-gray-700 pt-3 px-4 space-y-3">
+              <div className="border-t border-white/10 pt-3 px-4 space-y-3">
                 <Link
                   to="/pricing"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -146,7 +146,7 @@ function Navbar() {
                   Contact
                 </Link>
               </div>
-              <div className="border-t border-gray-700 pt-4 px-4 space-y-3">
+              <div className="border-t border-white/10 pt-4 px-4 space-y-3">
                 <button
                   onClick={() => {
                     navigate("/login");
