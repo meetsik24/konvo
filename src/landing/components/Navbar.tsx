@@ -26,15 +26,15 @@ function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
+      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-200 mx-auto w-[calc(100%-2rem)] max-w-5xl ${
         scrolled
-          ? "bg-white/10 backdrop-blur-md border-b border-white/10"
-          : "bg-transparent"
-      }`}
+          ? "bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl"
+          : "bg-white/5 backdrop-blur-sm border border-white/10 shadow-lg"
+      } rounded-2xl`}
     >
-      <div className="container mx-auto px-6 lg:px-8">
+      <div className="px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center">
+          <Link to="/" className="flex items-center flex-shrink-0">
             <img src={logo} alt="Briq" className="h-8 w-auto" />
           </Link>
 
@@ -49,12 +49,12 @@ function Navbar() {
                 <ChevronDown className="w-4 h-4" />
               </button>
               {isProductsOpen && (
-                <div className="absolute top-full left-0 mt-2 w-48 bg-white/10 backdrop-blur-md rounded-lg shadow-lg border border-white/10 py-2">
+                <div className="absolute top-full left-0 mt-3 w-48 bg-white/15 backdrop-blur-md rounded-xl shadow-xl border border-white/20 py-2">
                   {products.map((product, i) => (
                     <Link
                       key={i}
                       to={product.href}
-                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+                      className="block px-4 py-2 text-sm text-gray-300 hover:bg-white/20 hover:text-white transition-colors"
                     >
                       {product.name}
                     </Link>
@@ -105,9 +105,9 @@ function Navbar() {
         </div>
 
         {isMobileMenuOpen && (
-          <div className="lg:hidden bg-white/10 backdrop-blur-md border-t border-white/10 py-4 rounded-b-xl">
+          <div className="lg:hidden bg-white/5 backdrop-blur-sm border-t border-white/20 py-4 rounded-b-xl -mx-6 px-6">
             <div className="space-y-3">
-              <div className="px-4">
+              <div className="px-0">
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   Products
                 </div>
@@ -122,7 +122,7 @@ function Navbar() {
                   </Link>
                 ))}
               </div>
-              <div className="border-t border-white/10 pt-3 px-4 space-y-3">
+              <div className="border-t border-white/20 pt-3 px-0 space-y-3">
                 <Link
                   to="/pricing"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -146,7 +146,7 @@ function Navbar() {
                   Contact
                 </Link>
               </div>
-              <div className="border-t border-white/10 pt-4 px-4 space-y-3">
+              <div className="border-t border-white/20 pt-4 px-0 space-y-3">
                 <button
                   onClick={() => {
                     navigate("/login");

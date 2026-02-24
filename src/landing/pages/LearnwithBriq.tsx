@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Play, BookOpen, FileText, Code, ArrowRight, ExternalLink, Calendar, Clock, MessageCircle, Users } from "lucide-react";
+import { Play, ArrowRight, ExternalLink, FileText, Code, BookOpen } from "lucide-react";
 import YouTube, { YouTubeEvent } from "react-youtube";
+import { FAQAccordion } from "../components/ui/FAQAccordion";
+import { learnResources, homePageFaqs } from "../constants";
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -53,98 +55,16 @@ function LearnWithBriq() {
     }
   };
 
-  const resources = [
-    {
-      icon: FileText,
-      title: "Documentation",
-      description: "Comprehensive guides for all Briq products",
-      href: "https://docs.briq.tz",
-      external: true,
-    },
-    {
-      icon: Code,
-      title: "API Reference",
-      description: "Complete API documentation with examples",
-      href: "https://docs.briq.tz/api",
-      external: true,
-    },
-    {
-      icon: BookOpen,
-      title: "Tutorials",
-      description: "Step-by-step integration guides",
-      href: "https://docs.briq.tz/tutorials",
-      external: true,
-    },
-  ];
+  // Map icon names to icon components for resources
+  const iconMap: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
+    FileText,
+    Code,
+    BookOpen,
+  };
 
-  const tutorials = [
-    {
-      title: "Getting Started with Bulk SMS",
-      videoId: "t1zaDwbPmyo",
-      duration: "5 min",
-      category: "Beginner",
-      description: "Learn the basics of sending SMS campaigns",
-    },
-    {
-      title: "WhatsApp Business API Setup",
-      videoId: "t1zaDwbPmyo",
-      duration: "8 min",
-      category: "Integration",
-      description: "Connect your WhatsApp Business account",
-    },
-    {
-      title: "OTP Verification Implementation",
-      videoId: "t1zaDwbPmyo",
-      duration: "12 min",
-      category: "Developer",
-      description: "Secure your app with OTP verification",
-    },
-    {
-      title: "Managing Campaigns",
-      videoId: "t1zaDwbPmyo",
-      duration: "6 min",
-      category: "Beginner",
-      description: "Create and manage messaging campaigns",
-    },
-    {
-      title: "Webhook Configuration",
-      videoId: "t1zaDwbPmyo",
-      duration: "10 min",
-      category: "Developer",
-      description: "Set up webhooks for real-time events",
-    },
-    {
-      title: "Analytics Dashboard Overview",
-      videoId: "t1zaDwbPmyo",
-      duration: "4 min",
-      category: "Beginner",
-      description: "Understand your messaging metrics",
-    },
-  ];
-
-  const qaSessions = [
-    {
-      title: "Weekly Developer Q&A",
-      day: "Every Wednesday",
-      time: "3:00 PM EAT",
-      description: "Live Q&A session for developers integrating Briq APIs",
-      type: "live",
-    },
-    {
-      title: "Getting Started Office Hours",
-      day: "Every Monday",
-      time: "10:00 AM EAT",
-      description: "Perfect for new users - ask anything about the platform",
-      type: "live",
-    },
-    {
-      title: "Advanced Integration Session",
-      day: "First Friday of Month",
-      time: "2:00 PM EAT",
-      description: "Deep dive sessions on complex use cases and best practices",
-      type: "monthly",
-    },
-  ];
+  const getResourceIcon = (iconName: string) => {
+    return iconMap[iconName] || FileText;
+  };
 
   return (
     <div className="bg-[#0a0a0f] text-white">
@@ -178,7 +98,9 @@ function LearnWithBriq() {
       <section className="py-16 bg-[#111118]">
         <div className="container mx-auto px-6 lg:px-8">
           <div className="grid md:grid-cols-3 gap-6">
-            {resources.map((resource, i) => (
+            {learnResources.map((resource, i) => {
+              const IconComponent = getResourceIcon(resource.icon);
+              return (
               <motion.a
                 key={i}
                 href={resource.href}
@@ -191,7 +113,7 @@ function LearnWithBriq() {
                 className="bg-[#0a0a0f] border border-gray-800 rounded-2xl p-6 hover:border-[#fddf0d]/30 transition-all group"
               >
                 <div className="w-12 h-12 bg-gradient-to-br from-[#00333e]/30 to-[#fddf0d]/20 rounded-xl flex items-center justify-center mb-4">
-                  <resource.icon className="w-6 h-6 text-[#fddf0d]" />
+                  <IconComponent className="w-6 h-6 text-[#fddf0d]" />
                 </div>
                 <h3 className="text-lg font-semibold text-white mb-2 flex items-center">
                   {resource.title}
@@ -201,7 +123,8 @@ function LearnWithBriq() {
                 </h3>
                 <p className="text-gray-400 text-sm">{resource.description}</p>
               </motion.a>
-            ))}
+            );
+            })}
           </div>
         </div>
       </section>
@@ -283,78 +206,6 @@ function LearnWithBriq() {
         </div>
       </section>
 
-      {/* Video Tutorials Grid */}
-      <section className="py-20 bg-[#111118]">
-        <div className="container mx-auto px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fadeIn}
-            className="text-center mb-12"
-          >
-            <p className="text-[#fddf0d] font-semibold text-sm tracking-wide uppercase mb-4">
-              Video Tutorials
-            </p>
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Step-by-Step Guides
-            </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
-              Watch comprehensive tutorials covering every aspect of the Briq platform
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {tutorials.map((tutorial, i) => (
-              <motion.a
-                key={i}
-                href={`https://www.youtube.com/watch?v=${tutorial.videoId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={fadeIn}
-                className="bg-[#0a0a0f] border border-gray-800 rounded-2xl overflow-hidden hover:border-[#fddf0d]/30 transition-all group"
-              >
-                <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center relative">
-                  <div className="w-12 h-12 bg-[#fddf0d] rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Play className="w-4 h-4 text-black ml-0.5" />
-                  </div>
-                  <div className="absolute bottom-3 right-3 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {tutorial.duration}
-                  </div>
-                  <div className="absolute top-3 left-3">
-                    <span className="text-xs font-medium text-gray-300 bg-gray-800/80 px-2 py-1 rounded">
-                      {tutorial.category}
-                    </span>
-                  </div>
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-white mb-1 group-hover:text-[#fddf0d] transition-colors text-sm">
-                    {tutorial.title}
-                  </h3>
-                  <p className="text-xs text-gray-400">{tutorial.description}</p>
-                </div>
-              </motion.a>
-            ))}
-          </div>
-
-          <div className="text-center mt-10">
-            <a
-              href="https://www.youtube.com/@karibubriq/videos"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center text-[#fddf0d] font-semibold hover:text-[#fddf0d]/80 transition-colors"
-            >
-              View all tutorials on YouTube
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </a>
-          </div>
-        </div>
-      </section>
-
       {/* Q&A Sessions */}
       <section className="py-20 bg-[#111118]">
         <div className="container mx-auto px-6 lg:px-8">
@@ -365,73 +216,12 @@ function LearnWithBriq() {
             variants={fadeIn}
             className="text-center mb-12"
           >
-            <p className="text-[#fddf0d] font-semibold text-sm tracking-wide uppercase mb-4">
-              Live Q&A
-            </p>
             <h2 className="text-3xl font-bold text-white mb-4">
-              Ask Questions, Get Answers
+              Common questions
             </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
-              Join our live sessions to get your questions answered by the Briq team
-            </p>
           </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {qaSessions.map((session, i) => (
-              <motion.div
-                key={i}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={fadeIn}
-                className="bg-[#0a0a0f] border border-gray-800 rounded-2xl p-6 hover:border-[#fddf0d]/30 transition-all"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-[#00333e]/30 to-[#fddf0d]/20 rounded-xl flex items-center justify-center">
-                    <MessageCircle className="w-6 h-6 text-[#fddf0d]" />
-                  </div>
-                  {session.type === "live" && (
-                    <span className="flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded">
-                      <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                      Weekly
-                    </span>
-                  )}
-                  {session.type === "monthly" && (
-                    <span className="text-xs font-medium text-[#fddf0d] bg-[#fddf0d]/10 px-2 py-1 rounded">
-                      Monthly
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {session.title}
-                </h3>
-                <p className="text-sm text-gray-400 mb-4">
-                  {session.description}
-                </p>
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {session.day}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {session.time}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="text-center mt-10">
-            <a
-              href="https://www.youtube.com/@karibubriq"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center bg-[#fddf0d]/10 text-[#fddf0d] px-6 py-3 rounded-lg font-semibold hover:bg-[#fddf0d]/20 transition-colors"
-            >
-              <Users className="w-5 h-5 mr-2" />
-              Subscribe for Session Reminders
-            </a>
+          <div className="max-w-3xl mx-auto">
+            <FAQAccordion items={homePageFaqs} variant="dark" />
           </div>
         </div>
       </section>
