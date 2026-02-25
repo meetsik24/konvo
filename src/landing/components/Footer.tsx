@@ -24,6 +24,14 @@ function Footer() {
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
 
+  const handleDemoClick = () => {
+    if (window.location.pathname === "/contact") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      navigate("/contact");
+    }
+  };
+
   return (
     <footer className="relative bg-white pt-24 overflow-hidden">
       {/* CTA Section - Floating Card Style */}
@@ -53,7 +61,7 @@ function Footer() {
                 Get Started <MoveRight className="w-5 h-5" />
               </button>
               <button
-                onClick={() => navigate("/contact")}
+                onClick={handleDemoClick}
                 className="bg-white/5 text-white px-10 py-4 rounded-xl text-lg font-bold hover:bg-white/10 transition-all border border-white/20 backdrop-blur-sm"
               >
                 Book a Demo

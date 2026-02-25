@@ -15,6 +15,7 @@ import Features from './landing/pages/Features';
 import Pricing from './landing/pages/Pricing';
 import Navbar from './landing/components/Navbar';
 import Footer from './landing/components/Footer';
+import ScrollToTop from './components/ScrollToTop';
 
 
 // Documentation Pages
@@ -174,6 +175,7 @@ function App() {
       <WorkspaceProvider>
         <ContactsProvider>
           <Router>
+            <ScrollToTop />
             <div className="min-h-screen flex flex-col">
               <AnimatePresence mode="wait">
                 <Routes>

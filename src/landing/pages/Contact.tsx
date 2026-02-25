@@ -213,31 +213,6 @@ function Contact() {
         </div>
       </SectionDark>
 
-      {/* CTA */}
-      <SectionWhite maxWidth="3xl" className="py-12">
-        <h2 className="text-4xl font-bold text-[#00333e] mb-6 text-center">
-          Ready to start?
-        </h2>
-        <p className="text-xl text-gray-600 mb-10 text-center">
-          Sign up and start sending messages in minutes
-        </p>
-        <div className="flex gap-4 justify-center flex-wrap">
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={() => window.location.href = "/register"}
-          >
-            Create free account
-          </Button>
-          <Button
-            variant="dark"
-            size="lg"
-            onClick={() => window.open("https://docs.briq.tz", "_blank")}
-          >
-            View documentation
-          </Button>
-        </div>
-      </SectionWhite>
     </div>
   );
 }
