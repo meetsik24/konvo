@@ -80,10 +80,10 @@ function Features() {
         <SectionDark>
           <div className="mb-16 text-center">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Check this out
+              Our Services
             </h2>
             <p className="text-xl text-gray-300">
-              Messages, payments, and events made simple
+              Powerful communication tools for modern businesses
             </p>
           </div>
 
@@ -101,9 +101,9 @@ function Features() {
                   key={feature.id}
                   className="service-card flex-shrink-0 w-[340px] md:w-[380px]"
                 >
-                  <div className="relative h-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.35)] transition-all duration-500 hover:-translate-y-2 hover:border-[#fddf0d]/60">
-                    <div className="absolute -top-10 -right-8 h-32 w-32 rounded-full bg-[#fddf0d]/10 blur-3xl"></div>
-                    <div className="absolute -bottom-12 left-6 h-24 w-24 rounded-full bg-[#00f5d4]/10 blur-3xl"></div>
+                  <div className="relative h-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.35)] transition-all duration-500 hover:-translate-y-2 hover:border-[#fddf0d]/60 hover:shadow-[0_25px_70px_rgba(253,223,13,0.15)] flex flex-col">
+                    {/* Subtle corner accent */}
+                    <div className="absolute top-0 right-0 h-24 w-24 rounded-tr-2xl bg-gradient-to-br from-[#fddf0d]/5 to-transparent"></div>
 
                     <div className="relative z-10">
                       <div className="mb-6">
@@ -119,7 +119,7 @@ function Features() {
                         {feature.description}
                       </p>
 
-                      <div className="space-y-3 mb-10">
+                      <div className="space-y-3 mb-8 flex-1">
                         {feature.capabilities.slice(0, 3).map((capability, j) => (
                           <div key={j} className="flex items-start gap-3 text-gray-200 text-sm">
                             <span className="text-[#fddf0d] font-bold mt-0.5">✓</span>
@@ -145,6 +145,8 @@ function Features() {
                 </div>
               ))}
             </div>
+            {/* Mobile/tablet scroll hint */}
+            <p className="text-center text-gray-500 text-xs mt-4 lg:hidden">← Swipe to see more →</p>
           </div>
         </SectionDark>
       </div>

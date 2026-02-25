@@ -41,13 +41,13 @@ function Home() {
         <div className="absolute inset-0 z-0">
           {/* Dark gradient background */}
           <div className="absolute inset-0 bg-gradient-to-br from-[#00333e] via-[#001f26] to-[#00333e] opacity-100" />
-          
+
           {/* Grid background pattern */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]"></div>
-          
+
           {/* Subtle top-bottom fade overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-[#00333e] via-transparent to-[#00333e] opacity-60"></div>
-          
+
           {/* Subtle accent glow - much more muted */}
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#00333e]/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#00333e]/10 rounded-full blur-3xl"></div>
@@ -58,20 +58,19 @@ function Home() {
             {/* Left: Text Content */}
             <div className="space-y-6">
               <div className="inline-block px-4 py-2 bg-[#fddf0d]/15 border border-[#fddf0d]/30 rounded-full backdrop-blur-sm">
-                <span className="text-[#fddf0d] text-sm font-semibold tracking-wide">ENTERPRISE COMMUNICATION PLATFORM</span>
+                <span className="text-[#fddf0d] text-sm font-semibold tracking-wide">BUSINESS COMMUNICATION PLATFORM</span>
               </div>
-              
-              <div className="relative overflow-hidden" style={{ height: '220px' }}>
+
+              <div className="relative overflow-hidden" style={{ minHeight: '220px' }}>
                 {rotatingTexts.map((text, i) => (
                   <div
                     key={i}
-                    className={`absolute inset-0 transition-all duration-700 ease-in-out ${
-                      i === activeText 
-                        ? 'opacity-100 translate-y-0' 
-                        : i === (activeText - 1 + rotatingTexts.length) % rotatingTexts.length
+                    className={`absolute inset-0 transition-all duration-700 ease-in-out ${i === activeText
+                      ? 'opacity-100 translate-y-0'
+                      : i === (activeText - 1 + rotatingTexts.length) % rotatingTexts.length
                         ? 'opacity-0 -translate-y-8'
                         : 'opacity-0 translate-y-8'
-                    }`}
+                      }`}
                   >
                     <div className="text-xs md:text-sm text-[#fddf0d] font-bold mb-3 tracking-widest">{text.tag}</div>
                     <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-100 leading-tight mb-2">
@@ -83,11 +82,11 @@ function Home() {
                   </div>
                 ))}
               </div>
-              
-              <p className="text-base md:text-lg text-gray-500 max-w-xl leading-relaxed">
+
+              <p className="text-base md:text-lg text-gray-300 max-w-xl leading-relaxed">
                 Production-ready APIs for Banks, Fintechs & High-growth Startups across Tanzania
               </p>
-              
+
               <div className="flex gap-4 flex-wrap pt-2">
                 <button
                   onClick={() => navigate("/register")}
@@ -107,8 +106,8 @@ function Home() {
               <div className="pt-8 border-t border-gray-700/30">
                 <div className="flex flex-wrap gap-3 mb-5">
                   {["SMS API", "WhatsApp API", "Voice OTP", "AI Chatbots"].map((service, i) => (
-                    <div 
-                      key={i} 
+                    <div
+                      key={i}
                       className="px-3 py-1.5 bg-white/5 border border-gray-600/50 rounded-md text-xs text-gray-400 hover:border-[#fddf0d] hover:text-[#fddf0d] transition-all cursor-pointer hover:scale-105 backdrop-blur-sm"
                       style={{ animationDelay: `${i * 100}ms` }}
                     >
@@ -122,7 +121,7 @@ function Home() {
                   {stats.map((stat, i) => (
                     <div key={i} className="flex items-baseline gap-2 group cursor-pointer">
                       <div className="text-2xl font-bold text-[#fddf0d] group-hover:scale-110 transition-transform">{stat.value}</div>
-                      <div className="text-xs text-gray-600">{stat.label}</div>
+                      <div className="text-xs text-gray-400">{stat.label}</div>
                     </div>
                   ))}
                 </div>
@@ -138,7 +137,7 @@ function Home() {
             >
               {/* Subtle glow effect behind mockup */}
               <div className="absolute inset-0 bg-[#fddf0d]/5 blur-3xl rounded-full scale-110"></div>
-              
+
               <div className="relative">
                 {/* SMS Mobile Interface */}
                 {activeMockup === 0 && (
@@ -152,12 +151,12 @@ function Home() {
                           <div className="w-4 h-3 border border-white rounded-sm flex items-center p-0.5"><div className="h-full flex-1 bg-white"></div></div>
                         </div>
                       </div>
-                      
+
                       {/* Chat List Header */}
                       <div className="bg-black px-4 py-3 border-b border-gray-800">
                         <h2 className="text-white font-semibold text-sm">Messages</h2>
                       </div>
-                      
+
                       {/* SMS Messages */}
                       <div className="bg-black h-96 overflow-y-auto">
                         <div className="p-4 space-y-4">
@@ -170,7 +169,7 @@ function Home() {
                               <div className="text-gray-600 text-xs mt-1">9:35 AM</div>
                             </div>
                           </div>
-                          
+
                           {/* Incoming SMS */}
                           <div className="flex gap-2">
                             <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">C</div>
@@ -180,7 +179,7 @@ function Home() {
                               <div className="text-gray-600 text-xs mt-1">9:28 AM</div>
                             </div>
                           </div>
-                          
+
                           {/* Incoming SMS */}
                           <div className="flex gap-2">
                             <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">O</div>
@@ -208,7 +207,7 @@ function Home() {
                           <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white text-xs">⋮</div>
                         </div>
                       </div>
-                      
+
                       {/* Chat Messages */}
                       <div className="bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] h-96 overflow-y-auto p-4 space-y-3">
                         {/* Incoming */}
@@ -218,7 +217,7 @@ function Home() {
                             <div className="text-gray-400 text-xs mt-1">9:42</div>
                           </div>
                         </div>
-                        
+
                         {/* Outgoing */}
                         <div className="flex gap-2 justify-end">
                           <div className="bg-[#056162] rounded-3xl rounded-br-none px-4 py-2 max-w-xs">
@@ -226,7 +225,7 @@ function Home() {
                             <div className="text-gray-300 text-xs mt-1">10:05</div>
                           </div>
                         </div>
-                        
+
                         {/* Incoming */}
                         <div className="flex gap-2 justify-start">
                           <div className="bg-[#1f4a48] rounded-3xl rounded-bl-none px-4 py-2 max-w-xs">
@@ -234,7 +233,7 @@ function Home() {
                             <div className="text-gray-400 text-xs mt-1">10:07</div>
                           </div>
                         </div>
-                        
+
                         {/* Outgoing */}
                         <div className="flex gap-2 justify-end">
                           <div className="bg-[#056162] rounded-3xl rounded-br-none px-4 py-2 max-w-xs">
@@ -243,12 +242,12 @@ function Home() {
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Input Bar */}
                       <div className="bg-[#0a0a0a] px-4 py-3 border-t border-gray-800 flex gap-2">
-                        <input 
-                          type="text" 
-                          placeholder="Type a message..." 
+                        <input
+                          type="text"
+                          placeholder="Type a message..."
                           className="flex-1 bg-[#1f4a48] text-white rounded-full px-4 py-2 text-sm outline-none placeholder-gray-500"
                         />
                         <div className="text-[#056162] font-bold text-xl">➤</div>
@@ -271,7 +270,7 @@ function Home() {
                           <div className="text-[#fddf0d] font-bold text-2xl">↗ 24%</div>
                         </div>
                       </div>
-                      
+
                       {/* Dashboard Content */}
                       <div className="p-6 space-y-6">
                         {/* Key Metrics */}
@@ -287,7 +286,7 @@ function Home() {
                             <div className="text-green-400 text-xs mt-2">99.1% rate</div>
                           </div>
                         </div>
-                        
+
                         {/* Chart */}
                         <div className="bg-white/5 rounded-lg p-4 border border-gray-700/50">
                           <div className="text-gray-400 text-xs mb-4">Messages Sent</div>
@@ -302,7 +301,7 @@ function Home() {
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Campaign List */}
                         <div className="bg-white/5 rounded-lg p-4 border border-gray-700/50">
                           <div className="text-gray-400 text-xs mb-4">Top Campaigns</div>
@@ -326,18 +325,18 @@ function Home() {
                   </div>
                 )}
 
-                {/* Floating stats - more prominent with better contrast */}
-                <div className="absolute -left-12 top-1/4 bg-gradient-to-br from-[#003d4a]/95 to-[#00333e]/95 backdrop-blur-md border border-[#fddf0d]/40 rounded-xl p-4 shadow-2xl hover:scale-110 transition-all cursor-pointer animate-float-slow hover:border-[#fddf0d]/60">
+                {/* Floating stats - better positioning to avoid horizontal scroll */}
+                <div className="absolute left-0 top-1/4 bg-gradient-to-br from-[#003d4a]/95 to-[#00333e]/95 backdrop-blur-md border border-[#fddf0d]/40 rounded-xl p-4 shadow-2xl hover:scale-110 transition-all cursor-pointer animate-float-slow hover:border-[#fddf0d]/60 hidden lg:block">
                   <div className="text-3xl font-bold text-[#fddf0d]">50K+</div>
                   <div className="text-xs text-gray-300 font-medium">Daily SMS</div>
                 </div>
 
-                <div className="absolute -right-12 top-1/2 bg-gradient-to-br from-[#003d4a]/95 to-[#00333e]/95 backdrop-blur-md border border-[#fddf0d]/40 rounded-xl p-4 shadow-2xl hover:scale-110 transition-all cursor-pointer animate-float-medium hover:border-[#fddf0d]/60">
+                <div className="absolute right-0 top-1/2 bg-gradient-to-br from-[#003d4a]/95 to-[#00333e]/95 backdrop-blur-md border border-[#fddf0d]/40 rounded-xl p-4 shadow-2xl hover:scale-110 transition-all cursor-pointer animate-float-medium hover:border-[#fddf0d]/60 hidden lg:block">
                   <div className="text-3xl font-bold text-[#fddf0d]">24/7</div>
                   <div className="text-xs text-gray-300 font-medium">Support</div>
                 </div>
 
-                <div className="absolute -left-12 bottom-1/4 bg-gradient-to-br from-[#003d4a]/95 to-[#00333e]/95 backdrop-blur-md border border-[#fddf0d]/40 rounded-xl p-4 shadow-2xl hover:scale-110 transition-all cursor-pointer hover:border-[#fddf0d]/60" style={{ animation: 'floatSlow 5s ease-in-out infinite' }}>
+                <div className="absolute left-0 bottom-1/4 bg-gradient-to-br from-[#003d4a]/95 to-[#00333e]/95 backdrop-blur-md border border-[#fddf0d]/40 rounded-xl p-4 shadow-2xl hover:scale-110 transition-all cursor-pointer hover:border-[#fddf0d]/60 hidden lg:block" style={{ animation: 'floatSlow 5s ease-in-out infinite' }}>
                   <div className="text-3xl font-bold text-[#fddf0d]">99.9%</div>
                   <div className="text-xs text-gray-300 font-medium">Uptime SLA</div>
                 </div>
@@ -348,7 +347,7 @@ function Home() {
 
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce cursor-pointer z-10">
-          <div className="flex flex-col items-center gap-2 text-gray-500 hover:text-[#fddf0d] transition-colors">
+          <div className="flex flex-col items-center gap-2 text-gray-300 hover:text-[#fddf0d] transition-colors">
             <span className="text-xs font-medium tracking-wider">SCROLL</span>
             <ChevronDown className="w-5 h-5" />
           </div>
@@ -356,21 +355,21 @@ function Home() {
       </section>
 
       {/* Trusted by */}
-      <section className="py-16 px-6 fade-in-section opacity-0 translate-y-8 transition-all duration-700">
+      <section className="py-20 px-6 fade-in-section opacity-0 translate-y-8 transition-all duration-700">
         <div className="container mx-auto max-w-6xl text-center">
-          <p className="text-sm text-gray-500 mb-6">
-            Powering communication for Tanzania's <span className="text-gray-400 font-medium">leading financial institutions & enterprises</span>
+          <p className="text-sm text-gray-600 mb-8">
+            Powering communication for Tanzania's <span className="text-gray-700 font-semibold">leading financial institutions &amp; enterprises</span>
           </p>
           <div className="flex flex-wrap justify-center gap-8 items-center">
             {logos.map((logo, i) => (
-              <div key={i} className="text-gray-400 font-medium text-sm hover:text-[#fddf0d] transition-all hover:scale-110 cursor-pointer" style={{ animationDelay: `${i * 100}ms` }}>{logo}</div>
+              <div key={i} className="text-gray-700 font-medium text-sm hover:text-[#fddf0d] transition-all hover:scale-110 cursor-pointer" style={{ animationDelay: `${i * 100}ms` }}>{logo}</div>
             ))}
           </div>
         </div>
       </section>
 
 
-      
+
     </div>
   );
 }

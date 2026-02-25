@@ -15,7 +15,7 @@ import Features from './landing/pages/Features';
 import Pricing from './landing/pages/Pricing';
 import Navbar from './landing/components/Navbar';
 import Footer from './landing/components/Footer';
-import BlogSection from './landing/pages/blog';
+
 
 // Documentation Pages
 // import DocumentationHome from './Karibu/pages/Home';
@@ -72,10 +72,12 @@ import AdminOTPs from './pages/admin/AdminOTPs';
 // Terms of Service and Privacy Policy Pages
 import TermsOfService from './landing/pages/Terms';
 import PrivacyPolicy from './landing/pages/Privacy';
+import Contact from './landing/pages/Contact';
 
+import LearnWithBriq from './landing/pages/LearnwithBriq';
 import { ContactsProvider } from './components/ContactsContext';
 import { WorkspaceProvider } from './pages/WorkspaceContext';
-import LearnWithBriq from './landing/pages/LearnwithBriq';
+
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -112,9 +114,6 @@ const Landing = () => {
       </div>
       <div id="pricing">
         <Pricing />
-      </div>
-      <div id="blog">
-        <BlogSection />
       </div>
       <div id="footer">
         <Footer />
@@ -187,6 +186,9 @@ function App() {
                   {/* Terms of Service and Privacy Policy Routes */}
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
+
+                  {/* Contact Route */}
+                  <Route path="/contact" element={<><Navbar /><Contact /><Footer /></>} />
 
                   {/* Authentication Routes */}
                   <Route path="/login" element={<Login />} />

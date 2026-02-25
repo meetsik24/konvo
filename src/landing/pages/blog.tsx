@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
+import { SectionDark } from "../components/sections";
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -54,48 +55,22 @@ function Blog() {
   };
 
   return (
-    <div className="bg-[#0a0a0f] text-white">
-
-      {/* Hero */}
-      <section className="pt-32 pb-16 relative overflow-hidden border-b border-gray-800">
-        {/* Grid background */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]"></div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#00333e]/20 rounded-full blur-3xl"></div>
-
-        <div className="container mx-auto px-6 lg:px-8 relative z-10">
-          <div className="max-w-3xl">
-            <motion.div initial="hidden" animate="visible" variants={fadeIn}>
-              <p className="text-[#fddf0d] font-semibold text-sm tracking-wide uppercase mb-4">
-                Blog
-              </p>
-              <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-6">
-                Insights &
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#fddf0d] to-[#00333e]"> Updates</span>
-              </h1>
-              <p className="text-xl text-gray-400 leading-relaxed">
-                News, tutorials, and insights about communication technology 
-                and building better customer experiences.
-              </p>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Posts Grid */}
-      <section className="py-20">
+    <div className="bg-white min-h-screen">
+      {/* Posts Grid - White */}
+      <section className="pt-24 pb-6 bg-white">
         <div className="container mx-auto px-6 lg:px-8">
           {loading ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i} className="animate-pulse">
-                  <div className="bg-gray-800 rounded-xl h-48 mb-4"></div>
-                  <div className="bg-gray-800 h-4 rounded w-1/4 mb-3"></div>
-                  <div className="bg-gray-800 h-6 rounded mb-2"></div>
-                  <div className="bg-gray-800 h-4 rounded w-3/4"></div>
+                  <div className="bg-gray-200 rounded-xl h-48 mb-4"></div>
+                  <div className="bg-gray-200 h-4 rounded w-1/4 mb-3"></div>
+                  <div className="bg-gray-200 h-6 rounded mb-2"></div>
+                  <div className="bg-gray-200 h-4 rounded w-3/4"></div>
                 </div>
               ))}
             </div>
-          ) : posts.length > 0 ? (
+          ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {posts.map((post, i) => (
                 <motion.a
@@ -108,7 +83,7 @@ function Blog() {
                   viewport={{ once: true }}
                   variants={fadeIn}
                   transition={{ delay: i * 0.1 }}
-                  className="group bg-[#111118] border border-gray-800 rounded-2xl overflow-hidden hover:border-[#fddf0d]/30 transition-all"
+                  className="group bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-[#fddf0d] transition-colors"
                 >
                   <div className="h-48 overflow-hidden">
                     {post._embedded?.["wp:featuredmedia"]?.[0]?.source_url ? (
@@ -118,8 +93,8 @@ function Blog() {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-                        <span className="text-gray-600 text-sm">No image</span>
+                      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                        <span className="text-gray-400 text-sm">No image</span>
                       </div>
                     )}
                   </div>
@@ -128,41 +103,23 @@ function Blog() {
                       <Calendar className="w-4 h-4 mr-2" />
                       {formatDate(post.date)}
                     </div>
-                    <h2 className="text-lg font-semibold text-white mb-2 group-hover:text-[#fddf0d] transition-colors">
+                    <h2 className="text-lg font-semibold text-[#00333e] mb-2 group-hover:text-[#fddf0d] transition-colors">
                       {post.title.rendered}
                     </h2>
-                    <p className="text-gray-400 text-sm line-clamp-2">
+                    <p className="text-gray-600 text-sm line-clamp-2">
                       {stripHtml(post.excerpt.rendered).substring(0, 120)}...
                     </p>
                   </div>
                 </motion.a>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-16">
-              <p className="text-gray-500">No posts found.</p>
-            </div>
-          )}
-
-          {posts.length > 0 && (
-            <div className="mt-12 text-center">
-              <a
-                href="https://briq.tz/blog"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center text-[#fddf0d] font-semibold hover:text-[#fddf0d]/80 transition-colors"
-              >
-                View all posts
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </a>
-            </div>
           )}
         </div>
       </section>
 
-      {/* Newsletter CTA */}
-      <section className="py-20 bg-[#111118]">
-        <div className="container mx-auto px-6 lg:px-8 text-center">
+      {/* Newsletter CTA - Dark */}
+      <SectionDark>
+        <div className="text-center">
           <h2 className="text-2xl font-bold text-white mb-4">
             Stay updated
           </h2>
@@ -173,14 +130,14 @@ function Blog() {
             <input
               type="email"
               placeholder="Enter your email"
-              className="flex-1 px-4 py-3 bg-[#0a0a0f] border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] outline-none"
+              className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-[#fddf0d] focus:border-[#fddf0d] outline-none backdrop-blur-xl"
             />
             <button className="bg-[#fddf0d] text-black px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity">
               Subscribe
             </button>
           </div>
         </div>
-      </section>
+      </SectionDark>
     </div>
   );
 }

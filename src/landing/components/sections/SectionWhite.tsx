@@ -1,7 +1,6 @@
 /**
  * SectionWhite Component
- * White background section for content
- * Reusable across all landing pages
+ * White background section — tight padding for dense layout.
  */
 
 import React from 'react';
@@ -34,10 +33,10 @@ export const SectionWhite: React.FC<SectionWhiteProps> = ({
   className = '',
 }) => {
   return (
-    <section className={`pb-20 px-6 bg-white ${className}`}>
+    <section className={`py-12 px-6 bg-white ${className}`}>
       <div className={`container mx-auto ${maxWidthClasses[maxWidth]}`}>
         {(title || subtitle) && (
-          <div className="text-center mb-12">
+          <div className="text-center mb-10">
             {title && (
               <h2 className="text-3xl font-bold text-[#00333e] mb-4">
                 {title}
