@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, ArrowLeft, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, ArrowRight } from 'lucide-react';
 import { setError } from '../store/slices/authSlice';
 import { resetPasswordWithOtp } from '../services/api';
 
-// Placeholder for the logo and banner (replace with your actual assets)
-import Logo from '/assets/briq2.png';
+const simuImage = '/assets/simu2.png';
+const dashboard = '/assets/SMS.png';
+const simuImage2 = '/assets/simu.png';
 
 const ResetPassword: React.FC = () => {
   const dispatch = useDispatch();
@@ -23,6 +24,26 @@ const ResetPassword: React.FC = () => {
   const [error, setLocalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const images = [simuImage, dashboard, simuImage2];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const welcomeMessages = [
+    { line1: "Forgot your password?", line2: "No worries, we got you." },
+    { line1: "Let's fix this", line2: "quick and easy." },
+    { line1: "Reset in seconds", line2: "get back to building." },
+  ];
+
+  const welcomeMessage = useMemo(() => {
+    return welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +51,7 @@ const ResetPassword: React.FC = () => {
     setLocalError(null);
 
     if (!phoneNumber) {
-      setLocalError('Phone number is missing. Please start the password reset process again.');
+      setLocalError('Phone number is missing. Please start the reset process again.');
       setLoading(false);
       return;
     }
@@ -59,24 +80,34 @@ const ResetPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-      <div className="w-full max-w-3xl bg-white shadow-sm rounded-sm overflow-hidden">
-        {/* Centered Card with Two Segments */}
-        <div className="flex flex-col md:flex-row">
-          {/* Right Segment - Reset Password Form (comes first on mobile) */}
-          <div className="w-full md:w-1/2 p-6 flex flex-col items-center order-1 md:order-2">
-            <div className="mb-4">
-              <img src={Logo} alt="Logo" className="h-16 w-auto" />
+    <div className="min-h-screen flex">
+      <div className="w-full min-h-screen flex flex-col lg:flex-row">
+        {/* Left Side - Form */}
+        <div className="w-full lg:w-3/6 p-8 lg:p-16 flex items-center justify-center bg-white">
+          <div className="w-full max-w-md">
+            {/* Logo placeholder */}
+            <div className="mb-10" />
+
+            {/* Welcome Text */}
+            <div className="mb-8">
+              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+                {welcomeMessage.line1}
+                <br />
+                {welcomeMessage.line2}
+              </h1>
+              <p className="text-sm text-gray-600">
+                Enter the OTP sent to your phone and choose a new password
+              </p>
             </div>
-            <h2 className="text-lg font-semibold text-[#00333e] mb-2">Reset Password</h2>
-            <p className="text-center text-sm text-gray-600 mb-4">
-              Enter the OTP sent to your phone and your new password
-            </p>
 
             {error && (
-              <div className="bg-red-50 text-red-600 text-sm p-2 rounded mb-4 text-center">
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"
+              >
                 {error}
-              </div>
+              </motion.div>
             )}
 
             <AnimatePresence>
@@ -86,48 +117,49 @@ const ResetPassword: React.FC = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.5, ease: "easeInOut" }}
-                  className="flex items-center justify-center gap-2 bg-green-100 text-green-700 p-3 rounded-lg shadow-lg border border-green-200 mb-4"
+                  className="mb-6 flex items-center gap-2 bg-green-50 text-green-700 p-3.5 rounded-lg border border-green-200"
                 >
-                  <CheckCircle className="w-6 h-6 animate-bounce text-green-600" />
-                  <p className="text-sm font-semibold">Password Reset Successful</p>
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <p className="text-sm font-medium">Password reset successful! Redirecting to login...</p>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <form className="space-y-4 w-full max-w-xs" onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <input
                   id="otp"
-                  name="otp"
                   type="text"
+                  inputMode="numeric"
+                  maxLength={6}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
-                  placeholder="Enter OTP"
+                  className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00333e] focus:border-transparent transition placeholder-gray-400"
+                  placeholder="Enter 6-digit OTP"
                   value={formData.otp}
-                  onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, otp: e.target.value.replace(/\D/g, '').slice(0, 6) })}
                   disabled={loading}
                 />
               </div>
+
               <div>
                 <input
                   id="password"
-                  name="password"
                   type="password"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00333e] focus:border-transparent transition placeholder-gray-400"
                   placeholder="New Password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   disabled={loading}
                 />
               </div>
+
               <div>
                 <input
                   id="confirmPassword"
-                  name="confirmPassword"
                   type="password"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00333e]"
+                  className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00333e] focus:border-transparent transition placeholder-gray-400"
                   placeholder="Confirm Password"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
@@ -135,58 +167,94 @@ const ResetPassword: React.FC = () => {
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <button
+                type="submit"
+                disabled={loading || formData.otp.length !== 6}
+                className="w-full py-3 text-sm bg-[#00333e] hover:bg-[#004d5c] text-white font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading ? 'Resetting...' : (
+                  <>
+                    Reset Password <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Back to Login */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-xs text-gray-500">
+                Remember your password?{' '}
                 <button
                   type="button"
                   onClick={() => navigate('/login')}
-                  className="w-full sm:w-auto py-2 px-4 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#00333e] transition duration-200"
+                  className="text-[#00333e] hover:underline font-medium inline-flex items-center gap-1"
                 >
-                  <span className="flex items-center justify-center">
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Login
-                  </span>
+                  <ArrowLeft className="w-3 h-3" />
+                  Back to login
                 </button>
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto py-2 px-4 bg-[#00333e] text-white text-sm font-medium rounded-md hover:bg-[#002a36] focus:outline-none focus:ring-2 focus:ring-[#00333e] transition duration-200"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <span className="flex items-center justify-center">
-                      <svg
-                        className="animate-spin h-4 w-4 mr-2 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v8H4z"
-                        />
-                      </svg>
-                      Resetting...
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-center">
-                      <Lock className="w-4 h-4 mr-2" /> Reset Password
-                    </span>
-                  )}
-                </button>
-              </div>
-            </form>
+              </p>
+            </div>
           </div>
+        </div>
 
-          {/* Left Segment - Informational Image (hidden on mobile) */}
-          <div className="hidden md:block w-full md:w-1/2 p-0 order-2 md:order-1">
-            <img src="/assets/thumb3.jpg" alt="Info Banner" className="w-full h-full object-cover" />
+        {/* Right Side - Dashboard Preview */}
+        <div className="hidden lg:flex lg:w-3/5 bg-gradient-to-br from-[#00333e] via-[#001f26] to-[#00333e] items-center justify-center p-12 relative overflow-hidden">
+          {/* Grid pattern */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
+          {/* Decorative glows */}
+          <div className="absolute top-20 right-20 w-32 h-32 bg-[#fddf0d]/5 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 left-20 w-40 h-40 bg-[#fddf0d]/5 rounded-full blur-3xl"></div>
+
+          <div className="relative z-10 text-center">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentImageIndex}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.6 }}
+                className="mb-8 h-80 flex items-center justify-center"
+              >
+                <img
+                  src={images[currentImageIndex]}
+                  alt="Briq Dashboard"
+                  className="max-w-md max-h-full mx-auto rounded-2xl object-contain"
+                />
+              </motion.div>
+            </AnimatePresence>
+
+            <motion.h2
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="text-3xl font-bold text-white mb-4"
+            >
+              Secure Access to Your
+              <br />
+              Communication Hub
+            </motion.h2>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7 }}
+              className="text-white/80 text-sm max-w-md mx-auto leading-relaxed"
+            >
+              Reset your password and get back to managing your business communications with Briq.
+            </motion.p>
+
+            {/* Progress Indicators */}
+            <div className="flex justify-center gap-2 mt-8">
+              {images.map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-1 rounded-full transition-all duration-300 ${index === currentImageIndex
+                    ? 'w-8 bg-[#fddf0d]'
+                    : 'w-1 bg-white/30'
+                    }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>

@@ -103,15 +103,10 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        style={{ zoom: '85%' }}
-        className="w-full max-w-screen-2xl min-h-[900px] bg-white rounded-3xl overflow-hidden flex flex-col lg:flex-row"
-      >
+    <div className="min-h-screen flex">
+      <div className="w-full min-h-screen flex flex-col lg:flex-row">
         {/* Left Side - Form */}
-        <div className="w-full lg:w-3/6 p-8 lg:p-16 flex items-center justify-center">
+        <div className="w-full lg:w-3/6 p-8 lg:p-16 flex items-center justify-center bg-white">
           <div className="w-full max-w-md">
             {/* Logo */}
             <div className="mb-10">
@@ -301,10 +296,12 @@ const Register: React.FC = () => {
         </div>
 
         {/* Right Side - Dashboard Preview */}
-        <div className="hidden lg:flex lg:w-3/5 bg-gradient-to-br from-[#00333e] via-[#004d5c] to-[#006d7a] items-center justify-center p-12 relative overflow-hidden">
-          {/* Decorative circles */}
-          <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 left-20 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
+        <div className="hidden lg:flex lg:w-3/5 bg-gradient-to-br from-[#00333e] via-[#001f26] to-[#00333e] items-center justify-center p-12 relative overflow-hidden">
+          {/* Grid pattern */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear_gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
+          {/* Decorative glows */}
+          <div className="absolute top-20 right-20 w-32 h-32 bg-[#fddf0d]/5 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 left-20 w-40 h-40 bg-[#fddf0d]/5 rounded-full blur-3xl"></div>
 
           <div className="relative z-10 text-center">
             {/* Animated Dashboard Images */}
@@ -354,7 +351,7 @@ const Register: React.FC = () => {
                 <div
                   key={index}
                   className={`h-1 rounded-full transition-all duration-300 ${index === currentImageIndex
-                    ? 'w-8 bg-white'
+                    ? 'w-8 bg-[#fddf0d]'
                     : 'w-1 bg-white/30'
                     }`}
                 />
@@ -362,7 +359,7 @@ const Register: React.FC = () => {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };

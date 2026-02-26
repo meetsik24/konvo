@@ -38,6 +38,7 @@ import Login from './pages/Login';
 import LoginLegacy from './pages/LoginLegacy';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
+import ForgotPassword from './pages/ForgotPassword';
 import Account from './pages/Account';
 import NotFound from './pages/NotFound';
 import SendSMS from './pages/SendSMS'; // Renamed to avoid conflict
@@ -198,6 +199,7 @@ function App() {
                   <Route path="/loginLegacy" element={<LoginLegacy />} />
                   <Route path="/register" element={<Register />} />
                   <Route path="/ResetPassword" element={<ResetPassword />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
 
                   {/* Dashboard Protected Routes */}
                   <Route
