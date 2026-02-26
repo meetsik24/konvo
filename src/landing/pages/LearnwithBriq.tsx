@@ -72,13 +72,13 @@ function LearnWithBriq() {
       {/* Hero - White */}
       <section className="pt-28 pb-10 px-6 bg-white">
         <div className="container mx-auto max-w-4xl text-center">
-          <p className="text-[#fddf0d] font-semibold text-sm tracking-wide uppercase mb-4">
+          <p className="text-[#00333e] font-semibold text-sm tracking-wide uppercase mb-4">
             Resources
           </p>
-          <h1 className="text-5xl md:text-6xl font-bold text-[#00333e] mb-6">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-[#00333e] mb-6">
             Learn to build with Briq
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-base sm:text-xl text-gray-600 max-w-2xl mx-auto">
             Documentation, tutorials, and guides to help you integrate our communication APIs quickly and effectively.
           </p>
         </div>
@@ -127,7 +127,7 @@ function LearnWithBriq() {
               viewport={{ once: true }}
               variants={fadeIn}
             >
-              <h2 className="text-3xl font-bold text-white mb-4">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
                 Watch: Getting Started with Briq
               </h2>
               <p className="text-gray-400 mb-6">
@@ -197,7 +197,7 @@ function LearnWithBriq() {
       {/* Q&A Sessions - White BG */}
       <SectionWhite className="py-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-[#00333e] mb-4">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#00333e] mb-4">
             Frequently asked questions
           </h2>
         </div>
@@ -209,7 +209,7 @@ function LearnWithBriq() {
       {/* CTA */}
       <SectionDark>
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
             Ready to start building?
           </h2>
           <p className="text-gray-400 mb-8 max-w-xl mx-auto">
@@ -218,7 +218,7 @@ function LearnWithBriq() {
           <div className="flex flex-wrap justify-center gap-4">
             <Link
               to="/register"
-              className="bg-[#fddf0d] text-black px-8 py-4 rounded-lg font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+              className="bg-[#fddf0d] text-black px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
             >
               Get Started Free
               <ArrowRight className="w-5 h-5" />
@@ -227,7 +227,7 @@ function LearnWithBriq() {
               href="https://docs.briq.tz"
               target="_blank"
               rel="noopener noreferrer"
-              className="border border-gray-700 text-gray-300 hover:border-gray-500 hover:text-white px-8 py-4 rounded-lg font-semibold transition-all"
+              className="border border-gray-700 text-gray-300 hover:border-gray-500 hover:text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-semibold transition-all"
             >
               Read Documentation
             </a>

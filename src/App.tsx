@@ -163,9 +163,10 @@ function App() {
   // Fetch user profile if authenticated
   useEffect(() => {
     if (token && !user && status !== 'loading') {
-      dispatch(fetchUserProfile(token)).catch((err) => {
-        console.error('Failed to fetch user profile:', err);
-        dispatch(logout());
+      dispatch(fetchUserProfile(token)).unwrap().catch(() => {
+        // Silently clear stale token — don't dispatch logout() which 
+        // would set status='failed' and cause ProtectedRoute redirects
+        localStorage.removeItem('token');
       });
     }
   }, [token, dispatch, status, user]);

@@ -5,7 +5,6 @@ import { useRotatingText, useParallax } from "../hooks";
 import {
   rotatingTexts,
   stats,
-  logos
 } from "../constants";
 import smsMockup from "../../../assets/SMS.png";
 import handPhoneMockup from "../../../assets/simu2.png";
@@ -39,7 +38,7 @@ function Home() {
   return (
     <div className="bg-white min-h-screen overflow-hidden">
       {/* Hero */}
-      <section className="min-h-screen flex items-center px-6 pt-20 relative">
+      <section className="min-h-screen flex items-center px-4 sm:px-6 pt-24 pb-12 relative">
         {/* Dark background with grid pattern */}
         <div className="absolute inset-0 z-0">
           {/* Dark gradient background */}
@@ -64,7 +63,7 @@ function Home() {
                 <span className="text-[#fddf0d] text-sm font-semibold tracking-wide">BUSINESS COMMUNICATION PLATFORM</span>
               </div>
 
-              <div className="relative overflow-hidden" style={{ minHeight: '220px' }}>
+              <div className="relative overflow-hidden" style={{ minHeight: '160px' }}>
                 {rotatingTexts.map((text, i) => (
                   <div
                     key={i}
@@ -76,39 +75,41 @@ function Home() {
                       }`}
                   >
                     <div className="text-xs md:text-sm text-[#fddf0d] font-bold mb-3 tracking-widest">{text.tag}</div>
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-100 leading-tight mb-2">
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-100 leading-tight mb-2">
                       {text.main}
                     </h1>
-                    <p className="text-lg md:text-xl text-gray-400 font-medium">
+                    <p className="text-base md:text-xl text-gray-400 font-medium">
                       {text.accent}
                     </p>
                   </div>
                 ))}
               </div>
 
-              <p className="text-base md:text-lg text-gray-300 max-w-xl leading-relaxed">
+              <p className="text-sm sm:text-base md:text-lg text-gray-300 max-w-xl leading-relaxed">
                 Production-ready APIs for Banks, Fintechs & High-growth Startups across Tanzania
               </p>
 
-              <div className="flex gap-4 flex-wrap pt-2">
+              <div className="flex gap-3 sm:gap-4 flex-wrap pt-2">
                 <button
                   onClick={() => navigate("/register")}
-                  className="bg-[#fddf0d] text-[#00333e] px-8 py-4 rounded-lg text-lg font-semibold hover:bg-[#fce96a] transition-all hover:scale-105 hover:shadow-2xl shadow-lg"
+                  className="bg-[#fddf0d] text-[#00333e] px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:bg-[#fce96a] transition-all hover:scale-105 hover:shadow-2xl shadow-lg"
                 >
-                  Get API Keys
+                  Sign Up
                 </button>
-                <button
-                  onClick={() => navigate("/contact")}
-                  className="bg-white/10 text-gray-300 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-white/20 transition-all hover:scale-105 border border-gray-600 backdrop-blur-sm"
+                <a
+                  href="https://docs.briq.tz"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-white/10 text-gray-300 px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:bg-white/20 transition-all hover:scale-105 border border-gray-600 backdrop-blur-sm"
                 >
-                  Book Demo
-                </button>
+                  Developer Docs
+                </a>
               </div>
 
               {/* Integrated service tags and stats */}
               <div className="pt-8 border-t border-gray-700/30">
                 <div className="flex flex-wrap gap-3 mb-5">
-                  {["SMS API", "WhatsApp API", "Voice OTP", "AI Chatbots"].map((service, i) => (
+                  {["SMS API", "WhatsApp API", "Voice OTP", "AI Chatbots", "Payments"].map((service, i) => (
                     <div
                       key={i}
                       className="px-3 py-1.5 bg-white/5 border border-gray-600/50 rounded-md text-xs text-gray-400 hover:border-[#fddf0d] hover:text-[#fddf0d] transition-all cursor-pointer hover:scale-105 backdrop-blur-sm"
@@ -123,7 +124,7 @@ function Home() {
                 <div className="grid grid-cols-2 gap-x-8 gap-y-3">
                   {stats.map((stat, i) => (
                     <div key={i} className="flex items-baseline gap-2 group cursor-pointer">
-                      <div className="text-2xl font-bold text-[#fddf0d] group-hover:scale-110 transition-transform">{stat.value}</div>
+                      <div className="text-xl sm:text-2xl font-bold text-[#fddf0d] group-hover:scale-110 transition-transform">{stat.value}</div>
                       <div className="text-xs text-gray-400">{stat.label}</div>
                     </div>
                   ))}
@@ -141,39 +142,39 @@ function Home() {
               {/* Subtle glow effect behind mockup */}
               <div className="absolute inset-0 bg-[#fddf0d]/5 blur-3xl rounded-full scale-110"></div>
 
-              <div className="relative">
+              <div className="relative w-[580px] h-[480px]">
                 {/* SMS & Dashboard Composite */}
                 {activeMockup === 0 && (
-                  <div className="relative transform hover:scale-105 transition-all duration-700 ease-out animate-in fade-in slide-in-from-right-12 duration-1000">
+                  <div className="absolute inset-0 flex items-center justify-center transform hover:scale-105 transition-all duration-700 ease-out animate-in fade-in slide-in-from-right-12 duration-1000">
                     <div className="absolute -inset-4 bg-[#fddf0d]/10 blur-2xl rounded-full opacity-50"></div>
                     <img
                       src={smsMockup}
                       alt="SMS & Dashboard"
-                      className="relative z-10 w-full h-auto drop-shadow-[0_35px_35px_rgba(0,0,0,0.5)]"
+                      className="relative z-10 w-full h-full object-contain drop-shadow-[0_35px_35px_rgba(0,0,0,0.5)]"
                     />
                   </div>
                 )}
 
                 {/* Hand Holding Phone */}
                 {activeMockup === 1 && (
-                  <div className="relative transform hover:scale-105 transition-all duration-700 ease-out animate-in fade-in slide-in-from-right-12 duration-1000">
+                  <div className="absolute inset-0 flex items-center justify-center transform hover:scale-105 transition-all duration-700 ease-out animate-in fade-in slide-in-from-right-12 duration-1000">
                     <div className="absolute -inset-4 bg-blue-500/10 blur-2xl rounded-full opacity-50"></div>
                     <img
                       src={handPhoneMockup}
                       alt="Business Messaging"
-                      className="relative z-10 w-full h-auto drop-shadow-[0_35px_35px_rgba(0,0,0,0.5)]"
+                      className="relative z-10 w-full h-full object-contain drop-shadow-[0_35px_35px_rgba(0,0,0,0.5)]"
                     />
                   </div>
                 )}
 
                 {/* Two Phones Mockup */}
                 {activeMockup === 2 && (
-                  <div className="relative transform hover:scale-105 transition-all duration-700 ease-out animate-in fade-in slide-in-from-right-12 duration-1000">
+                  <div className="absolute inset-0 flex items-center justify-center transform hover:scale-105 transition-all duration-700 ease-out animate-in fade-in slide-in-from-right-12 duration-1000">
                     <div className="absolute -inset-4 bg-[#fddf0d]/10 blur-2xl rounded-full opacity-50"></div>
                     <img
                       src={twinPhonesMockup}
                       alt="Mobile App Interface"
-                      className="relative z-10 w-full h-auto drop-shadow-[0_35px_35px_rgba(0,0,0,0.5)]"
+                      className="relative z-10 w-full h-full object-contain drop-shadow-[0_35px_35px_rgba(0,0,0,0.5)]"
                     />
                   </div>
                 )}
@@ -207,19 +208,7 @@ function Home() {
         </div>
       </section>
 
-      {/* Trusted by */}
-      <section className="py-20 px-6 fade-in-section opacity-0 translate-y-8 transition-all duration-700">
-        <div className="container mx-auto max-w-6xl text-center">
-          <p className="text-sm text-gray-600 mb-8">
-            Powering communication for Tanzania's <span className="text-gray-700 font-semibold">leading financial institutions &amp; enterprises</span>
-          </p>
-          <div className="flex flex-wrap justify-center gap-8 items-center">
-            {logos.map((logo, i) => (
-              <div key={i} className="text-gray-700 font-medium text-sm hover:text-[#fddf0d] transition-all hover:scale-110 cursor-pointer" style={{ animationDelay: `${i * 100}ms` }}>{logo}</div>
-            ))}
-          </div>
-        </div>
-      </section>
+
 
 
 

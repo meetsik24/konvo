@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Menu, X, ChevronDown } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
+import type { RootState } from "../../store/store";
 import logo from "../../../assets/briq.png";
 
 function Navbar() {
@@ -9,6 +11,7 @@ function Navbar() {
   const [isProductsOpen, setIsProductsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { token } = useSelector((state: RootState) => state.auth);
 
   const products = [
     { name: "Bulk SMS", href: "#services" },
@@ -62,8 +65,8 @@ function Navbar() {
   return (
     <nav
       className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-200 mx-auto w-[calc(100%-2rem)] max-w-5xl ${scrolled
-          ? "bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl"
-          : "bg-white/5 backdrop-blur-sm border border-white/10 shadow-lg"
+        ? "bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl"
+        : "bg-white/5 backdrop-blur-sm border border-white/10 shadow-lg"
         } rounded-2xl`}
     >
       <div className="px-6 lg:px-8">
@@ -127,8 +130,8 @@ function Navbar() {
                   key={link.label}
                   to={link.href}
                   className={`text-sm font-medium transition-colors ${isActive(link.href)
-                      ? "text-[#fddf0d] border-b border-[#fddf0d] pb-0.5"
-                      : "text-gray-300 hover:text-white"
+                    ? "text-[#fddf0d] border-b border-[#fddf0d] pb-0.5"
+                    : "text-gray-300 hover:text-white"
                     }`}
                 >
                   {link.label}
@@ -139,18 +142,29 @@ function Navbar() {
 
           {/* CTA Buttons */}
           <div className="hidden lg:flex items-center gap-4">
-            <button
-              onClick={() => navigate("/login")}
-              className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
-            >
-              Log in
-            </button>
-            <button
-              onClick={() => navigate("/register")}
-              className="bg-[#fddf0d] text-[#00333e] px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#fce96a] transition-colors"
-            >
-              Start free
-            </button>
+            {token ? (
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="bg-[#fddf0d] text-[#00333e] px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#fce96a] transition-colors"
+              >
+                Dashboard
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => navigate("/login")}
+                  className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
+                >
+                  Log in
+                </button>
+                <button
+                  onClick={() => navigate("/register")}
+                  className="bg-[#fddf0d] text-[#00333e] px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#fce96a] transition-colors"
+                >
+                  Start free
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -207,18 +221,29 @@ function Navbar() {
                 </Link>
               </div>
               <div className="border-t border-white/20 pt-4 px-0 space-y-3">
-                <button
-                  onClick={() => { navigate("/login"); setIsMobileMenuOpen(false); }}
-                  className="w-full text-center py-2 text-gray-300 font-medium hover:text-white"
-                >
-                  Log in
-                </button>
-                <button
-                  onClick={() => { navigate("/register"); setIsMobileMenuOpen(false); }}
-                  className="w-full bg-[#fddf0d] text-[#00333e] py-3 rounded-lg font-semibold hover:bg-[#fce96a]"
-                >
-                  Start free
-                </button>
+                {token ? (
+                  <button
+                    onClick={() => { navigate("/dashboard"); setIsMobileMenuOpen(false); }}
+                    className="w-full bg-[#fddf0d] text-[#00333e] py-3 rounded-lg font-semibold hover:bg-[#fce96a]"
+                  >
+                    Dashboard
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { navigate("/login"); setIsMobileMenuOpen(false); }}
+                      className="w-full text-center py-2 text-gray-300 font-medium hover:text-white"
+                    >
+                      Log in
+                    </button>
+                    <button
+                      onClick={() => { navigate("/register"); setIsMobileMenuOpen(false); }}
+                      className="w-full bg-[#fddf0d] text-[#00333e] py-3 rounded-lg font-semibold hover:bg-[#fce96a]"
+                    >
+                      Start free
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

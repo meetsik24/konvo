@@ -6,14 +6,14 @@ function Pricing() {
   const pricingPlans = [
     {
       service: "SMS",
-      price: "TZS 12",
-      unit: "per message",
+      price: "From 10 TZS",
+      unit: "per SMS",
       features: ["Bulk messaging", "Delivery reports", "Sender ID support", "API access"],
       popular: false,
     },
     {
       service: "WhatsApp",
-      price: "TZS 20",
+      price: "From 20 TZS",
       unit: "per message",
       features: ["Rich media support", "Two-way messaging", "Read receipts", "Template messages"],
       popular: true,
@@ -38,20 +38,20 @@ function Pricing() {
     <div className="bg-white">
       {/* Pricing Cards - Dark card style */}
       <div className="px-4 sm:px-6 lg:px-8 py-4">
-        <section className="pt-24 pb-16 px-8 bg-gradient-to-br from-[#00333e] via-[#001f26] to-[#00333e] relative rounded-3xl overflow-hidden shadow-2xl">
+        <section className="pt-20 sm:pt-24 pb-12 sm:pb-16 px-4 sm:px-8 bg-gradient-to-br from-[#00333e] via-[#001f26] to-[#00333e] relative rounded-3xl overflow-hidden shadow-2xl">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
 
           <div className="container mx-auto max-w-6xl relative z-10">
-            <div className="text-center mb-16">
-              <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
+            <div className="text-center mb-10 sm:mb-16">
+              <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-white mb-4 sm:mb-6">
                 Simple, transparent pricing
               </h1>
-              <p className="text-xl text-gray-300 mb-8">
+              <p className="text-base sm:text-xl text-gray-300 mb-6 sm:mb-8">
                 Pay only for what you use. No hidden fees.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-10 sm:mb-16">
               {pricingPlans.map((plan, i) => (
                 <div
                   key={i}

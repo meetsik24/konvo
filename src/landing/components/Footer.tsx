@@ -36,7 +36,7 @@ function Footer() {
     <footer className="relative bg-white pt-24 overflow-hidden">
       {/* CTA Section - Floating Card Style */}
       <div className="container mx-auto px-6 lg:px-8 relative z-20 -mb-24">
-        <div className="bg-gradient-to-br from-[#003d4a] to-[#001f26] rounded-3xl p-8 md:p-12 shadow-2xl border border-white/10 relative overflow-hidden group">
+        <div className="bg-gradient-to-br from-[#003d4a] to-[#001f26] rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-12 shadow-2xl border border-white/10 relative overflow-hidden group">
           {/* Grid background pattern */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]" />
 
@@ -46,23 +46,23 @@ function Footer() {
 
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
             <div className="max-w-xl">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 tracking-tight">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 sm:mb-4 tracking-tight">
                 Ready to scale your <span className="text-[#fddf0d]">business messaging?</span>
               </h2>
-              <p className="text-gray-300 text-lg md:text-xl font-medium">
+              <p className="text-gray-300 text-base sm:text-lg md:text-xl font-medium">
                 Join 500+ enterprises across Tanzania using Briq's production-ready APIs.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
               <button
                 onClick={() => navigate("/register")}
-                className="bg-[#fddf0d] text-[#003d4a] px-10 py-4 rounded-xl text-lg font-bold hover:bg-[#fce96a] transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(253,223,13,0.3)] shadow-lg flex items-center justify-center gap-2"
+                className="bg-[#fddf0d] text-[#003d4a] px-6 sm:px-10 py-3 sm:py-4 rounded-xl text-base sm:text-lg font-bold hover:bg-[#fce96a] transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(253,223,13,0.3)] shadow-lg flex items-center justify-center gap-2"
               >
                 Get Started <MoveRight className="w-5 h-5" />
               </button>
               <button
                 onClick={handleDemoClick}
-                className="bg-white/5 text-white px-10 py-4 rounded-xl text-lg font-bold hover:bg-white/10 transition-all border border-white/20 backdrop-blur-sm"
+                className="bg-white/5 text-white px-6 sm:px-10 py-3 sm:py-4 rounded-xl text-base sm:text-lg font-bold hover:bg-white/10 transition-all border border-white/20 backdrop-blur-sm"
               >
                 Book a Demo
               </button>
@@ -77,10 +77,10 @@ function Footer() {
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]" />
 
         <div className="container mx-auto px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-8 mb-16">
-            <div className="col-span-2 lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 sm:gap-12 lg:gap-8 mb-12 sm:mb-16">
+            <div className="col-span-1 sm:col-span-2 lg:col-span-2 space-y-4 sm:space-y-6">
               <img src={logo} alt="Briq" className="h-10 w-auto" />
-              <p className="text-gray-400 text-lg leading-relaxed max-w-sm font-medium">
+              <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-sm font-medium">
                 The leading communication platform for modern enterprises in Tanzania. Reliable, scalable, and secure.
               </p>
               <div className="flex gap-4">
@@ -171,7 +171,7 @@ function Footer() {
               </ul>
             </div>
 
-            <div className="col-span-2 md:col-span-4 lg:col-span-1">
+            <div className="col-span-1 sm:col-span-2 md:col-span-4 lg:col-span-1">
               <h3 className="text-white font-bold mb-6 text-sm uppercase tracking-[0.15em]">Office</h3>
               <ul className="space-y-4 text-base text-gray-400 font-medium">
                 <li>

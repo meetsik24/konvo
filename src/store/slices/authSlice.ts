@@ -162,8 +162,12 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchUserProfile.rejected, (state, action) => {
-        state.status = 'failed';
+        // Reset to idle with no token — don't set 'failed' which triggers ProtectedRoute redirects
+        state.status = 'idle';
         state.error = action.payload as string;
+        state.token = null;
+        state.user = null;
+        localStorage.removeItem('token');
       });
   },
 });
