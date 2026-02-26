@@ -139,7 +139,7 @@ const AuthScreen: React.FC = () => {
     <div className="min-h-screen flex">
       <div className="w-full min-h-screen flex flex-col lg:flex-row">
         {/* Left Side - Form */}
-        <div className="w-full lg:w-3/6 p-8 lg:p-16 flex items-center justify-center bg-white">
+        <div className="w-full lg:w-3/6 px-5 py-8 sm:p-8 lg:p-16 flex items-center justify-center bg-white min-h-screen lg:min-h-0 overflow-y-auto">
           <div className="w-full max-w-md">
             {/* Logo */}
             <div className="mb-10">
