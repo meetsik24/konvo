@@ -437,7 +437,7 @@ const Subscription: React.FC = () => {
           setIsPolling(false);
           setIsProcessing(false);
           setPollingRef(null);
-          showAlert("success", `Payment completed! ${added} units added. New balance: ${newBalance} units`);
+          showAlert("success", `Payment completed! ${added} credits added to your wallet. New balance: ${newBalance} credits.`);
           return;
         }
       } catch {
@@ -451,7 +451,7 @@ const Subscription: React.FC = () => {
     // Timeout
     setIsPolling(false);
     setIsProcessing(false);
-    showAlert("success", `Payment initiated with reference: ${paymentRef}. Credits will be added shortly. Please refresh to check your balance.`);
+    showAlert("success", `Payment initiated with reference: ${paymentRef}. Wallet credits will be added shortly (no allocation). Please refresh to check your balance.`);
     setIsTopUpModalOpen(false);
     setQrData(null);
     setPhoneNumber("");
@@ -1281,7 +1281,10 @@ const Subscription: React.FC = () => {
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
-              <h2 id="topup-sheet-title" className="text-lg font-semibold text-[#00333e]">Top Up Wallet</h2>
+              <div>
+                <h2 id="topup-sheet-title" className="text-lg font-semibold text-[#00333e]">Top Up Wallet</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Add credits to your wallet. Allocate to SMS/WhatsApp/Voice later via Purchase Units.</p>
+              </div>
               <button
                 onClick={() => { setIsTopUpModalOpen(false); setQrData(null); setIsProcessing(false); }}
                 className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
