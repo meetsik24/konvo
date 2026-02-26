@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IdCard, Plus, Check, XCircle, Clock } from 'lucide-react';
+import { IdCard, Plus, Check, XCircle, Clock, Star } from 'lucide-react';
 import { useWorkspace } from './WorkspaceContext';
 import {
   requestSenderId,
@@ -9,6 +9,7 @@ import {
   reviewSenderIdRequest,
   getApprovedSenderIds,
 } from '../services/api';
+import { getDefaultSenderId, setDefaultSenderId as persistDefaultSenderId } from '../utils/defaultSenderId';
 
 interface SenderId {
   sender_id: string;
@@ -38,8 +39,13 @@ const SenderID: React.FC = () => {
   const [isAdminView, setIsAdminView] = useState(false);
   const [reviewRequest, setReviewRequest] = useState<{ request_id: string; status: 'approved' | 'rejected' } | null>(null);
   const [charCount, setCharCount] = useState(0);
+  const [defaultSenderId, setDefaultSenderId] = useState<string | null>(() => getDefaultSenderId(currentWorkspaceId));
   const maxCharLimit = 11;
   const availableUseCases = ['OTP', 'Transactional SMS', 'Promotions'];
+
+  useEffect(() => {
+    setDefaultSenderId(getDefaultSenderId(currentWorkspaceId));
+  }, [currentWorkspaceId]);
 
   useEffect(() => {
     const fetchSenderIds = async () => {
@@ -178,6 +184,14 @@ const SenderID: React.FC = () => {
     }
   };
 
+  const handleSetDefaultSender = (senderId: string) => {
+    if (!currentWorkspaceId) return;
+    persistDefaultSenderId(currentWorkspaceId, senderId);
+    setDefaultSenderId(senderId);
+    setSuccessMessage(`"${senderId}" is now your default sender ID for this workspace.`);
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
   const handleReviewSenderId = async (requestId: string, status: 'approved' | 'rejected') => {
     if (!currentWorkspaceId || !isAdmin) return;
     setIsLoading(true);
@@ -226,7 +240,7 @@ const SenderID: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="border border-red-200 bg-red-50 pрати-3 text-red-700 text-sm font-medium rounded-md mb-6"
+          className="border border-red-200 bg-red-50 p-3 text-red-700 text-sm font-medium rounded-md mb-6"
         >
           {error}
         </motion.div>
@@ -250,6 +264,7 @@ const SenderID: React.FC = () => {
           className="bg-white p-6 rounded-md border border-gray-200 w-full lg:w-1/3"
         >
           <h2 className="text-lg font-semibold text-[#004d66] mb-4">My Sender IDs</h2>
+          <p className="text-gray-500 text-xs mb-3">Set a default to pre-fill when sending SMS and avoid using the wrong sender.</p>
           {isLoading ? (
             <div className="flex justify-center items-center">
               <svg className="animate-spin h-6 w-6 text-[#004d66]" viewBox="0 0 24 24">
@@ -267,8 +282,26 @@ const SenderID: React.FC = () => {
                   key={senderId.request_id || senderId.sender_id}
                   className="flex items-center justify-between p-2 border-b border-gray-200"
                 >
-                  <span className="text-sm font-medium text-[#004d66]">{senderId.sender_id}</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm font-medium text-[#004d66] truncate">{senderId.sender_id}</span>
+                    {senderId.status === 'approved' && defaultSenderId === senderId.sender_id && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-medium shrink-0">
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                        Default
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {senderId.status === 'approved' && !isAdminView && defaultSenderId !== senderId.sender_id && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetDefaultSender(senderId.sender_id)}
+                        className="text-xs text-[#004d66] hover:text-[#FDD70D] hover:underline font-medium"
+                        title="Set as default sender for this workspace"
+                      >
+                        Set default
+                      </button>
+                    )}
                     {senderId.status === 'approved' && <Check className="w-5 h-5 text-green-600" />}
                     {senderId.status === 'rejected' && <XCircle className="w-5 h-5 text-red-600" />}
                     {senderId.status === 'pending' && <Clock className="w-5 h-5 text-[#004d66]" />}

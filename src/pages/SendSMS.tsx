@@ -11,6 +11,7 @@ import {
   getWorkspaceGroups,
   getContacts,
 } from '../services/api';
+import { getDefaultSenderId } from '../utils/defaultSenderId';
 
 
 interface Group { group_id: string; name: string; contact_count?: number; }
@@ -150,7 +151,13 @@ const SendSMS = () => {
           getContacts(currentWorkspaceId),
         ]);
         setSenderIds(senderResponse);
-        if (senderResponse.length) setFormData((prev) => ({ ...prev, senderId: senderResponse[0].sender_id }));
+        if (senderResponse.length) {
+          const defaultId = getDefaultSenderId(currentWorkspaceId);
+          const preferred = defaultId && senderResponse.some((s) => s.sender_id === defaultId)
+            ? defaultId
+            : senderResponse[0].sender_id;
+          setFormData((prev) => ({ ...prev, senderId: preferred }));
+        }
         setGroups(groupsData || []);
         setAllContacts(contactsData.contacts || []);
       } catch (err: unknown) {
