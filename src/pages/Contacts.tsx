@@ -672,9 +672,11 @@ const Contacts: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [groupsResponse, allContactsTotalResponse] = await Promise.all([
+      const [groupsResponse, response] = await Promise.all([
         getWorkspaceGroups(currentWorkspaceId),
-        getContacts(currentWorkspaceId, 1, 1),
+        selectedGroup === 'all'
+          ? getContacts(currentWorkspaceId, 1, perPage)
+          : getGroupContacts(currentWorkspaceId, selectedGroup, 1, perPage),
       ]);
 
       const updatedGroups = groupsResponse.map((group) => ({
@@ -682,17 +684,11 @@ const Contacts: React.FC = () => {
         count: typeof group.contact_count === 'number' ? group.contact_count : 0,
       }));
 
-      setTotalContacts(allContactsTotalResponse.total_count);
-
-      const response = selectedGroup === 'all'
-        ? await getContacts(currentWorkspaceId, 1, perPage)
-        : await getGroupContacts(currentWorkspaceId, selectedGroup, 1, perPage);
-
+      setTotalContacts(response.total_count);
       setContacts(response.contacts);
       setTotalPages(response.total_pages);
       setCurrentPage(1);
-
-      setGroups([{ group_id: 'all', name: 'All Contacts', workspace_id: currentWorkspaceId, count: allContactsTotalResponse.total_count }, ...updatedGroups]);
+      setGroups([{ group_id: 'all', name: 'All Contacts', workspace_id: currentWorkspaceId, count: response.total_count }, ...updatedGroups]);
     } catch (error: any) {
       setError(error.message || 'Failed to fetch data.');
     } finally {

@@ -141,25 +141,18 @@ const SendSMS = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!currentWorkspaceId) return;
       setIsLoading(true);
       try {
-        if (!currentWorkspaceId) throw new Error('No workspace selected.');
-        console.log('SendSMS fetchData: Starting data fetch for workspace:', currentWorkspaceId);
-
-        const senderResponse = await getApprovedSenderIds(currentWorkspaceId);
+        const [senderResponse, groupsData, contactsData] = await Promise.all([
+          getApprovedSenderIds(currentWorkspaceId),
+          getWorkspaceGroups(currentWorkspaceId),
+          getContacts(currentWorkspaceId),
+        ]);
         setSenderIds(senderResponse);
-        if (senderResponse.length) setFormData(prev => ({ ...prev, senderId: senderResponse[0].sender_id }));
-
-        console.log('SendSMS fetchData: Fetching groups for workspace:', currentWorkspaceId);
-        const groupsData = await getWorkspaceGroups(currentWorkspaceId);
-        console.log('SendSMS fetchData: Received groups:', groupsData);
-        console.log('SendSMS fetchData: Groups length:', groupsData?.length || 0);
+        if (senderResponse.length) setFormData((prev) => ({ ...prev, senderId: senderResponse[0].sender_id }));
         setGroups(groupsData || []);
-
-        const contactsData = await getContacts(currentWorkspaceId);
         setAllContacts(contactsData.contacts || []);
-
-        console.log('SendSMS fetchData: Data fetch completed');
       } catch (err: unknown) {
         triggerError(err, 'Failed to load data.');
       } finally {
@@ -168,15 +161,6 @@ const SendSMS = () => {
     };
     fetchData();
   }, [currentWorkspaceId]);
-
-
-  // Monitor groups state for debugging
-  useEffect(() => {
-    console.log('SendSMS: Groups state updated. Total groups:', groups.length);
-    if (groups.length > 0) {
-      console.log('SendSMS: First group:', groups[0]);
-    }
-  }, [groups]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));

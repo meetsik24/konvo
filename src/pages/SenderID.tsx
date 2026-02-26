@@ -49,7 +49,12 @@ const SenderID: React.FC = () => {
       }
       setIsLoading(true);
       try {
-        const approvedResponse = await getApprovedSenderIds(currentWorkspaceId);
+        const [approvedResponse, requestsResponse] = await Promise.all([
+          getApprovedSenderIds(currentWorkspaceId),
+          isAdmin && isAdminView
+            ? getAdminSenderRequests(currentWorkspaceId)
+            : getUserSenderRequests(currentWorkspaceId),
+        ]);
         const formattedApproved: SenderId[] = Array.isArray(approvedResponse)
           ? approvedResponse.map((item: SenderId) => ({
               ...item,
@@ -57,10 +62,6 @@ const SenderID: React.FC = () => {
               status: 'approved',
             }))
           : [];
-
-        const requestsResponse = isAdmin && isAdminView
-          ? await getAdminSenderRequests(currentWorkspaceId)
-          : await getUserSenderRequests(currentWorkspaceId);
         const formattedRequests: SenderId[] = Array.isArray(requestsResponse)
           ? requestsResponse.map((req: SenderId) => ({
               request_id: req.request_id || '',

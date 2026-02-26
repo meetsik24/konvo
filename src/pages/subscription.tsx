@@ -125,23 +125,6 @@ const Subscription: React.FC = () => {
     }, 5000);
   };
 
-  // -------------------- FETCH: WALLET --------------------
-  useEffect(() => {
-    const fetchBalance = async () => {
-      try {
-        setLoading((prev) => ({ ...prev, wallet: true }));
-        const balance = await getAccountBalance();
-        setWallet({ units: balance.balance });
-      } catch (error) {
-        console.error("Wallet fetch failed:", error);
-        setErrors((prev) => ({ ...prev, wallet: "Failed to load wallet balance" }));
-      } finally {
-        setLoading((prev) => ({ ...prev, wallet: false }));
-      }
-    };
-    fetchBalance();
-  }, []);
-
   // -------------------- CARD PAYMENT RETURN HANDLER --------------------
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -197,133 +180,136 @@ const Subscription: React.FC = () => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isServiceModalOpen]);
 
-  // -------------------- FETCH: PLANS --------------------
+  // -------------------- FETCH: INITIAL LOAD (wallet, plans, usage, transactions in parallel) --------------------
+  const refreshTransactions = React.useCallback(async () => {
+    setIsTransactionsLoading(true);
+    setTransactionsError(null);
+    try {
+      const [topUps, balanceUsage] = await Promise.all([getTransactions(), getBalanceUsageLogs()]);
+      const normalizedTopUps = (Array.isArray(topUps) ? topUps : []).map((tx: any) => ({
+        type: "topup",
+        units: tx.units_purchased ?? 0,
+        amountTzs: typeof tx.total_amount_paid === "number" ? tx.total_amount_paid : 0,
+        date: tx.transaction_date,
+        status: tx.marked_complete ? "Completed" : "Pending",
+        source: "Wallet Top-Up"
+      }));
+      const normalizedPurchases = (Array.isArray(balanceUsage) ? balanceUsage : []).map((p: any) => ({
+        type: "package",
+        units: p.units_used ?? 0,
+        amountTzs: null as number | null,
+        date: p.usage_date,
+        status: "Completed",
+        source: p.usage_description ?? "Usage"
+      }));
+      const merged = [...normalizedTopUps, ...normalizedPurchases];
+      merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setFullHistory(merged);
+    } catch (error) {
+      console.error("Failed to fetch transaction history:", error);
+      setTransactionsError("Failed to load transaction history");
+    } finally {
+      setIsTransactionsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchPlans = async () => {
+    let cancelled = false;
+    setLoading({ wallet: true, usage: true, transactions: true, packages: true });
+    setIsTransactionsLoading(true);
+
+    const fetchTransactionsPair = () =>
+      Promise.all([getTransactions(), getBalanceUsageLogs()]).then(([a, b]) => ({ topUps: a, balanceUsage: b })).catch((e) => ({ error: e }));
+
+    const run = async () => {
       try {
-        setLoading((prev) => ({ ...prev, packages: true }));
-        const plans = await getPlans();
+        const [balanceRes, plansRes, allocationsRes, txnPair] = await Promise.all([
+          getAccountBalance().catch((e) => ({ error: e })),
+          getPlans().catch((e) => ({ error: e })),
+          getAllocationsSummary().catch((e) => ({ error: e })),
+          fetchTransactionsPair(),
+        ]);
 
-        const transformedPackages = plans
-          .filter(plan => plan && plan.package_id && plan.services && plan.services.length > 0)
-          .map((plan) => {
-            // Calculate total units from all services
-            const totalUnits = plan.services.reduce((sum, service) => sum + (service.quantity || 0), 0);
-            // Get voice service units (most packages seem to have voice services)
-            const voiceService = plan.services.find(s => s.service_id === 'cc08b078-59d5-4d03-963e-e6f7a45ec867');
-            const smsUnits = voiceService ? (voiceService.quantity || 0) : totalUnits;
+        if (cancelled) return;
 
-            return {
-              id: plan.package_id,
-              name: plan.name || 'Unnamed Package',
-              description: plan.description || '',
-              totalPrice: plan.total_price || 0,
-              services: plan.services.map(service => ({
-                service_id: service.service_id,
-                quantity: service.quantity || 0,
-                unit_cost_at_purchase: service.unit_cost_at_purchase || 0,
-              })),
-              allocation: {
-                sms: smsUnits,
-                whatsapp: 0,
-                voice: smsUnits,
-              },
-            };
+        if (!balanceRes || "error" in balanceRes) {
+          setErrors((prev) => ({ ...prev, wallet: "Failed to load wallet balance" }));
+        } else {
+          setWallet({ units: balanceRes.balance });
+        }
+
+        if (!plansRes || "error" in plansRes) {
+          setErrors((prev) => ({ ...prev, packages: "Failed to load available packages" }));
+        } else {
+          const transformedPackages = plansRes
+            .filter((plan: any) => plan && plan.package_id && plan.services && plan.services.length > 0)
+            .map((plan: any) => {
+              const totalUnits = plan.services.reduce((sum: number, s: any) => sum + (s.quantity || 0), 0);
+              const voiceService = plan.services.find((s: any) => s.service_id === "cc08b078-59d5-4d03-963e-e6f7a45ec867");
+              const smsUnits = voiceService ? voiceService.quantity || 0 : totalUnits;
+              return {
+                id: plan.package_id,
+                name: plan.name || "Unnamed Package",
+                description: plan.description || "",
+                totalPrice: plan.total_price || 0,
+                services: plan.services.map((service: any) => ({
+                  service_id: service.service_id,
+                  quantity: service.quantity || 0,
+                  unit_cost_at_purchase: service.unit_cost_at_purchase || 0,
+                })),
+                allocation: { sms: smsUnits, whatsapp: 0, voice: smsUnits },
+              };
+            });
+          setPackages(transformedPackages);
+        }
+
+        if (!allocationsRes || "error" in allocationsRes) {
+          setErrors((prev) => ({ ...prev, usage: "Failed to load usage data" }));
+        } else {
+          const allocation = { sms: 0, whatsapp: 0, avr: 0 };
+          allocationsRes.allocations?.forEach((alloc: any) => {
+            if (alloc.service_name === "SMS") allocation.sms = alloc.total_quantity;
+            else if (alloc.service_name === "WHATSAPP") allocation.whatsapp = alloc.total_quantity;
+            else if (alloc.service_name === "VOICE") allocation.avr = alloc.total_quantity;
           });
+          setCurrentPackage((prev) => ({ ...prev, allocation, usage: { sms: 0, whatsapp: 0, avr: 0 } }));
+        }
 
-        setPackages(transformedPackages);
-        console.log("Loaded packages from API:", transformedPackages);
-      } catch (error) {
-        console.error("Plans fetch failed:", error);
-        setErrors((prev) => ({
-          ...prev,
-          packages: "Failed to load available packages",
-        }));
+        if (txnPair && "error" in txnPair) {
+          setTransactionsError("Failed to load transaction history");
+        } else {
+          const topUps = Array.isArray((txnPair as any).topUps) ? (txnPair as any).topUps : [];
+          const balanceUsage = Array.isArray((txnPair as any).balanceUsage) ? (txnPair as any).balanceUsage : [];
+          const normalizedTopUps = topUps.map((tx: any) => ({
+            type: "topup",
+            units: tx.units_purchased ?? 0,
+            amountTzs: typeof tx.total_amount_paid === "number" ? tx.total_amount_paid : 0,
+            date: tx.transaction_date,
+            status: tx.marked_complete ? "Completed" : "Pending",
+            source: "Wallet Top-Up"
+          }));
+          const normalizedPurchases = balanceUsage.map((p: any) => ({
+            type: "package",
+            units: p.units_used ?? 0,
+            amountTzs: null as number | null,
+            date: p.usage_date,
+            status: "Completed",
+            source: p.usage_description ?? "Usage"
+          }));
+          const merged = [...normalizedTopUps, ...normalizedPurchases];
+          merged.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          setFullHistory(merged);
+        }
       } finally {
-        setLoading((prev) => ({ ...prev, packages: false }));
+        if (!cancelled) {
+          setLoading({ wallet: false, usage: false, transactions: false, packages: false });
+          setIsTransactionsLoading(false);
+        }
       }
     };
-    fetchPlans();
+    run();
+    return () => { cancelled = true; };
   }, []);
-
-  // -------------------- FETCH: USAGE --------------------
-  useEffect(() => {
-    const fetchUsageData = async () => {
-      try {
-        setLoading((prev) => ({ ...prev, usage: true }));
-        // Fetch allocations summary only
-        const allocationsData = await getAllocationsSummary();
-        console.log("Allocations Data:", allocationsData);
-
-        // Calculate allocations from the allocations summary endpoint
-        const allocation = { sms: 0, whatsapp: 0, avr: 0 };
-        allocationsData.allocations.forEach((alloc: any) => {
-          if (alloc.service_name === "SMS") {
-            allocation.sms = alloc.total_quantity;
-          } else if (alloc.service_name === "WHATSAPP") {
-            allocation.whatsapp = alloc.total_quantity;
-          } else if (alloc.service_name === "VOICE") {
-            allocation.avr = alloc.total_quantity;
-          }
-        });
-
-        // Initialize usage as zero (no usage data from this endpoint)
-        const usage = { sms: 0, whatsapp: 0, avr: 0 };
-
-        setCurrentPackage((prev) => ({ ...prev, allocation, usage }));
-      } catch (error) {
-        console.error("Usage allocation fetch failed:", error);
-        setErrors((prev) => ({ ...prev, usage: "Failed to load usage data" }));
-      } finally {
-        setLoading((prev) => ({ ...prev, usage: false }));
-      }
-    };
-    fetchUsageData();
-  }, []);
-
-  // -------------------- FETCH: TRANSACTIONS --------------------
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setIsTransactionsLoading(true);
-
-        const topUps = await getTransactions();
-
-        const normalizedTopUps = (Array.isArray(topUps) ? topUps : []).map((tx: any) => ({
-          type: "topup",
-          units: tx.units_purchased ?? 0,
-          amountTzs: typeof tx.total_amount_paid === "number" ? tx.total_amount_paid : 0,
-          date: tx.transaction_date,
-          status: tx.marked_complete ? "Completed" : "Pending",
-          source: "Wallet Top-Up"
-        }));
-
-        const balanceUsage = await getBalanceUsageLogs();
-
-        const normalizedPurchases = (Array.isArray(balanceUsage) ? balanceUsage : []).map((p: any) => ({
-          type: "package",
-          units: p.units_used ?? 0,
-          amountTzs: null as number | null,
-          date: p.usage_date,
-          status: "Completed",
-          source: p.usage_description ?? "Usage"
-        }));
-
-        const merged = [...normalizedTopUps, ...normalizedPurchases];
-        merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-        setFullHistory(merged);
-
-      } catch (error) {
-        console.error("Failed to fetch transaction history:", error);
-        setTransactionsError("Failed to load transaction history");
-      } finally {
-        setIsTransactionsLoading(false);
-      }
-    };
-
-    fetchTransactions();
-  }, [transactions]);
 
   // -------------------- TOP-UP HANDLER --------------------
   const handleTopUp = async (e: React.FormEvent) => {
@@ -443,6 +429,7 @@ const Subscription: React.FC = () => {
           const newBalance = result.updated_balance ?? 0;
           const added = result.credits_added ?? 0;
           setWallet({ units: newBalance });
+          refreshTransactions();
           setIsTopUpModalOpen(false);
           setQrData(null);
           setPhoneNumber("");

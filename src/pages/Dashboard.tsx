@@ -125,20 +125,6 @@ const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch Wallet Balance
-  useEffect(() => {
-    const fetchWalletBalance = async () => {
-      if (!token) return;
-      try {
-        const balance = await getAccountBalance();
-        setWallet({ units: balance.balance });
-      } catch (err) {
-        console.error("Error fetching wallet balance:", err);
-      }
-    };
-
-    fetchWalletBalance();
-  }, [token]);
 
   const fetchMetricsData = useCallback(async () => {
     try {
@@ -236,13 +222,17 @@ const Dashboard: React.FC = () => {
       workspace?.dashboardData?.data?.length > 0 ||
       workspace?.dashboardData?.campaigns?.length > 0;
     if (hasValidData && workspace?.dashboardData?.dateRange === dateRange) {
+      if (!token) return;
+      getAccountBalance().then((b) => setWallet({ units: b.balance })).catch((err) => console.error('Error fetching wallet balance:', err));
       return;
     }
 
     setIsLoading(true);
     setError(null);
     try {
-      const metrics = await fetchMetricsData();
+      const walletPromise = token ? getAccountBalance() : Promise.resolve(null);
+      const [metrics, balanceResult] = await Promise.all([fetchMetricsData(), walletPromise]);
+      if (balanceResult) setWallet({ units: balanceResult.balance });
 
       const messagesSent = metrics.sms_status.find((s: SmsStatus) => s.status.toLowerCase() === 'sent')?.count || 0;
       const totalFails = metrics.sms_status.find((s: SmsStatus) => s.status.toLowerCase() === 'failed')?.count || 0;
@@ -275,7 +265,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkspaceId, updateWorkspace, workspace?.dashboardData, fetchMetricsData, dateRange]);
+  }, [currentWorkspaceId, updateWorkspace, workspace?.dashboardData, fetchMetricsData, dateRange, token]);
 
   useEffect(() => {
     loadDashboardData();
