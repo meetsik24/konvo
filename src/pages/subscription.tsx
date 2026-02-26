@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from "react";
-import { MessageSquare, Phone, Wallet, Plus, X, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { MessageSquare, Phone, Wallet, Plus, X, Loader2, CreditCard, QrCode, Smartphone, ExternalLink, Clock } from "lucide-react";
 import { motion } from "framer-motion";
+import QRCode from "react-qr-code";
 import Alert from "../components/Alert";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import {
   getAccountBalance,
   initiateUnitsPayment,
+  initiateCardPayment,
+  initiateQRPayment,
   createAllocation,
   getTransactions,
   getPlans,
@@ -92,6 +96,18 @@ const Subscription: React.FC = () => {
   const [userRequiredUnits, setUserRequiredUnits] = useState<number>(0);
   const [recommendedPackage, setRecommendedPackage] = useState<Package | null>(null);
 
+  // Payment method state
+  const [paymentMethod, setPaymentMethod] = useState<"mobile" | "card" | "qr">("mobile");
+  const [buyerEmail, setBuyerEmail] = useState("");
+  const [buyerName, setBuyerName] = useState("");
+  const [billingAddress, setBillingAddress] = useState("");
+  const [billingCity, setBillingCity] = useState("");
+  const [billingCountry, setBillingCountry] = useState("TZ");
+  const [qrData, setQrData] = useState<{ emv: string; paymentUrl: string; expiresAt: string } | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollingRef, setPollingRef] = useState<string | null>(null);
+  const topUpScrollRef = useRef<HTMLDivElement>(null);
+
   const [alertState, setAlertState] = useState<{
     isOpen: boolean;
     type: "success" | "error";
@@ -125,6 +141,61 @@ const Subscription: React.FC = () => {
     };
     fetchBalance();
   }, []);
+
+  // -------------------- CARD PAYMENT RETURN HANDLER --------------------
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get("payment");
+    if (paymentStatus === "success" || paymentStatus === "cancel") {
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+      const storedRef = localStorage.getItem("briq_pending_payment_ref");
+      if (storedRef && paymentStatus === "success") {
+        showAlert("success", "Verifying card payment...");
+        setIsProcessing(true);
+        pollForCompletion(storedRef);
+      } else if (paymentStatus === "cancel") {
+        showAlert("error", "Card payment was cancelled.");
+      }
+      localStorage.removeItem("briq_pending_payment_ref");
+      localStorage.removeItem("briq_pending_txn_id");
+    }
+  }, []);
+
+  // Scroll payment sheet to top when QR is generated so the code is visible
+  useEffect(() => {
+    if (qrData && paymentMethod === "qr" && topUpScrollRef.current) {
+      topUpScrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [qrData, paymentMethod]);
+
+  // Escape key closes Top Up sheet when not processing
+  useEffect(() => {
+    if (!isTopUpModalOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isProcessing) {
+        setIsTopUpModalOpen(false);
+        setQrData(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isTopUpModalOpen, isProcessing]);
+
+  // Escape key closes Purchase modal
+  useEffect(() => {
+    if (!isServiceModalOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsServiceModalOpen(false);
+        setSelectedPackage(null);
+        setSelectedUnits(0);
+        setUnitError("");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isServiceModalOpen]);
 
   // -------------------- FETCH: PLANS --------------------
   useEffect(() => {
@@ -220,8 +291,8 @@ const Subscription: React.FC = () => {
 
         const normalizedTopUps = (Array.isArray(topUps) ? topUps : []).map((tx: any) => ({
           type: "topup",
-          units: tx.units_purchased,
-          amount: tx.total_amount_paid,
+          units: tx.units_purchased ?? 0,
+          amountTzs: typeof tx.total_amount_paid === "number" ? tx.total_amount_paid : 0,
           date: tx.transaction_date,
           status: tx.marked_complete ? "Completed" : "Pending",
           source: "Wallet Top-Up"
@@ -231,11 +302,11 @@ const Subscription: React.FC = () => {
 
         const normalizedPurchases = (Array.isArray(balanceUsage) ? balanceUsage : []).map((p: any) => ({
           type: "package",
-          units: p.units_used,
-          amount: 0,
+          units: p.units_used ?? 0,
+          amountTzs: null as number | null,
           date: p.usage_date,
           status: "Completed",
-          source: p.usage_description
+          source: p.usage_description ?? "Usage"
         }));
 
         const merged = [...normalizedTopUps, ...normalizedPurchases];
@@ -259,103 +330,146 @@ const Subscription: React.FC = () => {
     e.preventDefault();
     try {
       setIsProcessing(true);
-      // Step 1: Initiate payment
-      const paymentResponse = await initiateUnitsPayment({
-        amount_paid: topUpAmount,
-        target_phone: phoneNumber,
-        payment_method: "mobile_money",
-      });
+      setQrData(null);
 
-      if (paymentResponse.success) {
-        console.log("Payment initiated. Payment Reference:", paymentResponse.payment_reference);
+      let paymentResponse;
 
-        // Store payment reference and transaction ID for completion check
-        const paymentRef = paymentResponse.payment_reference;
-
-        // Show pending status immediately
-        showAlert(
-          "success",
-          `Payment initiated! Reference: ${paymentRef}. Verifying payment...`
-        );
-
-        // Step 2: Poll for payment completion (with timeout)
-        let paymentCompleted = false;
-        let completionAttempts = 0;
-        const maxAttempts = 12; // 60 seconds with 5-second intervals
-        const pollInterval = 5000; // 5 seconds
-
-        const pollForCompletion = async () => {
-          while (completionAttempts < maxAttempts && !paymentCompleted) {
-            try {
-              completionAttempts++;
-              console.log(
-                `Checking payment completion (attempt ${completionAttempts}/${maxAttempts})...`
-              );
-
-              // Call the complete transaction endpoint
-              const completeResponse = await completeTransaction({
-                payment_reference: paymentRef,
-                transaction_id: "", // May not be available yet, API should handle this
-              });
-
-              if (completeResponse.success) {
-                console.log("Payment completed successfully!", completeResponse);
-
-                // Update wallet balance with the actual balance from response
-                setWallet({ units: completeResponse.updated_balance });
-
-                // Clear form
-                setIsTopUpModalOpen(false);
-                setPhoneNumber("");
-                setTopUpAmount(0);
-                // Show success alert with credit details
-                showAlert(
-                  "success",
-                  `Payment completed! ${completeResponse.credits_added} units added. New balance: ${completeResponse.updated_balance} units`
-                );
-                paymentCompleted = true;
-                setIsProcessing(false);
-                return;
-              }
-            } catch (error) {
-              console.log(
-                `Payment not yet completed. Will retry in ${pollInterval / 1000} seconds...`,
-                error
-              );
-            }
-
-            // Wait before next attempt
-            if (completionAttempts < maxAttempts && !paymentCompleted) {
-              await new Promise((resolve) => setTimeout(resolve, pollInterval));
-            }
-          }
-
-          // If we've exhausted all attempts
-          if (!paymentCompleted) {
-            console.log("Payment verification timeout. Please check your account balance.");
-            showAlert(
-              "success",
-              `Payment initiated with reference: ${paymentRef}. Credits will be added shortly. Please refresh to check your balance.`
-            );
-            // Clear form anyway
-            setIsTopUpModalOpen(false);
-            setPhoneNumber("");
-            setTopUpAmount(0);
-            setIsProcessing(false);
-          }
-        };
-
-        // Start polling in background
-        pollForCompletion();
+      if (paymentMethod === "mobile") {
+        // Mobile Money — USSD push
+        paymentResponse = await initiateUnitsPayment({
+          amount_paid: topUpAmount,
+          target_phone: phoneNumber,
+        });
+      } else if (paymentMethod === "card") {
+        // Card — redirect flow
+        const currentUrl = window.location.href.split('?')[0];
+        paymentResponse = await initiateCardPayment({
+          amount_paid: topUpAmount,
+          target_phone: phoneNumber,
+          buyer_email: buyerEmail,
+          buyer_name: buyerName,
+          address: billingAddress || undefined,
+          city: billingCity || undefined,
+          country: billingCountry || "TZ",
+          redirect_url: `${currentUrl}?payment=success`,
+          cancel_url: `${currentUrl}?payment=cancel`,
+        });
       } else {
+        // QR — scan-to-pay
+        paymentResponse = await initiateQRPayment({
+          amount_paid: topUpAmount,
+          target_phone: phoneNumber,
+        });
+      }
+
+      if (!paymentResponse.success) {
         showAlert("error", paymentResponse.message || "Payment initiation failed");
         setIsProcessing(false);
+        return;
       }
+
+      const paymentRef = paymentResponse.payment_reference || "";
+
+      // === CARD: redirect to payment_url ===
+      if (paymentMethod === "card" && paymentResponse.payment_url) {
+        showAlert("success", "Redirecting to payment page...");
+        // Store ref for when user returns
+        localStorage.setItem("briq_pending_payment_ref", paymentRef);
+        localStorage.setItem("briq_pending_txn_id", paymentResponse.transaction_id || "");
+        window.location.href = paymentResponse.payment_url;
+        return;
+      }
+
+      // === QR: show QR code + poll ===
+      if (paymentMethod === "qr") {
+        const pr = paymentResponse.provider_response;
+        const data = pr?.data ?? pr?.Data ?? pr ?? {};
+        const dataObj = typeof data === "object" && data !== null ? data : {};
+        const emv =
+          dataObj?.payment_qr_code ??
+          dataObj?.paymentQrCode ??
+          pr?.payment_qr_code ??
+          paymentResponse.qr_code ??
+          "";
+        const qrPaymentUrl =
+          paymentResponse.payment_url ??
+          dataObj?.payment_url ??
+          pr?.payment_url ??
+          "";
+        const expiresAt =
+          dataObj?.expires_at ?? pr?.expires_at ?? "";
+
+        if (emv || qrPaymentUrl) {
+          setQrData({ emv: String(emv).trim(), paymentUrl: String(qrPaymentUrl), expiresAt: String(expiresAt) });
+          setPollingRef(paymentRef);
+          showAlert("success", "QR code generated! Scan to pay, then we'll verify automatically.");
+          // Start polling in background
+          pollForCompletion(paymentRef);
+          return;
+        } else {
+          showAlert("error", "No QR code returned from provider");
+          setIsProcessing(false);
+          return;
+        }
+      }
+
+      // === MOBILE MONEY: show message + poll ===
+      showAlert("success", `Payment initiated! Reference: ${paymentRef}. Check your phone...`);
+      pollForCompletion(paymentRef);
+
     } catch (error) {
       console.error("Payment initiation failed:", error);
       showAlert("error", "Failed to initiate payment.");
       setIsProcessing(false);
     }
+  };
+
+  // -------------------- POLL FOR COMPLETION --------------------
+  const pollForCompletion = async (paymentRef: string) => {
+    setIsPolling(true);
+    let attempts = 0;
+    const maxAttempts = 12;
+    const interval = 6000;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        const result = await completeTransaction({
+          payment_reference: paymentRef,
+          transaction_id: "",
+        });
+        // Only treat as success when backend explicitly says so (ignore credits_added when success is false)
+        if (result && result.success === true) {
+          const newBalance = result.updated_balance ?? 0;
+          const added = result.credits_added ?? 0;
+          setWallet({ units: newBalance });
+          setIsTopUpModalOpen(false);
+          setQrData(null);
+          setPhoneNumber("");
+          setTopUpAmount(0);
+          setIsPolling(false);
+          setIsProcessing(false);
+          setPollingRef(null);
+          showAlert("success", `Payment completed! ${added} units added. New balance: ${newBalance} units`);
+          return;
+        }
+      } catch {
+        // Not yet complete
+      }
+      if (attempts < maxAttempts) {
+        await new Promise(r => setTimeout(r, interval));
+      }
+    }
+
+    // Timeout
+    setIsPolling(false);
+    setIsProcessing(false);
+    showAlert("success", `Payment initiated with reference: ${paymentRef}. Credits will be added shortly. Please refresh to check your balance.`);
+    setIsTopUpModalOpen(false);
+    setQrData(null);
+    setPhoneNumber("");
+    setTopUpAmount(0);
+    setPollingRef(null);
   };
 
   // Helper function to fetch balance
@@ -406,10 +520,11 @@ const Subscription: React.FC = () => {
         prev ? { ...prev, units: prev.units - totalCost } : null
       );
 
+      const unitsPurchased = selectedUnits;
       setSelectedUnits(0);
       setUnitError("");
       setIsPackageDetailsModalOpen(false);
-      showAlert("success", `Successfully purchased ${selectedUnits.toLocaleString()} units for ${totalCost} units!`);
+      showAlert("success", `Successfully purchased ${unitsPurchased.toLocaleString()} units for ${totalCost.toLocaleString()} units!`);
     } catch (error) {
       console.error("Package purchase failed:", error);
       showAlert("error", "Failed to purchase package. Please try again.");
@@ -768,67 +883,71 @@ const Subscription: React.FC = () => {
           ) : transactionsError ? (
             <p className="text-red-500 text-sm">{transactionsError}</p>
           ) : filteredHistory.length === 0 ? (
-            <p className="text-gray-600">No transactions found</p>
+            <div className="text-center py-12 px-4">
+              <div className="inline-flex p-4 rounded-full bg-gray-100 text-gray-400 mb-3">
+                <Wallet className="w-8 h-8" />
+              </div>
+              <p className="text-gray-600 font-medium">No transactions yet</p>
+              <p className="text-sm text-gray-500 mt-1">Top up your wallet or purchase units to see history here.</p>
+            </div>
           ) : (
             <div>
-              {/* Desktop Table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead>
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {paginatedHistory.map((item, index) => (
-                      <tr key={index} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
-                          {new Date(item.date).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
+              {/* Desktop Table - shadcn-style */}
+              <div className="hidden sm:block rounded-lg border border-gray-200">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-gray-200">
+                      <TableHead>Date</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Amount (TZS)</TableHead>
+                      <TableHead className="text-right">Units</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedHistory.map((item: any, index: number) => (
+                      <TableRow key={`${item.date}-${item.type}-${index}`}>
+                        <TableCell className="whitespace-nowrap font-medium">
+                          {new Date(item.date).toLocaleDateString(undefined, { dateStyle: "medium" })}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
                           {item.type === "topup" ? "Top-Up" : "Usage"}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-[#004d66]">{item.source}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#004d66]">
-                          {item.units.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#004d66]">
-                          {item.amount > 0 ? `${item.amount.toLocaleString()} Tsh` : "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`inline-flex items-center ${item.status === "Completed" ? "text-green-600" : "text-orange-600"
-                            }`}>
+                        </TableCell>
+                        <TableCell>{item.source}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap tabular-nums">
+                          {item.amountTzs != null && item.amountTzs > 0
+                            ? `${Number(item.amountTzs).toLocaleString()} Tsh`
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap tabular-nums font-medium">
+                          {Number(item.units).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${item.status === "Completed" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
                             {item.status}
                           </span>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
 
               {/* Mobile Cards */}
               <div className="sm:hidden space-y-3">
-                {paginatedHistory.map((item, index) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                {paginatedHistory.map((item: any, index: number) => (
+                  <div key={`${item.date}-${item.type}-${index}`} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <p className="text-xs font-bold text-[#00333e] uppercase tracking-wider">
                           {item.type === "topup" ? "Top-Up" : "Usage"}
                         </p>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {new Date(item.date).toLocaleDateString()}
+                          {new Date(item.date).toLocaleDateString(undefined, { dateStyle: "medium" })}
                         </p>
                       </div>
-                      <span className={`text-xs font-medium px-2 py-1 rounded ${item.status === "Completed"
-                        ? "bg-green-100 text-green-600"
-                        : "bg-orange-100 text-orange-600"
-                        }`}>
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${item.status === "Completed" ? "bg-green-100 text-green-600" : "bg-amber-100 text-amber-600"}`}>
                         {item.status}
                       </span>
                     </div>
@@ -837,16 +956,16 @@ const Subscription: React.FC = () => {
                         <span className="text-gray-600">Description</span>
                         <span className="text-[#00333e] font-medium text-right">{item.source}</span>
                       </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-600">Units</span>
-                        <span className="text-[#00333e] font-bold">{item.units.toLocaleString()}</span>
-                      </div>
-                      {item.amount > 0 && (
+                      {item.amountTzs != null && item.amountTzs > 0 && (
                         <div className="flex justify-between text-xs">
-                          <span className="text-gray-600">Amount</span>
-                          <span className="text-[#00333e] font-medium">{item.amount.toLocaleString()} Tsh</span>
+                          <span className="text-gray-600">Amount (TZS)</span>
+                          <span className="text-[#00333e] font-semibold tabular-nums">{Number(item.amountTzs).toLocaleString()} Tsh</span>
                         </div>
                       )}
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600">Units</span>
+                        <span className="text-[#00333e] font-bold tabular-nums">{Number(item.units).toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -881,15 +1000,29 @@ const Subscription: React.FC = () => {
 
       {/* Purchase Modal */}
       {isServiceModalOpen && selectedService && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsServiceModalOpen(false);
+              setSelectedPackage(null);
+              setSelectedUnits(0);
+              setUnitError("");
+            }
+          }}
+        >
           <motion.div
+            role="dialog"
+            aria-labelledby="purchase-modal-title"
+            aria-modal="true"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg sm:rounded-xl w-full max-w-md sm:max-w-2xl max-h-[98vh] sm:max-h-[90vh] overflow-y-auto border border-gray-200"
+            className="bg-white rounded-lg sm:rounded-xl w-full max-w-md sm:max-w-2xl max-h-[98vh] sm:max-h-[90vh] overflow-y-auto border border-gray-200 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="sticky top-0 bg-white flex items-center justify-between p-3 sm:p-6 border-b rounded-t-lg sm:rounded-t-xl z-10">
-              <h2 className="text-xs sm:text-base font-bold text-[#00333e]">
+              <h2 className="text-xs sm:text-base font-bold text-[#00333e]" id="purchase-modal-title">
                 Purchase {selectedService === "sms" ? "SMS" : selectedService === "whatsapp" ? "WhatsApp" : "Voice"}
               </h2>
               <button
@@ -899,7 +1032,8 @@ const Subscription: React.FC = () => {
                   setSelectedUnits(0);
                   setUnitError("");
                 }}
-                className="text-gray-400 hover:text-gray-600 p-1"
+                className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label="Close"
               >
                 <X className="w-4 sm:w-5 h-4 sm:h-5" />
               </button>
@@ -1099,12 +1233,14 @@ const Subscription: React.FC = () => {
                       </button>
                       <button
                         onClick={() => {
-                          if (wallet && wallet.units < totalCost) {
-                            // Insufficient balance - switch to top-up modal
-                            setIsServiceModalOpen(false);
-                            setIsTopUpModalOpen(true);
-                            setTopUpAmount(totalCost - wallet.units);
-                          } else {
+                            if (wallet && wallet.units < totalCost) {
+                              // Insufficient balance - switch to top-up modal
+                              const needed = totalCost - wallet.units;
+                              setIsServiceModalOpen(false);
+                              setIsTopUpModalOpen(true);
+                              setTopUpAmount(needed);
+                              showAlert("success", `Top up with the amount below, then purchase again to complete.`);
+                            } else {
                             handlePurchase(selectedPackage);
                             setIsServiceModalOpen(false);
                           }
@@ -1137,76 +1273,266 @@ const Subscription: React.FC = () => {
         </div>
       )}
 
-      {/* Top-Up Modal */}
+      {/* Top-Up Sheet */}
       {isTopUpModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+            onClick={() => { if (!isProcessing) { setIsTopUpModalOpen(false); setQrData(null); } }}
+          />
+          {/* Sheet */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl max-w-sm w-full border border-gray-200"
+            role="dialog"
+            aria-labelledby="topup-sheet-title"
+            aria-modal="true"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="fixed right-0 top-0 h-full w-full sm:w-[420px] bg-white shadow-2xl z-50 flex flex-col"
           >
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-base font-medium text-[#00333e]">Top Up Wallet</h2>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
+              <h2 id="topup-sheet-title" className="text-lg font-semibold text-[#00333e]">Top Up Wallet</h2>
               <button
-                onClick={() => setIsTopUpModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                onClick={() => { setIsTopUpModalOpen(false); setQrData(null); setIsProcessing(false); }}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                aria-label="Close"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleTopUp} className="p-4 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-[#00333e] mb-2 uppercase tracking-wider">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="Enter mobile money number"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00333e] focus:border-transparent text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[#00333e] mb-2 uppercase tracking-wider">
-                  Amount (Tsh)
-                </label>
-                <input
-                  type="number"
-                  value={topUpAmount}
-                  onChange={(e) => setTopUpAmount(parseFloat(e.target.value))}
-                  placeholder="Enter amount"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00333e] focus:border-transparent text-sm"
-                />
-              </div>
-              <div className="flex gap-2 pt-2">
+
+            {/* Payment Method Tabs */}
+            <div className="flex border-b border-gray-200 shrink-0">
+              {([
+                { id: "mobile" as const, label: "Mobile Money", icon: <Smartphone className="w-4 h-4" /> },
+                { id: "card" as const, label: "Card", icon: <CreditCard className="w-4 h-4" /> },
+                { id: "qr" as const, label: "QR Code", icon: <QrCode className="w-4 h-4" /> },
+              ]).map((tab) => (
                 <button
-                  type="button"
-                  onClick={() => setIsTopUpModalOpen(false)}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-[#00333e] rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
+                  key={tab.id}
+                  onClick={() => { setPaymentMethod(tab.id); setQrData(null); }}
                   disabled={isProcessing}
-                  className="flex-1 px-4 py-2 bg-[#00333e] text-white rounded-lg font-medium hover:bg-[#004d5e] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-sm"
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-colors ${paymentMethod === tab.id
+                    ? "text-[#00333e] border-b-2 border-[#00333e]"
+                    : "text-gray-400 hover:text-gray-600"
+                    }`}
                 >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    "Top Up"
-                  )}
+                  {tab.icon}
+                  {tab.label}
                 </button>
-              </div>
-            </form>
+              ))}
+            </div>
+
+            {/* Scrollable Content */}
+            <div ref={topUpScrollRef} className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+              {/* QR Code Display - shown first when QR is generated */}
+              {qrData && paymentMethod === "qr" && (
+                <div className="p-5 bg-gray-50 border-b border-gray-200 shrink-0">
+                  <div className="text-center space-y-4">
+                    <p className="text-sm font-medium text-[#00333e]">Scan to pay</p>
+                    {qrData.emv ? (
+                      <div className="flex flex-col items-center justify-center bg-white p-5 rounded-xl border border-gray-200 shadow-sm min-h-[260px] w-full">
+                        <p className="text-xs text-gray-500 mb-3 font-medium">Scan with your banking app</p>
+                        <div className="flex items-center justify-center w-[220px] h-[220px] mx-auto bg-white rounded-lg overflow-visible">
+                          {qrData.emv.startsWith("data:image/") || qrData.emv.startsWith("http") || (qrData.emv.length > 500 && !qrData.emv.startsWith("00")) ? (
+                            <img
+                              src={qrData.emv.startsWith("data:image/") || qrData.emv.startsWith("http") ? qrData.emv : `data:image/png;base64,${qrData.emv}`}
+                              alt="Payment QR Code"
+                              className="max-w-full max-h-full object-contain"
+                            />
+                          ) : (
+                            <QRCode
+                              value={qrData.emv}
+                              size={220}
+                              level="M"
+                              style={{ width: 220, height: 220 }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">Use the link below to pay</p>
+                    )}
+                    {qrData.paymentUrl && (
+                      <a
+                        href={qrData.paymentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#00333e] text-white rounded-lg text-sm font-medium hover:bg-[#004d5e] transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Open Payment Page
+                      </a>
+                    )}
+                    {qrData.expiresAt && (
+                      <p className="text-xs text-gray-500 flex items-center justify-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        Expires: {new Date(qrData.expiresAt).toLocaleTimeString()}
+                      </p>
+                    )}
+                    {isPolling && (
+                      <div className="flex items-center justify-center gap-2 text-xs text-[#00333e]">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Waiting for payment confirmation...
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleTopUp} className="p-5 space-y-4">
+                {paymentMethod === "card" && (
+                  <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                    You will be redirected to a secure page to enter your <strong>card number</strong>, expiry, and CVV. Your phone number below is for contact and receipts only.
+                  </p>
+                )}
+                {/* Phone Number - for Mobile/QR it's the pay-from number; for Card it's contact only */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                    {paymentMethod === "card" ? "Contact phone (for receipt)" : "Phone Number"}
+                  </label>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="e.g., 255712345678"
+                    required
+                    disabled={isProcessing}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00333e]/20 focus:border-[#00333e] text-sm transition-colors"
+                  />
+                  {paymentMethod === "card" && (
+                    <p className="text-[11px] text-gray-400 mt-1">Card details are entered on the next page.</p>
+                  )}
+                </div>
+
+                {/* Amount */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Amount (TZS)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={topUpAmount || ""}
+                    onChange={(e) => setTopUpAmount(parseFloat(e.target.value) || 0)}
+                    placeholder="e.g. 10000"
+                    required
+                    disabled={isProcessing}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00333e]/20 focus:border-[#00333e] text-sm transition-colors"
+                  />
+                </div>
+
+                {/* Card-specific fields */}
+                {paymentMethod === "card" && (
+                  <>
+                    <div className="border-t border-gray-100 pt-4">
+                      <p className="text-xs font-semibold text-[#00333e] mb-3 uppercase tracking-wider">Cardholder Info</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Full Name</label>
+                        <input
+                          type="text"
+                          value={buyerName}
+                          onChange={(e) => setBuyerName(e.target.value)}
+                          placeholder="Jane Doe"
+                          required
+                          disabled={isProcessing}
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00333e]/20 focus:border-[#00333e] text-sm transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Email</label>
+                        <input
+                          type="email"
+                          value={buyerEmail}
+                          onChange={(e) => setBuyerEmail(e.target.value)}
+                          placeholder="customer@example.com"
+                          required
+                          disabled={isProcessing}
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00333e]/20 focus:border-[#00333e] text-sm transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-4">
+                      <p className="text-xs font-semibold text-[#00333e] mb-3 uppercase tracking-wider">Billing Address</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Street Address</label>
+                        <input
+                          type="text"
+                          value={billingAddress}
+                          onChange={(e) => setBillingAddress(e.target.value)}
+                          placeholder="123 Uhuru St"
+                          disabled={isProcessing}
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00333e]/20 focus:border-[#00333e] text-sm transition-colors"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">City</label>
+                          <input
+                            type="text"
+                            value={billingCity}
+                            onChange={(e) => setBillingCity(e.target.value)}
+                            placeholder="Dar es Salaam"
+                            disabled={isProcessing}
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00333e]/20 focus:border-[#00333e] text-sm transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Country</label>
+                          <select
+                            value={billingCountry}
+                            onChange={(e) => setBillingCountry(e.target.value)}
+                            disabled={isProcessing}
+                            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00333e]/20 focus:border-[#00333e] text-sm transition-colors bg-white"
+                          >
+                            <option value="TZ">Tanzania</option>
+                            <option value="KE">Kenya</option>
+                            <option value="UG">Uganda</option>
+                            <option value="RW">Rwanda</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Submit */}
+                <div className="flex gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => { setIsTopUpModalOpen(false); setQrData(null); setIsProcessing(false); }}
+                    disabled={isProcessing}
+                    className="flex-1 px-4 py-2.5 bg-gray-100 text-[#00333e] rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isProcessing || (qrData !== null && paymentMethod === "qr")}
+                    className="flex-1 px-4 py-2.5 bg-[#00333e] text-white rounded-lg font-medium hover:bg-[#004d5e] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-sm"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        {paymentMethod === "card" ? "Redirecting..." : paymentMethod === "qr" ? "Generating..." : "Processing..."}
+                      </>
+                    ) : (
+                      paymentMethod === "card" ? "Pay with Card" : paymentMethod === "qr" ? "Generate QR Code" : "Top Up"
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </motion.div>
-        </div>
+        </>
       )}
     </div>
   );

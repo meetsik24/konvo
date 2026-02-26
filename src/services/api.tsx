@@ -313,24 +313,55 @@ interface PurchaseSmsCreditsResponse {
   requested_sms: number;
 }
 
+// === PAYMENT INTERFACES (matches payment.md) ===
+
+// Mobile Money payment request
 interface InitiateUnitsPaymentRequest {
   amount_paid: number;
   target_phone: string;
-  payment_method: string;
+  buyer_email?: string;
+  buyer_name?: string;
+  provider_name?: string | null;
 }
 
+// Card payment request (redirect flow)
+export interface InitiateCardPaymentRequest {
+  amount_paid: number;
+  target_phone: string;
+  buyer_email: string;
+  buyer_name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postcode?: string;
+  country?: string;
+  redirect_url: string;
+  cancel_url: string;
+  callback_url?: string | null;
+  provider_name?: string | null;
+}
+
+// QR payment request
+export interface InitiateQRPaymentRequest {
+  amount_paid: number;
+  target_phone: string;
+  buyer_email?: string;
+  buyer_name?: string;
+  provider_name?: string | null;
+}
+
+// Shared response for all three payment methods
 interface InitiateUnitsPaymentResponse {
   success: boolean;
   message: string;
-  payment_reference: string;
-  provider_response: {
-    message: string;
-    order_id: string;
-    resultcode: string;
-    status: string;
-  };
-  marked_complete?: boolean;
-  units_purchased?: number;
+  payment_reference: string | null;
+  transaction_id: string | null;
+  transaction_name: string | null;
+  payment_type: 'mobile' | 'card' | 'dynamic-qr' | null;
+  payment_provider: string | null;
+  payment_url: string | null;
+  qr_code: string | null;
+  provider_response: any;
 }
 
 interface SenderId {
@@ -2045,7 +2076,48 @@ export const initiateUnitsPayment = async (data: InitiateUnitsPaymentRequest): P
     console.log("initiateUnitsPayment API response:", response.data);
     return response.data;
   } catch (error: any) {
-    return handleApiError(error, "Failed to initiate Units payment");
+    return handleApiError(error, "Failed to initiate Mobile Money payment");
+  }
+};
+
+// Card payment (redirect flow). Backend requires nested "customer" object for billing.
+export const initiateCardPayment = async (data: InitiateCardPaymentRequest): Promise<InitiateUnitsPaymentResponse> => {
+  console.log("initiateCardPayment API call initiated with data:", data);
+  try {
+    const body = {
+      amount_paid: data.amount_paid,
+      target_phone: data.target_phone,
+      buyer_email: data.buyer_email,
+      buyer_name: data.buyer_name,
+      redirect_url: data.redirect_url,
+      cancel_url: data.cancel_url,
+      callback_url: data.callback_url ?? null,
+      provider_name: data.provider_name ?? null,
+      customer: {
+        address: data.address ?? "",
+        city: data.city ?? "",
+        state: data.state ?? "DSM",
+        postcode: data.postcode ?? "14101",
+        country: data.country ?? "TZ",
+      },
+    };
+    const response = await api.post("/transaction/initiate/card", body);
+    console.log("initiateCardPayment API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to initiate card payment");
+  }
+};
+
+// QR payment (scan-to-pay)
+export const initiateQRPayment = async (data: InitiateQRPaymentRequest): Promise<InitiateUnitsPaymentResponse> => {
+  console.log("initiateQRPayment API call initiated with data:", data);
+  try {
+    const response = await api.post("/transaction/initiate/qr", data);
+    console.log("initiateQRPayment API response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    return handleApiError(error, "Failed to initiate QR payment");
   }
 };
 

@@ -17,7 +17,7 @@ const Alert: React.FC<AlertProps> = ({ type, message, isOpen, onClose }) => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="fixed top-4 left-90 transform -translate-x-1/2 z-50"
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md"
         >
           <div className={`rounded-lg shadow-lg p-4 min-w-[320px] ${
             type === 'success' ? 'bg-green-50 border border-green-100' : 'bg-red-50 border border-red-100'
