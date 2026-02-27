@@ -1,9 +1,8 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Provider, useDispatch, useSelector } from 'react-redux';
-import { store } from './store/store';
+import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from './store/store';
-import { fetchUserProfile, logout } from './store/slices/authSlice';
+import { fetchUserProfile } from './store/slices/authSlice';
 import { AnimatePresence } from 'framer-motion';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
@@ -173,91 +172,89 @@ function App() {
   }, [token, dispatch, status, user]);
 
   return (
-    <Provider store={store}>
-      <WorkspaceProvider>
-        <ContactsProvider>
-          <Router>
-            <ScrollToTop />
-            <div className="min-h-screen flex flex-col">
-              <AnimatePresence mode="wait">
-                <Routes>
-                  {/* Landing Page Route */}
-                  <Route path="/" element={<Landing />} />
+    <WorkspaceProvider>
+      <ContactsProvider>
+        <Router>
+          <ScrollToTop />
+          <div className="min-h-screen flex flex-col">
+            <AnimatePresence mode="wait">
+              <Routes>
+                {/* Landing Page Route */}
+                <Route path="/" element={<Landing />} />
 
-                  {/* Documentation Routes */}
-                  {/* <Route path="/documentation/*" element={<Documentation />} /> */}
+                {/* Documentation Routes */}
+                {/* <Route path="/documentation/*" element={<Documentation />} /> */}
 
-                  {/* Terms of Service and Privacy Policy Routes */}
-                  <Route path="/terms" element={<TermsOfService />} />
-                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                {/* Terms of Service and Privacy Policy Routes */}
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
 
-                  {/* Contact Route */}
-                  <Route path="/contact" element={<><Navbar /><Contact /><Footer /></>} />
+                {/* Contact Route */}
+                <Route path="/contact" element={<><Navbar /><Contact /><Footer /></>} />
 
-                  {/* Authentication Routes */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/loginLegacy" element={<LoginLegacy />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/ResetPassword" element={<ResetPassword />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                {/* Authentication Routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/loginLegacy" element={<LoginLegacy />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/ResetPassword" element={<ResetPassword />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
 
-                  {/* Dashboard Protected Routes */}
-                  <Route
-                    element={
-                      <ProtectedRoute>
-                        <Layout />
-                      </ProtectedRoute>
-                    }
-                  >
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/send-sms" element={<SendSMS />} />
-                    <Route path="/campaigns" element={<SMSCampaigns />} />
-                    <Route path="/send-email" element={<SendEmail />} />
-                    <Route path="/voice" element={<Voice />} />
-                    <Route path="/chatbot" element={<Chatbot />} />
-                    <Route path="/account" element={<Account />} />
-                    <Route path="/logs" element={<Logs />} />
-                    <Route path="/subscription" element={<Subscription />} />
-                    <Route path="/senderid" element={<SenderID />} />
-                    <Route path="/contacts" element={<Contacts />} />
-                    <Route path="/apikeys" element={<ApiKeys />} />
-                    <Route path="/whatsapp" element={<WhatsApp />} />
-                  </Route>
+                {/* Dashboard Protected Routes */}
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/send-sms" element={<SendSMS />} />
+                  <Route path="/campaigns" element={<SMSCampaigns />} />
+                  <Route path="/send-email" element={<SendEmail />} />
+                  <Route path="/voice" element={<Voice />} />
+                  <Route path="/chatbot" element={<Chatbot />} />
+                  <Route path="/account" element={<Account />} />
+                  <Route path="/logs" element={<Logs />} />
+                  <Route path="/subscription" element={<Subscription />} />
+                  <Route path="/senderid" element={<SenderID />} />
+                  <Route path="/contacts" element={<Contacts />} />
+                  <Route path="/apikeys" element={<ApiKeys />} />
+                  <Route path="/whatsapp" element={<WhatsApp />} />
+                </Route>
 
-                  {/* Admin Protected Routes */}
-                  <Route
-                    element={
-                      <AdminProtectedRoute>
-                        <AdminLayout />
-                      </AdminProtectedRoute>
-                    }
-                  >
-                    <Route path="/orange/dashboard" element={<AdminDashboard />} />
-                    <Route path="/orange/users" element={<AdminUsers />} />
-                    <Route path="/orange/sender-ids" element={<AdminSenderIds />} />
-                    <Route path="/orange/workspaces" element={<AdminWorkspaces />} />
-                    <Route path="/orange/financials" element={<AdminFinancials />} />
-                    <Route path="/orange/transactions" element={<AdminTransactions />} />
-                    <Route path="/orange/credits-usage" element={<AdminCreditsUsage />} />
-                    <Route path="/orange/packages" element={<AdminPackages />} />
-                    <Route path="/orange/services" element={<AdminServices />} />
-                    <Route path="/orange/api-keys" element={<AdminApiKeys />} />
-                    <Route path="/orange/messages" element={<AdminMessages />} />
-                    <Route path="/orange/otps" element={<AdminOTPs />} />
-                    {/* Fallback for admin if route doesn't exist */}
-                    <Route path="/orange/*" element={<Navigate to="/orange/dashboard" replace />} />
-                  </Route>
-                  <Route path="/admin/*" element={<Navigate to="/orange/dashboard" replace />} />
+                {/* Admin Protected Routes */}
+                <Route
+                  element={
+                    <AdminProtectedRoute>
+                      <AdminLayout />
+                    </AdminProtectedRoute>
+                  }
+                >
+                  <Route path="/orange/dashboard" element={<AdminDashboard />} />
+                  <Route path="/orange/users" element={<AdminUsers />} />
+                  <Route path="/orange/sender-ids" element={<AdminSenderIds />} />
+                  <Route path="/orange/workspaces" element={<AdminWorkspaces />} />
+                  <Route path="/orange/financials" element={<AdminFinancials />} />
+                  <Route path="/orange/transactions" element={<AdminTransactions />} />
+                  <Route path="/orange/credits-usage" element={<AdminCreditsUsage />} />
+                  <Route path="/orange/packages" element={<AdminPackages />} />
+                  <Route path="/orange/services" element={<AdminServices />} />
+                  <Route path="/orange/api-keys" element={<AdminApiKeys />} />
+                  <Route path="/orange/messages" element={<AdminMessages />} />
+                  <Route path="/orange/otps" element={<AdminOTPs />} />
+                  {/* Fallback for admin if route doesn't exist */}
+                  <Route path="/orange/*" element={<Navigate to="/orange/dashboard" replace />} />
+                </Route>
+                <Route path="/admin/*" element={<Navigate to="/orange/dashboard" replace />} />
 
-                  {/* Catch-All 404 Page */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </AnimatePresence>
-            </div>
-          </Router>
-        </ContactsProvider>
-      </WorkspaceProvider>
-    </Provider>
+                {/* Catch-All 404 Page */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AnimatePresence>
+          </div>
+        </Router>
+      </ContactsProvider>
+    </WorkspaceProvider>
   );
 }
 

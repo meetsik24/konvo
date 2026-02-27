@@ -5,6 +5,13 @@ import {
     ChevronRight,
 } from 'lucide-react';
 import { AdminApi } from '../../services/admin-api';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+} from '../../components/ui/sheet';
 
 const AdminTransactions: React.FC = () => {
     const [transactions, setTransactions] = useState<any[]>([]);
@@ -14,6 +21,8 @@ const AdminTransactions: React.FC = () => {
     const [page, setPage] = useState(0);
     const [limit] = useState(10);
     const [search, setSearch] = useState('');
+    const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
 
     const fetchTransactions = useCallback(async () => {
         try {
@@ -133,7 +142,14 @@ const AdminTransactions: React.FC = () => {
                                 </tr>
                             ) : (
                                 displayedTransactions.map((txn) => (
-                                    <tr key={txn.transaction_id} className="hover:bg-gray-50 transition-colors group">
+                                    <tr
+                                        key={txn.transaction_id}
+                                        className="hover:bg-gray-50 transition-colors group cursor-pointer"
+                                        onClick={() => {
+                                            setSelectedTransaction(txn);
+                                            setIsSheetOpen(true);
+                                        }}
+                                    >
                                         <td className="px-6 py-4">
                                             <code className="text-[10px] text-gray-500 font-mono">{txn.transaction_id?.slice(0, 8)}...</code>
                                         </td>
@@ -201,6 +217,104 @@ const AdminTransactions: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Transaction Details Sheet */}
+            {selectedTransaction && (
+                <Sheet
+                    open={isSheetOpen}
+                    onOpenChange={(open) => {
+                        setIsSheetOpen(open);
+                        if (!open) {
+                            setSelectedTransaction(null);
+                        }
+                    }}
+                >
+                    <SheetContent side="right" className="sm:max-w-[420px] w-full p-0 bg-white">
+                        <SheetHeader className="px-5 py-4 border-b border-gray-200">
+                            <SheetTitle>Transaction details</SheetTitle>
+                            <SheetDescription>
+                                Full details for transaction{' '}
+                                <code className="text-[10px] font-mono">
+                                    {selectedTransaction.transaction_id}
+                                </code>
+                            </SheetDescription>
+                        </SheetHeader>
+                        <div className="flex-1 overflow-y-auto p-5 space-y-4 text-sm text-[#00333e]">
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        User
+                                    </p>
+                                    <p className="mt-1 font-medium">
+                                        {selectedTransaction.transaction_name || 'N/A'}
+                                    </p>
+                                    <p className="mt-0.5 text-[11px] text-gray-500 font-mono">
+                                        {selectedTransaction.user_id || 'N/A'}
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Amount
+                                        </p>
+                                        <p className="mt-1 font-bold">
+                                            TShs{' '}
+                                            {selectedTransaction.total_amount_paid
+                                                ? Number(selectedTransaction.total_amount_paid).toLocaleString()
+                                                : 0}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Units
+                                        </p>
+                                        <p className="mt-1">
+                                            {selectedTransaction.units_purchased
+                                                ? Number(selectedTransaction.units_purchased).toLocaleString()
+                                                : 0}{' '}
+                                            units
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Payment Method
+                                        </p>
+                                        <p className="mt-1">
+                                            {selectedTransaction.payment_method || 'N/A'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Status
+                                        </p>
+                                        <span
+                                            className={`mt-1 inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                selectedTransaction.marked_complete
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-yellow-100 text-yellow-700'
+                                            }`}
+                                        >
+                                            {selectedTransaction.marked_complete ? 'Complete' : 'Pending'}
+                                        </span>
+                                    </div>
+                                </div>
+                                {selectedTransaction.transaction_date && (
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Date
+                                        </p>
+                                        <p className="mt-1">
+                                            {new Date(selectedTransaction.transaction_date).toLocaleString()}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </SheetContent>
+                </Sheet>
+            )}
         </div>
     );
 };

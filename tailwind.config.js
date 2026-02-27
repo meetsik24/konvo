@@ -32,7 +32,12 @@ export default {
           light: '#ffedd5',
           DEFAULT: '#c27e00',
           dark: '#8b5e00',
-        }
+        },
+        border: "hsl(var(--border-color))",
+        input: "hsl(var(--border-color))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
       },
       fontFamily: {
         sans: ['exo', 'Inter var', 'sans-serif'],

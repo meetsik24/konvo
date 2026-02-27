@@ -9,14 +9,15 @@
     --foreground: 222.2 84% 4.9%;
     --primary: 142.1 76.2% 36.3%;
     --primary-foreground: 355.7 100% 97.3%;
-    --ring: 142.1 76.2% 36.3%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
     --primary-bg: #00333e;
     --secondary-bg: #003d4a;
     --border-color: #6f888c;
     --highlight: #fddf0d;
     --text-primary: #00333e;
     --text-secondary: #6f888c;
-
   }
 
   html {
