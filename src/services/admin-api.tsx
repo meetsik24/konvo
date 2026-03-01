@@ -395,6 +395,103 @@ interface UserCreditBalance {
   credits: number;
 }
 
+// === Referral System (Admin API) ===
+// See: Referral System – Admin API Integration Guide
+export type ReferralStatus =
+  | 'invited'
+  | 'registered'
+  | 'qualified'
+  | 'rewarded'
+  | 'expired'
+  | 'cancelled';
+
+export type QualifyingEvent = 'immediate' | 'first_transaction' | 'manual';
+
+interface ReferralRecord {
+  id: string;
+  referrer_user_id: string;
+  referee_user_id: string | null;
+  status: ReferralStatus;
+  invited_at: string | null;
+  registered_at: string | null;
+  qualified_at: string | null;
+  rewarded_at: string | null;
+}
+
+interface ReferralListParams {
+  page?: number;
+  page_size?: number;
+  status?: ReferralStatus;
+  referrer_user_id?: string;
+}
+
+interface ReferralListResponse {
+  items: ReferralRecord[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+interface ReferralStatsByStatus {
+  invited: number;
+  registered: number;
+  qualified: number;
+  rewarded: number;
+  expired: number;
+  cancelled: number;
+}
+
+interface TopReferrer {
+  user_id: string;
+  username: string;
+  referral_count: number;
+}
+
+interface ReferralStatsResponse {
+  programme_active: boolean;
+  total_referrals: number;
+  by_status: ReferralStatsByStatus;
+  total_units_issued: number;
+  top_referrer: TopReferrer | null;
+  conversion_rate: number;
+  period: string;
+}
+
+interface LeaderboardEntry {
+  rank: number;
+  user_id: string;
+  username: string;
+  referrals: number;
+  units_generated: number;
+}
+
+interface ReferralConfig {
+  referrer_reward_units: number;
+  referee_reward_units: number;
+  qualifying_event: QualifyingEvent;
+  max_referrals_per_user: number | null;
+  is_programme_active: boolean;
+  updated_at: string;
+}
+
+interface ReferralConfigPatch {
+  referrer_reward_units?: number | null;
+  referee_reward_units?: number | null;
+  qualifying_event?: QualifyingEvent | null;
+  max_referrals_per_user?: number | null;
+  is_programme_active?: boolean | null;
+}
+
+interface ReferralApproveResponse {
+  message: string;
+  referral_id: string;
+}
+
+interface ReferralCancelResponse {
+  message: string;
+  referral_id: string;
+}
+
 // Admin API Service
 export const AdminApi = {
   // Sender ID Management
@@ -669,6 +766,44 @@ export const AdminApi = {
     return ApiService.get('/api-keys/admin/api-keys/metrics');
   },
 
+  // Referral System (Admin)
+  getReferrals: async (params?: ReferralListParams): Promise<ReferralListResponse> => {
+    const query: Record<string, string | number> = {};
+    if (params?.page != null) query.page = params.page;
+    if (params?.page_size != null) query.page_size = params.page_size;
+    if (params?.status) query.status = params.status;
+    if (params?.referrer_user_id) query.referrer_user_id = params.referrer_user_id;
+    return ApiService.get<ReferralListResponse>('/admin/referrals', { params: Object.keys(query).length ? query : undefined });
+  },
+
+  getReferralStats: async (): Promise<ReferralStatsResponse> => {
+    return ApiService.get<ReferralStatsResponse>('/admin/referrals/stats');
+  },
+
+  getReferralLeaderboard: async (limit: number = 10): Promise<LeaderboardEntry[]> => {
+    return ApiService.get<LeaderboardEntry[]>('/admin/referrals/leaderboard', { params: { limit } });
+  },
+
+  getReferralConfig: async (): Promise<ReferralConfig> => {
+    return ApiService.get<ReferralConfig>('/admin/referrals/config');
+  },
+
+  updateReferralConfig: async (data: ReferralConfigPatch): Promise<ReferralConfig> => {
+    return ApiService.patch<ReferralConfig>('/admin/referrals/config', data);
+  },
+
+  getReferralById: async (referralId: string): Promise<ReferralRecord> => {
+    return ApiService.get<ReferralRecord>(`/admin/referrals/${referralId}`);
+  },
+
+  approveReferral: async (referralId: string): Promise<ReferralApproveResponse> => {
+    return ApiService.post<ReferralApproveResponse>(`/admin/referrals/${referralId}/approve`, {});
+  },
+
+  cancelReferral: async (referralId: string): Promise<ReferralCancelResponse> => {
+    return ApiService.post<ReferralCancelResponse>(`/admin/referrals/${referralId}/cancel`, {});
+  },
+
   // Package Management
   getPackages: async (limit: number = 100, skip: number = 0): Promise<Package[]> => {
     return ApiService.get(`/packages?skip=${skip}&limit=${limit}`);
@@ -796,4 +931,15 @@ export type {
   PatchBody,
   GetWorkspacesParams,
   UserCreditBalance,
+  ReferralRecord,
+  ReferralListParams,
+  ReferralListResponse,
+  ReferralStatsResponse,
+  ReferralStatsByStatus,
+  TopReferrer,
+  LeaderboardEntry,
+  ReferralConfig,
+  ReferralConfigPatch,
+  ReferralApproveResponse,
+  ReferralCancelResponse,
 };
