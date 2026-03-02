@@ -1,4 +1,4 @@
-name: Agent 007
+name: BriqPilot Frontend Test
 
 on:
   push:
@@ -10,48 +10,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code from GitHub
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Log in to Docker Hub
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      # Step 3: Build the Docker image
       - name: Build Docker Image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/briqpilot-frontend:latest .
 
-      # Step 4: Push the Docker image to Docker Hub
       - name: Push Docker Image to Docker Hub
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/briqpilot-frontend:latest
 
-      # Step 5: Deploy on DigitalOcean Droplet via SSH
-      - name: Deploy on DigitalOcean Droplet
+      - name: Deploy on AWS EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.TEST_DROPLET_HOST }}
-          username: ${{ secrets.DROPLET_USER }}
-          password: ${{ secrets.DROPLET_PASSWORD }}
+          host: ${{ secrets.AWS_SSH_HOST }}
+          username: ${{ secrets.AWS_SSH_USER }}
+          key: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
           script: |
-            set -e  # Stop on errors
-            echo "Logging into droplet..."
+            set -e
+            echo "Deploying briqpilot-fe-test..."
 
-            # Navigate to deployment directory
-            cd briqFace
+            # Stop and remove old container if exists
+            docker stop briqpilot-fe-test || true
+            docker rm briqpilot-fe-test || true
 
-            # Stop and remove the old container
-            docker stop briqpilot-frontend_frontend_1 || true
-            docker rm briqpilot-frontend_frontend_1 || true
-
-            # Pull the latest image from Docker Hub
+            # Pull latest image
             docker pull ${{ secrets.DOCKER_USERNAME }}/briqpilot-frontend:latest
 
-            # Run the updated container
-            docker run -d --name briqpilot-frontend_frontend_1 \
-              -p 5173:5173 \
+            # Run new container on port 5174
+            docker run -d \
+              --name briqpilot-fe-test \
+              -p 5174:5173 \
+              --env-file ~/briqFace/.env \
+              --restart unless-stopped \
               ${{ secrets.DOCKER_USERNAME }}/briqpilot-frontend:latest
 
-            echo "Deployment complete!"
+            echo "Deployment Complete!"
