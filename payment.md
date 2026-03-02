@@ -706,6 +706,6 @@ Response: { success, credits_added, updated_balance }
 # Get Transaction
 GET /api//transaction/{transaction_id}
 
-# List Transactions
+# List Trans
 GET /api//transaction?limit=20&skip=0
 ```
