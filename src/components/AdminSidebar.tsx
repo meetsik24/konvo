@@ -16,6 +16,7 @@ import {
     ShieldCheck,
     LogOut,
     X,
+    Gift,
 } from 'lucide-react';
 import { logout } from '../store/slices/authSlice';
 import { store } from '../store/store';
@@ -34,6 +35,7 @@ const adminNavItems = [
     { to: '/orange/api-keys', icon: Key, label: 'API Keys' },
     { to: '/orange/messages', icon: MessageSquare, label: 'Messages' },
     { to: '/orange/otps', icon: ShieldCheck, label: 'OTP Logs' },
+    { to: '/orange/referrals', icon: Gift, label: 'Referrals' },
 ];
 
 interface AdminSidebarProps {

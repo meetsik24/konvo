@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserPlus, CheckCircle, ArrowRight, LogIn } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -14,6 +14,7 @@ const simuImage2 = '/assets/simu.png';
 const Register: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { status, error, successMessage, token } = useSelector((state: RootState) => state.auth);
 
   const [formData, setFormData] = useState({
@@ -23,6 +24,7 @@ const Register: React.FC = () => {
     mobileNumber: '',
     password: '',
     confirmPassword: '',
+    referralCode: '',
   });
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -57,6 +59,14 @@ const Register: React.FC = () => {
     return welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
   }, []);
 
+  // Pre-fill referral code from URL ?ref=...
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref && ref.trim()) {
+      setFormData((prev) => ({ ...prev, referralCode: ref.trim() }));
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     if (status === 'succeeded' && successMessage && token) {
       const timer = setTimeout(() => {
@@ -87,6 +97,7 @@ const Register: React.FC = () => {
         email: formData.email,
         mobileNumber: formData.mobileNumber,
         password: formData.password,
+        referralCode: formData.referralCode || undefined,
       })).unwrap();
 
       dispatch(setSuccessMessage('Registration and login successful! Welcome aboard!'));
@@ -236,6 +247,20 @@ const Register: React.FC = () => {
                   className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00333e] focus:border-transparent transition placeholder-gray-400"
                   placeholder="Confirm Password"
                   value={formData.confirmPassword}
+                  onChange={handleChange}
+                  disabled={status === 'loading'}
+                />
+              </div>
+
+              <div>
+                <input
+                  id="referralCode"
+                  name="referralCode"
+                  type="text"
+                  autoComplete="off"
+                  className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00333e] focus:border-transparent transition placeholder-gray-400"
+                  placeholder="Referral code (optional)"
+                  value={formData.referralCode}
                   onChange={handleChange}
                   disabled={status === 'loading'}
                 />

@@ -5,12 +5,12 @@ import { loginUser, registerUser, getProfile } from "../../services/api";
 export const register = createAsyncThunk(
   "auth/register",
   async (
-    { username, fullName, email, mobileNumber, password }:
-      { username: string; fullName: string; email: string; mobileNumber: string; password: string },
+    { username, fullName, email, mobileNumber, password, referralCode }:
+      { username: string; fullName: string; email: string; mobileNumber: string; password: string; referralCode?: string | null },
     { dispatch, rejectWithValue }
   ) => {
     try {
-      const response = await registerUser(username, fullName, email, mobileNumber, password);
+      const response = await registerUser(username, fullName, email, mobileNumber, password, referralCode);
       console.log('Register response:', response); // Debug log
       // Immediately dispatch login after successful registration
       const loginResponse = await dispatch(login({ username, password })).unwrap();

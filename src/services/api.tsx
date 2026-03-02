@@ -1257,21 +1257,99 @@ const handleAdminApiError = (error: AxiosError, defaultMessage: string, suppress
   throw new Error(`${defaultMessage}: ${message} (Status: ${errorDetails.status})`);
 };
 
+// === User Referral API (Referral System – User API Integration Guide) ===
+export interface ReferralMyCode {
+  code: string;
+  invite_link: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ReferralUserStats {
+  total_invited: number;
+  total_registered: number;
+  total_qualified: number;
+  total_rewarded: number;
+  units_earned: number;
+  conversion_rate: number;
+  pending_rewards: number;
+}
+
+export type ReferralHistoryStatus = 'invited' | 'registered' | 'qualified' | 'rewarded' | 'expired' | 'cancelled';
+
+export interface ReferralHistoryItem {
+  id: string;
+  referee_username: string | null;
+  status: ReferralHistoryStatus;
+  registered_at: string | null;
+  rewarded_at: string | null;
+  units_earned: number;
+}
+
+export interface ReferralHistoryResponse {
+  items: ReferralHistoryItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface ReferralInviteRequest {
+  channel: 'sms' | 'whatsapp';
+  recipient_phone: string;
+  custom_message?: string | null;
+}
+
+export interface ReferralInviteResponse {
+  status: string;
+  referral_id: string;
+  message: string;
+}
+
+export const getMyReferralCode = async (): Promise<ReferralMyCode> => {
+  const { data } = await api.get<ReferralMyCode>('/referrals/my-code');
+  return data;
+};
+
+export const getReferralStats = async (): Promise<ReferralUserStats> => {
+  const { data } = await api.get<ReferralUserStats>('/referrals/stats');
+  return data;
+};
+
+export const getReferralHistory = async (page: number = 1, page_size: number = 20): Promise<ReferralHistoryResponse> => {
+  const { data } = await api.get<ReferralHistoryResponse>('/referrals/history', { params: { page, page_size } });
+  return data;
+};
+
+export const sendReferralInvite = async (body: ReferralInviteRequest): Promise<ReferralInviteResponse> => {
+  const { data } = await api.post<ReferralInviteResponse>('/referrals/invite', body);
+  return data;
+};
+
+export const regenerateReferralCode = async (): Promise<ReferralMyCode> => {
+  const { data } = await api.post<ReferralMyCode>('/referrals/regenerate-code');
+  return data;
+};
+
 export const registerUser = async (
   username: string,
   fullName: string,
   email: string,
   mobileNumber: string,
-  password: string
+  password: string,
+  referralCode?: string | null
 ): Promise<User> => {
   try {
-    const response = await api.post("/auth/register", {
+    const body: Record<string, string> = {
       username,
       email,
       password,
       full_name: fullName,
       mobile_number: mobileNumber,
-    });
+    };
+    if (referralCode != null && referralCode.trim() !== '') {
+      body.referral_code = referralCode.trim();
+    }
+    const response = await api.post("/auth/register", body);
     console.log("Registration successful:", response.data);
     return response.data;
   } catch (error: any) {

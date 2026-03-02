@@ -48,6 +48,7 @@ import SMSCampaigns from './pages/campaigns';
 import Logs from './pages/Logs';
 import Subscription from './pages/subscription';
 import SenderID from './pages/SenderID';
+import Referrals from './pages/Referrals';
 import Contacts from './pages/Contacts';
 import ApiKeys from './pages/apikeys';
 import WhatsApp from './pages/WhatsApp';
@@ -67,6 +68,7 @@ import AdminServices from './pages/admin/AdminServices';
 import AdminApiKeys from './pages/admin/AdminApiKeys';
 import AdminMessages from './pages/admin/AdminMessages';
 import AdminOTPs from './pages/admin/AdminOTPs';
+import AdminReferrals from './pages/admin/AdminReferrals';
 
 
 
@@ -216,6 +218,7 @@ function App() {
                   <Route path="/account" element={<Account />} />
                   <Route path="/logs" element={<Logs />} />
                   <Route path="/subscription" element={<Subscription />} />
+                  <Route path="/referrals" element={<Referrals />} />
                   <Route path="/senderid" element={<SenderID />} />
                   <Route path="/contacts" element={<Contacts />} />
                   <Route path="/apikeys" element={<ApiKeys />} />
@@ -242,6 +245,7 @@ function App() {
                   <Route path="/orange/api-keys" element={<AdminApiKeys />} />
                   <Route path="/orange/messages" element={<AdminMessages />} />
                   <Route path="/orange/otps" element={<AdminOTPs />} />
+                  <Route path="/orange/referrals" element={<AdminReferrals />} />
                   {/* Fallback for admin if route doesn't exist */}
                   <Route path="/orange/*" element={<Navigate to="/orange/dashboard" replace />} />
                 </Route>

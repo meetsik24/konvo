@@ -15,7 +15,8 @@ import {
   X,
   Building,
   Plus,
-  Trash2
+  Trash2,
+  Gift,
 } from 'lucide-react';
 import { useWorkspace } from '../pages/WorkspaceContext';
 import { logout, fetchUserProfile } from '../store/slices/authSlice';
@@ -29,6 +30,7 @@ const navItems = [
   { to: '/send-sms', icon: MessageSquare, label: 'Send SMS' },
   { to: '/senderid', icon: IdCard, label: 'Sender ID' },
   { to: '/contacts', icon: Users, label: 'Contacts' },
+  { to: '/referrals', icon: Gift, label: 'Referrals' },
   { to: '/logs', icon: Activity, label: 'Logs' },
   { to: '/subscription', icon: DollarSign, label: 'Subscription' },
   { to: '/apikeys', icon: IdCard, label: 'Developer Apps & API' },
