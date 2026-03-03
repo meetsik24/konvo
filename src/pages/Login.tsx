@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, Phone, PhoneCall, ArrowRight, Lock, UserPlus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../store/slices/authSlice';
 import { flake_request, flake_verify, loginUser } from '../services/api';
@@ -34,6 +34,8 @@ const AuthScreen: React.FC = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const ref = searchParams.get('ref');
 
   // Images to rotate through on the right side
   const images = [
@@ -407,7 +409,7 @@ const AuthScreen: React.FC = () => {
                 Don't have an account?{' '}
                 <button
                   type="button"
-                  onClick={() => navigate('/register')}
+                  onClick={() => navigate(ref ? `/register?ref=${encodeURIComponent(ref)}` : '/register')}
                   className="text-[#00333e] hover:underline font-medium inline-flex items-center gap-1"
                 >
                   <UserPlus className="w-3 h-3" />

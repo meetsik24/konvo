@@ -36,6 +36,7 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import LoginLegacy from './pages/LoginLegacy';
 import Register from './pages/Register';
+import Invite from './pages/Invite';
 import ResetPassword from './pages/ResetPassword';
 import ForgotPassword from './pages/ForgotPassword';
 import Account from './pages/Account';
@@ -195,6 +196,8 @@ function App() {
                 <Route path="/contact" element={<><Navbar /><Contact /><Footer /></>} />
 
                 {/* Authentication Routes */}
+                <Route path="/invite" element={<Invite />} />
+                <Route path="/b324/invite" element={<Invite />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/loginLegacy" element={<LoginLegacy />} />
                 <Route path="/register" element={<Register />} />
