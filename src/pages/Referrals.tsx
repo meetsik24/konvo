@@ -149,14 +149,21 @@ const Referrals: React.FC = () => {
       setInviteError('Phone must be in E.164 format (e.g. +255712345678)');
       return;
     }
+    if (!myCode?.invite_link) {
+      setInviteError('Your referral link is not loaded yet. Please wait and try again.');
+      return;
+    }
     setInviteError(null);
     setInviteSuccess(null);
     try {
       setInviteSending(true);
+      const messageWithLink = inviteForm.custom_message.trim()
+        ? `${inviteForm.custom_message.trim()}\n\n${myCode.invite_link}`
+        : myCode.invite_link;
       const res = await sendReferralInvite({
         channel: inviteForm.channel,
         recipient_phone: phone,
-        custom_message: inviteForm.custom_message.trim() || undefined,
+        custom_message: messageWithLink,
       });
       setInviteSuccess(res.message || 'Invite sent.');
       setInviteForm((f) => ({ ...f, recipient_phone: '', custom_message: '' }));
@@ -287,7 +294,7 @@ const Referrals: React.FC = () => {
             <textarea
               value={inviteForm.custom_message}
               onChange={(e) => setInviteForm((f) => ({ ...f, custom_message: e.target.value }))}
-              placeholder="Add a personal message..."
+              placeholder="Add a personal message… Your referral link will be included automatically."
               rows={2}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-[#00333e] placeholder-gray-400"
             />
