@@ -23,10 +23,6 @@ async function request<T>(
 }
 
 export const api = {
-  getChats: () => request<import('./types').ChatSummary[]>(`${API_BASE}/chats`),
-  getPriorityLeads: () => request<import('./types').PriorityLead[]>(`${API_BASE}/priority-leads`),
-  getChatHistory: (phoneNumber: string) =>
-    request<import('./types').ChatMessagesSchema>(`${API_BASE}/chats/${encodeURIComponent(phoneNumber)}`),
   getPharmacyConversations: (params?: import('./types').PharmacyConversationsParams) =>
     request<import('./types').SarufiConversationsResponse>(`${API_BASE}/pharmacy/conversations`, {
       params: params as Record<string, string | number | undefined | null>,

@@ -3,9 +3,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Send, Phone, MoveVertical as MoreVertical, Bot, User, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useChats, useChatHistory } from '@/hooks/use-chats';
+import { usePharmacyConversations, useConversationMessages } from '@/hooks/use-pharmacy';
 import { formatRelativeTime, formatMessageTime, getMessagePreview } from '@/lib/format';
-import type { ChatSummary, MessageSchema } from '@/api/types';
+import type { SarufiConversationRecord, SarufiMessageRecord } from '@/api/types';
 
 interface Chat {
   id: string;
@@ -24,52 +24,37 @@ interface Message {
   timestamp: string;
 }
 
-function summaryToChat(c: ChatSummary): Chat {
+function conversationToChat(c: SarufiConversationRecord): Chat {
   return {
-    id: c.phone_number,
-    phone: c.phone_number,
-    name: c.name ?? c.phone_number,
-    lastMessage: getMessagePreview(c.last_message as Record<string, unknown>),
+    id: c.id,
+    phone: c.user_phone,
+    name: c.contact_name ?? c.user_phone,
+    lastMessage: c.last_message_preview ?? '',
     timestamp: formatRelativeTime(c.last_message_at),
     unread: c.unread_count,
     status: c.unread_count > 0 ? 'human' : 'bot',
   };
 }
 
-function messagesToDisplay(rows: MessageSchema[]): Message[] {
-  const out: Message[] = [];
-  let idx = 0;
-  for (const row of rows) {
-    const userText = getMessagePreview(row.message as Record<string, unknown>);
-    if (userText && userText !== 'Message') {
-      out.push({
-        id: `u-${idx}`,
-        text: userText,
-        sender: 'user',
-        timestamp: formatMessageTime(row.created_at),
-      });
-      idx++;
-    }
-    const botText = getMessagePreview(row.response as Record<string, unknown>);
-    if (botText && botText !== 'Message') {
-      out.push({
-        id: `b-${idx}`,
-        text: botText,
-        sender: 'bot',
-        timestamp: formatMessageTime(row.updated_at),
-      });
-      idx++;
-    }
-  }
-  return out;
+function sarufiMessagesToDisplay(rows: SarufiMessageRecord[]): Message[] {
+  return rows.map((r) => ({
+    id: r.id,
+    text:
+      r.responder === 'HUMAN'
+        ? getMessagePreview((r.message ?? {}) as Record<string, unknown>)
+        : getMessagePreview((r.response ?? {}) as Record<string, unknown>),
+    sender: r.responder === 'HUMAN' ? 'user' : 'bot',
+    timestamp: formatMessageTime(r.received_at),
+  }));
 }
 
 export function Conversations() {
-  const { data: chatsData = [], isLoading: chatsLoading, error: chatsError } = useChats();
-  const chats = useMemo(() => chatsData.map(summaryToChat), [chatsData]);
+  const { data: conversationsData, isLoading: conversationsLoading, error: conversationsError } = usePharmacyConversations({ limit: 50 });
+  const conversations = conversationsData?.conversations ?? [];
+  const chats = useMemo(() => conversations.map(conversationToChat), [conversations]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(chats[0] ?? null);
-  const { data: chatHistory, isLoading: historyLoading, error: historyError } = useChatHistory(selectedChat?.phone ?? null);
-  const messages = useMemo(() => (chatHistory?.messages ? messagesToDisplay(chatHistory.messages) : []), [chatHistory?.messages]);
+  const { data: messagesData, isLoading: historyLoading, error: historyError } = useConversationMessages(selectedChat?.id ?? null);
+  const messages = useMemo(() => (messagesData?.messages ? sarufiMessagesToDisplay(messagesData.messages) : []), [messagesData?.messages]);
   const [messageInput, setMessageInput] = useState('');
 
   useEffect(() => {
@@ -98,13 +83,13 @@ export function Conversations() {
 
         <ScrollArea className="flex-1">
           <div className="divide-y divide-gray-100">
-            {chatsLoading ? (
+            {conversationsLoading ? (
               <div className="flex items-center justify-center py-8 text-gray-500">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
                 Loading…
               </div>
-            ) : chatsError ? (
-              <div className="p-4 text-sm text-red-600">Failed to load chats.</div>
+            ) : conversationsError ? (
+              <div className="p-4 text-sm text-red-600">Failed to load conversations.</div>
             ) : (
             chats.map((chat) => (
               <button
@@ -166,7 +151,7 @@ export function Conversations() {
       <div className="flex-1 flex flex-col">
         {!selectedChat ? (
           <div className="flex-1 flex items-center justify-center text-gray-500">
-            {chats.length === 0 && !chatsLoading ? 'No conversations yet.' : 'Select a conversation'}
+            {chats.length === 0 && !conversationsLoading ? 'No conversations yet.' : 'Select a conversation'}
           </div>
         ) : (
         <>

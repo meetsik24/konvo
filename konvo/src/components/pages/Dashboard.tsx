@@ -1,20 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare, Users, Send, ArrowUpRight, ArrowDownRight, Zap, Loader2 } from 'lucide-react';
-import { useChats } from '@/hooks/use-chats';
-import { usePriorityLeads } from '@/hooks/use-priority-leads';
-import { formatRelativeTime, getMessagePreview } from '@/lib/format';
+import { MessageSquare, Users, Send, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
+import { usePharmacyConversations } from '@/hooks/use-pharmacy';
+import { formatRelativeTime } from '@/lib/format';
 
 export function Dashboard() {
-  const { data: chats = [], isLoading: chatsLoading, error: chatsError } = useChats();
-  const { data: priorityLeads = [], isLoading: leadsLoading, error: leadsError } = usePriorityLeads();
-
-  const totalChats = chats.length;
-  const activeChats = chats.filter((c) => c.unread_count > 0).length;
+  const { data, isLoading: conversationsLoading, error: conversationsError } = usePharmacyConversations({ limit: 50 });
+  const conversations = data?.conversations ?? [];
+  const totalConversations = data?.count ?? conversations.length;
+  const activeConversations = conversations.filter((c) => c.unread_count > 0).length;
 
   const stats = [
     {
       title: 'Total Conversations',
-      value: chatsLoading ? '—' : totalChats.toLocaleString(),
+      value: conversationsLoading ? '—' : totalConversations.toLocaleString(),
       change: '—',
       trend: 'up' as const,
       icon: MessageSquare,
@@ -23,7 +21,7 @@ export function Dashboard() {
     },
     {
       title: 'Active Chats',
-      value: chatsLoading ? '—' : activeChats.toLocaleString(),
+      value: conversationsLoading ? '—' : activeConversations.toLocaleString(),
       change: '—',
       trend: 'up' as const,
       icon: Users,
@@ -40,28 +38,27 @@ export function Dashboard() {
       bgColor: 'bg-purple-50',
     },
     {
-      title: 'Priority Leads',
-      value: leadsLoading ? '—' : priorityLeads.length.toLocaleString(),
+      title: 'Unread',
+      value: conversationsLoading ? '—' : conversations.reduce((n, c) => n + c.unread_count, 0).toLocaleString(),
       change: '—',
       trend: 'up' as const,
-      icon: Zap,
+      icon: MessageSquare,
       color: 'text-amber-600',
       bgColor: 'bg-amber-50',
     },
   ];
 
-  const recentActivity: Array<{ user: string; message: string; time: string; status: 'bot' | 'human' }> =
-    [...chats]
-      .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
-      .slice(0, 5)
-      .map((c) => ({
-        user: c.phone_number,
-        message: getMessagePreview(c.last_message as Record<string, unknown>),
-        time: formatRelativeTime(c.last_message_at),
-        status: (c.unread_count > 0 ? 'human' : 'bot') as 'bot' | 'human',
-      }));
+  const recentActivity = [...conversations]
+    .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
+    .slice(0, 5)
+    .map((c) => ({
+      user: c.contact_name ?? c.user_phone,
+      message: c.last_message_preview ?? 'Message',
+      time: formatRelativeTime(c.last_message_at),
+      status: (c.unread_count > 0 ? 'human' : 'bot') as 'bot' | 'human',
+    }));
 
-  const hasError = !!chatsError || !!leadsError;
+  const hasError = !!conversationsError;
 
   return (
     <div className="p-8 space-y-8">
@@ -72,9 +69,8 @@ export function Dashboard() {
 
       {hasError && (
         <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          {chatsError && `Chats: ${chatsError.message}. `}
-          {leadsError && `Priority leads: ${leadsError.message}. `}
-          Ensure the API is running and /api is proxied to your backend.
+          {conversationsError && `Conversations: ${conversationsError.message}. `}
+          Check VITE_API_URL and that the pharmacy API is reachable.
         </div>
       )}
 
@@ -204,49 +200,16 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {priorityLeads.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Priority Leads</CardTitle>
-            <p className="text-sm text-gray-500 mt-1">High-intent leads with suggested actions</p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {priorityLeads.slice(0, 5).map((lead) => (
-                <div
-                  key={lead.phone_number}
-                  className="flex items-start justify-between py-3 border-b border-gray-100 last:border-0"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{lead.name ?? lead.phone_number}</p>
-                    <p className="text-xs text-gray-500">{lead.phone_number}</p>
-                    <p className="text-xs text-gray-600 mt-1">Score: {lead.lead_score}</p>
-                    {lead.proposed_actions?.length > 0 && (
-                      <ul className="mt-1 text-xs text-emerald-700 list-disc list-inside">
-                        {lead.proposed_actions.slice(0, 2).map((action, i) => (
-                          <li key={i}>{action}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-500">{formatRelativeTime(lead.last_message_at)}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {chatsLoading ? (
+            {conversationsLoading ? (
               <div className="flex items-center justify-center py-8 text-gray-500">
                 <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                Loading chats…
+                Loading…
               </div>
             ) : recentActivity.length === 0 ? (
               <p className="text-sm text-gray-500 py-4">No recent activity yet.</p>
