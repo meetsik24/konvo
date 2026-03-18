@@ -17,6 +17,15 @@ function App() {
     return () => window.removeEventListener('navigate', handler as EventListener);
   }, []);
 
+  useEffect(() => {
+    if (currentPage === 'dashboard') {
+      document.body.classList.add('dashboard-page');
+    } else {
+      document.body.classList.remove('dashboard-page');
+    }
+    return () => document.body.classList.remove('dashboard-page');
+  }, [currentPage]);
+
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':

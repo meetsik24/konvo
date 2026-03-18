@@ -1,16 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WhatsApp Chatbot Monitoring Dashboard</title>
-    <meta property="og:image" content="https://bolt.new/static/og_default.png" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://bolt.new/static/og_default.png" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/assets/briq.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Primary SEO Meta Tags -->
+  <title>Konvo | WhatsApp Chatbot Monitoring by BRIQ</title>
+  <meta name="description"
+    content="Konvo by BRIQ – Monitor your WhatsApp chatbot performance. Dashboard, conversations, and feedbacks. Follow us on Instagram & Twitter @karibubriq!" />
+  <meta name="keywords"
+    content="Konvo, WhatsApp chatbot monitoring, BRIQ WhatsApp, chatbot dashboard Tanzania, conversation analytics, chatbot feedback, BRIQ Solutions" />
+  <meta name="author" content="BRIQ Solutions" />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Open Graph Meta Tags for Social Media -->
+  <meta property="og:title" content="Konvo | WhatsApp Chatbot Monitoring | BRIQ" />
+  <meta property="og:description"
+    content="Monitor your WhatsApp chatbot performance with Konvo by BRIQ. Dashboard, conversations & feedbacks. Connect with us @karibubriq on Instagram & Twitter!" />
+  <meta property="og:image" content="/assets/briq2.png" />
+  <meta property="og:url" content="https://briq.tz/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Konvo by BRIQ" />
+
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Konvo | WhatsApp Chatbot Monitoring | BRIQ" />
+  <meta name="twitter:description"
+    content="WhatsApp chatbot monitoring dashboard by BRIQ. Follow @karibubriq on Twitter & Instagram!" />
+  <meta name="twitter:image" content="/assets/briq2.png" />
+  <meta name="twitter:site" content="@karibubriq" />
+  <meta name="twitter:creator" content="@karibubriq" />
+
+  <!-- Geo-Targeting for Tanzania -->
+  <meta name="geo.region" content="TZ" />
+  <meta name="geo.placename" content="Tanzania" />
+  <meta name="geo.position" content="-6.792354;39.208328" />
+  <meta name="ICBM" content="-6.792354, 39.208328" />
+
+  <!-- Structured Data (Schema.org) -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Konvo",
+      "applicationCategory": "BusinessApplication",
+      "description": "WhatsApp chatbot monitoring dashboard by BRIQ Solutions. Track conversations, feedback and performance.",
+      "url": "https://briq.tz/",
+      "publisher": {
+        "@type": "Organization",
+        "name": "BRIQ Solutions",
+        "url": "https://briq.tz/",
+        "sameAs": [
+          "https://www.instagram.com/karibubriq",
+          "https://twitter.com/karibubriq"
+        ]
+      }
+    }
+  </script>
+  <script async src="https://d2mpatx37cqexb.cloudfront.net/delightchat-whatsapp-widget/embeds/embed.min.js"></script>
+  <script>
+    var wa_btnSetting = { "btnColor": "#fddf0d", "ctaText": "Tupige Story!", "cornerRadius": "20", "marginBottom": 20, "marginLeft": 20, "marginRight": 20, "btnPosition": "right", "whatsAppNumber": "255788344348", "welcomeMessage": "Nataka kujua zaidi kuhusu Konvo na BRIQ WhatsApp!", "zIndex": 999999, "btnColorScheme": "dark" };
+    var wa_widgetSetting = { "title": "BRIQ", "subTitle": "Tuna reply chapchap!!", "headerBackgroundColor": "#fddf0d", "headerColorScheme": "dark", "greetingText": "Karibu Briq,\nNikusaidie nini leo??", "ctaText": "Tupige Story ", "btnColor": "#fddf0d", "cornerRadius": "10", "welcomeMessage": "Hello", "btnColorScheme": "dark", "brandImage": "https://upload.wikimedia.org/wikipedia/commons/8/8c/BRIQ_LOGO_DARK_2.png", "darkHeaderColorScheme": { "title": "#333333", "subTitle": "#4F4F4F" } };
+    window.onload = function () {
+      if (typeof _waEmbed === 'function') _waEmbed(wa_btnSetting, wa_widgetSetting);
+    };
+  </script>
+
+  <!-- Hide WhatsApp widget on mobile when inside dashboard (add body class "dashboard-page" in app when on dashboard) -->
+  <style>
+    @media (max-width: 767px) {
+      body.dashboard-page #wa-widget-send-button,
+      body.dashboard-page .wa-widget-button,
+      body.dashboard-page [id*="wa-"],
+      body.dashboard-page [class*="wa-widget"],
+      body.dashboard-page [class*="whatsapp-widget"] {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

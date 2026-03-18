@@ -3,12 +3,23 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - 'konvo/**'
   pull_request:
     branches: [main]
+    paths:
+      - 'konvo/**'
+  workflow_dispatch:
+
+env:
+  WORKING_DIR: konvo
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
     steps:
       - uses: actions/checkout@v4
 
@@ -17,6 +28,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: ${{ env.WORKING_DIR }}/package-lock.json
 
       - name: Install
         run: npm ci
@@ -25,3 +37,16 @@ jobs:
         run: npm run build
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL || '/api' }}
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel deployment
+        run: |
+          if [ -n "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" ]; then
+            curl -f -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+          else
+            echo "VERCEL_DEPLOY_HOOK_URL not set; skip hook. Vercel will deploy from Git."
+          fi
