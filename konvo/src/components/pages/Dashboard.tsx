@@ -128,18 +128,22 @@ export function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Feedback: Quality of Service</CardTitle>
+            <CardTitle>Feedback: Quality of service</CardTitle>
+            <p className="text-sm text-muted-foreground font-normal mt-1">
+              Breakdown of responses by rating. Data comes from <code className="bg-muted px-1 rounded text-xs">feedback.data.quality_of_service</code>.
+            </p>
           </CardHeader>
           <CardContent>
             {analyticsError ? (
-              <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-                Analytics unavailable. Check API.
+              <div className="flex flex-col items-center justify-center h-48 gap-2 text-sm text-muted-foreground text-center">
+                <span>Analytics unavailable.</span>
+                <span className="text-xs">Check that the API exposes GET /pharmacy/feedbacks/analytics and that feedback records include <code className="bg-muted px-1 rounded">quality_of_service</code> in <code className="bg-muted px-1 rounded">data</code>.</span>
               </div>
             ) : (
               <FeedbackAnalyticsPieChart
                 data={feedbackAnalytics ?? null}
                 isLoading={analyticsLoading}
-                title="Quality of Service"
+                fieldLabel="Quality of service"
               />
             )}
           </CardContent>

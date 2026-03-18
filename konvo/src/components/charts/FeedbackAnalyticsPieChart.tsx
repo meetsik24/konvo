@@ -14,37 +14,58 @@ const PIE_COLORS = [
   '#8b5cf6',
 ];
 
+/** Human-readable label for feedback.data field names */
+export function feedbackFieldLabel(field: string): string {
+  const labels: Record<string, string> = {
+    quality_of_service: 'Quality of service',
+    speed: 'Speed',
+    satisfaction: 'Satisfaction',
+    overall: 'Overall rating',
+  };
+  return labels[field] ?? field.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 type Props = {
   data: FeedbackAnalyticsResponse | null | undefined;
   isLoading?: boolean;
-  /** Chart title, e.g. "Quality of Service" */
-  title?: string;
+  /** Override label for the field (e.g. "Quality of service") */
+  fieldLabel?: string;
 };
 
-export function FeedbackAnalyticsPieChart({ data, isLoading }: Props) {
+export function FeedbackAnalyticsPieChart({ data, isLoading, fieldLabel }: Props) {
   const chartData = React.useMemo(() => {
     if (!data?.categories?.length) return [];
     return data.categories.map((c) => ({ name: String(c.value), value: c.count }));
   }, [data]);
 
+  const displayLabel = fieldLabel ?? (data?.field ? feedbackFieldLabel(data.field) : 'Feedback');
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-        Loading…
+      <div className="flex flex-col items-center justify-center h-48 gap-2 text-sm text-muted-foreground">
+        <span>Loading…</span>
       </div>
     );
   }
 
   if (!data?.categories?.length) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-        No feedback data yet.
+      <div className="flex flex-col items-center justify-center h-48 gap-2 text-sm text-muted-foreground text-center px-4">
+        <span>No feedback data yet.</span>
+        <span className="text-xs">
+          Feedback is grouped by <strong>{displayLabel}</strong>. Ensure the bot sends feedback with this field in <code className="bg-muted px-1 rounded">data</code>.
+        </span>
       </div>
     );
   }
 
   return (
     <>
+      {data.total_count != null && data.total_count > 0 && (
+        <p className="text-xs text-muted-foreground mb-3">
+          {data.total_count} response{data.total_count === 1 ? '' : 's'} · grouped by {displayLabel}
+        </p>
+      )}
       <div className="mx-auto h-48 w-full min-h-[192px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -86,7 +107,7 @@ export function FeedbackAnalyticsPieChart({ data, isLoading }: Props) {
               <span className="text-sm text-gray-700">{String(cat.value)}</span>
             </div>
             <span className="text-sm font-medium text-gray-900">
-              {Number(cat.percentage).toFixed(0)}%
+              {Number(cat.percentage).toFixed(0)}% <span className="text-gray-500 font-normal">({cat.count})</span>
             </span>
           </div>
         ))}
