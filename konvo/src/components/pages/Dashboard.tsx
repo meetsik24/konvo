@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare, Users, Send, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
-import { usePharmacyConversations, useFeedbackAnalytics } from '@/hooks/use-pharmacy';
+import { MessageSquare, Users, Send, ArrowUpRight, ArrowDownRight, Loader2, Star } from 'lucide-react';
+import { usePharmacyConversations, useFeedbackAnalytics, useFeedbacks } from '@/hooks/use-pharmacy';
 import { formatRelativeTime } from '@/lib/format';
 import { MessageTrendsLineChart } from '@/components/charts/MessageTrendsLineChart';
 import { FeedbackAnalyticsPieChart } from '@/components/charts/FeedbackAnalyticsPieChart';
+import { format } from 'date-fns';
 
 export function Dashboard() {
   const { data, isLoading: conversationsLoading, error: conversationsError } = usePharmacyConversations({ limit: 50 });
@@ -12,7 +13,9 @@ export function Dashboard() {
     isLoading: analyticsLoading,
     error: analyticsError,
   } = useFeedbackAnalytics({ field: 'quality_of_service' });
+  const { data: feedbacks } = useFeedbacks();
   const conversations = data?.conversations ?? [];
+  const recentFeedbacks = (feedbacks ?? []).slice(0, 5);
   const totalConversations = data?.count ?? conversations.length;
   const activeConversations = conversations.filter((c) => c.unread_count > 0).length;
 
@@ -143,11 +146,12 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="space-y-4">
             {conversationsLoading ? (
               <div className="flex items-center justify-center py-8 text-gray-500">
@@ -186,6 +190,53 @@ export function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Star className="w-5 h-5" />
+              Recent feedback
+            </CardTitle>
+            <a
+              href="#feedbacks"
+              onClick={(e) => {
+                e.preventDefault();
+                window.dispatchEvent(new CustomEvent('navigate', { detail: 'feedbacks' }));
+              }}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              View all
+            </a>
+          </CardHeader>
+          <CardContent>
+            {recentFeedbacks.length === 0 ? (
+              <p className="text-sm text-gray-500 py-4">No feedback yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {recentFeedbacks.map((f, i) => (
+                  <div key={f.id ?? i} className="text-sm">
+                    <span className="font-medium text-gray-900">{f.phone_number}</span>
+                    {f.created_at && (
+                      <span className="text-gray-500 ml-2">
+                        {format(new Date(f.created_at), 'MMM d, HH:mm')}
+                      </span>
+                    )}
+                    {f.data && Object.keys(f.data).length > 0 && (
+                      <div className="mt-1 text-gray-600 truncate">
+                        {Object.entries(f.data).map(([k, v]) => (
+                          <span key={k} className="mr-3">
+                            {k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

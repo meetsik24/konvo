@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/pages/Dashboard';
 import { Conversations } from './components/pages/Conversations';
+import { Feedbacks } from './components/pages/Feedbacks';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
@@ -10,12 +11,20 @@ function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  useEffect(() => {
+    const handler = (e: CustomEvent<string>) => setCurrentPage(e.detail);
+    window.addEventListener('navigate', handler as EventListener);
+    return () => window.removeEventListener('navigate', handler as EventListener);
+  }, []);
+
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard />;
       case 'conversations':
         return <Conversations />;
+      case 'feedbacks':
+        return <Feedbacks />;
       default:
         return <Dashboard />;
     }

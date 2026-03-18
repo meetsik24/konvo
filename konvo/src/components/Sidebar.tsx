@@ -1,4 +1,4 @@
-import { MessageSquare, LayoutDashboard } from 'lucide-react';
+import { MessageSquare, LayoutDashboard, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
@@ -10,6 +10,7 @@ interface SidebarProps {
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'conversations', label: 'Conversations', icon: MessageSquare },
+  { id: 'feedbacks', label: 'Feedbacks', icon: Star },
 ];
 
 export function Sidebar({ currentPage, onNavigate, className }: SidebarProps) {
