@@ -95,3 +95,41 @@ export interface ConversationMessagesParams {
   limit?: number;
   cursor?: string | null;
 }
+
+// Pharmacy feedback (OpenAPI: Feedback, FeedbackCreate, FeedbackAnalyticsResponse)
+export interface Feedback {
+  id?: number | null;
+  phone_number: string;
+  data: Record<string, unknown>;
+  created_at?: string;
+}
+
+export interface FeedbackCreate {
+  phone_number: string;
+  data: Record<string, unknown>;
+}
+
+export interface FeedbackCategoryStat {
+  value: string;
+  count: number;
+  percentage: number;
+}
+
+export interface FeedbackAnalyticsResponse {
+  field: string;
+  total_count: number;
+  categories: FeedbackCategoryStat[];
+}
+
+export interface GetFeedbacksParams {
+  phone_number?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+}
+
+export interface GetFeedbackAnalyticsParams {
+  field?: string;
+  phone_number?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+}

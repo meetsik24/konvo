@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Send, Phone, MoveVertical as MoreVertical, Bot, User, Loader2 } from 'lucide-react';
+import { Search, Send, Phone, MoveVertical as MoreVertical, Bot, User, Loader2, ArrowLeft } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { usePharmacyConversations, useConversationMessages } from '@/hooks/use-pharmacy';
-import { formatRelativeTime, formatMessageTime, getMessagePreview } from '@/lib/format';
+import { formatRelativeTime, formatMessageTime, getMessagePreview, formatMessageText } from '@/lib/format';
 import type { SarufiConversationRecord, SarufiMessageRecord } from '@/api/types';
+import { cn } from '@/lib/utils';
 
 interface Chat {
   id: string;
@@ -21,7 +22,7 @@ interface Message {
   id: string;
   text: string;
   sender: 'user' | 'bot' | 'agent';
-  timestamp: string;
+  at: string;
 }
 
 function conversationToChat(c: SarufiConversationRecord): Chat {
@@ -37,15 +38,39 @@ function conversationToChat(c: SarufiConversationRecord): Chat {
 }
 
 function sarufiMessagesToDisplay(rows: SarufiMessageRecord[]): Message[] {
-  return rows.map((r) => ({
-    id: r.id,
-    text:
-      r.responder === 'HUMAN'
-        ? getMessagePreview((r.message ?? {}) as Record<string, unknown>)
-        : getMessagePreview((r.response ?? {}) as Record<string, unknown>),
-    sender: r.responder === 'HUMAN' ? 'user' : 'bot',
-    timestamp: formatMessageTime(r.received_at),
-  }));
+  const out: Message[] = [];
+  rows.forEach((r) => {
+    const userText = formatMessageText(getMessagePreview((r.message ?? {}) as Record<string, unknown>));
+    const botText = formatMessageText(getMessagePreview((r.response ?? {}) as Record<string, unknown>));
+    if (userText) {
+      out.push({
+        id: `${r.id}-user`,
+        text: userText,
+        sender: 'user',
+        at: r.received_at,
+      });
+    }
+    if (botText) {
+      out.push({
+        id: `${r.id}-bot`,
+        text: botText,
+        sender: 'bot',
+        at: r.responded_at ?? r.received_at,
+      });
+    }
+    if (!userText && !botText) {
+      const fallback = r.responder === 'HUMAN' ? getMessagePreview((r.message ?? {}) as Record<string, unknown>) : getMessagePreview((r.response ?? {}) as Record<string, unknown>);
+      const text = formatMessageText(fallback) || '(no text)';
+      out.push({
+        id: r.id,
+        text,
+        sender: r.responder === 'HUMAN' ? 'user' : 'bot',
+        at: r.received_at,
+      });
+    }
+  });
+  // Sort by actual timestamp to ensure correct chat chronology
+  return out.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 }
 
 export function Conversations() {
@@ -53,8 +78,13 @@ export function Conversations() {
   const conversations = conversationsData?.conversations ?? [];
   const chats = useMemo(() => conversations.map(conversationToChat), [conversations]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(chats[0] ?? null);
+  const [showList, setShowList] = useState(true);
   const { data: messagesData, isLoading: historyLoading, error: historyError } = useConversationMessages(selectedChat?.id ?? null);
-  const messages = useMemo(() => (messagesData?.messages ? sarufiMessagesToDisplay(messagesData.messages) : []), [messagesData?.messages]);
+  const messages = useMemo(() => {
+    const raw = messagesData as { messages?: SarufiMessageRecord[]; data?: { messages?: SarufiMessageRecord[] } } | undefined;
+    const list = raw?.messages ?? raw?.data?.messages ?? [];
+    return sarufiMessagesToDisplay(list);
+  }, [messagesData]);
   const [messageInput, setMessageInput] = useState('');
 
   useEffect(() => {
@@ -68,8 +98,14 @@ export function Conversations() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <div className="w-96 bg-white border-r border-gray-200 flex flex-col">
+    <div className="flex h-full min-h-0 bg-background">
+      {/* List */}
+      <div
+        className={cn(
+          'w-full md:w-96 bg-white border-r border-gray-200 flex flex-col min-h-0',
+          showList ? 'flex' : 'hidden md:flex'
+        )}
+      >
         <div className="p-4 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900 mb-3">Conversations</h2>
           <div className="relative">
@@ -94,9 +130,12 @@ export function Conversations() {
             chats.map((chat) => (
               <button
                 key={chat.id}
-                onClick={() => setSelectedChat(chat)}
+                onClick={() => {
+                  setSelectedChat(chat);
+                  setShowList(false);
+                }}
                 className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${
-                  selectedChat?.id === chat.id ? 'bg-emerald-50' : ''
+                  selectedChat?.id === chat.id ? 'bg-primary/10' : ''
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -113,7 +152,7 @@ export function Conversations() {
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-gray-600 truncate">{chat.lastMessage}</p>
                       {chat.unread > 0 && (
-                        <span className="ml-2 bg-emerald-500 text-white text-xs font-medium px-2 py-0.5 rounded-full">
+                        <span className="ml-2 bg-primary text-white text-xs font-medium px-2 py-0.5 rounded-full">
                           {chat.unread}
                         </span>
                       )}
@@ -122,7 +161,7 @@ export function Conversations() {
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
                           chat.status === 'bot'
-                            ? 'bg-emerald-50 text-emerald-700'
+                            ? 'bg-primary/10 text-primary'
                             : 'bg-blue-50 text-blue-700'
                         }`}
                       >
@@ -148,7 +187,8 @@ export function Conversations() {
         </ScrollArea>
       </div>
 
-      <div className="flex-1 flex flex-col">
+      {/* Chat */}
+      <div className={cn('flex-1 min-w-0 flex flex-col min-h-0', showList ? 'hidden md:flex' : 'flex')}>
         {!selectedChat ? (
           <div className="flex-1 flex items-center justify-center text-gray-500">
             {chats.length === 0 && !conversationsLoading ? 'No conversations yet.' : 'Select a conversation'}
@@ -158,6 +198,15 @@ export function Conversations() {
         <div className="bg-white border-b border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="icon"
+                className="md:hidden"
+                onClick={() => setShowList(true)}
+                aria-label="Back to conversations"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
               <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
                 <User className="w-5 h-5 text-gray-600" />
               </div>
@@ -177,7 +226,7 @@ export function Conversations() {
           </div>
         </div>
 
-        <ScrollArea className="flex-1 p-6 bg-gray-50">
+        <ScrollArea className="flex-1 p-4 md:p-6 bg-background">
           <div className="space-y-4 max-w-4xl mx-auto">
             {historyLoading ? (
               <div className="flex justify-center py-8 text-gray-500">
@@ -194,23 +243,28 @@ export function Conversations() {
                 <div
                   className={`max-w-md ${
                     message.sender === 'user'
-                      ? 'bg-emerald-500 text-white'
+                      ? 'bg-primary text-white'
                       : 'bg-white text-gray-900'
                   } rounded-2xl px-4 py-2.5 shadow-sm`}
                 >
                   {message.sender !== 'user' && (
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Bot className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-xs font-medium text-emerald-600">Bot</span>
+                      <Bot className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-xs font-medium text-primary">Bot</span>
                     </div>
                   )}
-                  <p className="text-sm">{message.text}</p>
+                  <div
+                    className="text-sm whitespace-pre-wrap break-words hyphens-auto"
+                    style={{ wordBreak: 'break-word' }}
+                  >
+                    {message.text || '(no text)'}
+                  </div>
                   <p
                     className={`text-xs mt-1 ${
-                      message.sender === 'user' ? 'text-emerald-100' : 'text-gray-500'
+                      message.sender === 'user' ? 'text-white/80' : 'text-gray-500'
                     }`}
                   >
-                    {message.timestamp}
+                    {formatMessageTime(message.at)}
                   </p>
                 </div>
               </div>
@@ -228,12 +282,12 @@ export function Conversations() {
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
               className="flex-1"
             />
-            <Button onClick={handleSendMessage} className="bg-emerald-500 hover:bg-emerald-600">
+            <Button onClick={handleSendMessage} className="bg-primary hover:bg-primary/90">
               <Send className="w-4 h-4" />
             </Button>
           </div>
           <div className="mt-2 text-center">
-            <Button variant="link" className="text-sm text-emerald-600 hover:text-emerald-700">
+            <Button variant="link" className="text-sm text-primary hover:text-primary/90">
               Take over conversation
             </Button>
           </div>

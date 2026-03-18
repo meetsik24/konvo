@@ -1,10 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquare, Users, Send, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
-import { usePharmacyConversations } from '@/hooks/use-pharmacy';
+import { usePharmacyConversations, useFeedbackAnalytics } from '@/hooks/use-pharmacy';
 import { formatRelativeTime } from '@/lib/format';
+import { MessageTrendsLineChart } from '@/components/charts/MessageTrendsLineChart';
+import { FeedbackAnalyticsPieChart } from '@/components/charts/FeedbackAnalyticsPieChart';
 
 export function Dashboard() {
   const { data, isLoading: conversationsLoading, error: conversationsError } = usePharmacyConversations({ limit: 50 });
+  const {
+    data: feedbackAnalytics,
+    isLoading: analyticsLoading,
+    error: analyticsError,
+  } = useFeedbackAnalytics({ field: 'quality_of_service' });
   const conversations = data?.conversations ?? [];
   const totalConversations = data?.count ?? conversations.length;
   const activeConversations = conversations.filter((c) => c.unread_count > 0).length;
@@ -25,8 +32,8 @@ export function Dashboard() {
       change: '—',
       trend: 'up' as const,
       icon: Users,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50',
+      color: 'text-primary',
+      bgColor: 'bg-primary/10',
     },
     {
       title: 'Messages Sent Today',
@@ -43,8 +50,8 @@ export function Dashboard() {
       change: '—',
       trend: 'up' as const,
       icon: MessageSquare,
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-50',
+      color: 'text-accent-foreground',
+      bgColor: 'bg-accent/30',
     },
   ];
 
@@ -61,7 +68,7 @@ export function Dashboard() {
   const hasError = !!conversationsError;
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8">
       <div>
         <h1 className="text-3xl font-semibold text-gray-900">Dashboard</h1>
         <p className="text-gray-500 mt-1">Monitor your WhatsApp chatbot performance</p>
@@ -93,12 +100,12 @@ export function Dashboard() {
                 <div className="flex items-center gap-1 mt-2">
                   <TrendIcon
                     className={`w-4 h-4 ${
-                      stat.trend === 'up' ? 'text-emerald-600' : 'text-red-600'
+                      stat.trend === 'up' ? 'text-primary' : 'text-red-600'
                     }`}
                   />
                   <span
                     className={`text-sm font-medium ${
-                      stat.trend === 'up' ? 'text-emerald-600' : 'text-red-600'
+                      stat.trend === 'up' ? 'text-primary' : 'text-red-600'
                     }`}
                   >
                     {stat.change}
@@ -112,90 +119,26 @@ export function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Message Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-end justify-between gap-2">
-              {[65, 45, 78, 52, 88, 95, 72, 58, 82, 90, 75, 68].map((height, i) => (
-                <div key={i} className="flex-1 flex flex-col justify-end">
-                  <div
-                    className="bg-emerald-500 rounded-t hover:bg-emerald-600 transition-colors cursor-pointer"
-                    style={{ height: `${height}%` }}
-                  />
-                  <div className="text-xs text-gray-500 text-center mt-2">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'][i]}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-2">
+          <MessageTrendsLineChart conversations={conversations} />
+        </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Response Distribution</CardTitle>
+            <CardTitle>Feedback: Quality of Service</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center h-48">
-              <div className="relative w-40 h-40">
-                <svg className="w-full h-full" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="#f3f4f6"
-                    strokeWidth="20"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth="20"
-                    strokeDasharray="175.93 251.33"
-                    strokeDashoffset="0"
-                    transform="rotate(-90 50 50)"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="#6366f1"
-                    strokeWidth="20"
-                    strokeDasharray="75.40 251.33"
-                    strokeDashoffset="-175.93"
-                    transform="rotate(-90 50 50)"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">70%</div>
-                    <div className="text-xs text-gray-500">Bot</div>
-                  </div>
-                </div>
+            {analyticsError ? (
+              <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
+                Analytics unavailable. Check API.
               </div>
-            </div>
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-sm text-gray-700">Bot Responses</span>
-                </div>
-                <span className="text-sm font-medium text-gray-900">70%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                  <span className="text-sm text-gray-700">Human Responses</span>
-                </div>
-                <span className="text-sm font-medium text-gray-900">30%</span>
-              </div>
-            </div>
+            ) : (
+              <FeedbackAnalyticsPieChart
+                data={feedbackAnalytics ?? null}
+                isLoading={analyticsLoading}
+                title="Quality of Service"
+              />
+            )}
           </CardContent>
         </Card>
       </div>
@@ -229,7 +172,7 @@ export function Dashboard() {
                   <span
                     className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                       activity.status === 'bot'
-                        ? 'bg-emerald-50 text-emerald-700'
+                        ? 'bg-primary/10 text-primary'
                         : 'bg-blue-50 text-blue-700'
                     }`}
                   >

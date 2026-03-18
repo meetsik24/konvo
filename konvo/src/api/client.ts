@@ -23,6 +23,15 @@ async function request<T>(
 }
 
 export const api = {
+  // Dashboard endpoints
+  getChats: () => request<import('./types').ChatSummary[]>(`${API_BASE}/chats`),
+  getPriorityLeads: () => request<import('./types').PriorityLead[]>(`${API_BASE}/priority-leads`),
+  getChatHistory: (phoneNumber: string) =>
+    request<import('./types').ChatMessagesSchema>(
+      `${API_BASE}/chats/${encodeURIComponent(phoneNumber)}`
+    ),
+
+  // Pharmacy endpoints
   getPharmacyConversations: (params?: import('./types').PharmacyConversationsParams) =>
     request<import('./types').SarufiConversationsResponse>(`${API_BASE}/pharmacy/conversations`, {
       params: params as Record<string, string | number | undefined | null>,
@@ -33,7 +42,25 @@ export const api = {
   ) =>
     request<import('./types').SarufiConversationMessagesResponse>(
       `${API_BASE}/pharmacy/conversations/${encodeURIComponent(conversationId)}/messages`,
-      { params: params as Record<string, string | number | undefined | null> },
+      { params: params as Record<string, string | number | undefined | null> }
     ),
+
+  // Pharmacy feedback & analytics
+  getFeedbacks: (params?: import('./types').GetFeedbacksParams) =>
+    request<import('./types').Feedback[]>(`${API_BASE}/pharmacy/feedbacks`, {
+      params: params as Record<string, string | number | undefined | null>,
+    }),
+  createFeedback: (body: import('./types').FeedbackCreate) =>
+    request<import('./types').Feedback>(`${API_BASE}/pharmacy/feedbacks`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  getFeedbackAnalytics: (params?: import('./types').GetFeedbackAnalyticsParams) =>
+    request<import('./types').FeedbackAnalyticsResponse>(
+      `${API_BASE}/pharmacy/feedbacks/analytics`,
+      { params: params as Record<string, string | number | undefined | null> }
+    ),
+
+  // Health
   getStatus: () => request<Record<string, unknown>>(API_BASE),
 };
